@@ -1,14 +1,30 @@
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Flame, Target, Award, TrendingUp } from 'lucide-react';
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
+  const { getLevelByXP, levels } = useConfig();
   
   const currentXP = user?.xp || 0;
-  const nextLevelXP = 100;
-  const xpProgress = (currentXP / nextLevelXP) * 100;
+  const currentLevel = getLevelByXP(currentXP);
+  
+  // Find next level
+  const currentLevelIndex = levels.findIndex(l => l.level === currentLevel?.level);
+  const nextLevel = currentLevelIndex < levels.length - 1 ? levels[currentLevelIndex + 1] : null;
+  const nextLevelXP = nextLevel?.minXP || currentLevel?.maxXP || 100;
+  const currentLevelMinXP = currentLevel?.minXP || 0;
+  
+  // Calculate progress within current level
+  const xpInCurrentLevel = currentXP - currentLevelMinXP;
+  const xpNeededForLevel = nextLevelXP - currentLevelMinXP;
+  const xpProgress = (xpInCurrentLevel / xpNeededForLevel) * 100;
+  const xpToNextLevel = nextLevelXP - currentXP;
+  const progressPercentage = Math.min(Math.round(xpProgress), 100);
+  
+  const isNearLevelUp = xpProgress > 80;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -27,18 +43,47 @@ const ExecutiveDashboard = () => {
 
           {/* Info */}
           <div className="flex-1 text-center md:text-left">
-            <h2 className="text-3xl font-bold text-foreground mb-2">{user?.name}</h2>
-            <p className="text-muted-foreground mb-4">
-              ¡{100 - currentXP} XP para alcanzar Junior! 🎯
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+              <span className="text-3xl">{currentLevel?.icon || '🌱'}</span>
+              <h2 className="text-3xl font-bold text-foreground">{user?.name}</h2>
+            </div>
+            <p className="text-lg font-semibold text-primary mb-1">
+              {currentLevel?.level || 'Novato'}
             </p>
+            {nextLevel && (
+              <p className="text-muted-foreground mb-4">
+                🎯 {xpToNextLevel} XP para alcanzar {nextLevel.level}!
+              </p>
+            )}
             
-            {/* XP Progress */}
-            <div className="space-y-2">
+            {/* XP Progress - MEJORADO */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-semibold text-foreground">Experiencia</span>
-                <span className="font-bold text-primary">{currentXP} / {nextLevelXP} XP</span>
+                <span className="font-bold text-primary">
+                  {currentXP} / {nextLevelXP} XP ({progressPercentage}%)
+                </span>
               </div>
-              <Progress value={xpProgress} className="h-3 bg-muted" />
+              <div className="relative">
+                <Progress 
+                  value={xpProgress} 
+                  className={`h-6 bg-muted shadow-inner ${isNearLevelUp ? 'ring-2 ring-primary ring-offset-2 animate-pulse' : ''}`}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-accent opacity-80 rounded-full" 
+                     style={{ 
+                       width: `${xpProgress}%`,
+                       backgroundSize: '200% 100%',
+                       animation: 'shimmer 2s infinite linear'
+                     }} 
+                />
+                {isNearLevelUp && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary-foreground drop-shadow-lg">
+                      ¡Casi llegas! 🔥
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
