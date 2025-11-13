@@ -65,4 +65,8 @@ export interface Notification {
   icon: string;
   read: boolean;
   createdAt: Date;
+  metadata?: {
+    oldLevel?: string;
+    newLevel?: string;
+  };
 }
