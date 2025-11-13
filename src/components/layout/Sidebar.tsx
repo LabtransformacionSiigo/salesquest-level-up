@@ -27,6 +27,8 @@ const Sidebar = () => {
       case 'EJECUTIVO':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { path: '/register-sale', icon: PlusCircle, label: 'Registrar Venta' },
+          { path: '/sales-history', icon: BarChart3, label: 'Mis Ventas' },
           { path: '/missions', icon: Target, label: 'Misiones' },
           { path: '/ranking', icon: Award, label: 'Ranking' },
           { path: '/profile', icon: User, label: 'Perfil' },
@@ -34,8 +36,10 @@ const Sidebar = () => {
       case 'GERENTE':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { path: '/register-sale', icon: PlusCircle, label: 'Registrar Venta' },
+          { path: '/sales-history', icon: BarChart3, label: 'Ventas del Equipo' },
           { path: '/team', icon: Users, label: 'Mi Equipo' },
-          { path: '/create-mission', icon: PlusCircle, label: 'Crear Misión' },
+          { path: '/create-mission', icon: Target, label: 'Crear Misión' },
           { path: '/ranking', icon: Award, label: 'Ranking' },
           { path: '/profile', icon: User, label: 'Perfil' },
         ];
