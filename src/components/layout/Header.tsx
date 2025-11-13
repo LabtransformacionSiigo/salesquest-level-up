@@ -1,6 +1,5 @@
-import { Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 interface HeaderProps {
   title: string;
@@ -18,12 +17,7 @@ const Header = ({ title }: HeaderProps) => {
         
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-accent-foreground text-xs rounded-full flex items-center justify-center font-bold shadow-smooth-md">
-              3
-            </span>
-          </Button>
+          <NotificationBell />
 
           {/* User avatar */}
           <div className="flex items-center gap-3">

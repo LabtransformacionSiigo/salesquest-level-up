@@ -1,5 +1,11 @@
 export type UserRole = 'EJECUTIVO' | 'GERENTE' | 'ADMINISTRADOR';
 
+export interface ActiveMultiplier {
+  type: string;
+  multiplier: number;
+  expiresAt: Date;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -10,6 +16,9 @@ export interface User {
   avatar?: string;
   streak?: number;
   shields?: number;
+  activeMultipliers?: ActiveMultiplier[];
+  cellId?: string | null;
+  managerId?: string | null;
 }
 
 export interface Mission {
@@ -28,4 +37,32 @@ export interface Medal {
   description: string;
   icon: string;
   earnedAt?: string;
+}
+
+export interface Sale {
+  id: string;
+  userId: number;
+  userName: string;
+  productId: number;
+  productName: string;
+  quantity: number;
+  xpEarned: number;
+  multiplierApplied: number | null;
+  client: string | null;
+  date: Date;
+  notes: string | null;
+  registeredBy: number;
+  registeredByName: string;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: string;
+  userId: number;
+  type: 'LEVEL_UP' | 'SALE_REGISTERED' | 'MULTIPLIER_ACTIVATED' | 'MEDAL_EARNED' | 'STREAK_MAINTAINED';
+  title: string;
+  message: string;
+  icon: string;
+  read: boolean;
+  createdAt: Date;
 }
