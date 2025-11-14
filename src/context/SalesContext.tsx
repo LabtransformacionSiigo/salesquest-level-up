@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Sale, Notification } from '@/types';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { Sale, Notification, Medal, UserMedal } from '@/types';
 import { useAuth } from './AuthContext';
 import { useConfig } from './ConfigContext';
+import { evaluateMedalCriteria } from '@/utils/medalEvaluator';
 import { toast } from '@/hooks/use-toast';
 
 interface SalesContextType {
@@ -20,7 +21,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { user, updateUserXP } = useAuth();
-  const { getLevelByXP } = useConfig();
+  const { getLevelByXP, medals } = useConfig();
 
   const addNotification = (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
     const newNotification: Notification = {

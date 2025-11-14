@@ -17,15 +17,17 @@ export interface Level {
 }
 
 export interface Medal {
-  id: number;
+  id: string;
   name: string;
   icon: string;
   description: string;
   xp: number;
   criteria: string;
+  criteriaParams?: Record<string, any>;
   givesStreakSaver: boolean;
-  canBeAwardedMultipleTimes: boolean;
-  timesAwarded: number;
+  repeatable: boolean;
+  rarity?: 'común' | 'poco común' | 'rara' | 'épica' | 'legendaria';
+  active?: boolean;
 }
 
 export interface StreakXP {
@@ -71,9 +73,9 @@ interface ConfigContextType {
   updateLevelRange: (level: string, maxXP: number) => void;
   getLevelByXP: (xp: number) => Level | undefined;
   // Medal functions
-  addMedal: (medal: Omit<Medal, 'id' | 'timesAwarded'>) => void;
-  updateMedal: (id: number, medal: Partial<Medal>) => void;
-  deleteMedal: (id: number) => void;
+  addMedal: (medal: Omit<Medal, 'id'>) => void;
+  updateMedal: (id: string, medal: Partial<Medal>) => void;
+  deleteMedal: (id: string) => void;
   // Streak functions
   updateStreakXP: (week: number | string, xp: number) => void;
   addStreakWeek: () => void;
@@ -104,37 +106,118 @@ const initialLevels: Level[] = [
 
 const initialMedals: Medal[] = [
   {
-    id: 1,
+    id: 'first-sale',
     name: "Primera Venta",
     icon: "🎯",
     description: "Realiza tu primera venta",
     xp: 50,
     criteria: "PRIMERA_VENTA",
     givesStreakSaver: true,
-    canBeAwardedMultipleTimes: false,
-    timesAwarded: 0
+    repeatable: false,
+    rarity: 'común',
+    active: true
   },
   {
-    id: 2,
-    name: "Primer Mes Cumpliendo",
-    icon: "🌟",
-    description: "Cumple tu meta del mes por primera vez",
+    id: 'sales-10',
+    name: "Vendedor Activo",
+    icon: "💼",
+    description: "Registra 10 ventas en el mes",
     xp: 100,
-    criteria: "PRIMERA_META",
+    criteria: "VENTAS_MES_X",
+    criteriaParams: { count: 10 },
     givesStreakSaver: false,
-    canBeAwardedMultipleTimes: false,
-    timesAwarded: 0
+    repeatable: true,
+    rarity: 'común',
+    active: true
   },
   {
-    id: 3,
+    id: 'cloud-master',
+    name: "Master de Nube",
+    icon: "☁️",
+    description: "Vende 5 productos Nube",
+    xp: 150,
+    criteria: "PRODUCTO_ESPECIFICO_X",
+    criteriaParams: { product: "Nube", count: 5 },
+    givesStreakSaver: false,
+    repeatable: true,
+    rarity: 'poco común',
+    active: true
+  },
+  {
+    id: 'level-junior',
+    name: "Ascenso Junior",
+    icon: "💙",
+    description: "Alcanza el nivel Junior",
+    xp: 100,
+    criteria: "NIVEL_ALCANZADO",
+    criteriaParams: { level: "Junior" },
+    givesStreakSaver: false,
+    repeatable: false,
+    rarity: 'común',
+    active: true
+  },
+  {
+    id: 'level-senior',
+    name: "Ascenso Senior",
+    icon: "💜",
+    description: "Alcanza el nivel Senior",
+    xp: 200,
+    criteria: "NIVEL_ALCANZADO",
+    criteriaParams: { level: "Senior" },
+    givesStreakSaver: true,
+    repeatable: false,
+    rarity: 'poco común',
+    active: true
+  },
+  {
+    id: 'streak-4',
+    name: "Compromiso Sólido",
+    icon: "🔥",
+    description: "Mantén una racha de 4 semanas",
+    xp: 80,
+    criteria: "RACHA_SEMANAS_X",
+    criteriaParams: { weeks: 4 },
+    givesStreakSaver: true,
+    repeatable: true,
+    rarity: 'común',
+    active: true
+  },
+  {
+    id: 'streak-12',
+    name: "Imparable",
+    icon: "🚀",
+    description: "Mantén una racha de 12 semanas",
+    xp: 300,
+    criteria: "RACHA_SEMANAS_X",
+    criteriaParams: { weeks: 12 },
+    givesStreakSaver: true,
+    repeatable: true,
+    rarity: 'rara',
+    active: true
+  },
+  {
+    id: 'top-seller',
     name: "Vendedor del Mes",
     icon: "👑",
-    description: "Sé el vendedor con más XP del mes",
-    xp: 200,
+    description: "Sé el vendedor #1 del mes en tu célula",
+    xp: 500,
     criteria: "TOP_VENDEDOR_MES",
     givesStreakSaver: true,
-    canBeAwardedMultipleTimes: true,
-    timesAwarded: 0
+    repeatable: true,
+    rarity: 'épica',
+    active: true
+  },
+  {
+    id: 'top-3',
+    name: "Elite del Mes",
+    icon: "🥉",
+    description: "Termina en el top 3 del mes",
+    xp: 200,
+    criteria: "TOP_3_VENDEDOR_MES",
+    givesStreakSaver: false,
+    repeatable: true,
+    rarity: 'rara',
+    active: true
   }
 ];
 
@@ -270,16 +353,16 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Medal functions
-  const addMedal = (medal: Omit<Medal, 'id' | 'timesAwarded'>) => {
-    const newId = Math.max(...medals.map(m => m.id), 0) + 1;
-    setMedals([...medals, { ...medal, id: newId, timesAwarded: 0 }]);
+  const addMedal = (medal: Omit<Medal, 'id'>) => {
+    const newId = `medal-${Date.now()}`;
+    setMedals([...medals, { ...medal, id: newId, active: true }]);
   };
 
-  const updateMedal = (id: number, medal: Partial<Medal>) => {
+  const updateMedal = (id: string, medal: Partial<Medal>) => {
     setMedals(medals.map(m => m.id === id ? { ...m, ...medal } : m));
   };
 
-  const deleteMedal = (id: number) => {
+  const deleteMedal = (id: string) => {
     setMedals(medals.filter(m => m.id !== id));
   };
 

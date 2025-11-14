@@ -30,8 +30,8 @@ const MedalsTab = () => {
   const { medals, addMedal, updateMedal, deleteMedal } = useConfig();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -40,10 +40,10 @@ const MedalsTab = () => {
     xp: '',
     criteria: 'PRIMERA_VENTA',
     givesStreakSaver: false,
-    canBeAwardedMultipleTimes: false
+    repeatable: false
   });
 
-  const handleOpenDialog = (id?: number) => {
+  const handleOpenDialog = (id?: string) => {
     if (id) {
       const medal = medals.find(m => m.id === id);
       if (medal) {
@@ -54,7 +54,7 @@ const MedalsTab = () => {
           xp: medal.xp.toString(),
           criteria: medal.criteria,
           givesStreakSaver: medal.givesStreakSaver,
-          canBeAwardedMultipleTimes: medal.canBeAwardedMultipleTimes
+          repeatable: medal.repeatable
         });
         setEditingId(id);
       }
@@ -66,7 +66,7 @@ const MedalsTab = () => {
         xp: '',
         criteria: 'PRIMERA_VENTA',
         givesStreakSaver: false,
-        canBeAwardedMultipleTimes: false
+        repeatable: false
       });
       setEditingId(null);
     }
@@ -74,20 +74,11 @@ const MedalsTab = () => {
   };
 
   const handleSubmit = () => {
-    if (!formData.name.trim() || !formData.description.trim() || !formData.xp || parseInt(formData.xp) <= 0) {
+    if (!formData.name || !formData.xp) {
       toast({
+        variant: "destructive",
         title: "Error",
-        description: "Por favor completa todos los campos correctamente",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (formData.name.length > 30) {
-      toast({
-        title: "Error",
-        description: "El nombre no puede tener más de 30 caracteres",
-        variant: "destructive"
+        description: "Por favor completa todos los campos obligatorios"
       });
       return;
     }
@@ -99,22 +90,23 @@ const MedalsTab = () => {
       xp: parseInt(formData.xp),
       criteria: formData.criteria,
       givesStreakSaver: formData.givesStreakSaver,
-      canBeAwardedMultipleTimes: formData.canBeAwardedMultipleTimes
+      repeatable: formData.repeatable
     };
 
     if (editingId) {
       updateMedal(editingId, medalData);
       toast({
         title: "Medalla actualizada",
-        description: "Los cambios se guardaron correctamente"
+        description: `La medalla "${formData.name}" ha sido actualizada correctamente`
       });
     } else {
       addMedal(medalData);
       toast({
         title: "Medalla creada",
-        description: "La medalla se creó correctamente"
+        description: `La medalla "${formData.name}" ha sido creada correctamente`
       });
     }
+
     setIsDialogOpen(false);
   };
 
@@ -123,7 +115,7 @@ const MedalsTab = () => {
       deleteMedal(deleteId);
       toast({
         title: "Medalla eliminada",
-        description: "La medalla se eliminó correctamente"
+        description: "La medalla ha sido eliminada correctamente"
       });
       setDeleteId(null);
     }
@@ -242,8 +234,8 @@ const MedalsTab = () => {
                     <p className="text-xs text-muted-foreground">Permitir que un usuario la gane varias veces</p>
                   </div>
                   <Switch
-                    checked={formData.canBeAwardedMultipleTimes}
-                    onCheckedChange={(checked) => setFormData({ ...formData, canBeAwardedMultipleTimes: checked })}
+                    checked={formData.repeatable}
+                    onCheckedChange={(checked) => setFormData({ ...formData, repeatable: checked })}
                   />
                 </div>
               </div>
@@ -279,15 +271,11 @@ const MedalsTab = () => {
                     Otorga Recuperador
                   </Badge>
                 )}
-                {medal.canBeAwardedMultipleTimes && (
+                {medal.repeatable && (
                   <Badge variant="secondary" className="w-full justify-center text-xs">
                     Múltiples veces
                   </Badge>
                 )}
-              </div>
-
-              <div className="text-center text-sm text-muted-foreground mb-4">
-                Otorgada {medal.timesAwarded} {medal.timesAwarded === 1 ? 'vez' : 'veces'}
               </div>
 
               <div className="flex gap-2">
