@@ -19,6 +19,7 @@ export interface User {
   activeMultipliers?: ActiveMultiplier[];
   cellId?: string | null;
   managerId?: string | null;
+  medals?: UserMedal[];
 }
 
 export interface Mission {
@@ -32,11 +33,27 @@ export interface Mission {
 }
 
 export interface Medal {
-  id: number;
+  id: string;
   name: string;
   description: string;
   icon: string;
-  earnedAt?: string;
+  xp: number;
+  criteria: string;
+  criteriaParams?: Record<string, any>;
+  givesStreakSaver: boolean;
+  repeatable: boolean;
+  rarity?: 'común' | 'poco común' | 'rara' | 'épica' | 'legendaria';
+  active?: boolean;
+}
+
+export interface UserMedal {
+  medalId: string;
+  obtainedAt: Date;
+  context?: {
+    totalXP: number;
+    level: string;
+    triggerEvent: string;
+  };
 }
 
 export interface Sale {
@@ -68,5 +85,7 @@ export interface Notification {
   metadata?: {
     oldLevel?: string;
     newLevel?: string;
+    medalId?: string;
+    xpEarned?: number;
   };
 }
