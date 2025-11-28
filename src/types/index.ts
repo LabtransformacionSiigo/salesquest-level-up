@@ -18,8 +18,12 @@ export interface User {
   shields?: number;
   activeMultipliers?: ActiveMultiplier[];
   cellId?: string | null;
-  managerId?: string | null;
+  managerId?: number | null;
+  managerName?: string | null;
   medals?: UserMedal[];
+  joinDate?: string;
+  country?: string;
+  segment?: string;
 }
 
 export interface Mission {

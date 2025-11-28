@@ -15,6 +15,7 @@ import RegisterSale from '@/pages/RegisterSale';
 import SalesHistory from '@/pages/SalesHistory';
 import Settings from '@/pages/Settings';
 import Medals from '@/pages/Medals';
+import Users from '@/pages/Users';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 
@@ -40,7 +41,7 @@ function App() {
                 <Route path="/profile" element={<Placeholder title="Mi Perfil" />} />
                 <Route path="/team" element={<Placeholder title="Mi Equipo" />} />
                 <Route path="/create-mission" element={<Placeholder title="Crear Misión" />} />
-                <Route path="/users" element={<Placeholder title="Usuarios" />} />
+                <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<Placeholder title="Análisis" />} />
                 
                 <Route path="*" element={<NotFound />} />
