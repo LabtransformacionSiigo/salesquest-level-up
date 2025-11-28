@@ -3,10 +3,14 @@ import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
+  users: User[];
   login: (email: string, password: string) => boolean;
   logout: () => void;
   isAuthenticated: boolean;
   updateUserXP: (userId: number, newXP: number) => void;
+  addUser: (userData: Omit<User, 'id'> & { password: string }) => User;
+  getAllUsers: () => User[];
+  getManagers: () => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,17 +50,16 @@ const testUsers: User[] = [
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>(testUsers);
+  const [passwords, setPasswords] = useState<Record<string, string>>({
+    "admin@salesquest.com": "admin123",
+    "gerente@salesquest.com": "gerente123",
+    "ejecutivo@salesquest.com": "ejecutivo123"
+  });
 
   const login = (email: string, password: string): boolean => {
-    // Validación simple para testing
-    const validPasswords: Record<string, string> = {
-      "admin@salesquest.com": "admin123",
-      "gerente@salesquest.com": "gerente123",
-      "ejecutivo@salesquest.com": "ejecutivo123"
-    };
-
-    if (validPasswords[email] === password) {
-      const foundUser = testUsers.find(u => u.email === email);
+    if (passwords[email] === password) {
+      const foundUser = users.find(u => u.email === email);
       if (foundUser) {
         setUser(foundUser);
         return true;
@@ -73,15 +76,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user && user.id === userId) {
       setUser({ ...user, xp: newXP });
     }
+    // Also update in users list
+    setUsers(users.map(u => u.id === userId ? { ...u, xp: newXP } : u));
+  };
+
+  const addUser = (userData: Omit<User, 'id'> & { password: string }): User => {
+    const newId = Math.max(...users.map(u => u.id), 0) + 1;
+    const { password, ...userDataWithoutPassword } = userData;
+    
+    const newUser: User = {
+      ...userDataWithoutPassword,
+      id: newId,
+      xp: 0,
+      level: 'Novato',
+      streak: 0,
+      shields: 0,
+      medals: []
+    };
+
+    setUsers([...users, newUser]);
+    setPasswords({ ...passwords, [newUser.email]: password });
+    
+    return newUser;
+  };
+
+  const getAllUsers = (): User[] => {
+    return users;
+  };
+
+  const getManagers = (): User[] => {
+    return users.filter(u => u.role === 'GERENTE');
   };
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
+      user,
+      users,
       login, 
       logout, 
       isAuthenticated: !!user,
-      updateUserXP
+      updateUserXP,
+      addUser,
+      getAllUsers,
+      getManagers
     }}>
       {children}
     </AuthContext.Provider>
