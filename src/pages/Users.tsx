@@ -20,7 +20,7 @@ import type { User } from '@/types';
 const userSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es muy largo'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
   role: z.enum(['GERENTE', 'EJECUTIVO'], { required_error: 'Selecciona un rol' }),
   joinDate: z.string().min(1, 'Selecciona la fecha de vinculación'),
   country: z.string().min(1, 'Selecciona el país'),
@@ -167,6 +167,12 @@ const Users = () => {
     reset();
   };
 
+  const handleNewUser = () => {
+    setEditingUser(null);
+    reset();
+    setOpen(true);
+  };
+
   return (
     <Layout title="Gestión de Usuarios">
       <div className="space-y-6">
@@ -182,13 +188,16 @@ const Users = () => {
             </p>
           </div>
 
-          <Dialog open={open} onOpenChange={handleDialogClose}>
-            <DialogTrigger asChild>
-              <Button size="lg" className="gap-2">
-                <UserPlus className="w-5 h-5" />
-                Nuevo Usuario
-              </Button>
-            </DialogTrigger>
+          <Button size="lg" className="gap-2" onClick={handleNewUser}>
+            <UserPlus className="w-5 h-5" />
+            Nuevo Usuario
+          </Button>
+
+          <Dialog open={open} onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              handleDialogClose();
+            }
+          }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-2xl">
@@ -247,7 +256,10 @@ const Users = () => {
                   {/* Rol */}
                   <div className="space-y-2">
                     <Label htmlFor="role">Rol *</Label>
-                    <Select onValueChange={(value) => setValue('role', value as 'GERENTE' | 'EJECUTIVO')}>
+                    <Select 
+                      value={watch('role')} 
+                      onValueChange={(value) => setValue('role', value as 'GERENTE' | 'EJECUTIVO')}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el rol" />
                       </SelectTrigger>
@@ -285,7 +297,10 @@ const Users = () => {
                       <Globe className="w-4 h-4" />
                       País *
                     </Label>
-                    <Select onValueChange={(value) => setValue('country', value)}>
+                    <Select 
+                      value={watch('country')} 
+                      onValueChange={(value) => setValue('country', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el país" />
                       </SelectTrigger>
@@ -308,7 +323,10 @@ const Users = () => {
                       <Target className="w-4 h-4" />
                       Segmento *
                     </Label>
-                    <Select onValueChange={(value) => setValue('segment', value)}>
+                    <Select 
+                      value={watch('segment')} 
+                      onValueChange={(value) => setValue('segment', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el segmento" />
                       </SelectTrigger>
@@ -347,7 +365,10 @@ const Users = () => {
                   {selectedRole === 'EJECUTIVO' && (
                     <div className="space-y-2">
                       <Label htmlFor="managerId">Gerente Inmediato *</Label>
-                      <Select onValueChange={(value) => setValue('managerId', value)}>
+                      <Select 
+                        value={watch('managerId')} 
+                        onValueChange={(value) => setValue('managerId', value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona el gerente" />
                         </SelectTrigger>
