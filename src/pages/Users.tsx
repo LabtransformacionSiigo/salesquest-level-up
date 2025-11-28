@@ -9,16 +9,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { UserPlus, Users as UsersIcon, Mail, Calendar, Globe, Target, Briefcase } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { UserPlus, Users as UsersIcon, Mail, Calendar, Globe, Target, Briefcase, Pencil, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import type { User } from '@/types';
 
 const userSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es muy largo'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
   role: z.enum(['GERENTE', 'EJECUTIVO'], { required_error: 'Selecciona un rol' }),
   joinDate: z.string().min(1, 'Selecciona la fecha de vinculación'),
   country: z.string().min(1, 'Selecciona el país'),
@@ -30,8 +32,11 @@ const userSchema = z.object({
 type UserFormData = z.infer<typeof userSchema>;
 
 const Users = () => {
-  const { isAuthenticated, user, addUser, getAllUsers, getManagers } = useAuth();
+  const { isAuthenticated, user, addUser, updateUser, deleteUser, getAllUsers, getManagers } = useAuth();
   const [open, setOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
 
   const {
@@ -60,36 +65,106 @@ const Users = () => {
 
   const onSubmit = (data: UserFormData) => {
     try {
-      const newUser = addUser({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: data.role,
-        joinDate: data.joinDate,
-        country: data.country,
-        segment: data.segment,
-        cellId: data.cellId,
-        managerId: data.managerId ? parseInt(data.managerId) : null,
-        managerName: data.managerId
-          ? managers.find(m => m.id === parseInt(data.managerId))?.name || null
-          : null,
-        avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
-      });
+      if (editingUser) {
+        // Update existing user
+        updateUser(editingUser.id, {
+          name: data.name,
+          email: data.email,
+          ...(data.password && { password: data.password }),
+          role: data.role,
+          joinDate: data.joinDate,
+          country: data.country,
+          segment: data.segment,
+          cellId: data.cellId,
+          managerId: data.managerId ? parseInt(data.managerId) : null,
+          managerName: data.managerId
+            ? managers.find(m => m.id === parseInt(data.managerId))?.name || null
+            : null,
+          avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
+        });
 
-      toast({
-        title: '✅ Usuario creado',
-        description: `${newUser.name} ha sido agregado exitosamente`,
-      });
+        toast({
+          title: '✅ Usuario actualizado',
+          description: `${data.name} ha sido actualizado exitosamente`,
+        });
+      } else {
+        // Create new user
+        const newUser = addUser({
+          name: data.name,
+          email: data.email,
+          password: data.password!,
+          role: data.role,
+          joinDate: data.joinDate,
+          country: data.country,
+          segment: data.segment,
+          cellId: data.cellId,
+          managerId: data.managerId ? parseInt(data.managerId) : null,
+          managerName: data.managerId
+            ? managers.find(m => m.id === parseInt(data.managerId))?.name || null
+            : null,
+          avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
+        });
+
+        toast({
+          title: '✅ Usuario creado',
+          description: `${newUser.name} ha sido agregado exitosamente`,
+        });
+      }
 
       reset();
       setOpen(false);
+      setEditingUser(null);
     } catch (error) {
       toast({
         title: '❌ Error',
-        description: 'No se pudo crear el usuario',
+        description: editingUser ? 'No se pudo actualizar el usuario' : 'No se pudo crear el usuario',
         variant: 'destructive',
       });
     }
+  };
+
+  const handleEdit = (usr: User) => {
+    setEditingUser(usr);
+    setValue('name', usr.name);
+    setValue('email', usr.email);
+    setValue('role', usr.role as 'GERENTE' | 'EJECUTIVO');
+    setValue('joinDate', usr.joinDate || '');
+    setValue('country', usr.country || '');
+    setValue('segment', usr.segment || '');
+    setValue('cellId', usr.cellId || '');
+    setValue('managerId', usr.managerId?.toString() || '');
+    setOpen(true);
+  };
+
+  const handleDeleteClick = (usr: User) => {
+    setUserToDelete(usr);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (userToDelete) {
+      try {
+        deleteUser(userToDelete.id);
+        toast({
+          title: '✅ Usuario eliminado',
+          description: `${userToDelete.name} ha sido eliminado del sistema`,
+        });
+        setDeleteDialogOpen(false);
+        setUserToDelete(null);
+      } catch (error) {
+        toast({
+          title: '❌ Error',
+          description: 'No se pudo eliminar el usuario',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const handleDialogClose = () => {
+    setOpen(false);
+    setEditingUser(null);
+    reset();
   };
 
   return (
@@ -107,7 +182,7 @@ const Users = () => {
             </p>
           </div>
 
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button size="lg" className="gap-2">
                 <UserPlus className="w-5 h-5" />
@@ -116,7 +191,9 @@ const Users = () => {
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-2xl">Crear Nuevo Usuario</DialogTitle>
+                <DialogTitle className="text-2xl">
+                  {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+                </DialogTitle>
               </DialogHeader>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -152,12 +229,14 @@ const Users = () => {
 
                 {/* Contraseña */}
                 <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña *</Label>
+                  <Label htmlFor="password">
+                    Contraseña {editingUser ? '(opcional - dejar vacío para mantener actual)' : '*'}
+                  </Label>
                   <Input
                     id="password"
                     type="password"
                     {...register('password')}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder={editingUser ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'}
                   />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password.message}</p>
@@ -288,11 +367,11 @@ const Users = () => {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  <Button type="button" variant="outline" onClick={handleDialogClose}>
                     Cancelar
                   </Button>
                   <Button type="submit">
-                    Crear Usuario
+                    {editingUser ? 'Actualizar Usuario' : 'Crear Usuario'}
                   </Button>
                 </div>
               </form>
@@ -354,6 +433,7 @@ const Users = () => {
                     <TableHead>Gerente</TableHead>
                     <TableHead>Fecha Vinculación</TableHead>
                     <TableHead>Nivel</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -385,6 +465,30 @@ const Users = () => {
                       <TableCell>
                         <span className="font-medium text-primary">{usr.level || '-'}</span>
                       </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          {usr.role !== 'ADMINISTRADOR' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEdit(usr)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteClick(usr)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -392,6 +496,28 @@ const Users = () => {
             </div>
           </div>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{' '}
+                <span className="font-semibold">{userToDelete?.name}</span> y todos sus datos asociados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

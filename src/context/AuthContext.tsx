@@ -9,6 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   updateUserXP: (userId: number, newXP: number) => void;
   addUser: (userData: Omit<User, 'id'> & { password: string }) => User;
+  updateUser: (userId: number, userData: Partial<User> & { password?: string }) => void;
+  deleteUser: (userId: number) => void;
   getAllUsers: () => User[];
   getManagers: () => User[];
 }
@@ -108,6 +110,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return users.filter(u => u.role === 'GERENTE');
   };
 
+  const updateUser = (userId: number, userData: Partial<User> & { password?: string }) => {
+    const { password, ...userUpdateData } = userData;
+    
+    setUsers(users.map(u => u.id === userId ? { ...u, ...userUpdateData } : u));
+    
+    if (password) {
+      const userToUpdate = users.find(u => u.id === userId);
+      if (userToUpdate) {
+        setPasswords({ ...passwords, [userToUpdate.email]: password });
+      }
+    }
+    
+    // Update current user if it's the same
+    if (user && user.id === userId) {
+      setUser({ ...user, ...userUpdateData });
+    }
+  };
+
+  const deleteUser = (userId: number) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (userToDelete) {
+      setUsers(users.filter(u => u.id !== userId));
+      const { [userToDelete.email]: _, ...remainingPasswords } = passwords;
+      setPasswords(remainingPasswords);
+      
+      // Logout if deleting current user
+      if (user && user.id === userId) {
+        setUser(null);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user,
@@ -117,6 +151,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated: !!user,
       updateUserXP,
       addUser,
+      updateUser,
+      deleteUser,
       getAllUsers,
       getManagers
     }}>
