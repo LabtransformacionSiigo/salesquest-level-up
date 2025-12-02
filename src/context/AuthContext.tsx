@@ -35,7 +35,8 @@ const testUsers: User[] = [
     level: "Junior",
     avatar: "👨‍💼",
     streak: 3,
-    shields: 1
+    shields: 1,
+    cellId: "CEL-001"
   },
   {
     id: 3,
@@ -46,7 +47,11 @@ const testUsers: User[] = [
     level: "Novato",
     avatar: "👩‍💻",
     streak: 0,
-    shields: 0
+    shields: 0,
+    managerId: 2,
+    cellId: "CEL-001",
+    country: "México",
+    segment: "Enterprise"
   }
 ];
 

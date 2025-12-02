@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSales } from '@/context/SalesContext';
 import { useConfig } from '@/context/ConfigContext';
@@ -7,6 +8,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   Users, 
   Trophy, 
@@ -15,14 +43,61 @@ import {
   Flame,
   Shield,
   Target,
-  Crown
+  Crown,
+  Plus,
+  Pencil,
+  Trash2,
+  UserPlus
 } from 'lucide-react';
 import { User } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const executiveSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
+  country: z.string().min(1, 'Selecciona un país'),
+  segment: z.string().min(1, 'Selecciona un segmento'),
+  cellId: z.string().min(1, 'Selecciona una célula'),
+});
+
+type ExecutiveFormData = z.infer<typeof executiveSchema>;
+
+const COUNTRIES = ['México', 'Colombia', 'Chile', 'Perú', 'Argentina', 'Brasil'];
+const SEGMENTS = ['Enterprise', 'SMB', 'Startup', 'Government'];
+const CELLS = ['CEL-001', 'CEL-002', 'CEL-003'];
 
 const MyTeam = () => {
-  const { user, isAuthenticated, users } = useAuth();
+  const { user, isAuthenticated, users, addUser, updateUser, deleteUser } = useAuth();
   const { getSalesByUser } = useSales();
   const { getLevelByXP, levels } = useConfig();
+  const { toast } = useToast();
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<User | null>(null);
+  const [deletingMember, setDeletingMember] = useState<User | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ExecutiveFormData>({
+    resolver: zodResolver(executiveSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      country: '',
+      segment: '',
+      cellId: '',
+    },
+  });
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -92,15 +167,111 @@ const MyTeam = () => {
     return <span className="text-sm font-bold text-muted-foreground">#{index + 1}</span>;
   };
 
+  const handleOpenAddDialog = () => {
+    reset({
+      name: '',
+      email: '',
+      password: '',
+      country: '',
+      segment: '',
+      cellId: user.cellId || 'CEL-001',
+    });
+    setIsAddDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (member: User) => {
+    reset({
+      name: member.name,
+      email: member.email,
+      password: '',
+      country: member.country || '',
+      segment: member.segment || '',
+      cellId: member.cellId || '',
+    });
+    setEditingMember(member);
+  };
+
+  const handleCloseDialogs = () => {
+    setIsAddDialogOpen(false);
+    setEditingMember(null);
+    reset();
+  };
+
+  const onSubmitAdd = (data: ExecutiveFormData) => {
+    addUser({
+      name: data.name,
+      email: data.email,
+      password: data.password || 'ejecutivo123',
+      role: 'EJECUTIVO',
+      managerId: user.id,
+      avatar: '👤',
+      country: data.country,
+      segment: data.segment,
+      cellId: data.cellId,
+    });
+    
+    toast({
+      title: 'Ejecutivo agregado',
+      description: `${data.name} ha sido agregado a tu equipo.`,
+    });
+    
+    handleCloseDialogs();
+  };
+
+  const onSubmitEdit = (data: ExecutiveFormData) => {
+    if (!editingMember) return;
+
+    const updateData: Partial<User> & { password?: string } = {
+      name: data.name,
+      email: data.email,
+      country: data.country,
+      segment: data.segment,
+      cellId: data.cellId,
+    };
+
+    if (data.password && data.password.length >= 6) {
+      updateData.password = data.password;
+    }
+
+    updateUser(editingMember.id, updateData);
+
+    toast({
+      title: 'Ejecutivo actualizado',
+      description: `Los datos de ${data.name} han sido actualizados.`,
+    });
+
+    handleCloseDialogs();
+  };
+
+  const handleDeleteMember = () => {
+    if (!deletingMember) return;
+
+    deleteUser(deletingMember.id);
+
+    toast({
+      title: 'Ejecutivo eliminado',
+      description: `${deletingMember.name} ha sido eliminado del equipo.`,
+      variant: 'destructive',
+    });
+
+    setDeletingMember(null);
+  };
+
   return (
     <Layout title="Mi Equipo">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-foreground">Mi Equipo</h1>
-          <p className="text-muted-foreground">
-            Gestiona y supervisa el rendimiento de tu equipo de ejecutivos
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Mi Equipo</h1>
+            <p className="text-muted-foreground">
+              Gestiona y supervisa el rendimiento de tu equipo de ejecutivos
+            </p>
+          </div>
+          <Button onClick={handleOpenAddDialog} className="gap-2">
+            <UserPlus className="w-4 h-4" />
+            Agregar Ejecutivo
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -177,9 +348,13 @@ const MyTeam = () => {
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   Sin miembros en el equipo
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   Aún no tienes ejecutivos asignados a tu equipo.
                 </p>
+                <Button variant="outline" onClick={handleOpenAddDialog} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Agregar primer ejecutivo
+                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -261,6 +436,26 @@ const MyTeam = () => {
                           </Badge>
                         )}
                       </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEditDialog(member)}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingMember(member)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -269,6 +464,119 @@ const MyTeam = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={isAddDialogOpen || !!editingMember} onOpenChange={(open) => !open && handleCloseDialogs()}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMember ? 'Editar Ejecutivo' : 'Agregar Ejecutivo'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(editingMember ? onSubmitEdit : onSubmitAdd)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="name">Nombre completo</Label>
+                <Input id="name" {...register('name')} placeholder="Nombre del ejecutivo" />
+                {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+              </div>
+
+              <div className="col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" {...register('email')} placeholder="email@empresa.com" />
+                {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+              </div>
+
+              <div className="col-span-2">
+                <Label htmlFor="password">
+                  {editingMember ? 'Nueva contraseña (dejar vacío para mantener)' : 'Contraseña'}
+                </Label>
+                <Input id="password" type="password" {...register('password')} placeholder="••••••" />
+                {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
+              </div>
+
+              <div>
+                <Label>País</Label>
+                <Select value={watch('country')} onValueChange={(value) => setValue('country', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar país" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
+              </div>
+
+              <div>
+                <Label>Segmento</Label>
+                <Select value={watch('segment')} onValueChange={(value) => setValue('segment', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar segmento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEGMENTS.map((segment) => (
+                      <SelectItem key={segment} value={segment}>
+                        {segment}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.segment && <p className="text-sm text-destructive mt-1">{errors.segment.message}</p>}
+              </div>
+
+              <div className="col-span-2">
+                <Label>Célula</Label>
+                <Select value={watch('cellId')} onValueChange={(value) => setValue('cellId', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar célula" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CELLS.map((cell) => (
+                      <SelectItem key={cell} value={cell}>
+                        {cell}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.cellId && <p className="text-sm text-destructive mt-1">{errors.cellId.message}</p>}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleCloseDialogs}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingMember ? 'Guardar cambios' : 'Agregar ejecutivo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingMember} onOpenChange={(open) => !open && setDeletingMember(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar ejecutivo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente a{' '}
+              <strong>{deletingMember?.name}</strong> del sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
