@@ -16,6 +16,7 @@ import SalesHistory from '@/pages/SalesHistory';
 import Settings from '@/pages/Settings';
 import Medals from '@/pages/Medals';
 import Users from '@/pages/Users';
+import MyTeam from '@/pages/MyTeam';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 
@@ -39,7 +40,7 @@ function App() {
                 <Route path="/missions" element={<Placeholder title="Misiones" />} />
                 <Route path="/ranking" element={<Placeholder title="Ranking" />} />
                 <Route path="/profile" element={<Placeholder title="Mi Perfil" />} />
-                <Route path="/team" element={<Placeholder title="Mi Equipo" />} />
+                <Route path="/team" element={<MyTeam />} />
                 <Route path="/create-mission" element={<Placeholder title="Crear Misión" />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<Placeholder title="Análisis" />} />
