@@ -1,0 +1,276 @@
+import { useAuth } from '@/context/AuthContext';
+import { useSales } from '@/context/SalesContext';
+import { useConfig } from '@/context/ConfigContext';
+import { Navigate } from 'react-router-dom';
+import Layout from '@/components/layout/Layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Users, 
+  Trophy, 
+  TrendingUp, 
+  Star, 
+  Flame,
+  Shield,
+  Target,
+  Crown
+} from 'lucide-react';
+import { User } from '@/types';
+
+const MyTeam = () => {
+  const { user, isAuthenticated, users } = useAuth();
+  const { getSalesByUser } = useSales();
+  const { getLevelByXP, levels } = useConfig();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Solo gerentes pueden ver esta página
+  if (user?.role !== 'GERENTE') {
+    return (
+      <Layout title="Mi Equipo">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="p-12 shadow-smooth-xl border-2 text-center max-w-md">
+            <div className="w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Users className="w-10 h-10 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              Acceso Restringido
+            </h2>
+            <p className="text-muted-foreground">
+              Esta sección está disponible solo para gerentes.
+            </p>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Obtener ejecutivos del equipo del gerente actual
+  const teamMembers = users.filter(
+    (u) => u.role === 'EJECUTIVO' && u.managerId === user.id
+  );
+
+  // Calcular estadísticas del equipo
+  const teamStats = {
+    totalMembers: teamMembers.length,
+    totalXP: teamMembers.reduce((acc, member) => acc + (member.xp || 0), 0),
+    avgXP: teamMembers.length > 0 
+      ? Math.round(teamMembers.reduce((acc, member) => acc + (member.xp || 0), 0) / teamMembers.length)
+      : 0,
+    totalSales: teamMembers.reduce((acc, member) => acc + getSalesByUser(member.id).length, 0),
+  };
+
+  // Ordenar por XP para mostrar ranking
+  const sortedMembers = [...teamMembers].sort((a, b) => (b.xp || 0) - (a.xp || 0));
+
+  const getNextLevel = (currentXP: number) => {
+    const sortedLevels = [...levels].sort((a, b) => a.minXP - b.minXP);
+    const nextLevel = sortedLevels.find(l => l.minXP > currentXP);
+    return nextLevel;
+  };
+
+  const getProgressToNextLevel = (currentXP: number) => {
+    const currentLevel = getLevelByXP(currentXP);
+    const nextLevel = getNextLevel(currentXP);
+    
+    if (!nextLevel || !currentLevel) return 100;
+    
+    const xpInCurrentLevel = currentXP - currentLevel.minXP;
+    const xpNeededForNext = nextLevel.minXP - currentLevel.minXP;
+    
+    return Math.min(100, (xpInCurrentLevel / xpNeededForNext) * 100);
+  };
+
+  const getRankBadge = (index: number) => {
+    if (index === 0) return <Crown className="w-5 h-5 text-yellow-500" />;
+    if (index === 1) return <Trophy className="w-5 h-5 text-gray-400" />;
+    if (index === 2) return <Trophy className="w-5 h-5 text-amber-600" />;
+    return <span className="text-sm font-bold text-muted-foreground">#{index + 1}</span>;
+  };
+
+  return (
+    <Layout title="Mi Equipo">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-foreground">Mi Equipo</h1>
+          <p className="text-muted-foreground">
+            Gestiona y supervisa el rendimiento de tu equipo de ejecutivos
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/20 rounded-xl">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Miembros</p>
+                  <p className="text-2xl font-bold text-foreground">{teamStats.totalMembers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500/20 rounded-xl">
+                  <TrendingUp className="w-6 h-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">XP Total</p>
+                  <p className="text-2xl font-bold text-foreground">{teamStats.totalXP.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-500/20 rounded-xl">
+                  <Star className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">XP Promedio</p>
+                  <p className="text-2xl font-bold text-foreground">{teamStats.avgXP.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500/20 rounded-xl">
+                  <Target className="w-6 h-6 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Ventas Totales</p>
+                  <p className="text-2xl font-bold text-foreground">{teamStats.totalSales}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Team Members */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              Ranking del Equipo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sortedMembers.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Sin miembros en el equipo
+                </h3>
+                <p className="text-muted-foreground">
+                  Aún no tienes ejecutivos asignados a tu equipo.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sortedMembers.map((member, index) => {
+                  const memberLevel = getLevelByXP(member.xp || 0);
+                  const memberSales = getSalesByUser(member.id);
+                  const progress = getProgressToNextLevel(member.xp || 0);
+
+                  return (
+                    <div
+                      key={member.id}
+                      className={`flex items-center gap-4 p-4 rounded-xl border transition-all hover:shadow-md ${
+                        index === 0 ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-card'
+                      }`}
+                    >
+                      {/* Rank */}
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        {getRankBadge(index)}
+                      </div>
+
+                      {/* Avatar */}
+                      <Avatar className="w-12 h-12 border-2 border-primary/20">
+                        <AvatarImage src={member.avatar} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-foreground truncate">
+                            {member.name}
+                          </h4>
+                          {memberLevel && (
+                            <Badge variant="secondary" className="text-xs">
+                              {memberLevel.icon} {memberLevel.level}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Star className="w-4 h-4 text-amber-500" />
+                            {(member.xp || 0).toLocaleString()} XP
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Target className="w-4 h-4 text-purple-500" />
+                            {memberSales.length} ventas
+                          </span>
+                          {(member.streak || 0) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Flame className="w-4 h-4 text-orange-500" />
+                              {member.streak} días
+                            </span>
+                          )}
+                          {(member.shields || 0) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Shield className="w-4 h-4 text-blue-500" />
+                              {member.shields}
+                            </span>
+                          )}
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-2">
+                          <Progress value={progress} className="h-2" />
+                        </div>
+                      </div>
+
+                      {/* Country & Segment */}
+                      <div className="hidden md:flex flex-col items-end gap-1">
+                        {member.country && (
+                          <Badge variant="outline" className="text-xs">
+                            {member.country}
+                          </Badge>
+                        )}
+                        {member.segment && (
+                          <Badge variant="outline" className="text-xs">
+                            {member.segment}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+};
+
+export default MyTeam;
