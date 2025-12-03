@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useConfig, Level } from '@/context/ConfigContext';
 import { useSales } from '@/context/SalesContext';
 import { Card } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import LevelUpModal from '@/components/sales/LevelUpModal';
 import { Trophy, Flame, Target, Award, TrendingUp, Zap, Plus, Calendar } from 'lucide-react';
 
 const ExecutiveDashboard = () => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const { getLevelByXP, levels } = useConfig();
   const { sales, notifications } = useSales();
   
@@ -21,7 +21,7 @@ const ExecutiveDashboard = () => {
   const [newLevel, setNewLevel] = useState<Level | null>(null);
 
   // Calculate XP progress
-  const currentXP = user?.xp || 0;
+  const currentXP = profile?.xp || 0;
   const currentLevel = getLevelByXP(currentXP);
   const nextLevel = levels.find(l => l.minXP > currentXP);
   const progress = currentLevel 
@@ -29,18 +29,8 @@ const ExecutiveDashboard = () => {
     : 0;
   const xpToNextLevel = nextLevel ? nextLevel.minXP - currentXP : 0;
 
-  // Check for active multiplier
-  const activeMultiplier = user?.activeMultipliers?.find(
-    m => new Date(m.expiresAt) > new Date()
-  );
-  
-  // Calculate days remaining for multiplier
-  const daysRemaining = activeMultiplier 
-    ? Math.ceil((new Date(activeMultiplier.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-
   // Get user's recent sales
-  const userSales = sales.filter(sale => sale.userId === user?.id);
+  const userSales = sales.filter(sale => String(sale.userId) === profile?.id);
   const recentSales = userSales.slice(-5).reverse();
 
   // Get sales from current month
@@ -67,7 +57,7 @@ const ExecutiveDashboard = () => {
   // Detect level up from notifications
   useEffect(() => {
     const levelUpNotification = notifications.find(
-      n => n.type === 'LEVEL_UP' && !n.read && n.userId === user?.id
+      n => n.type === 'LEVEL_UP' && !n.read && String(n.userId) === profile?.id
     );
     if (levelUpNotification && levelUpNotification.metadata) {
       const oldLevelObj = levels.find(l => l.level === levelUpNotification.metadata?.oldLevel);
@@ -78,7 +68,7 @@ const ExecutiveDashboard = () => {
         setShowLevelUp(true);
       }
     }
-  }, [notifications, user?.id, levels]);
+  }, [notifications, profile?.id, levels]);
 
   // Check if close to next level (>80% progress)
   const isCloseToLevelUp = progress > 80;
@@ -91,14 +81,14 @@ const ExecutiveDashboard = () => {
           <div className={`w-24 h-24 rounded-full flex items-center justify-center text-5xl shadow-smooth-md ${
             isCloseToLevelUp ? 'ring-4 ring-primary/50 animate-pulse' : ''
           }`} style={{ background: 'var(--gradient-secondary)' }}>
-            {user?.avatar}
+            {profile?.avatar}
           </div>
           
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-3xl font-bold text-foreground">{user?.name}</h2>
+              <h2 className="text-3xl font-bold text-foreground">{profile?.name}</h2>
               <Badge variant="default" className="text-lg px-4 py-1">
-                {currentLevel?.icon} {user?.level}
+                {currentLevel?.icon} {profile?.level}
               </Badge>
             </div>
             
@@ -133,23 +123,6 @@ const ExecutiveDashboard = () => {
         </div>
       </Card>
 
-      {/* Active Multiplier Widget */}
-      {activeMultiplier && (
-        <Card className="p-4 bg-gradient-to-r from-accent via-secondary to-primary shadow-smooth-lg animate-fade-in">
-          <div className="flex items-center gap-3">
-            <Zap className="w-8 h-8 text-primary-foreground" />
-            <div>
-              <p className="font-bold text-primary-foreground text-lg">
-                ⚡ MULTIPLICADOR x{activeMultiplier.multiplier} ACTIVO
-              </p>
-              <p className="text-sm text-primary-foreground/90">
-                ⏰ {daysRemaining} días restantes - ¡Todos tus XP se multiplican!
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Main Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Streak Widget */}
@@ -161,9 +134,9 @@ const ExecutiveDashboard = () => {
             <h3 className="text-xl font-bold">🔥 Racha</h3>
           </div>
           <div className="space-y-2">
-            <p className="text-4xl font-bold text-foreground">{user?.streak || 0} semanas</p>
+            <p className="text-4xl font-bold text-foreground">{profile?.streak || 0} semanas</p>
             <p className="text-sm text-muted-foreground">
-              Recuperadores: {user?.shields || 0} 🛡️
+              Recuperadores: {profile?.shields || 0} 🛡️
             </p>
           </div>
         </Card>

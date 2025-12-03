@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { useProfiles } from '@/hooks/useProfiles';
 import { useSales } from '@/context/SalesContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Navigate } from 'react-router-dom';
@@ -49,7 +50,7 @@ import {
   Trash2,
   UserPlus
 } from 'lucide-react';
-import { User } from '@/types';
+import { AuthUser } from '@/hooks/useSupabaseAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,26 +60,25 @@ const executiveSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
-  country: z.string().min(1, 'Selecciona un país'),
-  segment: z.string().min(1, 'Selecciona un segmento'),
-  cellId: z.string().min(1, 'Selecciona una célula'),
+  country: z.string().optional(),
+  segment: z.enum(['Empresarios', 'Aliados', 'B&M', 'Despachos']).optional(),
+  cellId: z.string().optional(),
 });
 
 type ExecutiveFormData = z.infer<typeof executiveSchema>;
 
 const COUNTRIES = ['México', 'Colombia', 'Chile', 'Perú', 'Argentina', 'Brasil'];
-const SEGMENTS = ['Enterprise', 'SMB', 'Startup', 'Government'];
-const CELLS = ['CEL-001', 'CEL-002', 'CEL-003'];
 
 const MyTeam = () => {
-  const { user, isAuthenticated, users, addUser, updateUser, deleteUser } = useAuth();
+  const { profile, isAuthenticated } = useSupabaseAuthContext();
+  const { profiles, getTeamMembers, createUserWithAuth, updateUserProfile, deleteUserProfile, fetchProfiles } = useProfiles();
   const { getSalesByUser } = useSales();
   const { getLevelByXP, levels } = useConfig();
   const { toast } = useToast();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<User | null>(null);
-  const [deletingMember, setDeletingMember] = useState<User | null>(null);
+  const [editingMember, setEditingMember] = useState<AuthUser | null>(null);
+  const [deletingMember, setDeletingMember] = useState<AuthUser | null>(null);
 
   const {
     register,
@@ -94,7 +94,7 @@ const MyTeam = () => {
       email: '',
       password: '',
       country: '',
-      segment: '',
+      segment: undefined,
       cellId: '',
     },
   });
@@ -104,7 +104,7 @@ const MyTeam = () => {
   }
 
   // Solo gerentes pueden ver esta página
-  if (user?.role !== 'GERENTE') {
+  if (profile?.role !== 'GERENTE') {
     return (
       <Layout title="Mi Equipo">
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -125,9 +125,7 @@ const MyTeam = () => {
   }
 
   // Obtener ejecutivos del equipo del gerente actual
-  const teamMembers = users.filter(
-    (u) => u.role === 'EJECUTIVO' && u.managerId === user.id
-  );
+  const teamMembers = getTeamMembers(profile.id);
 
   // Calcular estadísticas del equipo
   const teamStats = {
@@ -136,7 +134,7 @@ const MyTeam = () => {
     avgXP: teamMembers.length > 0 
       ? Math.round(teamMembers.reduce((acc, member) => acc + (member.xp || 0), 0) / teamMembers.length)
       : 0,
-    totalSales: teamMembers.reduce((acc, member) => acc + getSalesByUser(String(member.id)).length, 0),
+    totalSales: teamMembers.reduce((acc, member) => acc + getSalesByUser(member.id).length, 0),
   };
 
   // Ordenar por XP para mostrar ranking
@@ -173,20 +171,20 @@ const MyTeam = () => {
       email: '',
       password: '',
       country: '',
-      segment: '',
-      cellId: user.cellId || 'CEL-001',
+      segment: undefined,
+      cellId: profile.cell_id || '',
     });
     setIsAddDialogOpen(true);
   };
 
-  const handleOpenEditDialog = (member: User) => {
+  const handleOpenEditDialog = (member: AuthUser) => {
     reset({
       name: member.name,
       email: member.email,
       password: '',
       country: member.country || '',
-      segment: member.segment || '',
-      cellId: member.cellId || '',
+      segment: member.segment as any,
+      cellId: member.cell_id || '',
     });
     setEditingMember(member);
   };
@@ -197,64 +195,90 @@ const MyTeam = () => {
     reset();
   };
 
-  const onSubmitAdd = (data: ExecutiveFormData) => {
-    addUser({
-      name: data.name,
-      email: data.email,
-      password: data.password || 'ejecutivo123',
-      role: 'EJECUTIVO',
-      managerId: user.id,
-      avatar: '👤',
-      country: data.country,
-      segment: data.segment,
-      cellId: data.cellId,
-    });
-    
-    toast({
-      title: 'Ejecutivo agregado',
-      description: `${data.name} ha sido agregado a tu equipo.`,
-    });
-    
-    handleCloseDialogs();
+  const onSubmitAdd = async (data: ExecutiveFormData) => {
+    try {
+      const { error } = await createUserWithAuth({
+        name: data.name,
+        email: data.email,
+        password: data.password || 'ejecutivo123',
+        role: 'EJECUTIVO',
+        manager_id: profile.id,
+        avatar: '👤',
+        country: data.country,
+        segment: data.segment,
+        cell_id: data.cellId,
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: 'Ejecutivo agregado',
+        description: `${data.name} ha sido agregado a tu equipo.`,
+      });
+      
+      handleCloseDialogs();
+      fetchProfiles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo agregar el ejecutivo',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const onSubmitEdit = (data: ExecutiveFormData) => {
+  const onSubmitEdit = async (data: ExecutiveFormData) => {
     if (!editingMember) return;
 
-    const updateData: Partial<User> & { password?: string } = {
-      name: data.name,
-      email: data.email,
-      country: data.country,
-      segment: data.segment,
-      cellId: data.cellId,
-    };
+    try {
+      const { error } = await updateUserProfile(editingMember.id, {
+        name: data.name,
+        email: data.email,
+        country: data.country || null,
+        segment: data.segment || null,
+        cell_id: data.cellId || null,
+      });
 
-    if (data.password && data.password.length >= 6) {
-      updateData.password = data.password;
+      if (error) throw error;
+
+      toast({
+        title: 'Ejecutivo actualizado',
+        description: `Los datos de ${data.name} han sido actualizados.`,
+      });
+
+      handleCloseDialogs();
+      fetchProfiles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo actualizar el ejecutivo',
+        variant: 'destructive',
+      });
     }
-
-    updateUser(editingMember.id, updateData);
-
-    toast({
-      title: 'Ejecutivo actualizado',
-      description: `Los datos de ${data.name} han sido actualizados.`,
-    });
-
-    handleCloseDialogs();
   };
 
-  const handleDeleteMember = () => {
+  const handleDeleteMember = async () => {
     if (!deletingMember) return;
 
-    deleteUser(deletingMember.id);
+    try {
+      const { error } = await deleteUserProfile(deletingMember.id);
+      if (error) throw error;
 
-    toast({
-      title: 'Ejecutivo eliminado',
-      description: `${deletingMember.name} ha sido eliminado del equipo.`,
-      variant: 'destructive',
-    });
+      toast({
+        title: 'Ejecutivo eliminado',
+        description: `${deletingMember.name} ha sido eliminado del equipo.`,
+        variant: 'destructive',
+      });
 
-    setDeletingMember(null);
+      setDeletingMember(null);
+      fetchProfiles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo eliminar el ejecutivo',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -360,7 +384,7 @@ const MyTeam = () => {
               <div className="space-y-4">
                 {sortedMembers.map((member, index) => {
                   const memberLevel = getLevelByXP(member.xp || 0);
-                  const memberSales = getSalesByUser(String(member.id));
+                  const memberSales = getSalesByUser(member.id);
                   const progress = getProgressToNextLevel(member.xp || 0);
 
                   return (
@@ -487,63 +511,46 @@ const MyTeam = () => {
                 {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
               </div>
 
-              <div className="col-span-2">
-                <Label htmlFor="password">
-                  {editingMember ? 'Nueva contraseña (dejar vacío para mantener)' : 'Contraseña'}
-                </Label>
-                <Input id="password" type="password" {...register('password')} placeholder="••••••" />
-                {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
-              </div>
+              {!editingMember && (
+                <div className="col-span-2">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Input id="password" type="password" {...register('password')} placeholder="Mínimo 6 caracteres" />
+                  {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
+                </div>
+              )}
 
               <div>
-                <Label>País</Label>
+                <Label htmlFor="country">País</Label>
                 <Select value={watch('country')} onValueChange={(value) => setValue('country', value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar país" />
+                    <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
                     {COUNTRIES.map((country) => (
-                      <SelectItem key={country} value={country}>
-                        {country}
-                      </SelectItem>
+                      <SelectItem key={country} value={country}>{country}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
               </div>
 
               <div>
-                <Label>Segmento</Label>
-                <Select value={watch('segment')} onValueChange={(value) => setValue('segment', value)}>
+                <Label htmlFor="segment">Segmento</Label>
+                <Select value={watch('segment')} onValueChange={(value) => setValue('segment', value as any)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar segmento" />
+                    <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SEGMENTS.map((segment) => (
-                      <SelectItem key={segment} value={segment}>
-                        {segment}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="Empresarios">Empresarios</SelectItem>
+                    <SelectItem value="Aliados">Aliados</SelectItem>
+                    <SelectItem value="B&M">B&M</SelectItem>
+                    <SelectItem value="Despachos">Despachos</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.segment && <p className="text-sm text-destructive mt-1">{errors.segment.message}</p>}
               </div>
 
               <div className="col-span-2">
-                <Label>Célula</Label>
-                <Select value={watch('cellId')} onValueChange={(value) => setValue('cellId', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar célula" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CELLS.map((cell) => (
-                      <SelectItem key={cell} value={cell}>
-                        {cell}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.cellId && <p className="text-sm text-destructive mt-1">{errors.cellId.message}</p>}
+                <Label htmlFor="cellId">Célula</Label>
+                <Input id="cellId" {...register('cellId')} placeholder="ID de célula" />
               </div>
             </div>
 
@@ -559,14 +566,13 @@ const MyTeam = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <AlertDialog open={!!deletingMember} onOpenChange={(open) => !open && setDeletingMember(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar ejecutivo?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente a{' '}
-              <strong>{deletingMember?.name}</strong> del sistema.
+              Esta acción eliminará permanentemente a {deletingMember?.name} de tu equipo. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
