@@ -7,17 +7,17 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useSales } from '@/context/SalesContext';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const NotificationBell = () => {
   const { notifications, markNotificationAsRead, unreadNotificationsCount } = useSales();
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const [open, setOpen] = useState(false);
 
-  const userNotifications = notifications.filter(n => n.userId === user?.id).slice(0, 10);
+  const userNotifications = notifications.filter(n => String(n.userId) === profile?.id).slice(0, 10);
 
   const handleNotificationClick = (id: string) => {
     markNotificationAsRead(id);
