@@ -136,7 +136,7 @@ const MyTeam = () => {
     avgXP: teamMembers.length > 0 
       ? Math.round(teamMembers.reduce((acc, member) => acc + (member.xp || 0), 0) / teamMembers.length)
       : 0,
-    totalSales: teamMembers.reduce((acc, member) => acc + getSalesByUser(member.id).length, 0),
+    totalSales: teamMembers.reduce((acc, member) => acc + getSalesByUser(String(member.id)).length, 0),
   };
 
   // Ordenar por XP para mostrar ranking
@@ -360,7 +360,7 @@ const MyTeam = () => {
               <div className="space-y-4">
                 {sortedMembers.map((member, index) => {
                   const memberLevel = getLevelByXP(member.xp || 0);
-                  const memberSales = getSalesByUser(member.id);
+                  const memberSales = getSalesByUser(String(member.id));
                   const progress = getProgressToNextLevel(member.xp || 0);
 
                   return (

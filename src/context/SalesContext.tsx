@@ -1,16 +1,15 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { Sale, Notification, Medal, UserMedal } from '@/types';
-import { useAuth } from './AuthContext';
+import { Sale, Notification } from '@/types';
+import { useSupabaseAuthContext } from './SupabaseAuthContext';
 import { useConfig } from './ConfigContext';
-import { evaluateMedalCriteria } from '@/utils/medalEvaluator';
 import { toast } from '@/hooks/use-toast';
 
 interface SalesContextType {
   sales: Sale[];
   notifications: Notification[];
   registerSale: (sale: Omit<Sale, 'id' | 'createdAt' | 'userName' | 'registeredByName'>) => void;
-  getSalesByUser: (userId: number) => Sale[];
-  getSalesByTeam: (managerUser: any) => Sale[];
+  getSalesByUser: (userId: string) => Sale[];
+  getSalesByTeam: (managerId: string) => Sale[];
   markNotificationAsRead: (id: string) => void;
   unreadNotificationsCount: number;
 }
@@ -20,8 +19,8 @@ const SalesContext = createContext<SalesContextType | undefined>(undefined);
 export const SalesProvider = ({ children }: { children: ReactNode }) => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const { user, updateUserXP } = useAuth();
-  const { getLevelByXP, medals } = useConfig();
+  const { profile, updateProfile } = useSupabaseAuthContext();
+  const { getLevelByXP } = useConfig();
 
   const addNotification = (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
     const newNotification: Notification = {
@@ -34,28 +33,28 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const registerSale = (saleData: Omit<Sale, 'id' | 'createdAt' | 'userName' | 'registeredByName'>) => {
-    if (!user) return;
+    if (!profile) return;
 
     const newSale: Sale = {
       ...saleData,
       id: `sale-${Date.now()}-${Math.random()}`,
-      userName: saleData.userId === user.id ? user.name : 'Usuario', // In real app, fetch user name
-      registeredByName: user.name,
+      userName: profile.name,
+      registeredByName: profile.name,
       createdAt: new Date()
     };
 
     setSales(prev => [newSale, ...prev]);
 
     // Update user XP
-    const oldLevel = user.level;
-    const newXP = (user.xp || 0) + saleData.xpEarned;
-    updateUserXP(saleData.userId, newXP);
+    const oldLevel = profile.level;
+    const newXP = (profile.xp || 0) + saleData.xpEarned;
+    updateProfile({ xp: newXP });
 
     // Check if level up
     const newLevel = getLevelByXP(newXP);
     if (newLevel && newLevel.level !== oldLevel) {
       addNotification({
-        userId: saleData.userId,
+        userId: parseInt(profile.id) || 0,
         type: 'LEVEL_UP',
         title: '¡Subiste de nivel!',
         message: `Has alcanzado el nivel ${newLevel.level} ${newLevel.icon}`,
@@ -65,7 +64,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
 
     // Add sale notification
     addNotification({
-      userId: saleData.userId,
+      userId: parseInt(profile.id) || 0,
       type: 'SALE_REGISTERED',
       title: 'Nueva venta registrada',
       message: `+${saleData.xpEarned} XP por ${saleData.productName}`,
@@ -78,11 +77,11 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const getSalesByUser = (userId: number) => {
-    return sales.filter(sale => sale.userId === userId);
+  const getSalesByUser = (userId: string) => {
+    return sales.filter(sale => String(sale.userId) === userId);
   };
 
-  const getSalesByTeam = (managerUser: any) => {
+  const getSalesByTeam = (managerId: string) => {
     // In a real app, you'd filter by cellId or managerId
     return sales;
   };
@@ -93,7 +92,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const unreadNotificationsCount = notifications.filter(n => !n.read && n.userId === user?.id).length;
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
   return (
     <SalesContext.Provider

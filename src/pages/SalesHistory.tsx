@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useSales } from '@/context/SalesContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,15 +25,15 @@ import { es } from 'date-fns/locale';
 import { TrendingUp, Package, DollarSign, Flame } from 'lucide-react';
 
 const SalesHistory = () => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const { sales, getSalesByUser } = useSales();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProduct, setFilterProduct] = useState<string>('all');
   const [filterMonth, setFilterMonth] = useState<string>('all');
 
-  const userSales = user?.role === 'EJECUTIVO' 
-    ? getSalesByUser(user.id) 
+  const userSales = profile?.role === 'EJECUTIVO' 
+    ? getSalesByUser(profile.id) 
     : sales;
 
   const filteredSales = useMemo(() => {
@@ -63,7 +63,7 @@ const SalesHistory = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2">
-          {user?.role === 'EJECUTIVO' ? '📊 Mi Historial de Ventas' : '📊 Ventas de Mi Equipo'}
+          {profile?.role === 'EJECUTIVO' ? '📊 Mi Historial de Ventas' : '📊 Ventas de Mi Equipo'}
         </h1>
       </div>
 
@@ -166,7 +166,7 @@ const SalesHistory = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Fecha</TableHead>
-              {user?.role !== 'EJECUTIVO' && <TableHead>Ejecutivo</TableHead>}
+              {profile?.role !== 'EJECUTIVO' && <TableHead>Ejecutivo</TableHead>}
               <TableHead>Producto</TableHead>
               <TableHead>Cantidad</TableHead>
               <TableHead>XP Ganados</TableHead>
@@ -186,7 +186,7 @@ const SalesHistory = () => {
                   <TableCell>
                     {format(sale.date, 'dd MMM yyyy', { locale: es })}
                   </TableCell>
-                  {user?.role !== 'EJECUTIVO' && (
+                  {profile?.role !== 'EJECUTIVO' && (
                     <TableCell className="font-semibold">{sale.userName}</TableCell>
                   )}
                   <TableCell>{sale.productName}</TableCell>

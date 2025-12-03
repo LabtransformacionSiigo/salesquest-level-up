@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,16 +15,21 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Award
 } from 'lucide-react';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, logout } = useAuth();
+  const { profile, signOut } = useSupabaseAuthContext();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   const getMenuItems = () => {
-    switch (user?.role) {
+    switch (profile?.role) {
       case 'EJECUTIVO':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -60,7 +66,7 @@ const Sidebar = () => {
   const menuItems = getMenuItems();
 
   const getRoleBadgeColor = () => {
-    switch (user?.role) {
+    switch (profile?.role) {
       case 'EJECUTIVO':
         return 'bg-gradient-primary';
       case 'GERENTE':
@@ -125,21 +131,21 @@ const Sidebar = () => {
       <div className="p-4 border-t border-sidebar-border">
         <div className={`${collapsed ? 'flex flex-col items-center' : 'flex items-center gap-3'} mb-3`}>
           <div className="w-10 h-10 bg-gradient-secondary rounded-full flex items-center justify-center text-2xl flex-shrink-0 shadow-smooth-md">
-            {user?.avatar}
+            {profile?.avatar || '👤'}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-sidebar-foreground truncate">
-                {user?.name}
+                {profile?.name || 'Usuario'}
               </p>
               <div className={`${getRoleBadgeColor()} text-white text-xs px-2 py-0.5 rounded-full inline-block mt-1`}>
-                {user?.role}
+                {profile?.role || 'USUARIO'}
               </div>
             </div>
           )}
         </div>
         <Button
-          onClick={logout}
+          onClick={handleLogout}
           variant="ghost"
           className={`${
             collapsed ? 'w-full justify-center' : 'w-full justify-start'
