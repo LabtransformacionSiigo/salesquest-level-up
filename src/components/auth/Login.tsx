@@ -3,14 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trophy, Mail, Lock, AlertCircle, UserPlus } from 'lucide-react';
+import { Trophy, Mail, Lock, AlertCircle, UserPlus, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+type AppRole = 'ADMINISTRADOR' | 'GERENTE' | 'EJECUTIVO';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<AppRole>('EJECUTIVO');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp, isAuthenticated } = useSupabaseAuthContext();
@@ -70,7 +74,7 @@ const Login = () => {
       return;
     }
 
-    const { error } = await signUp(email, password, { name, role: 'EJECUTIVO' });
+    const { error } = await signUp(email, password, { name, role });
     
     if (error) {
       if (error.message.includes('already registered')) {
@@ -170,6 +174,11 @@ const Login = () => {
 
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-6">
+                {/* Dev mode warning */}
+                <div className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 p-2 rounded-lg text-center border border-amber-200 dark:border-amber-700">
+                  ⚠️ Modo desarrollo: Selector de rol habilitado
+                </div>
+
                 {/* Name */}
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -216,6 +225,24 @@ const Login = () => {
                     className="h-12 rounded-xl border-2 focus:border-primary transition-all"
                     disabled={isLoading}
                   />
+                </div>
+
+                {/* Role selector (dev only) */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Rol (Solo para pruebas)
+                  </label>
+                  <Select value={role} onValueChange={(value) => setRole(value as AppRole)} disabled={isLoading}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 focus:border-primary transition-all bg-background">
+                      <SelectValue placeholder="Selecciona un rol" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border border-border">
+                      <SelectItem value="ADMINISTRADOR">🔴 Administrador</SelectItem>
+                      <SelectItem value="GERENTE">🟡 Gerente</SelectItem>
+                      <SelectItem value="EJECUTIVO">🟢 Ejecutivo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Error message */}
