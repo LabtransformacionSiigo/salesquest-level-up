@@ -14,16 +14,327 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cells: {
+        Row: {
+          country: string
+          created_at: string
+          goal: string | null
+          id: string
+          name: string
+          segment: Database["public"]["Enums"]["segment_type"]
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          goal?: string | null
+          id?: string
+          name: string
+          segment: Database["public"]["Enums"]["segment_type"]
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          goal?: string | null
+          id?: string
+          name?: string
+          segment?: Database["public"]["Enums"]["segment_type"]
+        }
+        Relationships: []
+      }
+      levels: {
+        Row: {
+          color: string | null
+          icon: string | null
+          id: string
+          max_xp: number
+          min_xp: number
+          name: string
+          order_index: number
+        }
+        Insert: {
+          color?: string | null
+          icon?: string | null
+          id?: string
+          max_xp: number
+          min_xp: number
+          name: string
+          order_index?: number
+        }
+        Update: {
+          color?: string | null
+          icon?: string | null
+          id?: string
+          max_xp?: number
+          min_xp?: number
+          name?: string
+          order_index?: number
+        }
+        Relationships: []
+      }
+      medals: {
+        Row: {
+          category: string
+          condition_type: string
+          condition_value: number
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          xp_reward: number | null
+        }
+        Insert: {
+          category: string
+          condition_type: string
+          condition_value: number
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          xp_reward?: number | null
+        }
+        Update: {
+          category?: string
+          condition_type?: string
+          condition_value?: number
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          xp_reward?: number | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          xp_value: number
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          xp_value?: number
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          xp_value?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar: string | null
+          cell_id: string | null
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          level: string | null
+          manager_id: string | null
+          name: string
+          segment: Database["public"]["Enums"]["segment_type"] | null
+          shields: number | null
+          streak: number | null
+          updated_at: string
+          xp: number | null
+        }
+        Insert: {
+          avatar?: string | null
+          cell_id?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          id: string
+          level?: string | null
+          manager_id?: string | null
+          name: string
+          segment?: Database["public"]["Enums"]["segment_type"] | null
+          shields?: number | null
+          streak?: number | null
+          updated_at?: string
+          xp?: number | null
+        }
+        Update: {
+          avatar?: string | null
+          cell_id?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          level?: string | null
+          manager_id?: string | null
+          name?: string
+          segment?: Database["public"]["Enums"]["segment_type"] | null
+          shields?: number | null
+          streak?: number | null
+          updated_at?: string
+          xp?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_cell_id_fkey"
+            columns: ["cell_id"]
+            isOneToOne: false
+            referencedRelation: "cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          client_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          registered_by: string | null
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity?: number
+          registered_by?: string | null
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          registered_by?: string | null
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_medals: {
+        Row: {
+          earned_at: string
+          id: string
+          medal_id: string
+          user_id: string
+        }
+        Insert: {
+          earned_at?: string
+          id?: string
+          medal_id: string
+          user_id: string
+        }
+        Update: {
+          earned_at?: string
+          id?: string
+          medal_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_medals_medal_id_fkey"
+            columns: ["medal_id"]
+            isOneToOne: false
+            referencedRelation: "medals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_medals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "ADMINISTRADOR" | "GERENTE" | "EJECUTIVO"
+      segment_type: "Empresarios" | "Aliados" | "B&M" | "Despachos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +461,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["ADMINISTRADOR", "GERENTE", "EJECUTIVO"],
+      segment_type: ["Empresarios", "Aliados", "B&M", "Despachos"],
+    },
   },
 } as const
