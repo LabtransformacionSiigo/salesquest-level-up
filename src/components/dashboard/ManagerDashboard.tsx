@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,10 +7,10 @@ import { Progress } from '@/components/ui/progress';
 import { Trophy, Flame, Target, Award, TrendingUp, Users, PlusCircle, Zap } from 'lucide-react';
 
 const ManagerDashboard = () => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const [activeTab, setActiveTab] = useState('performance');
   
-  const currentXP = user?.xp || 0;
+  const currentXP = profile?.xp || 0;
   const nextLevelXP = 500;
   const xpProgress = (currentXP / nextLevelXP) * 100;
 
@@ -34,16 +34,16 @@ const ManagerDashboard = () => {
               {/* Avatar */}
               <div className="relative">
                 <div className="w-24 h-24 bg-gradient-secondary rounded-full flex items-center justify-center text-5xl shadow-smooth-lg ring-4 ring-secondary/20">
-                  {user?.avatar}
+                  {profile?.avatar}
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm font-bold shadow-smooth-md">
-                  {user?.level || 'Junior'}
+                  {profile?.level || 'Junior'}
                 </div>
               </div>
 
               {/* Info */}
               <div className="flex-1 text-center md:text-left">
-                <h2 className="text-3xl font-bold text-foreground mb-2">{user?.name}</h2>
+                <h2 className="text-3xl font-bold text-foreground mb-2">{profile?.name}</h2>
                 <p className="text-muted-foreground mb-4">
                   ¡{nextLevelXP - currentXP} XP para alcanzar Senior! 🎯
                 </p>
@@ -62,11 +62,11 @@ const ManagerDashboard = () => {
               <Card className="p-4 bg-gradient-accent shadow-smooth-md hover:scale-105 transition-transform">
                 <div className="text-center">
                   <Flame className="w-8 h-8 text-accent-foreground mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-accent-foreground">{user?.streak || 0}</p>
+                  <p className="text-2xl font-bold text-accent-foreground">{profile?.streak || 0}</p>
                   <p className="text-xs text-accent-foreground/90 font-semibold">Semanas</p>
                   <div className="mt-2 flex items-center gap-1 justify-center">
                     <span className="text-lg">🛡️</span>
-                    <span className="text-sm font-bold text-accent-foreground">{user?.shields || 0}</span>
+                    <span className="text-sm font-bold text-accent-foreground">{profile?.shields || 0}</span>
                   </div>
                 </div>
               </Card>

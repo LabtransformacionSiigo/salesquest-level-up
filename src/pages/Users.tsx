@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { useProfiles } from '@/hooks/useProfiles';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
@@ -8,35 +9,36 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UserPlus, Users as UsersIcon, Mail, Calendar, Globe, Target, Briefcase, Pencil, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@/types';
+import { AuthUser } from '@/hooks/useSupabaseAuth';
 
 const userSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es muy largo'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
   role: z.enum(['GERENTE', 'EJECUTIVO'], { required_error: 'Selecciona un rol' }),
-  joinDate: z.string().min(1, 'Selecciona la fecha de vinculación'),
-  country: z.string().min(1, 'Selecciona el país'),
-  segment: z.string().min(1, 'Ingresa el segmento'),
-  cellId: z.string().min(1, 'Ingresa la célula'),
+  joinDate: z.string().optional(),
+  country: z.string().optional(),
+  segment: z.enum(['Empresarios', 'Aliados', 'B&M', 'Despachos']).optional(),
+  cellId: z.string().optional(),
   managerId: z.string().optional(),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
 
 const Users = () => {
-  const { isAuthenticated, user, addUser, updateUser, deleteUser, getAllUsers, getManagers } = useAuth();
+  const { isAuthenticated, profile } = useSupabaseAuthContext();
+  const { profiles, getManagers, createUserWithAuth, updateUserProfile, deleteUserProfile, fetchProfiles } = useProfiles();
   const [open, setOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AuthUser | null>(null);
   const { toast } = useToast();
 
   const {
@@ -56,32 +58,27 @@ const Users = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role !== 'ADMINISTRADOR') {
+  if (profile?.role !== 'ADMINISTRADOR') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const users = getAllUsers();
+  const users = profiles.filter(p => p.role !== 'ADMINISTRADOR');
   const managers = getManagers();
 
-  const onSubmit = (data: UserFormData) => {
+  const onSubmit = async (data: UserFormData) => {
     try {
       if (editingUser) {
         // Update existing user
-        updateUser(editingUser.id, {
+        const { error } = await updateUserProfile(editingUser.id, {
           name: data.name,
           email: data.email,
-          ...(data.password && { password: data.password }),
-          role: data.role,
-          joinDate: data.joinDate,
-          country: data.country,
-          segment: data.segment,
-          cellId: data.cellId,
-          managerId: data.managerId ? parseInt(data.managerId) : null,
-          managerName: data.managerId
-            ? managers.find(m => m.id === parseInt(data.managerId))?.name || null
-            : null,
-          avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
+          country: data.country || null,
+          segment: data.segment || null,
+          cell_id: data.cellId || null,
+          manager_id: data.managerId || null,
         });
+
+        if (error) throw error;
 
         toast({
           title: '✅ Usuario actualizado',
@@ -89,72 +86,72 @@ const Users = () => {
         });
       } else {
         // Create new user
-        const newUser = addUser({
+        const { error } = await createUserWithAuth({
           name: data.name,
           email: data.email,
           password: data.password!,
           role: data.role,
-          joinDate: data.joinDate,
+          avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
           country: data.country,
           segment: data.segment,
-          cellId: data.cellId,
-          managerId: data.managerId ? parseInt(data.managerId) : null,
-          managerName: data.managerId
-            ? managers.find(m => m.id === parseInt(data.managerId))?.name || null
-            : null,
-          avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
+          cell_id: data.cellId,
+          manager_id: data.managerId,
         });
+
+        if (error) throw error;
 
         toast({
           title: '✅ Usuario creado',
-          description: `${newUser.name} ha sido agregado exitosamente`,
+          description: `${data.name} ha sido agregado exitosamente`,
         });
       }
 
       reset();
       setOpen(false);
       setEditingUser(null);
-    } catch (error) {
+      fetchProfiles();
+    } catch (error: any) {
       toast({
         title: '❌ Error',
-        description: editingUser ? 'No se pudo actualizar el usuario' : 'No se pudo crear el usuario',
+        description: error.message || (editingUser ? 'No se pudo actualizar el usuario' : 'No se pudo crear el usuario'),
         variant: 'destructive',
       });
     }
   };
 
-  const handleEdit = (usr: User) => {
+  const handleEdit = (usr: AuthUser) => {
     setEditingUser(usr);
     setValue('name', usr.name);
     setValue('email', usr.email);
     setValue('role', usr.role as 'GERENTE' | 'EJECUTIVO');
-    setValue('joinDate', usr.joinDate || '');
     setValue('country', usr.country || '');
-    setValue('segment', usr.segment || '');
-    setValue('cellId', usr.cellId || '');
-    setValue('managerId', usr.managerId?.toString() || '');
+    setValue('segment', usr.segment as any);
+    setValue('cellId', usr.cell_id || '');
+    setValue('managerId', usr.manager_id || '');
     setOpen(true);
   };
 
-  const handleDeleteClick = (usr: User) => {
+  const handleDeleteClick = (usr: AuthUser) => {
     setUserToDelete(usr);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (userToDelete) {
       try {
-        deleteUser(userToDelete.id);
+        const { error } = await deleteUserProfile(userToDelete.id);
+        if (error) throw error;
+        
         toast({
           title: '✅ Usuario eliminado',
           description: `${userToDelete.name} ha sido eliminado del sistema`,
         });
         setDeleteDialogOpen(false);
         setUserToDelete(null);
-      } catch (error) {
+      } catch (error: any) {
         toast({
           title: '❌ Error',
-          description: 'No se pudo eliminar el usuario',
+          description: error.message || 'No se pudo eliminar el usuario',
           variant: 'destructive',
         });
       }
@@ -237,20 +234,20 @@ const Users = () => {
                 </div>
 
                 {/* Contraseña */}
-                <div className="space-y-2">
-                  <Label htmlFor="password">
-                    Contraseña {editingUser ? '(opcional - dejar vacío para mantener actual)' : '*'}
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    {...register('password')}
-                    placeholder={editingUser ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'}
-                  />
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password.message}</p>
-                  )}
-                </div>
+                {!editingUser && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      {...register('password')}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password.message}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Rol */}
@@ -259,6 +256,7 @@ const Users = () => {
                     <Select 
                       value={watch('role')} 
                       onValueChange={(value) => setValue('role', value as 'GERENTE' | 'EJECUTIVO')}
+                      disabled={!!editingUser}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el rol" />
@@ -273,29 +271,11 @@ const Users = () => {
                     )}
                   </div>
 
-                  {/* Fecha de vinculación */}
-                  <div className="space-y-2">
-                    <Label htmlFor="joinDate" className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Fecha de Vinculación *
-                    </Label>
-                    <Input
-                      id="joinDate"
-                      type="date"
-                      {...register('joinDate')}
-                    />
-                    {errors.joinDate && (
-                      <p className="text-sm text-destructive">{errors.joinDate.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   {/* País */}
                   <div className="space-y-2">
                     <Label htmlFor="country" className="flex items-center gap-2">
                       <Globe className="w-4 h-4" />
-                      País *
+                      País
                     </Label>
                     <Select 
                       value={watch('country')} 
@@ -312,80 +292,67 @@ const Users = () => {
                         <SelectItem value="Perú">🇵🇪 Perú</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.country && (
-                      <p className="text-sm text-destructive">{errors.country.message}</p>
-                    )}
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                   {/* Segmento */}
                   <div className="space-y-2">
                     <Label htmlFor="segment" className="flex items-center gap-2">
                       <Target className="w-4 h-4" />
-                      Segmento *
+                      Segmento
                     </Label>
                     <Select 
                       value={watch('segment')} 
-                      onValueChange={(value) => setValue('segment', value)}
+                      onValueChange={(value) => setValue('segment', value as any)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el segmento" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Corporativo">Corporativo</SelectItem>
-                        <SelectItem value="Empresarial">Empresarial</SelectItem>
-                        <SelectItem value="PYME">PYME</SelectItem>
-                        <SelectItem value="Retail">Retail</SelectItem>
-                        <SelectItem value="Gobierno">Gobierno</SelectItem>
+                        <SelectItem value="Empresarios">Empresarios</SelectItem>
+                        <SelectItem value="Aliados">Aliados</SelectItem>
+                        <SelectItem value="B&M">B&M</SelectItem>
+                        <SelectItem value="Despachos">Despachos</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.segment && (
-                      <p className="text-sm text-destructive">{errors.segment.message}</p>
-                    )}
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   {/* Célula */}
                   <div className="space-y-2">
                     <Label htmlFor="cellId" className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
-                      Célula *
+                      Célula
                     </Label>
                     <Input
                       id="cellId"
                       {...register('cellId')}
                       placeholder="Ej: CEL-001"
                     />
-                    {errors.cellId && (
-                      <p className="text-sm text-destructive">{errors.cellId.message}</p>
-                    )}
                   </div>
-
-                  {/* Gerente (solo para ejecutivos) */}
-                  {selectedRole === 'EJECUTIVO' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="managerId">Gerente Inmediato *</Label>
-                      <Select 
-                        value={watch('managerId')} 
-                        onValueChange={(value) => setValue('managerId', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona el gerente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {managers.map((manager) => (
-                            <SelectItem key={manager.id} value={manager.id.toString()}>
-                              {manager.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.managerId && (
-                        <p className="text-sm text-destructive">{errors.managerId.message}</p>
-                      )}
-                    </div>
-                  )}
                 </div>
+
+                {/* Gerente (solo para ejecutivos) */}
+                {selectedRole === 'EJECUTIVO' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="managerId">Gerente Inmediato</Label>
+                    <Select 
+                      value={watch('managerId')} 
+                      onValueChange={(value) => setValue('managerId', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona el gerente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {managers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={handleDialogClose}>
@@ -452,94 +419,91 @@ const Users = () => {
                     <TableHead>Segmento</TableHead>
                     <TableHead>Célula</TableHead>
                     <TableHead>Gerente</TableHead>
-                    <TableHead>Fecha Vinculación</TableHead>
-                    <TableHead>Nivel</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((usr) => (
-                    <TableRow key={usr.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{usr.avatar}</span>
-                          <span className="font-medium">{usr.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{usr.email}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          usr.role === 'ADMINISTRADOR' 
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : usr.role === 'GERENTE'
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        }`}>
-                          {usr.role}
-                        </span>
-                      </TableCell>
-                      <TableCell>{usr.country || '-'}</TableCell>
-                      <TableCell>{usr.segment || '-'}</TableCell>
-                      <TableCell>{usr.cellId || '-'}</TableCell>
-                      <TableCell>{usr.managerName || '-'}</TableCell>
-                      <TableCell>{usr.joinDate || '-'}</TableCell>
-                      <TableCell>
-                        <span className="font-medium text-primary">{usr.level || '-'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          {usr.role !== 'ADMINISTRADOR' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleEdit(usr)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDeleteClick(usr)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        No hay usuarios registrados. Crea el primer usuario.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    users.map((usr) => {
+                      const manager = managers.find(m => m.id === usr.manager_id);
+                      return (
+                        <TableRow key={usr.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{usr.avatar}</span>
+                              <span className="font-medium">{usr.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{usr.email}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              usr.role === 'GERENTE' 
+                                ? 'bg-primary/10 text-primary' 
+                                : 'bg-secondary/10 text-secondary-foreground'
+                            }`}>
+                              {usr.role}
+                            </span>
+                          </TableCell>
+                          <TableCell>{usr.country || '-'}</TableCell>
+                          <TableCell>{usr.segment || '-'}</TableCell>
+                          <TableCell>{usr.cell_id || '-'}</TableCell>
+                          <TableCell>{manager?.name || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEdit(usr)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteClick(usr)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
           </div>
         </Card>
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{' '}
-                <span className="font-semibold">{userToDelete?.name}</span> y todos sus datos asociados.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteConfirm}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El usuario {userToDelete?.name} será eliminado permanentemente del sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

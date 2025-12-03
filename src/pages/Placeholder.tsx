@@ -1,4 +1,4 @@
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,7 @@ interface PlaceholderProps {
 }
 
 const Placeholder = ({ title }: PlaceholderProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useSupabaseAuthContext();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

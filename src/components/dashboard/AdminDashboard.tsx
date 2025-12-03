@@ -1,4 +1,3 @@
-import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,6 @@ import { Users, Zap, Award, Target, Settings, Package, Medal, TrendingUp, CheckC
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
   const { products, levels, medals, streakXP, recognitions } = useConfig();
 
   return (
