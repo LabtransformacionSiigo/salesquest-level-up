@@ -1,4 +1,4 @@
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ExecutiveDashboard from '@/components/dashboard/ExecutiveDashboard';
@@ -6,14 +6,22 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 
 const Dashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
   const getDashboardComponent = () => {
-    switch (user?.role) {
+    switch (profile?.role) {
       case 'EJECUTIVO':
         return <ExecutiveDashboard />;
       case 'GERENTE':
@@ -26,7 +34,7 @@ const Dashboard = () => {
   };
 
   const getTitle = () => {
-    switch (user?.role) {
+    switch (profile?.role) {
       case 'EJECUTIVO':
         return 'Mi Dashboard';
       case 'GERENTE':

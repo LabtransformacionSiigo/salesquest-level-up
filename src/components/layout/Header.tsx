@@ -1,4 +1,4 @@
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
 
 interface HeaderProps {
@@ -6,7 +6,7 @@ interface HeaderProps {
 }
 
 const Header = ({ title }: HeaderProps) => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
 
   return (
     <header className="bg-card border-b border-border px-6 py-4">
@@ -22,7 +22,7 @@ const Header = ({ title }: HeaderProps) => {
           {/* User avatar */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-secondary rounded-full flex items-center justify-center text-2xl shadow-smooth-md">
-              {user?.avatar}
+              {profile?.avatar || '👤'}
             </div>
           </div>
         </div>

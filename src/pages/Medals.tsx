@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { useSales } from '@/context/SalesContext';
 import Layout from '@/components/layout/Layout';
@@ -7,16 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { evaluateMedalCriteria, getMedalRarityColor, getMedalRarityBadge } from '@/utils/medalEvaluator';
+import { getMedalRarityColor, getMedalRarityBadge } from '@/utils/medalEvaluator';
 import { Trophy, Lock, Calendar, Award } from 'lucide-react';
 
 const Medals = () => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const { medals: allMedals } = useConfig();
   const { sales } = useSales();
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
 
-  const userMedals = user?.medals || [];
+  // For now, use empty medals since we're migrating to Supabase
+  const userMedals: { medalId: string; obtainedAt: Date }[] = [];
   const unlockedMedalIds = new Set(userMedals.map(m => m.medalId));
 
   const stats = useMemo(() => {
@@ -40,31 +41,23 @@ const Medals = () => {
       .map(medal => {
         const unlocked = unlockedMedalIds.has(medal.id);
         const userMedal = userMedals.find(m => m.medalId === medal.id);
-        
-      let evaluation: { meets: boolean; progress?: { current: number; required: number; percentage: number } } = { meets: false };
-      if (!unlocked && user) {
-        evaluation = evaluateMedalCriteria(user, medal, { sales });
-      }
 
         return {
           ...medal,
           unlocked,
           obtainedAt: userMedal?.obtainedAt,
-          progress: evaluation.progress
+          progress: undefined as { current: number; required: number; percentage: number } | undefined
         };
       })
       .sort((a, b) => {
-        // Sort: unlocked first, then by progress
         if (a.unlocked && !b.unlocked) return -1;
         if (!a.unlocked && b.unlocked) return 1;
         if (a.unlocked && b.unlocked) {
           return new Date(b.obtainedAt!).getTime() - new Date(a.obtainedAt!).getTime();
         }
-        const aProgress = a.progress?.percentage || 0;
-        const bProgress = b.progress?.percentage || 0;
-        return bProgress - aProgress;
+        return 0;
       });
-  }, [allMedals, unlockedMedalIds, userMedals, user, sales]);
+  }, [allMedals, unlockedMedalIds, userMedals]);
 
   const filteredMedals = medalsWithProgress.filter(medal => {
     if (filter === 'unlocked') return medal.unlocked;

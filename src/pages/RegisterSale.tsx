@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useSales } from '@/context/SalesContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card } from '@/components/ui/card';
@@ -28,12 +28,12 @@ import XPPreview from '@/components/sales/XPPreview';
 import { useNavigate } from 'react-router-dom';
 
 const RegisterSale = () => {
-  const { user } = useAuth();
+  const { profile } = useSupabaseAuthContext();
   const { registerSale } = useSales();
   const { products } = useConfig();
   const navigate = useNavigate();
 
-  const [selectedUser, setSelectedUser] = useState<number>(user?.id || 0);
+  const [selectedUser, setSelectedUser] = useState<string>(profile?.id || '');
   const [productId, setProductId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [client, setClient] = useState('');
@@ -42,13 +42,12 @@ const RegisterSale = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'EJECUTIVO') {
-      setSelectedUser(user.id);
+    if (profile?.role === 'EJECUTIVO') {
+      setSelectedUser(profile.id);
     }
-  }, [user]);
+  }, [profile]);
 
   const selectedProduct = products.find(p => p.id === productId);
-  const activeMultiplier = user?.activeMultipliers?.[0]?.multiplier || null;
 
   const handleQuantityChange = (delta: number) => {
     setQuantity(prev => Math.max(1, Math.min(999, prev + delta)));
@@ -56,24 +55,24 @@ const RegisterSale = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productId || !user) return;
+    if (!productId || !profile) return;
 
     setIsSubmitting(true);
 
     const baseXP = (selectedProduct?.xp || 0) * quantity;
-    const finalXP = activeMultiplier ? baseXP * activeMultiplier : baseXP;
+    const finalXP = baseXP;
 
     registerSale({
-      userId: selectedUser,
+      userId: parseInt(selectedUser) || 0,
       productId,
       productName: selectedProduct?.name || '',
       quantity,
       xpEarned: finalXP,
-      multiplierApplied: activeMultiplier,
+      multiplierApplied: null,
       client: client || null,
       date,
       notes: notes || null,
-      registeredBy: user.id,
+      registeredBy: parseInt(profile.id) || 0,
     });
 
     setTimeout(() => {
@@ -83,6 +82,19 @@ const RegisterSale = () => {
   };
 
   const categories = Array.from(new Set(products.map(p => p.category)));
+
+  // Convert profile to user-like object for XPPreview
+  const userForPreview = profile ? {
+    id: parseInt(profile.id) || 0,
+    email: profile.email,
+    name: profile.name,
+    role: profile.role,
+    xp: profile.xp,
+    level: profile.level,
+    avatar: profile.avatar,
+    streak: profile.streak,
+    shields: profile.shields,
+  } : null;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
@@ -102,28 +114,28 @@ const RegisterSale = () => {
               <span>👤</span> Información del Ejecutivo
             </h2>
             
-            {user?.role === 'EJECUTIVO' ? (
+            {profile?.role === 'EJECUTIVO' ? (
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                 <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center text-2xl">
-                  {user.avatar}
+                  {profile.avatar}
                 </div>
                 <div>
-                  <p className="font-semibold">{user.name}</p>
+                  <p className="font-semibold">{profile.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {user.level} • {user.xp} XP
+                    {profile.level} • {profile.xp} XP
                   </p>
                 </div>
               </div>
             ) : (
               <div>
                 <Label>Ejecutivo</Label>
-                <Select value={selectedUser.toString()} onValueChange={(v) => setSelectedUser(parseInt(v))}>
+                <Select value={selectedUser} onValueChange={setSelectedUser}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar ejecutivo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={user?.id.toString() || '0'}>
-                      {user?.name} (Tú)
+                    <SelectItem value={profile?.id || ''}>
+                      {profile?.name} (Tú)
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -268,12 +280,14 @@ const RegisterSale = () => {
 
         {/* Preview */}
         <div className="lg:sticky lg:top-6 h-fit">
-          <XPPreview
-            productId={productId}
-            quantity={quantity}
-            currentUser={user!}
-            activeMultiplier={activeMultiplier}
-          />
+          {userForPreview && (
+            <XPPreview
+              productId={productId}
+              quantity={quantity}
+              currentUser={userForPreview}
+              activeMultiplier={null}
+            />
+          )}
         </div>
       </div>
     </div>

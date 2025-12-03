@@ -2,9 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-// Providers in hierarchical order
+// Providers
+import { SupabaseAuthProvider } from '@/context/SupabaseAuthContext';
 import { ConfigProvider } from '@/context/ConfigContext';
-import { AuthProvider } from '@/context/AuthContext';
 import { SalesProvider } from '@/context/SalesContext';
 
 // Pages
@@ -24,17 +24,17 @@ function App() {
   return (
     <BrowserRouter>
       <TooltipProvider>
-        <ConfigProvider>
-          <AuthProvider>
+        <SupabaseAuthProvider>
+          <ConfigProvider>
             <SalesProvider>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/register-sale" element={<RegisterSale />} />
-              <Route path="/sales-history" element={<SalesHistory />} />
-              <Route path="/medals" element={<Medals />} />
-              <Route path="/settings" element={<Settings />} />
+                <Route path="/register-sale" element={<RegisterSale />} />
+                <Route path="/sales-history" element={<SalesHistory />} />
+                <Route path="/medals" element={<Medals />} />
+                <Route path="/settings" element={<Settings />} />
                 
                 {/* Placeholder routes for future features */}
                 <Route path="/missions" element={<Placeholder title="Misiones" />} />
@@ -49,8 +49,8 @@ function App() {
               </Routes>
               <Toaster />
             </SalesProvider>
-          </AuthProvider>
-        </ConfigProvider>
+          </ConfigProvider>
+        </SupabaseAuthProvider>
       </TooltipProvider>
     </BrowserRouter>
   );
