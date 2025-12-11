@@ -1,1 +1,4 @@
 project_id = "vivfrsrgknzhxgbcvzte"
+
+[functions.process-sales-upload]
+verify_jwt = false

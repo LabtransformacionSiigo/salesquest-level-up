@@ -261,6 +261,47 @@ export type Database = {
           },
         ]
       }
+      sales_uploads: {
+        Row: {
+          created_at: string
+          errors: Json | null
+          failed_rows: number
+          file_name: string
+          id: string
+          successful_rows: number
+          total_rows: number
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          errors?: Json | null
+          failed_rows?: number
+          file_name: string
+          id?: string
+          successful_rows?: number
+          total_rows?: number
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          errors?: Json | null
+          failed_rows?: number
+          file_name?: string
+          id?: string
+          successful_rows?: number
+          total_rows?: number
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_uploads_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_medals: {
         Row: {
           earned_at: string
