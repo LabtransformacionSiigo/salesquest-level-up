@@ -71,8 +71,52 @@ export type Database = {
         }
         Relationships: []
       }
+      manager_cells: {
+        Row: {
+          assigned_at: string | null
+          cell_id: string
+          id: string
+          manager_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          cell_id: string
+          id?: string
+          manager_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          cell_id?: string
+          id?: string
+          manager_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_cells_cell_id_fkey"
+            columns: ["cell_id"]
+            isOneToOne: false
+            referencedRelation: "cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_cells_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_cells_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medals: {
         Row: {
+          active: boolean | null
           category: string
           condition_type: string
           condition_value: number
@@ -84,6 +128,7 @@ export type Database = {
           xp_reward: number | null
         }
         Insert: {
+          active?: boolean | null
           category: string
           condition_type: string
           condition_value: number
@@ -95,6 +140,7 @@ export type Database = {
           xp_reward?: number | null
         }
         Update: {
+          active?: boolean | null
           category?: string
           condition_type?: string
           condition_value?: number
@@ -148,6 +194,7 @@ export type Database = {
           level: string | null
           manager_id: string | null
           name: string
+          nickname: string | null
           segment: Database["public"]["Enums"]["segment_type"] | null
           shields: number | null
           streak: number | null
@@ -164,6 +211,7 @@ export type Database = {
           level?: string | null
           manager_id?: string | null
           name: string
+          nickname?: string | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
           shields?: number | null
           streak?: number | null
@@ -180,6 +228,7 @@ export type Database = {
           level?: string | null
           manager_id?: string | null
           name?: string
+          nickname?: string | null
           segment?: Database["public"]["Enums"]["segment_type"] | null
           shields?: number | null
           streak?: number | null
@@ -199,6 +248,13 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
             referencedColumns: ["id"]
           },
         ]
@@ -253,10 +309,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
             referencedColumns: ["id"]
           },
         ]
@@ -300,6 +370,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_uploads_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_medals: {
@@ -336,6 +413,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_medals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -358,7 +442,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ranking_view: {
+        Row: {
+          avatar: string | null
+          cell_id: string | null
+          cell_name: string | null
+          cell_rank: number | null
+          country: string | null
+          country_rank: number | null
+          global_rank: number | null
+          id: string | null
+          manager_id: string | null
+          name: string | null
+          nickname: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          segment: Database["public"]["Enums"]["segment_type"] | null
+          segment_rank: number | null
+          xp: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_cell_id_fkey"
+            columns: ["cell_id"]
+            isOneToOne: false
+            referencedRelation: "cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_role: {
