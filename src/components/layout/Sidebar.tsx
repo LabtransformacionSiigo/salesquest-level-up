@@ -33,29 +33,26 @@ const Sidebar = () => {
       case 'EJECUTIVO':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/register-sale', icon: PlusCircle, label: 'Registrar Venta' },
           { path: '/sales-history', icon: BarChart3, label: 'Mis Ventas' },
           { path: '/medals', icon: Trophy, label: 'Mis Medallas' },
-          { path: '/missions', icon: Target, label: 'Misiones' },
           { path: '/ranking', icon: Award, label: 'Ranking' },
           { path: '/profile', icon: User, label: 'Perfil' },
         ];
       case 'GERENTE':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/register-sale', icon: PlusCircle, label: 'Registrar Venta' },
-          { path: '/sales-history', icon: BarChart3, label: 'Ventas del Equipo' },
-          { path: '/medals', icon: Trophy, label: 'Medallas' },
+          { path: '/register-sale', icon: PlusCircle, label: 'Cargar Ventas' },
+          { path: '/upload-history', icon: BarChart3, label: 'Historial Cargas' },
           { path: '/team', icon: Users, label: 'Mi Equipo' },
-          { path: '/create-mission', icon: Target, label: 'Crear Misión' },
           { path: '/ranking', icon: Award, label: 'Ranking' },
-          { path: '/profile', icon: User, label: 'Perfil' },
+          { path: '/medals', icon: Trophy, label: 'Medallas' },
         ];
       case 'ADMINISTRADOR':
         return [
           { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard Global' },
           { path: '/users', icon: Users, label: 'Usuarios' },
-          { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+          { path: '/cells', icon: Target, label: 'Células' },
+          { path: '/ranking', icon: Award, label: 'Ranking' },
           { path: '/settings', icon: Settings, label: 'Configuración' },
         ];
       default:

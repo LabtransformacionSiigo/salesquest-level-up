@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useConfig } from '@/context/ConfigContext';
+import { useMedals, DbMedal } from '@/hooks/useMedals';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,71 +10,74 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, Power, PowerOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const EMOJI_OPTIONS = ['🎯', '🌟', '👑', '🏆', '💎', '⚡', '🔥', '💪', '🎖️', '🥇', '🥈', '🥉', '⭐', '✨', '🌈', '🎨'];
 
-const CRITERIA_OPTIONS = [
-  { value: 'PRIMERA_VENTA', label: 'Primera venta' },
-  { value: 'X_VENTAS_MES', label: 'X ventas en el mes' },
-  { value: 'PRIMERA_META', label: 'Primera meta cumplida' },
-  { value: 'X_MESES_CONSECUTIVOS', label: 'X meses consecutivos cumpliendo' },
-  { value: 'TOP_VENDEDOR_MES', label: 'Top vendedor del mes' },
-  { value: 'RACHA_X_SEMANAS', label: 'Racha de X semanas' },
-  { value: 'X_PRODUCTOS_ESPECIFICOS', label: 'X productos específicos vendidos' },
-  { value: 'CUSTOM', label: 'Custom (definido manualmente)' }
+const CONDITION_TYPES = [
+  { value: 'PRIMERA_VENTA', label: 'Primera venta', description: 'Se otorga con la primera venta' },
+  { value: 'X_VENTAS_MES', label: 'X ventas en el mes', description: 'Cantidad de ventas mensuales' },
+  { value: 'VENTAS_TOTAL', label: 'X ventas totales', description: 'Cantidad total de ventas' },
+  { value: 'XP_TOTAL', label: 'XP total acumulado', description: 'Puntos totales acumulados' },
+];
+
+const CATEGORIES = [
+  { value: 'ventas', label: 'Ventas' },
+  { value: 'logros', label: 'Logros' },
+  { value: 'racha', label: 'Rachas' },
+  { value: 'especial', label: 'Especial' },
 ];
 
 const MedalsTab = () => {
-  const { medals, addMedal, updateMedal, deleteMedal } = useConfig();
+  const { medals, loading, addMedal, updateMedal, deleteMedal, toggleMedalActive } = useMedals();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingMedal, setEditingMedal] = useState<DbMedal | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
     icon: '🎯',
     description: '',
-    xp: '',
-    criteria: 'PRIMERA_VENTA',
-    givesStreakSaver: false,
-    repeatable: false
+    xp_reward: '',
+    condition_type: 'PRIMERA_VENTA',
+    condition_value: '1',
+    category: 'ventas',
+    active: true
   });
 
-  const handleOpenDialog = (id?: string) => {
-    if (id) {
-      const medal = medals.find(m => m.id === id);
-      if (medal) {
-        setFormData({
-          name: medal.name,
-          icon: medal.icon,
-          description: medal.description,
-          xp: medal.xp.toString(),
-          criteria: medal.criteria,
-          givesStreakSaver: medal.givesStreakSaver,
-          repeatable: medal.repeatable
-        });
-        setEditingId(id);
-      }
+  const handleOpenDialog = (medal?: DbMedal) => {
+    if (medal) {
+      setFormData({
+        name: medal.name,
+        icon: medal.icon || '🎯',
+        description: medal.description || '',
+        xp_reward: (medal.xp_reward || 0).toString(),
+        condition_type: medal.condition_type,
+        condition_value: medal.condition_value.toString(),
+        category: medal.category,
+        active: medal.active
+      });
+      setEditingMedal(medal);
     } else {
       setFormData({
         name: '',
         icon: '🎯',
         description: '',
-        xp: '',
-        criteria: 'PRIMERA_VENTA',
-        givesStreakSaver: false,
-        repeatable: false
+        xp_reward: '',
+        condition_type: 'PRIMERA_VENTA',
+        condition_value: '1',
+        category: 'ventas',
+        active: true
       });
-      setEditingId(null);
+      setEditingMedal(null);
     }
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!formData.name || !formData.xp) {
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.xp_reward) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -86,44 +89,92 @@ const MedalsTab = () => {
     const medalData = {
       name: formData.name,
       icon: formData.icon,
-      description: formData.description,
-      xp: parseInt(formData.xp),
-      criteria: formData.criteria,
-      givesStreakSaver: formData.givesStreakSaver,
-      repeatable: formData.repeatable
+      description: formData.description || null,
+      xp_reward: parseInt(formData.xp_reward),
+      condition_type: formData.condition_type,
+      condition_value: parseInt(formData.condition_value) || 1,
+      category: formData.category,
+      active: formData.active
     };
 
-    if (editingId) {
-      updateMedal(editingId, medalData);
+    try {
+      if (editingMedal) {
+        const { error } = await updateMedal(editingMedal.id, medalData);
+        if (error) throw error;
+        toast({
+          title: "Medalla actualizada",
+          description: `La medalla "${formData.name}" ha sido actualizada`
+        });
+      } else {
+        const { error } = await addMedal(medalData);
+        if (error) throw error;
+        toast({
+          title: "Medalla creada",
+          description: `La medalla "${formData.name}" ha sido creada`
+        });
+      }
+      setIsDialogOpen(false);
+    } catch (error: any) {
       toast({
-        title: "Medalla actualizada",
-        description: `La medalla "${formData.name}" ha sido actualizada correctamente`
-      });
-    } else {
-      addMedal(medalData);
-      toast({
-        title: "Medalla creada",
-        description: `La medalla "${formData.name}" ha sido creada correctamente`
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Error al guardar la medalla"
       });
     }
-
-    setIsDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteMedal(deleteId);
-      toast({
-        title: "Medalla eliminada",
-        description: "La medalla ha sido eliminada correctamente"
-      });
-      setDeleteId(null);
+      try {
+        const { error } = await deleteMedal(deleteId);
+        if (error) throw error;
+        toast({
+          title: "Medalla eliminada",
+          description: "La medalla ha sido eliminada"
+        });
+        setDeleteId(null);
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Error al eliminar la medalla"
+        });
+      }
     }
   };
 
-  const getCriteriaLabel = (criteria: string) => {
-    return CRITERIA_OPTIONS.find(c => c.value === criteria)?.label || criteria;
+  const handleToggleActive = async (medal: DbMedal) => {
+    try {
+      const { error } = await toggleMedalActive(medal.id, !medal.active);
+      if (error) throw error;
+      toast({
+        title: medal.active ? "Medalla desactivada" : "Medalla activada",
+        description: `"${medal.name}" ${medal.active ? 'ya no se puede obtener' : 'ahora se puede obtener'}`
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message
+      });
+    }
   };
+
+  const getConditionLabel = (type: string) => {
+    return CONDITION_TYPES.find(c => c.value === type)?.label || type;
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    return CATEGORIES.find(c => c.value === cat)?.label || cat;
+  };
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <p className="text-muted-foreground">Cargando medallas...</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -131,10 +182,10 @@ const MedalsTab = () => {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              🏅 Medallas y Reconocimientos
+              🏅 Catálogo de Medallas
             </h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Crea y gestiona medallas automáticas
+              Crea y gestiona medallas automáticas (persistidas en base de datos)
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -149,9 +200,9 @@ const MedalsTab = () => {
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingId ? 'Editar Medalla' : 'Nueva Medalla'}</DialogTitle>
+                <DialogTitle>{editingMedal ? 'Editar Medalla' : 'Nueva Medalla'}</DialogTitle>
                 <DialogDescription>
-                  {editingId ? 'Modifica los datos de la medalla' : 'Completa los datos de la nueva medalla'}
+                  {editingMedal ? 'Modifica los datos de la medalla' : 'Completa los datos de la nueva medalla'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -175,14 +226,13 @@ const MedalsTab = () => {
                   </div>
                 </div>
                 <div>
-                  <Label>Nombre de la Medalla (máx 30 caracteres)</Label>
+                  <Label>Nombre de la Medalla *</Label>
                   <Input
-                    maxLength={30}
+                    maxLength={50}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ej: Primera Venta"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">{formData.name.length}/30 caracteres</p>
                 </div>
                 <div>
                   <Label>Descripción</Label>
@@ -190,117 +240,158 @@ const MedalsTab = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Describe cómo se obtiene esta medalla"
-                    rows={3}
+                    rows={2}
                   />
                 </div>
-                <div>
-                  <Label>XP a Otorgar</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={formData.xp}
-                    onChange={(e) => setFormData({ ...formData, xp: e.target.value })}
-                    placeholder="0"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>XP a Otorgar *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.xp_reward}
+                      onChange={(e) => setFormData({ ...formData, xp_reward: e.target.value })}
+                      placeholder="50"
+                    />
+                  </div>
+                  <div>
+                    <Label>Categoría</Label>
+                    <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map(cat => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label>Criterio de Obtención</Label>
-                  <Select value={formData.criteria} onValueChange={(value) => setFormData({ ...formData, criteria: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CRITERIA_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Tipo de Condición</Label>
+                    <Select value={formData.condition_type} onValueChange={(value) => setFormData({ ...formData, condition_type: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONDITION_TYPES.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Valor de Condición</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={formData.condition_value}
+                      onChange={(e) => setFormData({ ...formData, condition_value: e.target.value })}
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {CONDITION_TYPES.find(c => c.value === formData.condition_type)?.description}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <Label>¿Otorga recuperador de racha?</Label>
-                    <p className="text-xs text-muted-foreground">El usuario recibirá un escudo protector 🛡️</p>
+                    <Label>Medalla Activa</Label>
+                    <p className="text-xs text-muted-foreground">Las medallas inactivas no se otorgan</p>
                   </div>
                   <Switch
-                    checked={formData.givesStreakSaver}
-                    onCheckedChange={(checked) => setFormData({ ...formData, givesStreakSaver: checked })}
-                  />
-                </div>
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <Label>¿Se puede obtener múltiples veces?</Label>
-                    <p className="text-xs text-muted-foreground">Permitir que un usuario la gane varias veces</p>
-                  </div>
-                  <Switch
-                    checked={formData.repeatable}
-                    onCheckedChange={(checked) => setFormData({ ...formData, repeatable: checked })}
+                    checked={formData.active}
+                    onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
                   />
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                 <Button onClick={handleSubmit}>
-                  {editingId ? 'Guardar Cambios' : 'Crear Medalla'}
+                  {editingMedal ? 'Guardar Cambios' : 'Crear Medalla'}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {medals.map((medal) => (
-            <Card key={medal.id} className="p-6 shadow-smooth-md hover:shadow-smooth-lg transition-all border-2 hover:scale-105">
-              <div className="text-center mb-4">
-                <div className="text-6xl mb-3">{medal.icon}</div>
-                <h3 className="text-lg font-bold text-foreground mb-1">{medal.name}</h3>
-                <p className="text-sm text-muted-foreground">{medal.description}</p>
-              </div>
+        {medals.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>No hay medallas creadas. Crea la primera medalla para empezar.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {medals.map((medal) => (
+              <Card 
+                key={medal.id} 
+                className={`p-6 shadow-smooth-md hover:shadow-smooth-lg transition-all border-2 ${
+                  !medal.active ? 'opacity-60 bg-muted/50' : 'hover:scale-105'
+                }`}
+              >
+                <div className="text-center mb-4">
+                  <div className="text-6xl mb-3">{medal.icon}</div>
+                  <h3 className="text-lg font-bold text-foreground mb-1">{medal.name}</h3>
+                  <p className="text-sm text-muted-foreground">{medal.description}</p>
+                </div>
 
-              <div className="space-y-2 mb-4">
-                <Badge className="w-full justify-center bg-primary/20 text-primary">
-                  {medal.xp} XP
-                </Badge>
-                <Badge variant="outline" className="w-full justify-center text-xs">
-                  {getCriteriaLabel(medal.criteria)}
-                </Badge>
-                {medal.givesStreakSaver && (
-                  <Badge className="w-full justify-center bg-accent/20 text-accent">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Otorga Recuperador
+                <div className="space-y-2 mb-4">
+                  <Badge className="w-full justify-center bg-primary/20 text-primary">
+                    {medal.xp_reward || 0} XP
                   </Badge>
-                )}
-                {medal.repeatable && (
+                  <Badge variant="outline" className="w-full justify-center text-xs">
+                    {getConditionLabel(medal.condition_type)}: {medal.condition_value}
+                  </Badge>
                   <Badge variant="secondary" className="w-full justify-center text-xs">
-                    Múltiples veces
+                    {getCategoryLabel(medal.category)}
                   </Badge>
-                )}
-              </div>
+                  <Badge 
+                    className={`w-full justify-center ${medal.active ? 'bg-green-500/20 text-green-700' : 'bg-destructive/20 text-destructive'}`}
+                  >
+                    {medal.active ? 'Activa' : 'Inactiva'}
+                  </Badge>
+                </div>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenDialog(medal.id)}
-                  className="flex-1"
-                >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeleteId(medal.id)}
-                  className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Eliminar
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleActive(medal)}
+                    className="flex-1"
+                  >
+                    {medal.active ? <PowerOff className="w-4 h-4 mr-1" /> : <Power className="w-4 h-4 mr-1" />}
+                    {medal.active ? 'Desactivar' : 'Activar'}
+                  </Button>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenDialog(medal)}
+                    className="flex-1"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteId(medal.id)}
+                    className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Eliminar
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </Card>
 
       <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

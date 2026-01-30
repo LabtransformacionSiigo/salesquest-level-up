@@ -17,6 +17,9 @@ import Settings from '@/pages/Settings';
 import Medals from '@/pages/Medals';
 import Users from '@/pages/Users';
 import MyTeam from '@/pages/MyTeam';
+import Cells from '@/pages/Cells';
+import Rankings from '@/pages/Rankings';
+import UploadHistory from '@/pages/UploadHistory';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 
@@ -36,13 +39,17 @@ function App() {
                 <Route path="/medals" element={<Medals />} />
                 <Route path="/settings" element={<Settings />} />
                 
+                {/* Core routes */}
+                <Route path="/ranking" element={<Rankings />} />
+                <Route path="/cells" element={<Cells />} />
+                <Route path="/upload-history" element={<UploadHistory />} />
+                <Route path="/team" element={<MyTeam />} />
+                <Route path="/users" element={<Users />} />
+                
                 {/* Placeholder routes for future features */}
                 <Route path="/missions" element={<Placeholder title="Misiones" />} />
-                <Route path="/ranking" element={<Placeholder title="Ranking" />} />
                 <Route path="/profile" element={<Placeholder title="Mi Perfil" />} />
-                <Route path="/team" element={<MyTeam />} />
                 <Route path="/create-mission" element={<Placeholder title="Crear Misión" />} />
-                <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<Placeholder title="Análisis" />} />
                 
                 <Route path="*" element={<NotFound />} />

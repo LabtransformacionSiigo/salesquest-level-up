@@ -282,6 +282,25 @@ serve(async (req) => {
 
       // Calculate total XP awarded
       totalXpAwarded = salesToInsert.reduce((sum, sale) => sum + sale.xp_earned, 0);
+
+      // Evaluate medals for affected users
+      const affectedUserIds = [...xpUpdates.keys()];
+      if (affectedUserIds.length > 0) {
+        console.log(`Evaluating medals for ${affectedUserIds.length} users`);
+        try {
+          const { data: medalResult, error: medalError } = await supabase.functions.invoke('evaluate-medals', {
+            body: { user_ids: affectedUserIds }
+          });
+          
+          if (medalError) {
+            console.error('Error calling evaluate-medals:', medalError);
+          } else {
+            console.log('Medal evaluation result:', medalResult);
+          }
+        } catch (medalErr) {
+          console.error('Exception calling evaluate-medals:', medalErr);
+        }
+      }
     }
 
     // Log the upload

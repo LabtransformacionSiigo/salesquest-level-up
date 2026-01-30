@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useProfiles } from '@/hooks/useProfiles';
+import { useCells } from '@/hooks/useCells';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { UserPlus, Users as UsersIcon, Mail, Calendar, Globe, Target, Briefcase, Pencil, Trash2 } from 'lucide-react';
+import { UserPlus, Users as UsersIcon, Mail, Globe, Target, Briefcase, Pencil, Trash2, Tag } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,10 +21,10 @@ import { AuthUser } from '@/hooks/useSupabaseAuth';
 
 const userSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es muy largo'),
+  nickname: z.string().max(30, 'El apodo es muy largo').optional(),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
   role: z.enum(['GERENTE', 'EJECUTIVO'], { required_error: 'Selecciona un rol' }),
-  joinDate: z.string().optional(),
   country: z.string().optional(),
   segment: z.enum(['Empresarios', 'Aliados', 'B&M', 'Despachos']).optional(),
   cellId: z.string().optional(),
@@ -35,6 +36,7 @@ type UserFormData = z.infer<typeof userSchema>;
 const Users = () => {
   const { isAuthenticated, profile } = useSupabaseAuthContext();
   const { profiles, getManagers, createUserWithAuth, updateUserProfile, deleteUserProfile, fetchProfiles } = useProfiles();
+  const { cells } = useCells();
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -216,6 +218,22 @@ const Users = () => {
                   )}
                 </div>
 
+                {/* Apodo/Nickname */}
+                <div className="space-y-2">
+                  <Label htmlFor="nickname" className="flex items-center gap-2">
+                    <Tag className="w-4 h-4" />
+                    Apodo (opcional)
+                  </Label>
+                  <Input
+                    id="nickname"
+                    {...register('nickname')}
+                    placeholder="Ej: Juancho"
+                  />
+                  {errors.nickname && (
+                    <p className="text-sm text-destructive">{errors.nickname.message}</p>
+                  )}
+                </div>
+
                 {/* Email */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
@@ -324,11 +342,22 @@ const Users = () => {
                       <Briefcase className="w-4 h-4" />
                       Célula
                     </Label>
-                    <Input
-                      id="cellId"
-                      {...register('cellId')}
-                      placeholder="Ej: CEL-001"
-                    />
+                    <Select 
+                      value={watch('cellId') || ''} 
+                      onValueChange={(value) => setValue('cellId', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona la célula" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Sin asignar</SelectItem>
+                        {cells.map(cell => (
+                          <SelectItem key={cell.id} value={cell.id}>
+                            {cell.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
