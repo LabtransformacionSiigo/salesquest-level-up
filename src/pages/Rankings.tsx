@@ -150,42 +150,42 @@ const Rankings = () => {
               <span className="font-medium">Filtros:</span>
             </div>
             <Select
-              value={filters.cell_id || ''}
-              onValueChange={v => setFilters({ ...filters, cell_id: v || undefined })}
+              value={filters.cell_id || 'all'}
+              onValueChange={v => setFilters({ ...filters, cell_id: v === 'all' ? undefined : v })}
             >
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Todas las células" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las células</SelectItem>
+                <SelectItem value="all">Todas las células</SelectItem>
                 {cells.map(cell => (
                   <SelectItem key={cell.id} value={cell.id}>{cell.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select
-              value={filters.country || ''}
-              onValueChange={v => setFilters({ ...filters, country: v || undefined })}
+              value={filters.country || 'all'}
+              onValueChange={v => setFilters({ ...filters, country: v === 'all' ? undefined : v })}
             >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Todos los países" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los países</SelectItem>
+                <SelectItem value="all">Todos los países</SelectItem>
                 {COUNTRIES.map(c => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select
-              value={filters.segment || ''}
-              onValueChange={v => setFilters({ ...filters, segment: v || undefined })}
+              value={filters.segment || 'all'}
+              onValueChange={v => setFilters({ ...filters, segment: v === 'all' ? undefined : v })}
             >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Todos los segmentos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los segmentos</SelectItem>
+                <SelectItem value="all">Todos los segmentos</SelectItem>
                 {SEGMENTS.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
