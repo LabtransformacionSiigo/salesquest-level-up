@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import siigoLogo from '@/assets/siigo-logo-white.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
@@ -73,12 +74,7 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="p-5 pb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center shadow-smooth-md flex-shrink-0">
-            <span className="text-sidebar-primary-foreground font-extrabold text-lg">S</span>
-          </div>
-          {!collapsed && (
-            <span className="font-bold text-lg text-sidebar-primary-foreground tracking-tight">Siigo</span>
-          )}
+          <img src={siigoLogo} alt="Siigo" className={`${collapsed ? 'w-10' : 'h-8'} object-contain flex-shrink-0`} />
         </div>
       </div>
 

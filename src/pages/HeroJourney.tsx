@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
 
 // ─── Material Icon helper ────────────────────────────────────────────
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
@@ -313,7 +314,8 @@ const HeroJourney = () => {
         </div>
 
         {/* Footer */}
-        <div className="text-center py-6 border-t border-border space-y-2">
+        <div className="text-center py-6 border-t border-border space-y-3">
+          <img src={siigoLogoBlue} alt="Siigo" className="h-8 mx-auto opacity-60" />
           <p className="text-xs text-muted-foreground">
             <MI icon="emoji_events" className="text-accent text-sm align-middle mr-1" />
             Siigo Sales Gamification Engine © 2025
