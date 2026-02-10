@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useConfig, Level } from '@/context/ConfigContext';
 import { useSales } from '@/context/SalesContext';
-import { Card } from '@/components/ui/card';
+import ConventionSeat from './ConventionSeat';
 import LevelProgressRoad from './LevelProgressRoad';
 import StatsCards from './StatsCards';
 import MiniLeaderboard from './MiniLeaderboard';
@@ -95,23 +95,10 @@ const ExecutiveDashboard = () => {
         />
       </div>
 
-      {/* Leaderboard + Motivational */}
+      {/* Leaderboard + Convention Seat */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <MiniLeaderboard currentUserId={profile?.id} />
-
-        <Card className="p-5 flex flex-col justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Tu progreso</p>
-            <p className="text-lg font-semibold text-foreground">
-              Estás a solo <span className="text-primary font-bold">560 puntos</span> de subir de categoría y asegurar tu asiento en la convención.
-            </p>
-          </div>
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-            <p className="text-xs text-muted-foreground text-center">
-              "Impulsando el éxito comercial a través del reconocimiento, la competencia sana y el crecimiento continuo"
-            </p>
-          </div>
-        </Card>
+        <ConventionSeat currentXP={currentXP} />
       </div>
 
       {/* Level Up Modal */}
