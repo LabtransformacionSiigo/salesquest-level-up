@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Medal, Award, Star, Filter, RefreshCw } from 'lucide-react';
+import { getCountryFlag } from '@/utils/countryFlags';
 
 const COUNTRIES = ['Colombia', 'México', 'Argentina', 'Chile', 'Perú'];
 const SEGMENTS = ['Empresarios', 'Aliados', 'B&M', 'Despachos'];
@@ -74,8 +75,11 @@ const Rankings = () => {
             <div className="flex flex-col items-center justify-end">
               {topThree[1] && (
                 <div className="text-center">
-                  <div className="text-5xl mb-2">{topThree[1].avatar || '👤'}</div>
-                  <p className="font-bold text-lg">{topThree[1].nickname || topThree[1].name}</p>
+                  <div className="relative inline-block">
+                    <span className="text-5xl">{topThree[1].avatar || '👤'}</span>
+                    {getCountryFlag(topThree[1].country) && <span className="absolute -bottom-1 -right-1 text-lg">{getCountryFlag(topThree[1].country)}</span>}
+                  </div>
+                  <p className="font-bold text-lg mt-2">{topThree[1].nickname || topThree[1].name}</p>
                   <p className="text-sm text-muted-foreground">{topThree[1].xp || 0} XP</p>
                   <div className="mt-2 bg-gray-400 text-white px-4 py-2 rounded-t-lg">
                     <Medal className="w-6 h-6 mx-auto" />
@@ -90,8 +94,11 @@ const Rankings = () => {
             <div className="flex flex-col items-center justify-end">
               {topThree[0] && (
                 <div className="text-center">
-                  <div className="text-6xl mb-2">{topThree[0].avatar || '👤'}</div>
-                  <p className="font-bold text-xl">{topThree[0].nickname || topThree[0].name}</p>
+                  <div className="relative inline-block">
+                    <span className="text-6xl">{topThree[0].avatar || '👤'}</span>
+                    {getCountryFlag(topThree[0].country) && <span className="absolute -bottom-1 -right-1 text-xl">{getCountryFlag(topThree[0].country)}</span>}
+                  </div>
+                  <p className="font-bold text-xl mt-2">{topThree[0].nickname || topThree[0].name}</p>
                   <p className="text-sm text-muted-foreground">{topThree[0].xp || 0} XP</p>
                   <div className="mt-2 bg-yellow-500 text-yellow-950 px-4 py-3 rounded-t-lg">
                     <Trophy className="w-8 h-8 mx-auto" />
@@ -106,8 +113,11 @@ const Rankings = () => {
             <div className="flex flex-col items-center justify-end">
               {topThree[2] && (
                 <div className="text-center">
-                  <div className="text-5xl mb-2">{topThree[2].avatar || '👤'}</div>
-                  <p className="font-bold text-lg">{topThree[2].nickname || topThree[2].name}</p>
+                  <div className="relative inline-block">
+                    <span className="text-5xl">{topThree[2].avatar || '👤'}</span>
+                    {getCountryFlag(topThree[2].country) && <span className="absolute -bottom-1 -right-1 text-lg">{getCountryFlag(topThree[2].country)}</span>}
+                  </div>
+                  <p className="font-bold text-lg mt-2">{topThree[2].nickname || topThree[2].name}</p>
                   <p className="text-sm text-muted-foreground">{topThree[2].xp || 0} XP</p>
                   <div className="mt-2 bg-amber-700 text-white px-4 py-2 rounded-t-lg">
                     <Award className="w-6 h-6 mx-auto" />
@@ -236,7 +246,10 @@ const Rankings = () => {
                       <TableCell>{getRankBadge(entry.global_rank)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{entry.avatar || '👤'}</span>
+                          <div className="relative">
+                            <span className="text-2xl">{entry.avatar || '👤'}</span>
+                            {getCountryFlag(entry.country) && <span className="absolute -bottom-1 -right-1 text-sm">{getCountryFlag(entry.country)}</span>}
+                          </div>
                           <div>
                             <p className="font-medium">{entry.name}</p>
                             {entry.nickname && (
