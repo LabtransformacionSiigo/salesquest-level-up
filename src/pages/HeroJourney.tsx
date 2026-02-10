@@ -6,23 +6,20 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Sprout, Compass, Shield, Sparkles, Rocket,
-  Target, Users, Handshake, Diamond,
-  Eye, Zap, Brain, Radar,
-  CalendarDays, Trophy, Star,
-  UserPlus, Phone, FileText, BadgeCheck, TrendingUp, Heart,
-  ChevronRight
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ─── Material Icon helper ────────────────────────────────────────────
+const MI = ({ icon, className }: { icon: string; className?: string }) => (
+  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+);
 
 // ─── Data ────────────────────────────────────────────────────────────
 
 const strategicPillars = [
-  { icon: Eye, label: 'Visibilidad', sub: 'Feedback en tiempo real.' },
-  { icon: Zap, label: 'Productividad', sub: 'Esfuerzo sostenible.' },
-  { icon: Brain, label: 'Maestría', sub: 'Upskilling constante.' },
-  { icon: Radar, label: 'Radar de Impacto', sub: '' },
+  { icon: 'visibility', label: 'Visibilidad', sub: 'Feedback en tiempo real.' },
+  { icon: 'bolt', label: 'Productividad', sub: 'Esfuerzo sostenible.' },
+  { icon: 'psychology', label: 'Maestría', sub: 'Upskilling constante.' },
+  { icon: 'radar', label: 'Radar de Impacto', sub: '' },
 ];
 
 const dailyChallenges = [
@@ -43,13 +40,13 @@ const monthlyChallenges = [
 ];
 
 const pointActions = [
-  { icon: UserPlus, label: 'Registrar prospecto', pts: '1 pt' },
-  { icon: Phone, label: 'Llamada/Contacto', pts: '2 pts' },
-  { icon: Users, label: 'Completar Reunión/Demo', pts: '5 pts' },
-  { icon: FileText, label: 'Enviar Propuesta Formal', pts: '5 pts' },
-  { icon: BadgeCheck, label: 'Cerrar Venta (Contrato)', pts: '10 pts' },
-  { icon: TrendingUp, label: 'Venta de Alto Valor', pts: '15-20 pts' },
-  { icon: Heart, label: 'Reconocimiento a compañero', pts: '1-2 pts' },
+  { icon: 'person_add', label: 'Registrar prospecto', pts: '1 pt' },
+  { icon: 'phone_in_talk', label: 'Llamada/Contacto', pts: '2 pts' },
+  { icon: 'groups', label: 'Completar Reunión/Demo', pts: '5 pts' },
+  { icon: 'description', label: 'Enviar Propuesta Formal', pts: '5 pts' },
+  { icon: 'verified', label: 'Cerrar Venta (Contrato)', pts: '10 pts' },
+  { icon: 'trending_up', label: 'Venta de Alto Valor', pts: '15-20 pts' },
+  { icon: 'volunteer_activism', label: 'Reconocimiento a compañero', pts: '1-2 pts' },
 ];
 
 const bonusPoints = [
@@ -59,76 +56,68 @@ const bonusPoints = [
 ];
 
 const levels = [
-  { name: 'Novato', level: 1, range: '0 - 2,000 pts', icon: Sprout, color: 'text-muted-foreground' },
-  { name: 'Explorador', level: 2, range: '2k - 8,000 pts', icon: Compass, color: 'text-primary' },
-  { name: 'Master', level: 3, range: '8k - 20,000 pts', icon: Shield, color: 'text-accent' },
-  { name: 'Legendario', level: 4, range: '20k - 45,000 pts', icon: Sparkles, color: 'text-orange' },
-  { name: 'Imparable', level: 5, range: '+45,000 pts', icon: Rocket, color: 'text-destructive' },
+  { name: 'Novato', level: 1, range: '0 - 2,000 pts', icon: 'eco', color: 'text-muted-foreground', bg: 'bg-muted/50' },
+  { name: 'Explorador', level: 2, range: '2k - 8,000 pts', icon: 'explore', color: 'text-primary', bg: 'bg-primary/10' },
+  { name: 'Master', level: 3, range: '8k - 20,000 pts', icon: 'military_tech', color: 'text-accent', bg: 'bg-accent/10' },
+  { name: 'Legendario', level: 4, range: '20k - 45,000 pts', icon: 'auto_fix_high', color: 'text-orange', bg: 'bg-orange/10' },
+  { name: 'Imparable', level: 5, range: '+45,000 pts', icon: 'rocket_launch', color: 'text-destructive', bg: 'bg-destructive/10' },
 ];
 
 const badges = [
-  { icon: Target, name: 'Francotirador', desc: 'Conversión superior al 30% en un mes.' },
-  { icon: Users, name: 'Alpha Wolf', desc: 'Cerrar el mayor número de tratos trimestrales.' },
-  { icon: Handshake, name: 'El Padrino', desc: 'Recibir 5 reconocimientos de ayuda/mentoring.' },
-  { icon: Diamond, name: 'Caza Ballenas', desc: 'Cerrar negocio que represente >15% de la cuota.' },
+  { icon: 'track_changes', name: 'Francotirador', desc: 'Conversión superior al 30% en un mes.' },
+  { icon: 'catching_pokemon', name: 'Alpha Wolf', desc: 'Cerrar el mayor número de tratos trimestrales.' },
+  { icon: 'handshake', name: 'El Padrino', desc: 'Recibir 5 reconocimientos de ayuda/mentoring.' },
+  { icon: 'diamond', name: 'Caza Ballenas', desc: 'Cerrar negocio que represente >15% de la cuota.' },
 ];
 
-// ─── Section Header ──────────────────────────────────────────────────
+// ─── Challenge Table Component ───────────────────────────────────────
+
+const ChallengeTable = ({
+  icon,
+  title,
+  items,
+  colorClass,
+}: {
+  icon: string;
+  title: string;
+  items: { name: string; desc: string; pts: string }[];
+  colorClass: string;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2">
+      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", colorClass)}>
+        <MI icon={icon} className="text-lg !text-inherit" />
+      </div>
+      <h4 className="text-sm font-bold text-foreground">{title}</h4>
+    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="text-xs">Desafío</TableHead>
+          <TableHead className="text-xs">Explicación</TableHead>
+          <TableHead className="text-xs text-right w-20">Puntos</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item, i) => (
+          <TableRow key={i}>
+            <TableCell className="text-xs font-semibold">{item.name}</TableCell>
+            <TableCell className="text-xs text-muted-foreground">{item.desc}</TableCell>
+            <TableCell className="text-xs text-right font-bold text-primary">{item.pts}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </div>
+);
+
+// ─── Section Number ──────────────────────────────────────────────────
 
 const SectionNumber = ({ num }: { num: number }) => (
   <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
     {num}
   </div>
 );
-
-// ─── Challenge Table ─────────────────────────────────────────────────
-
-const ChallengeTable = ({
-  icon: Icon,
-  title,
-  items,
-  variant,
-}: {
-  icon: React.ElementType;
-  title: string;
-  items: { name: string; desc: string; pts: string }[];
-  variant: 'daily' | 'weekly' | 'monthly';
-}) => {
-  const colors = {
-    daily: 'bg-accent/10 text-accent',
-    weekly: 'bg-primary/10 text-primary',
-    monthly: 'bg-secondary/10 text-secondary',
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", colors[variant])}>
-          <Icon className="w-4 h-4" />
-        </div>
-        <h4 className="text-sm font-bold text-foreground">{title}</h4>
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-xs">Desafío</TableHead>
-            <TableHead className="text-xs">Explicación</TableHead>
-            <TableHead className="text-xs text-right w-20">Puntos</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, i) => (
-            <TableRow key={i}>
-              <TableCell className="text-xs font-semibold">{item.name}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">{item.desc}</TableCell>
-              <TableCell className="text-xs text-right font-bold text-primary">{item.pts}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
 
 // ─── Page ────────────────────────────────────────────────────────────
 
@@ -148,39 +137,46 @@ const HeroJourney = () => {
       <div className="space-y-8 max-w-5xl mx-auto">
 
         {/* ── Hero Banner ── */}
-        <Card className="p-6 bg-gradient-to-br from-primary/10 via-card to-accent/5 border-primary/20">
-          <div className="flex items-start justify-between">
+        <Card className="p-6 bg-gradient-to-br from-primary/10 via-card to-accent/5 border-primary/20 overflow-hidden relative">
+          <div className="flex items-start justify-between relative z-10">
             <div className="space-y-2">
-              <Badge className="bg-primary/20 text-primary border-0 text-[10px] font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-2 mb-1">
+                <MI icon="insights" className="text-primary text-xl" />
+                <span className="text-xs font-bold text-primary tracking-wider uppercase">
+                  Siigo Hero Academy
+                </span>
+              </div>
+              <Badge className="bg-foreground/10 text-foreground border-0 text-[10px] font-bold uppercase tracking-wider">
                 Guía de Desafíos y Sistema de Puntos
               </Badge>
-              <h1 className="text-2xl font-extrabold text-foreground">Cultura de Alto Desempeño</h1>
+              <h1 className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                Cultura de Alto Desempeño
+              </h1>
+              <h2 className="text-lg font-semibold text-foreground/80" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                La Gamificación es nuestra Estrategia
+              </h2>
               <p className="text-sm text-muted-foreground max-w-lg">
-                La Gamificación es nuestra Estrategia. Basado en el análisis de transformación, 
-                pasamos de un estado reactivo a un ecosistema proactivo donde cada acción cuenta 
-                para tu crecimiento profesional.
+                Basado en el análisis de transformación, pasamos de un estado reactivo a un ecosistema proactivo 
+                donde cada acción cuenta para tu crecimiento profesional.
               </p>
             </div>
-            <div className="flex items-center gap-1.5 bg-accent/20 text-accent-foreground px-3 py-1.5 rounded-full">
-              <Star className="w-4 h-4 text-accent" />
-              <span className="text-sm font-bold">{currentXP.toLocaleString()} XP</span>
+            <div className="flex items-center gap-1.5 bg-accent/20 px-3 py-1.5 rounded-full flex-shrink-0">
+              <MI icon="stars" className="text-accent text-base" />
+              <span className="text-sm font-bold text-foreground">{currentXP.toLocaleString()} XP</span>
             </div>
           </div>
 
           {/* Pillars */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-            {strategicPillars.map((p) => {
-              const Icon = p.icon;
-              return (
-                <div key={p.label} className="flex items-center gap-2 p-2.5 rounded-lg bg-card/60 border border-border">
-                  <Icon className="w-4 h-4 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-foreground">{p.label}</p>
-                    {p.sub && <p className="text-[10px] text-muted-foreground">{p.sub}</p>}
-                  </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 relative z-10">
+            {strategicPillars.map((p) => (
+              <div key={p.label} className="flex items-center gap-2.5 p-3 rounded-xl bg-card/70 backdrop-blur-sm border border-border/50">
+                <MI icon={p.icon} className="text-primary text-xl" />
+                <div>
+                  <p className="text-xs font-bold text-foreground">{p.label}</p>
+                  {p.sub && <p className="text-[10px] text-muted-foreground">{p.sub}</p>}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </Card>
 
@@ -188,13 +184,15 @@ const HeroJourney = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <SectionNumber num={1} />
-            <h2 className="text-xl font-bold text-foreground">Cronograma de Desafíos</h2>
+            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Cronograma de Desafíos
+            </h2>
           </div>
 
           <Card className="p-5 space-y-6">
-            <ChallengeTable icon={Zap} title='Retos Diarios ("Flash Challenges")' items={dailyChallenges} variant="daily" />
-            <ChallengeTable icon={CalendarDays} title="Retos Semanales" items={weeklyChallenges} variant="weekly" />
-            <ChallengeTable icon={Trophy} title="Retos Mensuales" items={monthlyChallenges} variant="monthly" />
+            <ChallengeTable icon="flash_on" title='Retos Diarios ("Flash Challenges")' items={dailyChallenges} colorClass="bg-accent/10 text-accent" />
+            <ChallengeTable icon="calendar_view_week" title="Retos Semanales" items={weeklyChallenges} colorClass="bg-primary/10 text-primary" />
+            <ChallengeTable icon="workspace_premium" title="Retos Mensuales" items={monthlyChallenges} colorClass="bg-secondary/10 text-secondary" />
           </Card>
         </div>
 
@@ -202,33 +200,34 @@ const HeroJourney = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <SectionNumber num={2} />
-            <h2 className="text-xl font-bold text-foreground">Sistema de Puntuación</h2>
+            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Sistema de Puntuación
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Action points */}
             <Card className="p-5">
-              <div className="grid grid-cols-1 gap-2">
-                {pointActions.map((action, i) => {
-                  const Icon = action.icon;
-                  return (
-                    <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-primary" />
-                      </div>
-                      <span className="text-sm text-foreground flex-1">{action.label}</span>
-                      <span className="text-sm font-bold text-primary">{action.pts}</span>
+              <div className="space-y-1">
+                {pointActions.map((action, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MI icon={action.icon} className="text-primary text-lg" />
                     </div>
-                  );
-                })}
+                    <span className="text-sm text-foreground flex-1">{action.label}</span>
+                    <span className="text-sm font-bold text-primary">{action.pts}</span>
+                  </div>
+                ))}
               </div>
             </Card>
 
             {/* Bonus */}
             <Card className="p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Star className="w-5 h-5 text-accent" />
-                <h3 className="text-base font-bold text-foreground">Bonus de Logros</h3>
+                <MI icon="stars" className="text-accent text-xl" />
+                <h3 className="text-base font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  Bonus de Logros
+                </h3>
               </div>
               <div className="space-y-3">
                 {bonusPoints.map((b, i) => (
@@ -246,33 +245,36 @@ const HeroJourney = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <SectionNumber num={3} />
-            <h2 className="text-xl font-bold text-foreground">Camino a la Maestría</h2>
+            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Camino a la Maestría
+            </h2>
           </div>
 
           {/* Levels horizontal */}
           <Card className="p-5">
             <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2">
               {levels.map((lvl, i) => {
-                const Icon = lvl.icon;
                 const isCurrent = currentLevel?.level === lvl.name;
                 return (
-                  <div key={lvl.name} className="flex items-center gap-2">
+                  <div key={lvl.name} className="flex items-center gap-1">
                     <div className={cn(
-                      "flex flex-col items-center gap-1.5 p-3 rounded-xl min-w-[100px] transition-all border",
+                      "flex flex-col items-center gap-1.5 p-3 rounded-xl min-w-[100px] transition-all border-2",
                       isCurrent
-                        ? "bg-primary/10 border-primary ring-1 ring-primary/30"
-                        : "bg-muted/30 border-border"
+                        ? "border-primary bg-primary/10 ring-2 ring-primary/20 shadow-smooth-md"
+                        : "border-border bg-muted/30"
                     )}>
-                      <Icon className={cn("w-6 h-6", lvl.color)} />
-                      <p className="text-xs font-bold text-foreground">{lvl.name}</p>
+                      <MI icon={lvl.icon} className={cn("text-3xl", lvl.color)} />
+                      <p className="text-xs font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        {lvl.name}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">Nivel {lvl.level}</p>
                       <p className="text-[10px] font-semibold text-muted-foreground">{lvl.range}</p>
                       {isCurrent && (
-                        <Badge className="bg-primary text-primary-foreground text-[9px] mt-1">Actual</Badge>
+                        <MI icon="stars" className="text-primary text-base" />
                       )}
                     </div>
                     {i < levels.length - 1 && (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <MI icon="chevron_right" className="text-muted-foreground text-lg flex-shrink-0 mx-1" />
                     )}
                   </div>
                 );
@@ -283,7 +285,9 @@ const HeroJourney = () => {
           {/* Badges */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-foreground">Insignias y Medallas</h3>
+              <h3 className="text-base font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                Insignias y Medallas
+              </h3>
               <Button variant="outline" size="sm" className="text-xs">
                 Ver Galería Completa
               </Button>
@@ -293,27 +297,32 @@ const HeroJourney = () => {
               Coleccionables y visibles en tu perfil público para demostrar tu valor comercial.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {badges.map((badge) => {
-                const Icon = badge.icon;
-                return (
-                  <Card key={badge.name} className="p-4 text-center hover:shadow-smooth-md transition-all">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <h4 className="text-sm font-bold text-foreground mb-1">{badge.name}</h4>
-                    <p className="text-[10px] text-muted-foreground">{badge.desc}</p>
-                  </Card>
-                );
-              })}
+              {badges.map((badge) => (
+                <Card key={badge.name} className="p-4 text-center hover:shadow-smooth-md transition-all group">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/20 transition-colors">
+                    <MI icon={badge.icon} className="text-primary text-2xl" />
+                  </div>
+                  <h4 className="text-sm font-bold text-foreground mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    {badge.name}
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">{badge.desc}</p>
+                </Card>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center py-6 border-t border-border">
+        <div className="text-center py-6 border-t border-border space-y-2">
           <p className="text-xs text-muted-foreground">
-            🏆 Siigo Sales Gamification Engine © 2025
+            <MI icon="emoji_events" className="text-accent text-sm align-middle mr-1" />
+            Siigo Sales Gamification Engine © 2025
           </p>
+          <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
+            <span className="hover:text-foreground cursor-pointer transition-colors">Reglamento</span>
+            <span className="hover:text-foreground cursor-pointer transition-colors">Soporte</span>
+            <span className="hover:text-foreground cursor-pointer transition-colors">Privacidad</span>
+          </div>
         </div>
       </div>
     </Layout>

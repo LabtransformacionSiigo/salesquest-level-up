@@ -1,9 +1,12 @@
 import { Card } from '@/components/ui/card';
-import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const MI = ({ icon, className, style }: { icon: string; className?: string; style?: React.CSSProperties }) => (
+  <span className={cn("material-icons-outlined", className)} style={style}>{icon}</span>
+);
+
 interface RecognitionItem {
-  emoji: string;
+  icon: string;
   name: string;
   count: number;
   color: string;
@@ -22,7 +25,7 @@ const RecognitionsGrid = ({ total, recognitions }: RecognitionsGridProps) => {
           <h3 className="text-base font-bold text-foreground">Mis Reconocimientos</h3>
           <span className="text-sm text-muted-foreground">Total: {total}</span>
         </div>
-        <Heart className="w-5 h-5 text-destructive" />
+        <MI icon="volunteer_activism" className="text-destructive text-xl" />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -37,10 +40,10 @@ const RecognitionsGrid = ({ total, recognitions }: RecognitionsGridProps) => {
             )}
           >
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${rec.color}15` }}
             >
-              {rec.emoji}
+              <MI icon={rec.icon} className="text-lg" style={{ color: rec.color }} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{rec.name}</p>

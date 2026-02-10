@@ -64,25 +64,25 @@ const ExecutiveDashboard = () => {
           earnedCount={24}
           totalCount={48}
           medals={[
-            { icon: '🎯', name: 'Primer cierre', earned: true },
-            { icon: '🏹', name: 'El cazador', earned: true },
-            { icon: '🚀', name: 'Nubarrón de ventas', earned: true },
-            { icon: '💯', name: '0 a 100', earned: true },
-            { icon: '🤝', name: 'Cross Seller', earned: true },
-            { icon: '⭐', name: 'Estrella del mes', earned: true },
-            { icon: '⏱️', name: 'Tiempo perfecto', earned: false },
-            { icon: '📢', name: 'Embajador', earned: false },
+            { icon: 'done_all', name: 'Primer cierre', earned: true },
+            { icon: 'ads_click', name: 'El cazador', earned: true },
+            { icon: 'rocket_launch', name: 'Nubarrón de ventas', earned: true },
+            { icon: 'percent', name: '0 a 100', earned: true },
+            { icon: 'group_add', name: 'Cross Seller', earned: true },
+            { icon: 'auto_awesome', name: 'Estrella del mes', earned: true },
+            { icon: 'timer', name: 'Tiempo perfecto', earned: false },
+            { icon: 'campaign', name: 'Embajador', earned: false },
           ]}
         />
         <RecognitionsGrid
           total={8}
           recognitions={[
-            { emoji: '🤝', name: 'Nos apasiona ayudar', count: 1, color: '#3B82F6' },
-            { emoji: '🏆', name: 'Mentalidad ganadora', count: 2, color: '#F59E0B' },
-            { emoji: '😊', name: '100% actitud y alegría', count: 0, color: '#EC4899' },
-            { emoji: '💙', name: 'Humildes y amorosos', count: 3, color: '#06B6D4' },
-            { emoji: '💡', name: 'Innovamos sin parar', count: 0, color: '#8B5CF6' },
-            { emoji: '💬', name: 'Nos decimos todo', count: 2, color: '#10B981' },
+            { icon: 'handshake', name: 'Nos apasiona ayudar', count: 1, color: '#3B82F6' },
+            { icon: 'groups', name: 'Mentalidad ganadora', count: 2, color: '#F59E0B' },
+            { icon: 'sentiment_very_satisfied', name: '100% actitud y alegría', count: 0, color: '#EC4899' },
+            { icon: 'favorite', name: 'Humildes y amorosos', count: 3, color: '#06B6D4' },
+            { icon: 'lightbulb', name: 'Innovamos sin parar', count: 0, color: '#8B5CF6' },
+            { icon: 'chat_bubble', name: 'Nos decimos todo', count: 2, color: '#10B981' },
           ]}
         />
       </div>

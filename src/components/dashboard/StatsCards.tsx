@@ -1,6 +1,10 @@
 import { Card } from '@/components/ui/card';
-import { Star, Flame, Trophy, Award, Plane } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ReactNode } from 'react';
+
+const MI = ({ icon, className }: { icon: string; className?: string }) => (
+  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+);
 
 interface StatsCardsProps {
   xp: number;
@@ -23,9 +27,16 @@ const StatsCards = ({
   lastMedalAgo,
   seatCategory,
 }: StatsCardsProps) => {
-  const stats = [
+  const stats: {
+    icon: string;
+    label: string;
+    value: string;
+    sub: ReactNode;
+    color: string;
+    bgColor: string;
+  }[] = [
     {
-      icon: Star,
+      icon: 'grade',
       label: 'XP Totales',
       value: xp.toLocaleString(),
       sub: `+${xpThisMonth} este mes`,
@@ -33,12 +44,12 @@ const StatsCards = ({
       bgColor: 'bg-accent/10',
     },
     {
-      icon: Flame,
+      icon: 'local_fire_department',
       label: 'De racha',
       value: `${streak} días`,
       sub: (
         <div className="flex gap-1 mt-1">
-          {['L', 'M', 'M', 'J'].map((d, i) => (
+          {['L', 'M', 'M', 'J', 'V'].map((d, i) => (
             <span
               key={i}
               className={cn(
@@ -55,26 +66,26 @@ const StatsCards = ({
       bgColor: 'bg-orange/10',
     },
     {
-      icon: Trophy,
-      label: 'En el top 3',
+      icon: 'emoji_events',
+      label: 'En el Top 3',
       value: `${topCount} veces`,
-      sub: `${topPercentile}% mejor desempeño`,
+      sub: `${topPercentile}% por mejor desempeño`,
       color: 'text-accent',
       bgColor: 'bg-accent/10',
     },
     {
-      icon: Award,
+      icon: 'stars',
       label: 'Medallas ganadas',
       value: String(medalsCount),
-      sub: lastMedalAgo ? `última ganada ${lastMedalAgo}` : 'Sin medallas aún',
+      sub: lastMedalAgo ? `Última ${lastMedalAgo}` : 'Sin medallas aún',
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
-      icon: Plane,
-      label: 'Convención 2025',
+      icon: 'flight_takeoff',
+      label: 'Asiento asegurado',
       value: seatCategory,
-      sub: 'Asiento asegurado',
+      sub: 'Confirmado',
       color: 'text-secondary',
       bgColor: 'bg-secondary/10',
     },
@@ -83,20 +94,15 @@ const StatsCards = ({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
       {stats.map((stat, i) => (
-        <Card
-          key={i}
-          className="p-4 hover:shadow-smooth-md transition-all"
-        >
+        <Card key={i} className="p-4 hover:shadow-smooth-md transition-all">
           <div className="flex items-start justify-between mb-2">
             <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
             <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", stat.bgColor)}>
-              <stat.icon className={cn("w-4 h-4", stat.color)} />
+              <MI icon={stat.icon} className={cn("text-base", stat.color)} />
             </div>
           </div>
           <p className="text-xl font-bold text-foreground">{stat.value}</p>
-          <div className="text-xs text-muted-foreground mt-1">
-            {typeof stat.sub === 'string' ? stat.sub : stat.sub}
-          </div>
+          <div className="text-xs text-muted-foreground mt-1">{stat.sub}</div>
         </Card>
       ))}
     </div>
