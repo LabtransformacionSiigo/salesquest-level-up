@@ -1,11 +1,10 @@
 import { Card } from '@/components/ui/card';
 import { useConfig } from '@/context/ConfigContext';
-import { User } from '@/types';
 
 interface XPPreviewProps {
-  productId: number | null;
+  productId: string | null;
   quantity: number;
-  currentUser: User;
+  currentUser: { xp?: number };
   activeMultiplier?: number | null;
 }
 

@@ -1,11 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   xp: number;
-  category: 'Facturación' | 'Nómina' | 'Nube' | 'Otros';
+  category: string;
+  icon?: string;
+  description?: string;
+  active?: boolean;
 }
 
 export interface Level {
@@ -14,20 +18,7 @@ export interface Level {
   color: string;
   minXP: number;
   maxXP: number;
-}
-
-export interface Medal {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  xp: number;
-  criteria: string;
-  criteriaParams?: Record<string, any>;
-  givesStreakSaver: boolean;
-  repeatable: boolean;
-  rarity?: 'común' | 'poco común' | 'rara' | 'épica' | 'legendaria';
-  active?: boolean;
+  id?: string;
 }
 
 export interface StreakXP {
@@ -61,21 +52,17 @@ export interface Recognition {
 interface ConfigContextType {
   products: Product[];
   levels: Level[];
-  medals: Medal[];
   streakXP: StreakXP[];
   streakSaverSettings: StreakSaverSettings;
   recognitions: Recognition[];
+  loading: boolean;
   // Product functions
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: number, product: Partial<Product>) => void;
-  deleteProduct: (id: number) => void;
+  addProduct: (product: { name: string; xp: number; category: string }) => Promise<{ error: any }>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<{ error: any }>;
+  deleteProduct: (id: string) => Promise<{ error: any }>;
   // Level functions
-  updateLevelRange: (level: string, maxXP: number) => void;
+  updateLevelRange: (levelName: string, maxXP: number) => Promise<{ error: any }>;
   getLevelByXP: (xp: number) => Level | undefined;
-  // Medal functions
-  addMedal: (medal: Omit<Medal, 'id'>) => void;
-  updateMedal: (id: string, medal: Partial<Medal>) => void;
-  deleteMedal: (id: string) => void;
   // Streak functions
   updateStreakXP: (week: number | string, xp: number) => void;
   addStreakWeek: () => void;
@@ -83,143 +70,12 @@ interface ConfigContextType {
   updateStreakSaverSettings: (settings: Partial<StreakSaverSettings>) => void;
   // Recognition functions
   updateRecognition: (id: number, recognition: Partial<Recognition>) => void;
+  // Refresh
+  refreshProducts: () => void;
+  refreshLevels: () => void;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
-
-// Initial data
-const initialProducts: Product[] = [
-  { id: 1, name: "Factura Electrónica", xp: 3, category: "Facturación" },
-  { id: 2, name: "Nómina Electrónica", xp: 5, category: "Nómina" },
-  { id: 3, name: "Nube", xp: 15, category: "Nube" },
-  { id: 4, name: "POS", xp: 8, category: "Otros" },
-  { id: 5, name: "Factura Plus", xp: 10, category: "Facturación" }
-];
-
-const initialLevels: Level[] = [
-  { level: "Novato", icon: "🌱", color: "#6B7280", minXP: 0, maxXP: 500 },
-  { level: "Junior", icon: "💙", color: "#3B82F6", minXP: 501, maxXP: 1500 },
-  { level: "Senior", icon: "💜", color: "#8B5CF6", minXP: 1501, maxXP: 3500 },
-  { level: "Master", icon: "⭐", color: "#F59E0B", minXP: 3501, maxXP: 7000 },
-  { level: "Imparable", icon: "🏆", color: "linear-gradient(to right, #F59E0B, #EC4899, #8B5CF6)", minXP: 7001, maxXP: 999999 }
-];
-
-const initialMedals: Medal[] = [
-  {
-    id: 'first-sale',
-    name: "Primera Venta",
-    icon: "🎯",
-    description: "Realiza tu primera venta",
-    xp: 50,
-    criteria: "PRIMERA_VENTA",
-    givesStreakSaver: true,
-    repeatable: false,
-    rarity: 'común',
-    active: true
-  },
-  {
-    id: 'sales-10',
-    name: "Vendedor Activo",
-    icon: "💼",
-    description: "Registra 10 ventas en el mes",
-    xp: 100,
-    criteria: "VENTAS_MES_X",
-    criteriaParams: { count: 10 },
-    givesStreakSaver: false,
-    repeatable: true,
-    rarity: 'común',
-    active: true
-  },
-  {
-    id: 'cloud-master',
-    name: "Master de Nube",
-    icon: "☁️",
-    description: "Vende 5 productos Nube",
-    xp: 150,
-    criteria: "PRODUCTO_ESPECIFICO_X",
-    criteriaParams: { product: "Nube", count: 5 },
-    givesStreakSaver: false,
-    repeatable: true,
-    rarity: 'poco común',
-    active: true
-  },
-  {
-    id: 'level-junior',
-    name: "Ascenso Junior",
-    icon: "💙",
-    description: "Alcanza el nivel Junior",
-    xp: 100,
-    criteria: "NIVEL_ALCANZADO",
-    criteriaParams: { level: "Junior" },
-    givesStreakSaver: false,
-    repeatable: false,
-    rarity: 'común',
-    active: true
-  },
-  {
-    id: 'level-senior',
-    name: "Ascenso Senior",
-    icon: "💜",
-    description: "Alcanza el nivel Senior",
-    xp: 200,
-    criteria: "NIVEL_ALCANZADO",
-    criteriaParams: { level: "Senior" },
-    givesStreakSaver: true,
-    repeatable: false,
-    rarity: 'poco común',
-    active: true
-  },
-  {
-    id: 'streak-4',
-    name: "Compromiso Sólido",
-    icon: "🔥",
-    description: "Mantén una racha de 4 semanas",
-    xp: 80,
-    criteria: "RACHA_SEMANAS_X",
-    criteriaParams: { weeks: 4 },
-    givesStreakSaver: true,
-    repeatable: true,
-    rarity: 'común',
-    active: true
-  },
-  {
-    id: 'streak-12',
-    name: "Imparable",
-    icon: "🚀",
-    description: "Mantén una racha de 12 semanas",
-    xp: 300,
-    criteria: "RACHA_SEMANAS_X",
-    criteriaParams: { weeks: 12 },
-    givesStreakSaver: true,
-    repeatable: true,
-    rarity: 'rara',
-    active: true
-  },
-  {
-    id: 'top-seller',
-    name: "Vendedor del Mes",
-    icon: "👑",
-    description: "Sé el vendedor #1 del mes en tu célula",
-    xp: 500,
-    criteria: "TOP_VENDEDOR_MES",
-    givesStreakSaver: true,
-    repeatable: true,
-    rarity: 'épica',
-    active: true
-  },
-  {
-    id: 'top-3',
-    name: "Elite del Mes",
-    icon: "🥉",
-    description: "Termina en el top 3 del mes",
-    xp: 200,
-    criteria: "TOP_3_VENDEDOR_MES",
-    givesStreakSaver: false,
-    repeatable: true,
-    rarity: 'rara',
-    active: true
-  }
-];
 
 const initialStreakXP: StreakXP[] = [
   { week: 1, xp: 10 },
@@ -242,133 +98,117 @@ const initialStreakSaverSettings: StreakSaverSettings = {
 };
 
 const initialRecognitions: Recognition[] = [
-  {
-    id: 1,
-    name: "Nos apasiona ayudar",
-    emoji: "💙",
-    color: "#3B82F6",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  },
-  {
-    id: 2,
-    name: "Tenemos mentalidad ganadora",
-    emoji: "🏆",
-    color: "#F59E0B",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  },
-  {
-    id: 3,
-    name: "Innovamos y no paramos de aprender",
-    emoji: "💡",
-    color: "#8B5CF6",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  },
-  {
-    id: 4,
-    name: "Nos decimos todo",
-    emoji: "💬",
-    color: "#10B981",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  },
-  {
-    id: 5,
-    name: "100% actitud y alegría",
-    emoji: "😊",
-    color: "#EC4899",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  },
-  {
-    id: 6,
-    name: "Somos humildes y amorosos",
-    emoji: "🤝",
-    color: "#06B6D4",
-    xpPerRecognition: 20,
-    multiplierThreshold: 5,
-    multiplierType: "x2",
-    multiplierDuration: 7,
-    multiplierDurationUnit: "días"
-  }
+  { id: 1, name: "Nos apasiona ayudar", emoji: "💙", color: "#3B82F6", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" },
+  { id: 2, name: "Tenemos mentalidad ganadora", emoji: "🏆", color: "#F59E0B", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" },
+  { id: 3, name: "Innovamos y no paramos de aprender", emoji: "💡", color: "#8B5CF6", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" },
+  { id: 4, name: "Nos decimos todo", emoji: "💬", color: "#10B981", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" },
+  { id: 5, name: "100% actitud y alegría", emoji: "😊", color: "#EC4899", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" },
+  { id: 6, name: "Somos humildes y amorosos", emoji: "🤝", color: "#06B6D4", xpPerRecognition: 20, multiplierThreshold: 5, multiplierType: "x2", multiplierDuration: 7, multiplierDurationUnit: "días" }
 ];
 
 export const ConfigProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [levels, setLevels] = useState<Level[]>(initialLevels);
-  const [medals, setMedals] = useState<Medal[]>(initialMedals);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [levels, setLevels] = useState<Level[]>([]);
   const [streakXP, setStreakXP] = useState<StreakXP[]>(initialStreakXP);
   const [streakSaverSettings, setStreakSaverSettings] = useState<StreakSaverSettings>(initialStreakSaverSettings);
   const [recognitions, setRecognitions] = useState<Recognition[]>(initialRecognitions);
+  const [loading, setLoading] = useState(true);
 
-  // Product functions
-  const addProduct = (product: Omit<Product, 'id'>) => {
-    const newId = Math.max(...products.map(p => p.id), 0) + 1;
-    setProducts([...products, { ...product, id: newId }]);
+  // Fetch products from DB
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('name');
+
+    if (!error && data) {
+      setProducts(data.map(p => ({
+        id: p.id,
+        name: p.name,
+        xp: p.xp_value,
+        category: p.description || 'Otros',
+        icon: p.icon || '📦',
+        active: p.active ?? true,
+      })));
+    }
   };
 
-  const updateProduct = (id: number, product: Partial<Product>) => {
-    setProducts(products.map(p => p.id === id ? { ...p, ...product } : p));
+  // Fetch levels from DB
+  const fetchLevels = async () => {
+    const { data, error } = await supabase
+      .from('levels')
+      .select('*')
+      .order('order_index');
+
+    if (!error && data) {
+      setLevels(data.map(l => ({
+        id: l.id,
+        level: l.name,
+        icon: l.icon || '⭐',
+        color: l.color || '#3B82F6',
+        minXP: l.min_xp,
+        maxXP: l.max_xp,
+      })));
+    }
   };
 
-  const deleteProduct = (id: number) => {
-    setProducts(products.filter(p => p.id !== id));
-  };
+  useEffect(() => {
+    Promise.all([fetchProducts(), fetchLevels()]).finally(() => setLoading(false));
+  }, []);
 
-  // Level functions
-  const updateLevelRange = (level: string, maxXP: number) => {
-    setLevels(prevLevels => {
-      const newLevels = [...prevLevels];
-      const index = newLevels.findIndex(l => l.level === level);
-      if (index !== -1) {
-        newLevels[index] = { ...newLevels[index], maxXP };
-        // Update next level's minXP
-        if (index < newLevels.length - 1) {
-          newLevels[index + 1] = { ...newLevels[index + 1], minXP: maxXP + 1 };
-        }
-      }
-      return newLevels;
+  // Product functions - now persist to DB
+  const addProduct = async (product: { name: string; xp: number; category: string }) => {
+    const { error } = await supabase.from('products').insert({
+      name: product.name,
+      xp_value: product.xp,
+      description: product.category,
     });
+    if (!error) await fetchProducts();
+    return { error };
+  };
+
+  const updateProduct = async (id: string, product: Partial<Product>) => {
+    const updates: any = {};
+    if (product.name !== undefined) updates.name = product.name;
+    if (product.xp !== undefined) updates.xp_value = product.xp;
+    if (product.category !== undefined) updates.description = product.category;
+    if (product.active !== undefined) updates.active = product.active;
+
+    const { error } = await supabase.from('products').update(updates).eq('id', id);
+    if (!error) await fetchProducts();
+    return { error };
+  };
+
+  const deleteProduct = async (id: string) => {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (!error) await fetchProducts();
+    return { error };
+  };
+
+  // Level functions - now persist to DB
+  const updateLevelRange = async (levelName: string, maxXP: number) => {
+    const level = levels.find(l => l.level === levelName);
+    if (!level?.id) return { error: new Error('Level not found') };
+
+    const { error } = await supabase.from('levels').update({ max_xp: maxXP }).eq('id', level.id);
+
+    // Update next level's min_xp
+    const idx = levels.findIndex(l => l.level === levelName);
+    if (idx < levels.length - 1 && levels[idx + 1].id) {
+      await supabase.from('levels').update({ min_xp: maxXP + 1 }).eq('id', levels[idx + 1].id!);
+    }
+
+    if (!error) await fetchLevels();
+    return { error };
   };
 
   const getLevelByXP = (xp: number): Level | undefined => {
     return levels.find(level => xp >= level.minXP && xp <= level.maxXP);
   };
 
-  // Medal functions
-  const addMedal = (medal: Omit<Medal, 'id'>) => {
-    const newId = `medal-${Date.now()}`;
-    setMedals([...medals, { ...medal, id: newId, active: true }]);
-  };
-
-  const updateMedal = (id: string, medal: Partial<Medal>) => {
-    setMedals(medals.map(m => m.id === id ? { ...m, ...medal } : m));
-  };
-
-  const deleteMedal = (id: string) => {
-    setMedals(medals.filter(m => m.id !== id));
-  };
-
-  // Streak functions
+  // Streak functions (still in-memory for now)
   const updateStreakXP = (week: number | string, xp: number) => {
-    setStreakXP(streakXP.map(s => s.week === week ? { ...s, xp } : s));
+    setStreakXP(prev => prev.map(s => s.week === week ? { ...s, xp } : s));
   };
 
   const addStreakWeek = () => {
@@ -387,9 +227,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setStreakSaverSettings(prev => ({ ...prev, ...settings }));
   };
 
-  // Recognition functions
+  // Recognition functions (still in-memory for now)
   const updateRecognition = (id: number, recognition: Partial<Recognition>) => {
-    setRecognitions(recognitions.map(r => r.id === id ? { ...r, ...recognition } : r));
+    setRecognitions(prev => prev.map(r => r.id === id ? { ...r, ...recognition } : r));
   };
 
   return (
@@ -397,23 +237,22 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       value={{
         products,
         levels,
-        medals,
         streakXP,
         streakSaverSettings,
         recognitions,
+        loading,
         addProduct,
         updateProduct,
         deleteProduct,
         updateLevelRange,
         getLevelByXP,
-        addMedal,
-        updateMedal,
-        deleteMedal,
         updateStreakXP,
         addStreakWeek,
         deleteStreakWeek,
         updateStreakSaverSettings,
-        updateRecognition
+        updateRecognition,
+        refreshProducts: fetchProducts,
+        refreshLevels: fetchLevels,
       }}
     >
       {children}

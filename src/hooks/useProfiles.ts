@@ -11,7 +11,6 @@ export const useProfiles = () => {
     try {
       setLoading(true);
       
-      // Fetch all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -19,14 +18,12 @@ export const useProfiles = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all roles
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('*');
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
       const combinedProfiles = (profilesData || []).map(profile => {
         const roleRecord = rolesData?.find(r => r.user_id === profile.id);
         return {
@@ -82,62 +79,64 @@ export const useProfiles = () => {
     country?: string;
     segment?: 'Empresarios' | 'Aliados' | 'B&M' | 'Despachos';
   }) => {
-    // Create auth user with metadata
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        data: {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'create',
+          email: userData.email,
+          password: userData.password,
           name: userData.name,
           role: userData.role,
           avatar: userData.avatar || '👤',
+          country: userData.country,
+          segment: userData.segment,
+          cell_id: userData.cell_id,
+          manager_id: userData.manager_id,
         },
-      },
-    });
+      });
 
-    if (authError) {
-      return { data: null, error: authError };
-    }
+      if (response.error) {
+        return { data: null, error: response.error };
+      }
 
-    // Wait a bit for the trigger to create profile
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Update additional profile fields
-    if (authData.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          manager_id: userData.manager_id || null,
-          cell_id: userData.cell_id || null,
-          country: userData.country || null,
-          segment: userData.segment || null,
-        })
-        .eq('id', authData.user.id);
-
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
+      const result = response.data;
+      if (result.error) {
+        return { data: null, error: new Error(result.error) };
       }
 
       // Refresh profiles
       await fetchProfiles();
+      return { data: result.data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err };
     }
-
-    return { data: authData, error: null };
   };
 
   const deleteUserProfile = async (userId: string) => {
-    // Note: Deleting from auth.users will cascade to profiles due to FK
-    // This requires admin access, so for now we just update the profile
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
+    try {
+      const response = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'delete',
+          userId,
+        },
+      });
 
-    if (!error) {
+      if (response.error) {
+        return { error: response.error };
+      }
+
+      const result = response.data;
+      if (result.error) {
+        return { error: new Error(result.error) };
+      }
+
       setProfiles(prev => prev.filter(p => p.id !== userId));
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
     }
-
-    return { error };
   };
 
   return {

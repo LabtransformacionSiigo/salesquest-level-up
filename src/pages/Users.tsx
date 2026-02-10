@@ -305,9 +305,10 @@ const Users = () => {
                       <SelectContent>
                         <SelectItem value="Colombia">🇨🇴 Colombia</SelectItem>
                         <SelectItem value="México">🇲🇽 México</SelectItem>
-                        <SelectItem value="Argentina">🇦🇷 Argentina</SelectItem>
-                        <SelectItem value="Chile">🇨🇱 Chile</SelectItem>
+                        <SelectItem value="Ecuador">🇪🇨 Ecuador</SelectItem>
                         <SelectItem value="Perú">🇵🇪 Perú</SelectItem>
+                        <SelectItem value="Chile">🇨🇱 Chile</SelectItem>
+                        <SelectItem value="Uruguay">🇺🇾 Uruguay</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

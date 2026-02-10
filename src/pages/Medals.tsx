@@ -1,63 +1,46 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
-import { useConfig } from '@/context/ConfigContext';
-import { useSales } from '@/context/SalesContext';
+import { useMedals } from '@/hooks/useMedals';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { getMedalRarityColor, getMedalRarityBadge } from '@/utils/medalEvaluator';
 import { Trophy, Lock, Calendar, Award } from 'lucide-react';
 
 const Medals = () => {
   const { profile } = useSupabaseAuthContext();
-  const { medals: allMedals } = useConfig();
-  const { sales } = useSales();
+  const { medals: allMedals, loading } = useMedals();
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
 
   // For now, use empty medals since we're migrating to Supabase
   const userMedals: { medalId: string; obtainedAt: Date }[] = [];
   const unlockedMedalIds = new Set(userMedals.map(m => m.medalId));
 
-  const stats = useMemo(() => {
-    const unlockedCount = unlockedMedalIds.size;
-    const totalCount = allMedals.filter(m => m.active !== false).length;
-    const totalXP = allMedals
+  const activeMedals = allMedals.filter(m => m.active !== false);
+
+  const stats = {
+    unlockedCount: unlockedMedalIds.size,
+    totalCount: activeMedals.length,
+    percentage: activeMedals.length > 0 ? Math.round((unlockedMedalIds.size / activeMedals.length) * 100) : 0,
+    totalXP: allMedals
       .filter(m => unlockedMedalIds.has(m.id))
-      .reduce((sum, m) => sum + m.xp, 0);
-    
+      .reduce((sum, m) => sum + (m.xp_reward || 0), 0),
+  };
+
+  const medalsWithProgress = activeMedals.map(medal => {
+    const unlocked = unlockedMedalIds.has(medal.id);
+    const userMedal = userMedals.find(m => m.medalId === medal.id);
     return {
-      unlockedCount,
-      totalCount,
-      percentage: totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0,
-      totalXP
+      ...medal,
+      unlocked,
+      obtainedAt: userMedal?.obtainedAt,
     };
-  }, [allMedals, unlockedMedalIds]);
-
-  const medalsWithProgress = useMemo(() => {
-    return allMedals
-      .filter(m => m.active !== false)
-      .map(medal => {
-        const unlocked = unlockedMedalIds.has(medal.id);
-        const userMedal = userMedals.find(m => m.medalId === medal.id);
-
-        return {
-          ...medal,
-          unlocked,
-          obtainedAt: userMedal?.obtainedAt,
-          progress: undefined as { current: number; required: number; percentage: number } | undefined
-        };
-      })
-      .sort((a, b) => {
-        if (a.unlocked && !b.unlocked) return -1;
-        if (!a.unlocked && b.unlocked) return 1;
-        if (a.unlocked && b.unlocked) {
-          return new Date(b.obtainedAt!).getTime() - new Date(a.obtainedAt!).getTime();
-        }
-        return 0;
-      });
-  }, [allMedals, unlockedMedalIds, userMedals]);
+  }).sort((a, b) => {
+    if (a.unlocked && !b.unlocked) return -1;
+    if (!a.unlocked && b.unlocked) return 1;
+    return 0;
+  });
 
   const filteredMedals = medalsWithProgress.filter(medal => {
     if (filter === 'unlocked') return medal.unlocked;
@@ -65,9 +48,15 @@ const Medals = () => {
     return true;
   });
 
-  const nearbyMedals = medalsWithProgress
-    .filter(m => !m.unlocked && m.progress && m.progress.percentage >= 50)
-    .slice(0, 3);
+  if (loading) {
+    return (
+      <Layout title="Mis Medallas">
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Cargando medallas...</p>
+        </Card>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title="Mis Medallas">
@@ -93,31 +82,10 @@ const Medals = () => {
                 <p className="text-sm text-muted-foreground">Total de medallas</p>
               </div>
             </div>
-
             <div>
               <Progress value={stats.percentage} className="h-3" />
               <p className="text-sm text-muted-foreground mt-2">{stats.percentage}% completado</p>
             </div>
-
-            {nearbyMedals.length > 0 && (
-              <div className="pt-4 border-t border-border">
-                <p className="text-sm font-semibold mb-3">🎯 Próximas medallas cercanas:</p>
-                <div className="space-y-2">
-                  {nearbyMedals.map(medal => (
-                    <div key={medal.id} className="flex items-center gap-3">
-                      <span className="text-2xl">{medal.icon}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{medal.name}</p>
-                        <Progress value={medal.progress!.percentage} className="h-2 mt-1" />
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {medal.progress!.percentage.toFixed(0)}%
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -135,24 +103,19 @@ const Medals = () => {
           {filteredMedals.map(medal => (
             <Card
               key={medal.id}
-              className={`${medal.unlocked 
-                ? `${getMedalRarityColor(medal.rarity)} shadow-lg` 
-                : 'opacity-75'
-              } transition-all hover:scale-105`}
+              className={`${medal.unlocked ? 'shadow-lg' : 'opacity-75'} transition-all hover:scale-105`}
             >
               <CardContent className="p-6 text-center space-y-3">
-                <div className={`text-6xl ${medal.unlocked ? 'animate-bounce-slow' : 'grayscale'}`}>
+                <div className={`text-6xl ${medal.unlocked ? '' : 'grayscale'}`}>
                   {medal.unlocked ? medal.icon : '🔒'}
                 </div>
 
                 <h3 className="font-bold text-lg">{medal.name}</h3>
                 <p className="text-sm text-muted-foreground">{medal.description}</p>
 
-                {medal.rarity && (
-                  <Badge variant="outline" className="text-xs">
-                    {getMedalRarityBadge(medal.rarity)}
-                  </Badge>
-                )}
+                <Badge variant="outline" className="text-xs">
+                  {medal.category}
+                </Badge>
 
                 {medal.unlocked ? (
                   <div className="space-y-2 pt-3 border-t border-border">
@@ -160,34 +123,9 @@ const Medals = () => {
                       <Award className="w-4 h-4" />
                       <span className="font-semibold">DESBLOQUEADA</span>
                     </div>
-                    
-                    {medal.obtainedAt && (
-                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(medal.obtainedAt).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
-                        })}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 justify-center pt-2">
-                      <Badge className="bg-gradient-to-r from-primary to-secondary">
-                        💎 +{medal.xp} XP
-                      </Badge>
-                      {medal.givesStreakSaver && (
-                        <Badge className="bg-gradient-to-r from-accent to-primary">
-                          🛡️ +1
-                        </Badge>
-                      )}
-                    </div>
-
-                    {medal.repeatable && (
-                      <p className="text-xs text-muted-foreground">
-                        🎖️ Obtenida {userMedals.filter(m => m.medalId === medal.id).length} vez(ces)
-                      </p>
-                    )}
+                    <Badge className="bg-gradient-to-r from-primary to-secondary">
+                      💎 +{medal.xp_reward || 0} XP
+                    </Badge>
                   </div>
                 ) : (
                   <div className="space-y-2 pt-3 border-t border-border">
@@ -195,31 +133,7 @@ const Medals = () => {
                       <Lock className="w-4 h-4" />
                       <span className="font-semibold">AÚN NO DESBLOQUEADA</span>
                     </div>
-
-                    {medal.progress && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Progreso:</p>
-                        <Progress value={medal.progress.percentage} className="h-2" />
-                        <p className="text-xs text-muted-foreground">
-                          {medal.progress.current} / {medal.progress.required} ({medal.progress.percentage.toFixed(0)}%)
-                        </p>
-                        {medal.progress.percentage >= 80 && (
-                          <p className="text-xs font-semibold text-primary">
-                            ¡Solo faltan {medal.progress.required - medal.progress.current}! 🔥
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="pt-2">
-                      <p className="text-xs text-muted-foreground mb-1">Recompensa:</p>
-                      <div className="flex gap-2 justify-center">
-                        <Badge variant="outline">💎 +{medal.xp} XP</Badge>
-                        {medal.givesStreakSaver && (
-                          <Badge variant="outline">🛡️ +1</Badge>
-                        )}
-                      </div>
-                    </div>
+                    <Badge variant="outline">💎 +{medal.xp_reward || 0} XP</Badge>
                   </div>
                 )}
               </CardContent>

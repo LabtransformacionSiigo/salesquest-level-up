@@ -17,10 +17,11 @@ const ProductsTab = () => {
   const { products, addProduct, updateProduct, deleteProduct } = useConfig();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,24 +29,24 @@ const ProductsTab = () => {
     category: 'Facturación' as ProductCategory
   });
 
-  const getCategoryColor = (category: ProductCategory) => {
-    const colors = {
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
       'Facturación': 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
       'Nómina': 'bg-green-500/20 text-green-700 dark:text-green-300',
       'Nube': 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
       'Otros': 'bg-gray-500/20 text-gray-700 dark:text-gray-300'
     };
-    return colors[category];
+    return colors[category] || colors['Otros'];
   };
 
-  const handleOpenDialog = (id?: number) => {
+  const handleOpenDialog = (id?: string) => {
     if (id) {
       const product = products.find(p => p.id === id);
       if (product) {
         setFormData({
           name: product.name,
           xp: product.xp.toString(),
-          category: product.category
+          category: (product.category as ProductCategory) || 'Otros'
         });
         setEditingId(id);
       }
@@ -56,7 +57,7 @@ const ProductsTab = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.xp || parseInt(formData.xp) <= 0) {
       toast({
         title: "Error",
@@ -66,38 +67,43 @@ const ProductsTab = () => {
       return;
     }
 
-    if (editingId) {
-      updateProduct(editingId, {
-        name: formData.name,
-        xp: parseInt(formData.xp),
-        category: formData.category
-      });
-      toast({
-        title: "Producto actualizado",
-        description: "Los cambios se guardaron correctamente"
-      });
-    } else {
-      addProduct({
-        name: formData.name,
-        xp: parseInt(formData.xp),
-        category: formData.category
-      });
-      toast({
-        title: "Producto agregado",
-        description: "El producto se creó correctamente"
-      });
+    setSubmitting(true);
+    try {
+      if (editingId) {
+        const { error } = await updateProduct(editingId, {
+          name: formData.name,
+          xp: parseInt(formData.xp),
+          category: formData.category
+        });
+        if (error) throw error;
+        toast({ title: "Producto actualizado", description: "Los cambios se guardaron correctamente" });
+      } else {
+        const { error } = await addProduct({
+          name: formData.name,
+          xp: parseInt(formData.xp),
+          category: formData.category
+        });
+        if (error) throw error;
+        toast({ title: "Producto agregado", description: "El producto se creó correctamente" });
+      }
+      setIsDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "No se pudo guardar", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-    setIsDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteProduct(deleteId);
-      toast({
-        title: "Producto eliminado",
-        description: "El producto se eliminó correctamente"
-      });
-      setDeleteId(null);
+      try {
+        const { error } = await deleteProduct(deleteId);
+        if (error) throw error;
+        toast({ title: "Producto eliminado", description: "El producto se eliminó correctamente" });
+        setDeleteId(null);
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message || "No se pudo eliminar", variant: "destructive" });
+      }
     }
   };
 
@@ -121,10 +127,7 @@ const ProductsTab = () => {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                onClick={() => handleOpenDialog()}
-                className="bg-gradient-primary hover:opacity-90"
-              >
+              <Button onClick={() => handleOpenDialog()} className="bg-gradient-primary hover:opacity-90">
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar Producto
               </Button>
@@ -172,8 +175,8 @@ const ProductsTab = () => {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSubmit}>
-                  {editingId ? 'Guardar Cambios' : 'Crear Producto'}
+                <Button onClick={handleSubmit} disabled={submitting}>
+                  {submitting ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Producto'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -183,12 +186,7 @@ const ProductsTab = () => {
         <div className="flex flex-col md:flex-row gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Buscar por nombre..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+            <Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full md:w-48">
@@ -215,7 +213,13 @@ const ProductsTab = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => (
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No hay productos. Crea el primero.
+                  </td>
+                </tr>
+              ) : filteredProducts.map((product) => (
                 <tr key={product.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                   <td className="py-3 px-4 font-medium text-foreground">{product.name}</td>
                   <td className="py-3 px-4">
@@ -237,18 +241,10 @@ const ProductsTab = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDialog(product.id)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(product.id)}>
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteId(product.id)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(product.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
