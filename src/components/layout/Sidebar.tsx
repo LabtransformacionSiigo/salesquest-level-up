@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import siigoLogo from '@/assets/siigo-logo-white.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { NavLink } from '@/components/NavLink';
+import { getCountryFlag } from '@/utils/countryFlags';
 import { Button } from '@/components/ui/button';
 import {
   Trophy,
@@ -112,8 +113,15 @@ const Sidebar = () => {
       {/* User section */}
       <div className="p-4 border-t border-sidebar-border">
         <div className={`${collapsed ? 'flex flex-col items-center' : 'flex items-center gap-3'} mb-3`}>
-          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-xl flex-shrink-0">
-            {profile?.avatar || '👤'}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-xl flex-shrink-0">
+              {profile?.avatar || '👤'}
+            </div>
+            {getCountryFlag(profile?.country) && (
+              <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none">
+                {getCountryFlag(profile?.country)}
+              </span>
+            )}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
