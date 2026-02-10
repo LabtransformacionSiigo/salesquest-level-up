@@ -1,5 +1,6 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { getCountryFlag } from '@/utils/countryFlags';
 
 interface HeaderProps {
   title: string;
@@ -29,8 +30,15 @@ const Header = ({ title }: HeaderProps) => {
         
         <div className="flex items-center gap-3">
           <NotificationBell />
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xl shadow-smooth-sm">
-            {profile?.avatar || '👤'}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xl shadow-smooth-sm">
+              {profile?.avatar || '👤'}
+            </div>
+            {getCountryFlag(profile?.country) && (
+              <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none" title={profile?.country || ''}>
+                {getCountryFlag(profile?.country)}
+              </span>
+            )}
           </div>
         </div>
       </div>
