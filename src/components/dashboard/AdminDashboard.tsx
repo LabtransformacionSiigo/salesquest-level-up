@@ -5,7 +5,7 @@ import { Users, Zap, Award, Target, Settings, Package, Medal, TrendingUp, CheckC
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
-  const { products, levels, medals, streakXP, recognitions } = useConfig();
+  const { products, levels, streakXP, recognitions } = useConfig();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -54,7 +54,7 @@ const AdminDashboard = () => {
           </div>
           <div className="flex flex-col items-center p-4 bg-background rounded-lg">
             <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
-            <p className="text-2xl font-bold text-foreground">{medals.length}</p>
+            <p className="text-2xl font-bold text-foreground">—</p>
             <p className="text-xs text-muted-foreground text-center">Medallas</p>
           </div>
           <div className="flex flex-col items-center p-4 bg-background rounded-lg">

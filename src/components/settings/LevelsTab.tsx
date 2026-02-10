@@ -15,13 +15,13 @@ const LevelsTab = () => {
     setEditingLevels({ ...editingLevels, [level]: value });
   };
 
-  const handleSave = () => {
-    Object.entries(editingLevels).forEach(([level, maxXP]) => {
+  const handleSave = async () => {
+    for (const [level, maxXP] of Object.entries(editingLevels)) {
       const numericMaxXP = parseInt(maxXP);
       if (!isNaN(numericMaxXP) && numericMaxXP > 0) {
-        updateLevelRange(level, numericMaxXP);
+        await updateLevelRange(level, numericMaxXP);
       }
-    });
+    }
     setEditingLevels({});
     toast({
       title: "Niveles actualizados",
