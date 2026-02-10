@@ -6,6 +6,7 @@ import { ChevronDown, Trophy } from 'lucide-react';
 import { useRankings } from '@/hooks/useRankings';
 import { useCells } from '@/hooks/useCells';
 import { cn } from '@/lib/utils';
+import { getCountryFlag } from '@/utils/countryFlags';
 
 const COUNTRIES = ['Colombia', 'México', 'Argentina', 'Chile', 'Perú'];
 const SEGMENTS = ['Empresarios', 'Aliados', 'B&M', 'Despachos'];
@@ -84,12 +85,17 @@ const MiniLeaderboard = ({ currentUserId }: MiniLeaderboardProps) => {
 
             return (
               <div key={entry.id} className="flex flex-col items-center">
-                <div className={cn(
-                  "rounded-full flex items-center justify-center font-bold mb-1",
-                  isFirst ? "w-16 h-16 text-2xl" : "w-12 h-12 text-lg",
-                  colors[rank as 1 | 2 | 3]
-                )}>
-                  {entry.avatar || entry.name?.charAt(0)}
+                <div className="relative">
+                  <div className={cn(
+                    "rounded-full flex items-center justify-center font-bold mb-1",
+                    isFirst ? "w-16 h-16 text-2xl" : "w-12 h-12 text-lg",
+                    colors[rank as 1 | 2 | 3]
+                  )}>
+                    {entry.avatar || entry.name?.charAt(0)}
+                  </div>
+                  {getCountryFlag(entry.country) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none">{getCountryFlag(entry.country)}</span>
+                  )}
                 </div>
                 <span className="text-xs font-semibold text-foreground text-center max-w-[80px] truncate">
                   {entry.name?.split(' ')[0]}
@@ -126,8 +132,13 @@ const MiniLeaderboard = ({ currentUserId }: MiniLeaderboardProps) => {
               <span className="text-sm font-bold text-muted-foreground w-5 text-center">
                 {entry.global_rank}
               </span>
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">
-                {entry.avatar || entry.name?.charAt(0)}
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">
+                  {entry.avatar || entry.name?.charAt(0)}
+                </div>
+                {getCountryFlag(entry.country) && (
+                  <span className="absolute -bottom-0.5 -right-0.5 text-xs leading-none">{getCountryFlag(entry.country)}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{entry.name}</p>
