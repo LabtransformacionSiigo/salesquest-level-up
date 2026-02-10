@@ -1,6 +1,5 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
-import { getCountryFlag } from '@/utils/countryFlags';
 
 interface HeaderProps {
   title: string;
@@ -21,11 +20,11 @@ const Header = ({ title }: HeaderProps) => {
     : new Date().getFullYear();
 
   return (
-    <header className="bg-card border-b border-border px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="px-6 pt-6 pb-2">
+      <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
-          <h1 className="text-xl font-bold text-foreground mt-0.5">
+          <h1 className="text-2xl font-bold text-foreground mt-1">
             ¡Hola {profile?.name?.split(' ')[0] || 'Usuario'}! 👋
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -35,16 +34,6 @@ const Header = ({ title }: HeaderProps) => {
         
         <div className="flex items-center gap-3">
           <NotificationBell />
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xl shadow-smooth-sm">
-              {profile?.avatar || '👤'}
-            </div>
-            {getCountryFlag(profile?.country) && (
-              <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none" title={profile?.country || ''}>
-                {getCountryFlag(profile?.country)}
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </header>

@@ -33,15 +33,13 @@ const StatsCards = ({
     value: string;
     sub: ReactNode;
     color: string;
-    bgColor: string;
   }[] = [
     {
       icon: 'grade',
       label: 'XP Totales',
       value: xp.toLocaleString(),
-      sub: `+${xpThisMonth} este mes`,
+      sub: <span className="text-secondary font-medium">+{xpThisMonth} este mes</span>,
       color: 'text-accent',
-      bgColor: 'bg-accent/10',
     },
     {
       icon: 'local_fire_department',
@@ -63,44 +61,45 @@ const StatsCards = ({
         </div>
       ),
       color: 'text-orange',
-      bgColor: 'bg-orange/10',
     },
     {
       icon: 'emoji_events',
       label: 'En el Top 3',
       value: `${topCount} veces`,
-      sub: `${topPercentile}% por mejor desempeño`,
+      sub: <span className="text-muted-foreground">{topPercentile}% por mejor desempeño</span>,
       color: 'text-accent',
-      bgColor: 'bg-accent/10',
     },
     {
       icon: 'stars',
       label: 'Medallas ganadas',
       value: String(medalsCount),
-      sub: lastMedalAgo ? `Última ${lastMedalAgo}` : 'Sin medallas aún',
+      sub: <span className="text-muted-foreground">{lastMedalAgo ? `Última ${lastMedalAgo}` : 'Sin medallas aún'}</span>,
       color: 'text-primary',
-      bgColor: 'bg-primary/10',
     },
     {
-      icon: 'flight_takeoff',
+      icon: 'flight',
       label: 'Asiento asegurado',
       value: seatCategory,
-      sub: 'Confirmado',
-      color: 'text-secondary',
-      bgColor: 'bg-secondary/10',
+      sub: (
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-muted-foreground tracking-wide">CONVENCIÓN 2025</span>
+          <span className="text-secondary font-semibold text-xs">{seatCategory}</span>
+        </div>
+      ),
+      color: 'text-primary',
     },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
       {stats.map((stat, i) => (
-        <Card key={i} className="p-4 hover:shadow-smooth-md transition-all">
-          <div className="flex items-center gap-2 mb-1">
+        <Card key={i} className="p-4 border border-border shadow-none hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between mb-1">
             <p className="text-xl font-bold text-foreground">{stat.value}</p>
             <MI icon={stat.icon} className={cn("text-lg", stat.color)} />
           </div>
-          <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
-          <div className="text-xs text-muted-foreground mt-1">{stat.sub}</div>
+          <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
+          <div className="text-xs mt-1">{stat.sub}</div>
         </Card>
       ))}
     </div>
