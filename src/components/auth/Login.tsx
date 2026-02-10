@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trophy, Mail, Lock, AlertCircle, UserPlus, Shield } from 'lucide-react';
+import { Mail, Lock, AlertCircle, UserPlus, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
 
 type AppRole = 'ADMINISTRADOR' | 'GERENTE' | 'EJECUTIVO';
 
@@ -88,7 +89,6 @@ const Login = () => {
         title: "¡Cuenta creada! 🎉",
         description: "Tu cuenta ha sido creada exitosamente.",
       });
-      // Auto-login after signup (if email confirm is disabled)
       const { error: loginError } = await signIn(email, password);
       if (!loginError) {
         navigate('/dashboard');
@@ -98,18 +98,36 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-bg flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo y título */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-primary rounded-3xl mb-4 shadow-smooth-lg hover:scale-110 transition-transform duration-300">
-            <Trophy className="w-10 h-10 text-primary-foreground" />
-          </div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">SalesQuest</h1>
-          <p className="text-lg text-muted-foreground font-medium">
-            ¡Prepárate para alcanzar tus metas! 🚀
-          </p>
+    <div className="min-h-screen flex">
+      {/* Left panel - branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col items-center justify-center relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-20 w-72 h-72 rounded-full bg-primary blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 rounded-full bg-secondary blur-3xl" />
         </div>
+        <div className="relative z-10 text-center px-12">
+          <img src={siigoLogoBlue} alt="Siigo" className="h-14 mx-auto mb-8" />
+          <h1 className="text-4xl font-bold text-white mb-3">Gamificación</h1>
+          <p className="text-lg text-sidebar-foreground/70 max-w-sm mx-auto">
+            La Ruta del Héroe Comercial 🚀
+          </p>
+          <div className="mt-10 flex items-center justify-center gap-6 text-sidebar-foreground/50 text-sm">
+            <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">emoji_events</span> Rankings</span>
+            <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">military_tech</span> Medallas</span>
+            <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">flight_takeoff</span> Convención</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - form */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-background">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <img src={siigoLogoBlue} alt="Siigo" className="h-10 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-primary">Gamificación</p>
+          </div>
 
         {/* Card de login */}
         <div className="bg-card rounded-2xl shadow-smooth-xl p-8 border border-border">
@@ -264,6 +282,7 @@ const Login = () => {
               </form>
             </TabsContent>
           </Tabs>
+        </div>
         </div>
       </div>
     </div>
