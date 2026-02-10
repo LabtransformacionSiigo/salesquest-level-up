@@ -95,13 +95,11 @@ const StatsCards = ({
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
       {stats.map((stat, i) => (
         <Card key={i} className="p-4 hover:shadow-smooth-md transition-all">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", stat.bgColor)}>
-              <MI icon={stat.icon} className={cn("text-base", stat.color)} />
-            </div>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-xl font-bold text-foreground">{stat.value}</p>
+            <MI icon={stat.icon} className={cn("text-lg", stat.color)} />
           </div>
-          <p className="text-xl font-bold text-foreground">{stat.value}</p>
+          <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
           <div className="text-xs text-muted-foreground mt-1">{stat.sub}</div>
         </Card>
       ))}

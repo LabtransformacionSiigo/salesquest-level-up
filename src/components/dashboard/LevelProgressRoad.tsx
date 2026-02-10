@@ -35,8 +35,20 @@ const LevelProgressRoad = ({ currentXP }: LevelProgressRoadProps) => {
   const isCompleted = (level: Level) => currentXP >= level.maxXP;
   const isActive = (level: Level) => currentXP >= level.minXP && currentXP < level.maxXP;
 
+  const activeLevel = levels.find(l => isActive(l));
+  const activeProgress = activeLevel ? getLevelProgress(activeLevel) : 0;
+
   return (
     <Card className="p-5">
+      {/* Title */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="material-icons-outlined text-primary text-xl">route</span>
+        <h3 className="text-base font-bold text-foreground">La Ruta del Héroe Comercial</h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        {activeProgress}% para el siguiente nivel
+      </p>
+
       {/* Level cards */}
       <div className="grid grid-cols-5 gap-2">
         {levels.map((level, index) => {

@@ -43,6 +43,14 @@ const ExecutiveDashboard = () => {
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {/* Time toggle */}
+      <div className="flex justify-end">
+        <div className="flex bg-muted rounded-lg p-0.5 text-sm">
+          <button className="px-3 py-1 rounded-md bg-card text-foreground font-medium shadow-sm">Este mes</button>
+          <button className="px-3 py-1 rounded-md text-muted-foreground">A hoy</button>
+        </div>
+      </div>
+
       {/* Level Progress */}
       <LevelProgressRoad currentXP={currentXP} />
 
