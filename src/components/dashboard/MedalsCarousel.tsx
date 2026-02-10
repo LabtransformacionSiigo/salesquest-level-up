@@ -1,8 +1,11 @@
 import { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const MI = ({ icon, className }: { icon: string; className?: string }) => (
+  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+);
 
 interface MedalItem {
   icon: string;
@@ -33,7 +36,7 @@ const MedalsCarousel = ({ earnedCount, totalCount, medals }: MedalsCarouselProps
           <h3 className="text-base font-bold text-foreground">Medallas</h3>
           <span className="text-sm text-muted-foreground">{earnedCount} / {totalCount}</span>
         </div>
-        <Star className="w-5 h-5 text-accent" />
+        <MI icon="stars" className="text-accent text-xl" />
       </div>
 
       <div className="relative">
@@ -43,25 +46,28 @@ const MedalsCarousel = ({ earnedCount, totalCount, medals }: MedalsCarouselProps
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-card/80 backdrop-blur-sm shadow-smooth-sm"
           onClick={() => scroll('left')}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <MI icon="chevron_left" className="text-lg" />
         </Button>
 
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto scrollbar-hide px-8 py-1"
+          className="flex gap-3 overflow-x-auto px-8 py-1"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {medals.map((medal, i) => (
             <div
               key={i}
               className={cn(
-                "flex-shrink-0 w-20 flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
+                "flex-shrink-0 w-20 flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all border",
                 medal.earned
-                  ? "bg-primary/5 border border-primary/20"
-                  : "bg-muted/50 border border-border opacity-50"
+                  ? "bg-primary/5 border-primary/20"
+                  : "bg-muted/50 border-border opacity-50"
               )}
             >
-              <span className="text-2xl">{medal.icon}</span>
+              <MI icon={medal.icon} className={cn(
+                "text-2xl",
+                medal.earned ? "text-primary" : "text-muted-foreground"
+              )} />
               <span className="text-[10px] font-medium text-center text-foreground leading-tight line-clamp-2">
                 {medal.name}
               </span>
@@ -75,7 +81,7 @@ const MedalsCarousel = ({ earnedCount, totalCount, medals }: MedalsCarouselProps
           className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-card/80 backdrop-blur-sm shadow-smooth-sm"
           onClick={() => scroll('right')}
         >
-          <ChevronRight className="w-4 h-4" />
+          <MI icon="chevron_right" className="text-lg" />
         </Button>
       </div>
     </Card>
