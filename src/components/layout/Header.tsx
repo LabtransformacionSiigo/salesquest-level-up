@@ -8,22 +8,29 @@ interface HeaderProps {
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
 
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('es-ES', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+
   return (
     <header className="bg-card border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
+          </div>
+          <h1 className="text-xl font-bold text-foreground mt-0.5">
+            Hola {profile?.name?.split(' ')[0] || 'Usuario'}! 👋
+          </h1>
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Notifications */}
+        <div className="flex items-center gap-3">
           <NotificationBell />
-
-          {/* User avatar */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-secondary rounded-full flex items-center justify-center text-2xl shadow-smooth-md">
-              {profile?.avatar || '👤'}
-            </div>
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xl shadow-smooth-sm">
+            {profile?.avatar || '👤'}
           </div>
         </div>
       </div>

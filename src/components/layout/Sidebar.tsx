@@ -15,7 +15,9 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Award
+  Award,
+  Heart,
+  Crosshair
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -32,11 +34,11 @@ const Sidebar = () => {
     switch (profile?.role) {
       case 'EJECUTIVO':
         return [
-          { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/sales-history', icon: BarChart3, label: 'Mis Ventas' },
+          { path: '/dashboard', icon: User, label: 'Mi perfil' },
+          { path: '/ranking', icon: Award, label: 'Tabla de clasificación' },
           { path: '/medals', icon: Trophy, label: 'Mis Medallas' },
-          { path: '/ranking', icon: Award, label: 'Ranking' },
-          { path: '/profile', icon: User, label: 'Perfil' },
+          { path: '/sales-history', icon: BarChart3, label: 'Mis Ventas' },
+          { path: '/profile', icon: Settings, label: 'Ajustes' },
         ];
       case 'GERENTE':
         return [
@@ -62,33 +64,20 @@ const Sidebar = () => {
 
   const menuItems = getMenuItems();
 
-  const getRoleBadgeColor = () => {
-    switch (profile?.role) {
-      case 'EJECUTIVO':
-        return 'bg-gradient-primary';
-      case 'GERENTE':
-        return 'bg-gradient-secondary';
-      case 'ADMINISTRADOR':
-        return 'bg-gradient-accent';
-      default:
-        return 'bg-muted';
-    }
-  };
-
   return (
     <aside
       className={`${
         collapsed ? 'w-20' : 'w-64'
-      } bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 relative`}
+      } bg-sidebar flex flex-col transition-all duration-300 relative`}
     >
       {/* Logo */}
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="p-5 pb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-smooth-md flex-shrink-0">
-            <Trophy className="w-6 h-6 text-primary-foreground" />
+          <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center shadow-smooth-md flex-shrink-0">
+            <span className="text-sidebar-primary-foreground font-extrabold text-lg">S</span>
           </div>
           {!collapsed && (
-            <span className="font-bold text-lg text-sidebar-foreground">SalesQuest</span>
+            <span className="font-bold text-lg text-sidebar-primary-foreground tracking-tight">Siigo</span>
           )}
         </div>
       </div>
@@ -108,17 +97,17 @@ const Sidebar = () => {
       </Button>
 
       {/* Menu items */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 px-3 space-y-1">
         {menuItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sidebar-foreground hover:bg-sidebar-accent transition-all group"
-            activeClassName="bg-sidebar-primary text-sidebar-primary-foreground shadow-smooth-md"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all text-sm"
+            activeClassName="bg-sidebar-primary/10 text-sidebar-primary border-r-4 border-sidebar-primary font-semibold"
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
             {!collapsed && (
-              <span className="font-semibold">{item.label}</span>
+              <span>{item.label}</span>
             )}
           </NavLink>
         ))}
@@ -127,7 +116,7 @@ const Sidebar = () => {
       {/* User section */}
       <div className="p-4 border-t border-sidebar-border">
         <div className={`${collapsed ? 'flex flex-col items-center' : 'flex items-center gap-3'} mb-3`}>
-          <div className="w-10 h-10 bg-gradient-secondary rounded-full flex items-center justify-center text-2xl flex-shrink-0 shadow-smooth-md">
+          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-xl flex-shrink-0">
             {profile?.avatar || '👤'}
           </div>
           {!collapsed && (
@@ -135,9 +124,9 @@ const Sidebar = () => {
               <p className="font-semibold text-sm text-sidebar-foreground truncate">
                 {profile?.name || 'Usuario'}
               </p>
-              <div className={`${getRoleBadgeColor()} text-white text-xs px-2 py-0.5 rounded-full inline-block mt-1`}>
+              <p className="text-xs text-sidebar-muted truncate">
                 {profile?.role || 'USUARIO'}
-              </div>
+              </p>
             </div>
           )}
         </div>
@@ -146,7 +135,7 @@ const Sidebar = () => {
           variant="ghost"
           className={`${
             collapsed ? 'w-full justify-center' : 'w-full justify-start'
-          } text-destructive hover:text-destructive hover:bg-destructive/10`}
+          } text-sidebar-muted hover:text-destructive hover:bg-destructive/10 text-sm`}
         >
           <LogOut className="w-4 h-4" />
           {!collapsed && <span className="ml-2">Cerrar sesión</span>}
