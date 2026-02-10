@@ -60,14 +60,14 @@
     --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.08);
     --shadow-xl: 0 16px 40px rgba(15, 23, 42, 0.1);
 
-    /* Sidebar: Dark theme */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 214 32% 91%;
+    /* Sidebar: Light theme */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 17%;
     --sidebar-primary: 200 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 214 32% 91%;
-    --sidebar-border: 217 33% 17%;
+    --sidebar-accent: 210 20% 95%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 214 20% 92%;
     --sidebar-ring: 200 100% 50%;
     --sidebar-muted: 215 16% 47%;
 

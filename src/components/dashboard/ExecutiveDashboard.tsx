@@ -9,6 +9,7 @@ import MiniLeaderboard from './MiniLeaderboard';
 import MedalsCarousel from './MedalsCarousel';
 import RecognitionsGrid from './RecognitionsGrid';
 import LevelUpModal from '@/components/sales/LevelUpModal';
+
 const ExecutiveDashboard = () => {
   const { profile } = useSupabaseAuthContext();
   const { levels } = useConfig();
@@ -17,6 +18,7 @@ const ExecutiveDashboard = () => {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [oldLevel, setOldLevel] = useState<Level | null>(null);
   const [newLevel, setNewLevel] = useState<Level | null>(null);
+  const [timeRange, setTimeRange] = useState<'month' | 'today'>('month');
 
   const currentXP = profile?.xp || 0;
 
@@ -46,8 +48,22 @@ const ExecutiveDashboard = () => {
       {/* Time toggle */}
       <div className="flex justify-end">
         <div className="flex bg-muted rounded-lg p-0.5 text-sm">
-          <button className="px-3 py-1 rounded-md bg-card text-foreground font-medium shadow-sm">Este mes</button>
-          <button className="px-3 py-1 rounded-md text-muted-foreground">A hoy</button>
+          <button
+            onClick={() => setTimeRange('month')}
+            className={`px-3 py-1 rounded-md font-medium transition-all ${
+              timeRange === 'month' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            Este mes
+          </button>
+          <button
+            onClick={() => setTimeRange('today')}
+            className={`px-3 py-1 rounded-md font-medium transition-all ${
+              timeRange === 'today' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            A hoy
+          </button>
         </div>
       </div>
 
@@ -65,6 +81,12 @@ const ExecutiveDashboard = () => {
         lastMedalAgo="hace 3 sem."
         seatCategory="Premium Economy"
       />
+
+      {/* Leaderboard + Convention Seat */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <MiniLeaderboard currentUserId={profile?.id} />
+        <ConventionSeat currentXP={currentXP} />
+      </div>
 
       {/* Medals & Recognitions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -93,12 +115,6 @@ const ExecutiveDashboard = () => {
             { icon: 'chat_bubble', name: 'Nos decimos todo', count: 2, color: '#10B981' },
           ]}
         />
-      </div>
-
-      {/* Leaderboard + Convention Seat */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <MiniLeaderboard currentUserId={profile?.id} />
-        <ConventionSeat currentXP={currentXP} />
       </div>
 
       {/* Level Up Modal */}
