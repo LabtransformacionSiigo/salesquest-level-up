@@ -1,39 +1,40 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title: string;
 }
 
+const MI = ({ icon, className }: { icon: string; className?: string }) => (
+  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+);
+
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('es-ES', { 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
-  });
-
-  const memberSince = profile?.created_at 
-    ? new Date(profile.created_at).getFullYear() 
-    : new Date().getFullYear();
+  const currentXP = profile?.xp || 0;
 
   return (
-    <header className="px-6 pt-6 pb-2">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
-          <h1 className="text-2xl font-bold text-foreground mt-1">
-            ¡Hola {profile?.name?.split(' ')[0] || 'Usuario'}! 👋
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Miembro desde {memberSince}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <NotificationBell />
+    <header className="h-12 bg-header-dark flex items-center justify-between px-5 flex-shrink-0">
+      {/* Left: title */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-bold text-white">Siigo Hero</span>
+        <span className="text-sm font-light text-white/60">Academy</span>
+        {title !== 'Dashboard' && title !== 'Siigo Hero Academy' && (
+          <span className="text-[10px] text-white/40 uppercase tracking-wider ml-2">{title}</span>
+        )}
+      </div>
+
+      {/* Right */}
+      <div className="flex items-center gap-4">
+        <button className="text-white/50 hover:text-white transition-colors">
+          <MI icon="dark_mode" className="text-lg" />
+        </button>
+        <NotificationBell />
+        <div className="flex items-center gap-2 bg-white/10 rounded-full px-3 py-1">
+          <MI icon="stars" className="text-accent text-sm" />
+          <span className="text-xs font-bold text-white">{currentXP.toLocaleString()} XP</span>
         </div>
       </div>
     </header>
