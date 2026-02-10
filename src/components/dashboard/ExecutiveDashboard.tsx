@@ -6,8 +6,9 @@ import { Card } from '@/components/ui/card';
 import LevelProgressRoad from './LevelProgressRoad';
 import StatsCards from './StatsCards';
 import MiniLeaderboard from './MiniLeaderboard';
+import MedalsCarousel from './MedalsCarousel';
+import RecognitionsGrid from './RecognitionsGrid';
 import LevelUpModal from '@/components/sales/LevelUpModal';
-
 const ExecutiveDashboard = () => {
   const { profile } = useSupabaseAuthContext();
   const { levels } = useConfig();
@@ -57,12 +58,39 @@ const ExecutiveDashboard = () => {
         seatCategory="Premium Economy"
       />
 
-      {/* Two column layout */}
+      {/* Medals & Recognitions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Leaderboard */}
+        <MedalsCarousel
+          earnedCount={24}
+          totalCount={48}
+          medals={[
+            { icon: '🎯', name: 'Primer cierre', earned: true },
+            { icon: '🏹', name: 'El cazador', earned: true },
+            { icon: '🚀', name: 'Nubarrón de ventas', earned: true },
+            { icon: '💯', name: '0 a 100', earned: true },
+            { icon: '🤝', name: 'Cross Seller', earned: true },
+            { icon: '⭐', name: 'Estrella del mes', earned: true },
+            { icon: '⏱️', name: 'Tiempo perfecto', earned: false },
+            { icon: '📢', name: 'Embajador', earned: false },
+          ]}
+        />
+        <RecognitionsGrid
+          total={8}
+          recognitions={[
+            { emoji: '🤝', name: 'Nos apasiona ayudar', count: 1, color: '#3B82F6' },
+            { emoji: '🏆', name: 'Mentalidad ganadora', count: 2, color: '#F59E0B' },
+            { emoji: '😊', name: '100% actitud y alegría', count: 0, color: '#EC4899' },
+            { emoji: '💙', name: 'Humildes y amorosos', count: 3, color: '#06B6D4' },
+            { emoji: '💡', name: 'Innovamos sin parar', count: 0, color: '#8B5CF6' },
+            { emoji: '💬', name: 'Nos decimos todo', count: 2, color: '#10B981' },
+          ]}
+        />
+      </div>
+
+      {/* Leaderboard + Motivational */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <MiniLeaderboard currentUserId={profile?.id} />
 
-        {/* Motivational card */}
         <Card className="p-5 flex flex-col justify-between">
           <div>
             <p className="text-sm text-muted-foreground mb-2">Tu progreso</p>
