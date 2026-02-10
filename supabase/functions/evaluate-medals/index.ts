@@ -23,13 +23,67 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Authenticate the caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: callingUser }, error: authError } = await anonClient.auth.getUser(token);
+
+    if (authError || !callingUser) {
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Only admins and managers can evaluate medals
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callingUser.id)
+      .single();
+
+    if (!roleData || (roleData.role !== "ADMINISTRADOR" && roleData.role !== "GERENTE")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: admin or manager only" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     const { user_ids } = await req.json();
 
     if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
       return new Response(
         JSON.stringify({ error: "user_ids array is required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Limit batch size to prevent abuse
+    if (user_ids.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Maximum 100 user_ids per request" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
