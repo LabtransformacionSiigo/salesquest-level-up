@@ -16,16 +16,21 @@ const Header = ({ title }: HeaderProps) => {
     year: 'numeric' 
   });
 
+  const memberSince = profile?.created_at 
+    ? new Date(profile.created_at).getFullYear() 
+    : new Date().getFullYear();
+
   return (
     <header className="bg-card border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
-          </div>
+          <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
           <h1 className="text-xl font-bold text-foreground mt-0.5">
-            Hola {profile?.name?.split(' ')[0] || 'Usuario'}! 👋
+            ¡Hola {profile?.name?.split(' ')[0] || 'Usuario'}! 👋
           </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Miembro desde {memberSince}
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
