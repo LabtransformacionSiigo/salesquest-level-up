@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
+import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 
 type AppRole = 'ADMINISTRADOR' | 'GERENTE' | 'EJECUTIVO';
 
@@ -107,7 +108,7 @@ const Login = () => {
           <div className="absolute bottom-20 right-20 w-96 h-96 rounded-full bg-secondary blur-3xl" />
         </div>
         <div className="relative z-10 text-center px-12">
-          <img src={siigoLogoBlue} alt="Siigo" className="h-14 mx-auto mb-8" />
+          <img src={siigoLogoWhite} alt="Siigo" className="h-14 mx-auto mb-8" />
           <h1 className="text-4xl font-bold text-white mb-3">Gamificación</h1>
           <p className="text-lg text-sidebar-foreground/70 max-w-sm mx-auto">
             La Ruta del Héroe Comercial 🚀
