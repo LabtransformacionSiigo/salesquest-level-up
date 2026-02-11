@@ -2,6 +2,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { getCountryFlag } from '@/utils/countryFlags';
+import siigoLogo from '@/assets/siigo-logo-blue.png';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -22,15 +23,10 @@ const Header = ({ title }: HeaderProps) => {
 
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-5 flex-shrink-0">
-      {/* Left: brand */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-extrabold text-sm">S</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-sm font-bold text-foreground">Siigo</span>
-          <span className="text-sm font-light text-muted-foreground">Hero</span>
-        </div>
+      {/* Left: Siigo logo */}
+      <div className="flex items-center gap-3">
+        <img src={siigoLogo} alt="Siigo" className="h-7" />
+        <span className="text-sm font-light text-muted-foreground">Hero</span>
         {title !== 'Dashboard' && title !== 'Siigo Hero Academy' && (
           <>
             <span className="text-border mx-1">|</span>
