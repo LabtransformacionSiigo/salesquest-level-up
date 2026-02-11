@@ -17,13 +17,16 @@ const MiniLeaderboard = ({ currentUserId }: MiniLeaderboardProps) => {
   const [showAll, setShowAll] = useState(false);
   const { rankings, loading } = useRankings({});
 
-  const topThree = rankings.slice(0, 3);
-  const rest = showAll ? rankings.slice(3) : rankings.slice(3, 8);
+  const hasPodium = rankings.length >= 3;
+  const topThree = hasPodium ? rankings.slice(0, 3) : [];
+  const listEntries = hasPodium
+    ? (showAll ? rankings.slice(3) : rankings.slice(3, 8))
+    : (showAll ? rankings : rankings.slice(0, 8));
 
   // Reorder top 3 for podium: [2nd, 1st, 3rd]
-  const podiumOrder = topThree.length >= 3
+  const podiumOrder = hasPodium
     ? [topThree[1], topThree[0], topThree[2]]
-    : topThree;
+    : [];
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'country', label: 'País' },
@@ -98,10 +101,10 @@ const MiniLeaderboard = ({ currentUserId }: MiniLeaderboardProps) => {
       <div className="space-y-0.5">
         {loading ? (
           <p className="text-center text-sm text-muted-foreground py-4">Cargando...</p>
-        ) : rest.length === 0 && topThree.length === 0 ? (
+        ) : listEntries.length === 0 && topThree.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-4">Sin datos</p>
         ) : (
-          rest.map((entry) => (
+          listEntries.map((entry) => (
             <div
               key={entry.id}
               className={cn(
