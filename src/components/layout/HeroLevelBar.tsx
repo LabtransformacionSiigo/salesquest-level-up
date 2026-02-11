@@ -7,11 +7,11 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const levelMeta = [
-  { icon: 'eco', iconBg: 'bg-sky-100', iconColor: 'text-sky-500', rangeBg: 'bg-sky-100 text-sky-600' },
-  { icon: 'explore', iconBg: 'bg-orange-100', iconColor: 'text-orange-500', rangeBg: 'bg-orange-100 text-orange-600' },
-  { icon: 'security', iconBg: 'bg-sky-100', iconColor: 'text-sky-600', rangeBg: 'bg-sky-500 text-white' },
-  { icon: 'auto_awesome', iconBg: 'bg-purple-100', iconColor: 'text-purple-500', rangeBg: 'bg-purple-100 text-purple-600' },
-  { icon: 'rocket_launch', iconBg: 'bg-red-100', iconColor: 'text-red-500', rangeBg: 'bg-red-500 text-white' },
+  { icon: 'eco', iconBg: 'bg-sky-100', iconColor: 'text-sky-500', borderColor: 'border-sky-300', rangeBg: 'bg-sky-100 text-sky-700', accentColor: 'border-sky-400' },
+  { icon: 'explore', iconBg: 'bg-orange-100', iconColor: 'text-orange-500', borderColor: 'border-orange-300', rangeBg: 'bg-orange-100 text-orange-700', accentColor: 'border-orange-400' },
+  { icon: 'security', iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-primary/40', rangeBg: 'bg-primary text-primary-foreground', accentColor: 'border-primary' },
+  { icon: 'auto_awesome', iconBg: 'bg-purple-100', iconColor: 'text-purple-500', borderColor: 'border-purple-300', rangeBg: 'bg-purple-100 text-purple-700', accentColor: 'border-purple-400' },
+  { icon: 'rocket_launch', iconBg: 'bg-red-100', iconColor: 'text-red-500', borderColor: 'border-red-300', rangeBg: 'bg-red-500 text-white', accentColor: 'border-red-500' },
 ];
 
 const HeroLevelBar = () => {
@@ -24,44 +24,45 @@ const HeroLevelBar = () => {
 
   if (!levels.length) return null;
 
-  // Total progress for the bar
   const totalMin = levels[0]?.minXP || 0;
   const totalMax = levels[levels.length - 1]?.maxXP || 1;
   const totalProgress = Math.min(100, Math.max(0, ((currentXP - totalMin) / (totalMax - totalMin)) * 100));
 
   return (
-    <div className="px-6 pt-4 pb-2">
+    <div className="px-6 pt-5 pb-3">
       {/* Level cards row */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-stretch gap-3">
         {levels.map((level, i) => {
           const meta = levelMeta[i] || levelMeta[0];
           const isCurrent = currentLevel?.level === level.level;
           const isCompleted = currentXP >= level.maxXP;
 
           const rangeStr = i === levels.length - 1
-            ? `+${(level.minXP / 1000).toFixed(0)},000 pts`
+            ? `> ${level.minXP.toLocaleString()} pts`
             : `${level.minXP.toLocaleString()} - ${level.maxXP.toLocaleString()} pts`;
 
           return (
             <div key={level.level} className={cn(
-              "flex-1 rounded-xl border p-3 flex flex-col items-center text-center gap-1 transition-all relative",
+              "flex-1 rounded-xl border-2 p-4 flex flex-col items-center text-center gap-2 transition-all relative bg-card",
               isCurrent
-                ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                ? `${meta.accentColor} shadow-smooth-md ring-2 ring-primary/10`
                 : isCompleted
-                ? "border-secondary/30 bg-secondary/5"
-                : "border-border bg-card"
+                ? `${meta.borderColor} opacity-90`
+                : "border-border"
             )}>
               {isCurrent && (
-                <span className="absolute -top-2.5 bg-primary text-primary-foreground text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                <span className="absolute -top-3 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">
                   Tu Nivel
                 </span>
               )}
-              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", meta.iconBg)}>
-                <MI icon={meta.icon} className={cn("text-xl", meta.iconColor)} />
+              <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center", meta.iconBg)}>
+                <MI icon={meta.icon} className={cn("text-2xl", meta.iconColor)} />
               </div>
-              <p className="text-xs font-bold text-foreground">{level.level}</p>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Nivel {i + 1}</p>
-              <span className={cn("text-[9px] font-semibold px-2 py-0.5 rounded-full", 
+              <div>
+                <p className={cn("text-sm font-bold", isCurrent ? "text-primary" : "text-foreground")}>{level.level}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Nivel {i + 1}</p>
+              </div>
+              <span className={cn("text-[10px] font-semibold px-3 py-1 rounded-full",
                 isCurrent ? 'bg-primary text-primary-foreground' : meta.rangeBg
               )}>
                 {rangeStr}
@@ -71,11 +72,11 @@ const HeroLevelBar = () => {
         })}
       </div>
 
-      {/* Progress bar - only for executives */}
+      {/* Progress bar */}
       {isExecutive && (
-        <div className="mt-2.5 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full progress-gradient transition-all duration-500"
+            className="h-full rounded-full progress-gradient transition-all duration-700 ease-out"
             style={{ width: `${totalProgress}%` }}
           />
         </div>
