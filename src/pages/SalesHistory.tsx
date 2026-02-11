@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { useSales } from '@/context/SalesContext';
+import Layout from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +61,7 @@ const SalesHistory = () => {
   const uniqueProducts = Array.from(new Set(userSales.map(s => s.productName)));
 
   return (
+    <Layout title={profile?.role === 'EJECUTIVO' ? 'Mi Historial de Ventas' : 'Ventas de Mi Equipo'}>
     <div className="space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2">
@@ -213,6 +215,7 @@ const SalesHistory = () => {
         )}
       </Card>
     </div>
+    </Layout>
   );
 };
 
