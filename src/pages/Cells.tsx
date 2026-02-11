@@ -176,53 +176,53 @@ const Cells = () => {
 
   return (
     <Layout title="Gestión de Células">
-      <div className="space-y-6">
+      <div className="space-y-5 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Building2 className="w-8 h-8 text-primary" />
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
               Células Comerciales
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-xs text-muted-foreground mt-1">
               Administra las células y asigna gerentes
             </p>
           </div>
-          <Button size="lg" className="gap-2" onClick={() => handleOpenDialog()}>
-            <Plus className="w-5 h-5" />
+          <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => handleOpenDialog()}>
+            <Plus className="w-4 h-4" />
             Nueva Célula
           </Button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Células</p>
-                <p className="text-2xl font-bold">{cells.length}</p>
-              </div>
-              <Building2 className="w-8 h-8 text-primary opacity-50" />
+        <div className="grid grid-cols-5 gap-3">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-primary" />
             </div>
-          </Card>
+            <div>
+              <p className="text-lg font-extrabold text-foreground">{cells.length}</p>
+              <p className="text-[10px] text-muted-foreground">Total</p>
+            </div>
+          </div>
           {SEGMENTS.map(segment => (
-            <Card key={segment} className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{segment}</p>
-                  <p className="text-2xl font-bold">
-                    {cells.filter(c => c.segment === segment).length}
-                  </p>
-                </div>
-                <Target className="w-8 h-8 text-secondary opacity-50" />
+            <div key={segment} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center">
+                <Target className="w-4 h-4 text-secondary" />
               </div>
-            </Card>
+              <div>
+                <p className="text-lg font-extrabold text-foreground">
+                  {cells.filter(c => c.segment === segment).length}
+                </p>
+                <p className="text-[10px] text-muted-foreground">{segment}</p>
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Table */}
-        <Card>
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Lista de Células</h2>
+        <div className="bg-card border border-border rounded-xl">
+          <div className="p-5">
+            <h2 className="text-sm font-bold mb-4 text-foreground">Lista de Células</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -304,7 +304,7 @@ const Cells = () => {
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </div>
 
         {/* Cell Form Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

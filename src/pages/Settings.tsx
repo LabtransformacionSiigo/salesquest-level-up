@@ -11,41 +11,41 @@ const Settings = () => {
     <Layout title="Configuración">
       <div className="animate-fade-in">
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8 h-auto p-2 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-5 mb-6 h-auto p-1 bg-muted/40 rounded-xl">
             <TabsTrigger 
               value="products" 
-              className="flex flex-col gap-1 py-3 data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+              className="flex items-center gap-2 py-2.5 text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary"
             >
-              <span className="text-xl">🎯</span>
-              <span className="text-xs font-semibold">Productos</span>
+              <span className="text-sm">🎯</span>
+              Productos
             </TabsTrigger>
             <TabsTrigger 
               value="levels"
-              className="flex flex-col gap-1 py-3 data-[state=active]:bg-gradient-secondary data-[state=active]:text-secondary-foreground"
+              className="flex items-center gap-2 py-2.5 text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary"
             >
-              <span className="text-xl">⭐</span>
-              <span className="text-xs font-semibold">Niveles</span>
+              <span className="text-sm">⭐</span>
+              Niveles
             </TabsTrigger>
             <TabsTrigger 
               value="medals"
-              className="flex flex-col gap-1 py-3 data-[state=active]:bg-gradient-accent data-[state=active]:text-accent-foreground"
+              className="flex items-center gap-2 py-2.5 text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary"
             >
-              <span className="text-xl">🏅</span>
-              <span className="text-xs font-semibold">Medallas</span>
+              <span className="text-sm">🏅</span>
+              Medallas
             </TabsTrigger>
             <TabsTrigger 
               value="streaks"
-              className="flex flex-col gap-1 py-3 data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+              className="flex items-center gap-2 py-2.5 text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary"
             >
-              <span className="text-xl">🔥</span>
-              <span className="text-xs font-semibold">Rachas</span>
+              <span className="text-sm">🔥</span>
+              Rachas
             </TabsTrigger>
             <TabsTrigger 
               value="recognitions"
-              className="flex flex-col gap-1 py-3 data-[state=active]:bg-gradient-secondary data-[state=active]:text-secondary-foreground"
+              className="flex items-center gap-2 py-2.5 text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary"
             >
-              <span className="text-xl">💌</span>
-              <span className="text-xs font-semibold">Reconocimientos</span>
+              <span className="text-sm">💌</span>
+              Reconocimientos
             </TabsTrigger>
           </TabsList>
 
