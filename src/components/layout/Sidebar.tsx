@@ -26,7 +26,7 @@ const Sidebar = () => {
           { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
           { path: '/medals', icon: 'favorite_border', label: 'Reconocer' },
           { path: '/sales-history', icon: 'track_changes', label: 'Misiones' },
-          { path: '/hero-journey', icon: 'military_tech', label: 'Hero Academy' },
+          { path: '/profile', icon: 'military_tech', label: 'Hero Academy' },
         ];
       case 'GERENTE':
         return [
