@@ -32,7 +32,7 @@ const LevelProgressRoad = ({ currentXP }: LevelProgressRoadProps) => {
   const totalMax = levels[levels.length - 1]?.maxXP || 1;
   const totalProgress = Math.min(100, Math.max(0, (currentXP - totalMin) / (totalMax - totalMin) * 100));
 
-  return;
+  return null;
 
 
 
