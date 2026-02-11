@@ -7,11 +7,11 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const levelMeta = [
-  { icon: 'eco', iconBg: 'bg-sky-100', iconColor: 'text-sky-500', borderColor: 'border-sky-300', rangeBg: 'bg-sky-100 text-sky-700', accentColor: 'border-sky-400' },
-  { icon: 'explore', iconBg: 'bg-orange-100', iconColor: 'text-orange-500', borderColor: 'border-orange-300', rangeBg: 'bg-orange-100 text-orange-700', accentColor: 'border-orange-400' },
-  { icon: 'security', iconBg: 'bg-primary/10', iconColor: 'text-primary', borderColor: 'border-primary/40', rangeBg: 'bg-primary text-primary-foreground', accentColor: 'border-primary' },
-  { icon: 'auto_awesome', iconBg: 'bg-purple-100', iconColor: 'text-purple-500', borderColor: 'border-purple-300', rangeBg: 'bg-purple-100 text-purple-700', accentColor: 'border-purple-400' },
-  { icon: 'rocket_launch', iconBg: 'bg-red-100', iconColor: 'text-red-500', borderColor: 'border-red-300', rangeBg: 'bg-red-500 text-white', accentColor: 'border-red-500' },
+  { icon: 'eco', iconBg: 'bg-sky-50', iconColor: 'text-sky-500', badgeBg: 'bg-sky-100 text-sky-700', focus: 'Aprendizaje' },
+  { icon: 'explore', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', badgeBg: 'bg-orange-100 text-orange-700', focus: 'Consistencia' },
+  { icon: 'security', iconBg: 'bg-primary/10', iconColor: 'text-primary', badgeBg: 'bg-primary/10 text-primary', focus: 'Cumplimiento' },
+  { icon: 'auto_awesome', iconBg: 'bg-purple-50', iconColor: 'text-purple-500', badgeBg: 'bg-purple-100 text-purple-700', focus: 'Mentoring' },
+  { icon: 'rocket_launch', iconBg: 'bg-red-50', iconColor: 'text-red-500', badgeBg: 'bg-red-100 text-red-600', focus: 'Liderazgo' },
 ];
 
 const HeroLevelBar = () => {
@@ -38,35 +38,36 @@ const HeroLevelBar = () => {
           const isCompleted = currentXP >= level.maxXP;
 
           const rangeStr = i === levels.length - 1
-            ? `> ${level.minXP.toLocaleString()} pts`
-            : `${level.minXP.toLocaleString()} - ${level.maxXP.toLocaleString()} pts`;
+            ? `+${level.minXP.toLocaleString()} pts`
+            : `${level.minXP.toLocaleString()} – ${level.maxXP.toLocaleString()} pts`;
 
           return (
             <div key={level.level} className={cn(
-              "flex-1 rounded-xl border-2 p-4 flex flex-col items-center text-center gap-2 transition-all relative bg-card",
+              "flex-1 rounded-xl border bg-card p-4 flex flex-col items-center text-center gap-2 transition-all relative",
               isCurrent
-                ? `${meta.accentColor} shadow-smooth-md ring-2 ring-primary/10`
+                ? "border-primary shadow-smooth-md ring-1 ring-primary/20"
                 : isCompleted
-                ? `${meta.borderColor} opacity-90`
+                ? "border-border opacity-80"
                 : "border-border"
             )}>
               {isCurrent && (
-                <span className="absolute -top-3 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">
+                <span className="absolute -top-2.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-full">
                   Tu Nivel
                 </span>
               )}
-              <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center", meta.iconBg)}>
+              <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", meta.iconBg)}>
                 <MI icon={meta.icon} className={cn("text-2xl", meta.iconColor)} />
               </div>
               <div>
                 <p className={cn("text-sm font-bold", isCurrent ? "text-primary" : "text-foreground")}>{level.level}</p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Nivel {i + 1}</p>
               </div>
-              <span className={cn("text-[10px] font-semibold px-3 py-1 rounded-full",
-                isCurrent ? 'bg-primary text-primary-foreground' : meta.rangeBg
-              )}>
+              <span className={cn("text-[10px] font-semibold px-3 py-0.5 rounded-full", meta.badgeBg)}>
                 {rangeStr}
               </span>
+              <p className="text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground">Foco:</span> {meta.focus}
+              </p>
             </div>
           );
         })}

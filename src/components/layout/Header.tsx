@@ -1,4 +1,5 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { getCountryFlag } from '@/utils/countryFlags';
 import { cn } from '@/lib/utils';
@@ -13,42 +14,49 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
+  const { getLevelByXP } = useConfig();
 
   const currentXP = profile?.xp || 0;
   const countryFlag = getCountryFlag(profile?.country);
+  const currentLevel = getLevelByXP(currentXP);
 
   return (
-    <header className="h-14 bg-gradient-to-r from-[hsl(200,100%,50%)] to-[hsl(210,100%,45%)] flex items-center justify-between px-5 flex-shrink-0 shadow-sm">
+    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-5 flex-shrink-0">
       {/* Left: brand */}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-          <span className="text-white font-extrabold text-sm">S</span>
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+          <span className="text-primary-foreground font-extrabold text-sm">S</span>
         </div>
-        <span className="text-sm font-bold text-white">Siigo</span>
-        <span className="text-sm font-light text-white/80">Hero</span>
+        <div className="flex items-baseline gap-1">
+          <span className="text-sm font-bold text-foreground">Siigo</span>
+          <span className="text-sm font-light text-muted-foreground">Hero</span>
+        </div>
         {title !== 'Dashboard' && title !== 'Siigo Hero Academy' && (
           <>
-            <span className="text-white/40 mx-1">·</span>
-            <span className="text-xs text-white/70 font-medium">{title}</span>
+            <span className="text-border mx-1">|</span>
+            <span className="text-xs text-muted-foreground font-medium">{title}</span>
           </>
         )}
       </div>
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        <button className="text-white/60 hover:text-white transition-colors">
+        <button className="text-muted-foreground hover:text-foreground transition-colors">
           <MI icon="dark_mode" className="text-lg" />
         </button>
         <NotificationBell />
-        <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1.5">
+        <div className="flex items-center gap-2 border border-border rounded-full px-3 py-1.5">
           {countryFlag && <span className="text-sm">{countryFlag}</span>}
-          <MI icon="stars" className="text-yellow-300 text-sm" />
-          <span className="text-xs font-bold text-white">{currentXP.toLocaleString()} XP</span>
+          <MI icon="stars" className="text-accent text-sm" />
+          <span className="text-xs font-bold text-foreground">{currentXP.toLocaleString()} XP</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-white/80 font-medium hidden md:inline">
-            {profile?.name}
-          </span>
+          <div className="text-right hidden md:block">
+            <p className="text-xs font-semibold text-foreground leading-tight">{profile?.name}</p>
+            {currentLevel && (
+              <p className="text-[10px] text-primary font-medium leading-tight">{currentLevel.level}</p>
+            )}
+          </div>
           <div className="relative">
             <span className="text-2xl">{profile?.avatar || '👤'}</span>
             {countryFlag && (
