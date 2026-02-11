@@ -62,9 +62,7 @@ const Sidebar = () => {
     <aside className="w-[72px] bg-sidebar-dark flex flex-col items-center py-4 flex-shrink-0">
       {/* Logo */}
       <div className="mb-4">
-        <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-extrabold text-sm">S</span>
-        </div>
+        <img src={siigoLogo} alt="Siigo" className="w-12" />
       </div>
 
       {/* Avatar */}
