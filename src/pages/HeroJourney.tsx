@@ -22,7 +22,7 @@ const HeroJourney = () => {
   const currentLevel = getLevelByXP(currentXP);
 
   return (
-    <Layout title="Siigo Hero Academy">
+    <Layout title="Siigo Hero Academy" hideHeroLevelBar>
       <div className="max-w-5xl mx-auto space-y-8 pb-10">
 
         {/* Hero Title */}
