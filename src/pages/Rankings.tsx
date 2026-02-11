@@ -47,25 +47,25 @@ const Rankings = () => {
 
   return (
     <Layout title="Rankings">
-      <div className="space-y-6">
+      <div className="space-y-5 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-yellow-500" />
-              Rankings de Gamificación
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-accent-foreground" />
+              Rankings
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-xs text-muted-foreground mt-1">
               Competencia sana y reconocimiento continuo
             </p>
           </div>
-          <Button variant="outline" onClick={() => fetchRankings()} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={() => fetchRankings()} disabled={loading}>
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
         </div>
 
         {/* Top 3 Podium */}
-        <Card className="p-6 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20">
+        <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-500" />
             Top 3 del Ranking
@@ -128,11 +128,11 @@ const Rankings = () => {
               )}
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* My Position */}
         {myPosition && (
-          <Card className="p-4 border-2 border-primary">
+          <div className="bg-card border border-primary/30 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className="text-3xl">{profile?.avatar || '👤'}</span>
@@ -149,11 +149,11 @@ const Rankings = () => {
                 {getRankBadge(myPosition.global_rank)}
               </div>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Filters */}
-        <Card className="p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
@@ -207,12 +207,12 @@ const Rankings = () => {
               </Button>
             )}
           </div>
-        </Card>
+        </div>
 
         {/* Full Ranking Table */}
-        <Card>
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Ranking General</h2>
+        <div className="bg-card border border-border rounded-xl">
+          <div className="p-5">
+            <h2 className="text-sm font-bold mb-4 text-foreground">Ranking General</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -272,15 +272,15 @@ const Rankings = () => {
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </div>
 
         {/* Strategic Message */}
-        <Card className="p-6 bg-gradient-to-r from-primary/10 to-secondary/10 border-2">
-          <p className="text-center text-lg font-medium">
+        <div className="bg-card border border-border rounded-xl p-4">
+          <p className="text-center text-xs text-muted-foreground italic">
             "Impulsando el éxito comercial a través del reconocimiento, 
             la competencia sana y el crecimiento continuo"
           </p>
-        </Card>
+        </div>
       </div>
     </Layout>
   );

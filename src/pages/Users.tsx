@@ -174,21 +174,21 @@ const Users = () => {
 
   return (
     <Layout title="Gestión de Usuarios">
-      <div className="space-y-6">
+      <div className="space-y-5 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <UsersIcon className="w-8 h-8 text-primary" />
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <UsersIcon className="w-5 h-5 text-primary" />
               Usuarios del Sistema
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Gestiona los usuarios de la plataforma SalesQuest
+            <p className="text-xs text-muted-foreground mt-1">
+              Gestiona los usuarios de la plataforma
             </p>
           </div>
 
-          <Button size="lg" className="gap-2" onClick={handleNewUser}>
-            <UserPlus className="w-5 h-5" />
+          <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={handleNewUser}>
+            <UserPlus className="w-4 h-4" />
             Nuevo Usuario
           </Button>
 
@@ -398,46 +398,40 @@ const Users = () => {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Usuarios</p>
-                <p className="text-3xl font-bold text-foreground">{users.length}</p>
-              </div>
-              <UsersIcon className="w-12 h-12 text-primary opacity-20" />
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <UsersIcon className="w-5 h-5 text-primary" />
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Gerentes</p>
-                <p className="text-3xl font-bold text-foreground">
-                  {users.filter(u => u.role === 'GERENTE').length}
-                </p>
-              </div>
-              <div className="text-5xl">👨‍💼</div>
+            <div>
+              <p className="text-xl font-extrabold text-foreground">{users.length}</p>
+              <p className="text-[10px] text-muted-foreground">Total Usuarios</p>
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Ejecutivos</p>
-                <p className="text-3xl font-bold text-foreground">
-                  {users.filter(u => u.role === 'EJECUTIVO').length}
-                </p>
-              </div>
-              <div className="text-5xl">👩‍💻</div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <Briefcase className="w-5 h-5 text-secondary" />
             </div>
-          </Card>
+            <div>
+              <p className="text-xl font-extrabold text-foreground">{users.filter(u => u.role === 'GERENTE').length}</p>
+              <p className="text-[10px] text-muted-foreground">Gerentes</p>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+              <Target className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="text-xl font-extrabold text-foreground">{users.filter(u => u.role === 'EJECUTIVO').length}</p>
+              <p className="text-[10px] text-muted-foreground">Ejecutivos</p>
+            </div>
+          </div>
         </div>
 
         {/* Tabla de usuarios */}
-        <Card>
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Lista de Usuarios</h2>
+        <div className="bg-card border border-border rounded-xl">
+          <div className="p-5">
+            <h2 className="text-sm font-bold mb-4 text-foreground">Lista de Usuarios</h2>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -511,7 +505,7 @@ const Users = () => {
               </Table>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
