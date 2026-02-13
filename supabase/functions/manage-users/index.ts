@@ -55,7 +55,7 @@ serve(async (req) => {
     const { action } = body;
 
     if (action === "create") {
-      const { email, password, name, role, avatar, country, segment, cell_id, manager_id } = body;
+      const { email, password, name, role, avatar, country, cell_id, manager_id } = body;
 
       // Create user via admin API (doesn't affect current session)
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -78,7 +78,6 @@ serve(async (req) => {
           .from("profiles")
           .update({
             country: country || null,
-            segment: segment || null,
             cell_id: cell_id || null,
             manager_id: manager_id || null,
           })

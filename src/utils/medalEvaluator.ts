@@ -74,7 +74,8 @@ export function evaluateMedalCriteria(
 
     case 'NIVEL_ALCANZADO': {
       const requiredLevel = medal.criteriaParams?.level;
-      return { meets: user.level === requiredLevel };
+      // Level is now derived from XP, not stored on user
+      return { meets: false }; // Evaluated server-side via evaluate-medals edge function
     }
 
     case 'XP_MES_X': {

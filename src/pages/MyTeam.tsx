@@ -61,7 +61,6 @@ const executiveSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
   country: z.string().optional(),
-  segment: z.enum(['Empresarios', 'Aliados', 'B&M', 'Despachos']).optional(),
   cellId: z.string().optional(),
 });
 
@@ -94,7 +93,6 @@ const MyTeam = () => {
       email: '',
       password: '',
       country: '',
-      segment: undefined,
       cellId: '',
     },
   });
@@ -171,7 +169,6 @@ const MyTeam = () => {
       email: '',
       password: '',
       country: '',
-      segment: undefined,
       cellId: profile.cell_id || '',
     });
     setIsAddDialogOpen(true);
@@ -183,7 +180,6 @@ const MyTeam = () => {
       email: member.email,
       password: '',
       country: member.country || '',
-      segment: member.segment as any,
       cellId: member.cell_id || '',
     });
     setEditingMember(member);
@@ -205,7 +201,6 @@ const MyTeam = () => {
         manager_id: profile.id,
         avatar: '👤',
         country: data.country,
-        segment: data.segment,
         cell_id: data.cellId,
       });
 
@@ -235,7 +230,6 @@ const MyTeam = () => {
         name: data.name,
         email: data.email,
         country: data.country || null,
-        segment: data.segment || null,
         cell_id: data.cellId || null,
       });
 
@@ -454,11 +448,6 @@ const MyTeam = () => {
                             {member.country}
                           </Badge>
                         )}
-                        {member.segment && (
-                          <Badge variant="outline" className="text-xs">
-                            {member.segment}
-                          </Badge>
-                        )}
                       </div>
 
                       {/* Actions */}
@@ -533,20 +522,6 @@ const MyTeam = () => {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="segment">Segmento</Label>
-                <Select value={watch('segment')} onValueChange={(value) => setValue('segment', value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Empresarios">Empresarios</SelectItem>
-                    <SelectItem value="Aliados">Aliados</SelectItem>
-                    <SelectItem value="B&M">B&M</SelectItem>
-                    <SelectItem value="Despachos">Despachos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="col-span-2">
                 <Label htmlFor="cellId">Célula</Label>

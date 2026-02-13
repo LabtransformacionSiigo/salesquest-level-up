@@ -77,7 +77,6 @@ export const useProfiles = () => {
     manager_id?: string;
     cell_id?: string;
     country?: string;
-    segment?: 'Empresarios' | 'Aliados' | 'B&M' | 'Despachos';
   }) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -91,7 +90,6 @@ export const useProfiles = () => {
           role: userData.role,
           avatar: userData.avatar || '👤',
           country: userData.country,
-          segment: userData.segment,
           cell_id: userData.cell_id,
           manager_id: userData.manager_id,
         },

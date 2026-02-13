@@ -12,7 +12,7 @@ export interface User {
   name: string;
   role: UserRole;
   xp?: number;
-  level?: string;
+  level_id?: string | null;
   avatar?: string;
   streak?: number;
   shields?: number;
@@ -23,7 +23,6 @@ export interface User {
   medals?: UserMedal[];
   joinDate?: string;
   country?: string;
-  segment?: string;
 }
 
 export interface Mission {
