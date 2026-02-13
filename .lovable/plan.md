@@ -1,82 +1,208 @@
 
+# Auditoria Arquitectonica y Plan de Migracion
 
-# Rediseno Visual Completo - Estilo Mockup de Referencia
+## Resumen del Analisis
 
-El objetivo es transformar la plataforma para que se vea exactamente como el mockup de referencia que compartes: limpio, sofisticado, con fondo blanco/celeste suave, tarjetas con bordes redondeados y sombras sutiles, y una barra superior minimalista.
-
----
-
-## Cambios Principales
-
-### 1. Header (Barra Superior)
-**Estado actual:** Barra con gradiente azul intenso, demasiado oscura y pesada.
-**Nuevo diseno:** Barra blanca/clara con logo "Siigo Hero" a la izquierda, icono de modo oscuro al centro, y nombre del usuario + nivel + avatar a la derecha, tal como en el mockup. Fondo blanco con sombra sutil inferior.
-
-### 2. Sidebar (Barra Lateral)
-**Estado actual:** Sidebar oscuro navy de 72px.
-**Correccion:** Se mantiene oscuro pero se refina para que sea mas consistente con el mockup - el sidebar no aparece en la referencia de Hero Journey, lo que sugiere que la pagina Hero Journey deberia ser full-width sin sidebar, o mantener el sidebar actual pero mas limpio.
-
-### 3. HeroLevelBar (Tarjetas de Niveles)
-**Estado actual:** Tarjetas con bordes de colores pero sin la descripcion de "Foco" que muestra el mockup.
-**Nuevo diseno segun mockup:**
-- Cada tarjeta con icono circular de color (no cuadrado)
-- Nombre del nivel en negrita
-- Subtitulo "NIVEL X" en gris
-- Badge de rango de puntos con color especifico por nivel (sky, naranja, azul primario, morado, rojo)
-- Texto "Foco:" con descripcion del enfoque estrategico
-- La tarjeta activa (Tu Nivel) tiene borde azul primario y badge "TU NIVEL" encima
-- Fondo completamente blanco con bordes suaves
-
-### 4. Pagina Hero Journey / Profile
-**Rediseno completo siguiendo el mockup:**
-
-**Seccion 1 - Titulo Hero:**
-- Titulo grande centrado: "La Ruta del Heroe Comercial" con gradiente azul
-- Subtitulo descriptivo centrado
-- Fondo blanco limpio
-
-**Seccion 2 - Tarjetas de Niveles:**
-- 5 tarjetas en fila con el diseno descrito arriba
-- Incluir texto de "Foco:" en cada tarjeta
-
-**Seccion 3 - Insignias y Medallas:**
-- Card blanca con borde redondeado
-- Header con icono de medalla + titulo + badges "Achiever" / "Killer"
-- 4 insignias en fila: icono circular grande, nombre en bold, subtitulo de categoria en color (EFECTIVIDAD, VOLUMEN, COLABORACION, VALOR), descripcion debajo
-
-**Seccion 4 - Tabla de Puntos + Objetivos Estrategicos (lado a lado):**
-- Izquierda: Card blanca "Tabla de Puntos" con tabla simple ACCION | PUNTOS
-- Derecha: Card azul primario con gradiente "Objetivos Estrategicos" con 3 items (Visibilidad en Tiempo Real, Productividad Sostenible, Maestria) y seccion "Impacto Proyectado"
-
-**Footer:**
-- Indicadores de paginacion (dots)
-- Copyright centrado
-
-### 5. Colores y Tokens CSS
-- Asegurar que `--primary` (#00AAFF) se usa consistentemente
-- Fondo de pagina mas blanco/limpio (reducir el tinte gris)
-- Sombras mas suaves y sutiles
-- Bordes de tarjetas mas delicados
+He revisado exhaustivamente el esquema actual contra los 4 principios solicitados. A continuacion presento los hallazgos y las correcciones necesarias.
 
 ---
 
-## Archivos a Modificar
+## 1. Normalizacion y Estructura (3NF)
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/index.css` | Ajustar background, sombras, agregar utilidades nuevas |
-| `src/components/layout/Header.tsx` | Redisenar a fondo blanco limpio con el estilo del mockup |
-| `src/components/layout/HeroLevelBar.tsx` | Agregar iconos circulares, texto "Foco:", diseno del mockup |
-| `src/pages/HeroJourney.tsx` | Rediseno completo siguiendo el mockup exacto: titulo hero, niveles, insignias, tabla de puntos, objetivos estrategicos |
-| `src/components/layout/Layout.tsx` | Posible ajuste de padding/background |
+### Hallazgos Positivos
+- Roles correctamente separados en `user_roles` (no en `profiles`) - excelente
+- Relacion M:N entre managers y cells via `manager_cells` - correcto
+- `user_medals` como tabla puente entre `profiles` y `medals` - correcto
+
+### Problemas Detectados
+
+| Problema | Tabla | Detalle |
+|----------|-------|---------|
+| **`level` como texto en `profiles`** | `profiles` | Almacena el nombre del nivel como texto plano (`'Novato'`). Deberia ser una FK a `levels.id` para evitar inconsistencias |
+| **`segment` duplicado** | `profiles` | El segmento del ejecutivo ya esta determinado por su `cell_id` -> `cells.segment`. Tenerlo tambien en `profiles` viola 3NF (dato derivable) |
+| **`category` y `condition_type` como texto** | `medals` | Deberian ser enums para evitar valores invalidos |
+| **`country` como texto libre** | `profiles`, `cells` | Sin validacion; podria ser un enum o tabla de referencia |
+
+### Correcciones Propuestas
+
+**a) Convertir `profiles.level` a FK:**
+```sql
+-- Agregar columna level_id referenciando levels
+ALTER TABLE profiles ADD COLUMN level_id uuid REFERENCES levels(id) ON DELETE SET NULL;
+
+-- Migrar datos existentes
+UPDATE profiles p SET level_id = l.id 
+FROM levels l WHERE p.level = l.name;
+
+-- Eliminar la columna texto (despues de actualizar el codigo)
+ALTER TABLE profiles DROP COLUMN level;
+```
+
+**b) Eliminar `profiles.segment` (derivable de cell):**
+- Se obtiene via `profiles.cell_id -> cells.segment`
+- Requiere actualizar el codigo que lea `segment` para hacer JOIN con `cells`
+- Nota: ejecutivos sin celda perderian segmento. Se puede mantener como campo opcional para esos casos, o asignar siempre una celda
+
+**c) Crear enums para medals:**
+```sql
+CREATE TYPE medal_category AS ENUM ('efectividad', 'volumen', 'colaboracion', 'valor');
+CREATE TYPE medal_condition AS ENUM ('total_xp', 'total_sales', 'streak_days', 'products_sold', ...);
+ALTER TABLE medals ALTER COLUMN category TYPE medal_category USING category::medal_category;
+ALTER TABLE medals ALTER COLUMN condition_type TYPE medal_condition USING condition_type::medal_condition;
+```
 
 ---
 
-## Detalles Tecnicos
+## 2. Seguridad (RLS)
 
-- Se usaran los mismos componentes de `@radix-ui` y `tailwindcss` existentes
-- Los iconos se mantienen con `material-icons-outlined`
-- Las tarjetas de nivel incluiran datos de "Foco" mapeados estaticamente (Aprendizaje, Consistencia, Cumplimiento, Mentoring, Liderazgo)
-- La seccion de "Objetivos Estrategicos" usara fondo con gradiente del color primario
-- Se mantiene la funcionalidad existente de niveles dinamicos desde ConfigContext
+### Hallazgos Positivos
+- RLS habilitado en todas las tablas
+- Funcion `has_role()` como SECURITY DEFINER para evitar recursion - excelente
+- Separacion correcta de permisos por rol
 
+### Problemas Detectados
+
+| Problema | Tabla | Riesgo |
+|----------|-------|--------|
+| **`manager_cells` usa roles `{public}`** | `manager_cells` | Las politicas aplican al rol `public` (anon), no `authenticated`. Un usuario no autenticado podria intentar acceder |
+| **`sales` INSERT solo permite `user_id = auth.uid()`** | `sales` | Los gerentes/admins registran ventas para otros (via edge function con service key), pero la politica RLS para INSERT no lo permite directamente. Funciona porque la edge function usa service key, pero es una dependencia fragil |
+| **`sales_uploads` sin politica DELETE/UPDATE** | `sales_uploads` | Correcto como decision de negocio (inmutabilidad), pero deberia documentarse |
+| **`ranking_view` sin RLS** | `ranking_view` | Es una vista con `security_invoker=true`, lo cual es correcto - las politicas de `profiles` aplican |
+| **Edge Functions con `verify_jwt = false`** | `config.toml` | `process-sales-upload` y `evaluate-medals` no verifican JWT a nivel gateway. Aunque validan internamente, esto permite llamadas sin token al endpoint |
+
+### Correcciones Propuestas
+
+**a) Corregir roles en `manager_cells`:**
+```sql
+-- Cambiar politicas de {public} a {authenticated}
+DROP POLICY "Admins can manage manager_cells" ON manager_cells;
+CREATE POLICY "Admins can manage manager_cells" ON manager_cells
+  FOR ALL TO authenticated USING (has_role(auth.uid(), 'ADMINISTRADOR'));
+
+DROP POLICY "Managers can view own assignments" ON manager_cells;
+CREATE POLICY "Managers can view own assignments" ON manager_cells
+  FOR SELECT TO authenticated USING (manager_id = auth.uid());
+```
+
+**b) Agregar politica INSERT para sales (gerentes/admins):**
+```sql
+CREATE POLICY "Managers can insert team sales" ON sales
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    has_role(auth.uid(), 'GERENTE') AND 
+    EXISTS (SELECT 1 FROM profiles WHERE id = sales.user_id AND manager_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can insert any sales" ON sales
+  FOR INSERT TO authenticated
+  WITH CHECK (has_role(auth.uid(), 'ADMINISTRADOR'));
+```
+
+**c) Habilitar JWT en Edge Functions:**
+```toml
+[functions.process-sales-upload]
+verify_jwt = true
+
+[functions.evaluate-medals]
+verify_jwt = true
+```
+
+---
+
+## 3. Integridad y Logica de Negocio
+
+### Problemas Detectados
+
+| Problema | Tabla | Detalle |
+|----------|-------|---------|
+| **Sin CHECK en `sales.quantity`** | `sales` | Permite valores 0 o negativos |
+| **Sin CHECK en `sales.xp_earned`** | `sales` | Permite XP negativo |
+| **Sin CHECK en `products.xp_value`** | `products` | Permite valores negativos |
+| **Sin CHECK en `levels.min_xp/max_xp`** | `levels` | No valida que `min_xp < max_xp` ni que sean >= 0 |
+| **Sin CHECK en `profiles.xp`** | `profiles` | Permite XP negativo |
+| **`sales.registered_by` es nullable** | `sales` | Toda venta deberia tener un registrador |
+| **`sales_uploads.uploaded_by` sin ON DELETE** | `sales_uploads` | FK sin accion referencial definida |
+| **`sales.registered_by` sin ON DELETE** | `sales` | FK sin accion referencial; si se elimina el registrador, la FK falla |
+| **XP se calcula en Edge Function** | Edge Function | La logica de XP deberia vivir en un trigger para garantizar consistencia |
+
+### Correcciones Propuestas
+
+**a) CHECK constraints:**
+```sql
+ALTER TABLE sales ADD CONSTRAINT sales_quantity_positive CHECK (quantity > 0);
+ALTER TABLE sales ADD CONSTRAINT sales_xp_non_negative CHECK (xp_earned >= 0);
+ALTER TABLE products ADD CONSTRAINT products_xp_positive CHECK (xp_value > 0);
+ALTER TABLE levels ADD CONSTRAINT levels_xp_range CHECK (min_xp >= 0 AND max_xp > min_xp);
+ALTER TABLE profiles ADD CONSTRAINT profiles_xp_non_negative CHECK (xp >= 0);
+ALTER TABLE profiles ADD CONSTRAINT profiles_streak_non_negative CHECK (streak >= 0);
+ALTER TABLE profiles ADD CONSTRAINT profiles_shields_non_negative CHECK (shields >= 0);
+ALTER TABLE medals ADD CONSTRAINT medals_condition_positive CHECK (condition_value > 0);
+```
+
+**b) Corregir FK sin ON DELETE:**
+```sql
+ALTER TABLE sales DROP CONSTRAINT sales_registered_by_fkey;
+ALTER TABLE sales ADD CONSTRAINT sales_registered_by_fkey 
+  FOREIGN KEY (registered_by) REFERENCES profiles(id) ON DELETE SET NULL;
+
+ALTER TABLE sales_uploads DROP CONSTRAINT sales_uploads_uploaded_by_fkey;
+ALTER TABLE sales_uploads ADD CONSTRAINT sales_uploads_uploaded_by_fkey 
+  FOREIGN KEY (uploaded_by) REFERENCES profiles(id) ON DELETE SET NULL;
+```
+
+**c) Trigger para calcular XP automaticamente:**
+```sql
+CREATE OR REPLACE FUNCTION calculate_sale_xp()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  SELECT xp_value * NEW.quantity INTO NEW.xp_earned
+  FROM products WHERE id = NEW.product_id;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_calculate_sale_xp
+  BEFORE INSERT ON sales FOR EACH ROW
+  EXECUTE FUNCTION calculate_sale_xp();
+```
+
+---
+
+## 4. Indices de Rendimiento Faltantes
+
+```sql
+CREATE INDEX idx_sales_user_id ON sales(user_id);
+CREATE INDEX idx_sales_created_at ON sales(created_at);
+CREATE INDEX idx_sales_product_id ON sales(product_id);
+CREATE INDEX idx_profiles_manager_id ON profiles(manager_id);
+CREATE INDEX idx_profiles_cell_id ON profiles(cell_id);
+CREATE INDEX idx_user_medals_user_id ON user_medals(user_id);
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+```
+
+---
+
+## Plan de Ejecucion (Orden de Migraciones)
+
+| Paso | Migracion | Riesgo | Impacto en Codigo |
+|------|-----------|--------|-------------------|
+| 1 | CHECK constraints | Bajo | Ninguno |
+| 2 | Indices de rendimiento | Bajo | Ninguno |
+| 3 | Corregir FKs sin ON DELETE | Bajo | Ninguno |
+| 4 | Corregir roles `{public}` -> `{authenticated}` en `manager_cells` | Bajo | Ninguno |
+| 5 | Agregar politicas INSERT para sales | Bajo | Ninguno |
+| 6 | Habilitar `verify_jwt = true` en Edge Functions | Medio | Verificar que las llamadas envien Authorization header |
+| 7 | Convertir `profiles.level` a FK `level_id` | Alto | Requiere actualizar todo el codigo que lee/escribe `level` |
+| 8 | Eliminar `profiles.segment` | Alto | Requiere actualizar queries y vistas para JOIN con `cells` |
+
+### Recomendacion de Ejecucion
+
+Ejecutar los pasos 1-6 primero (bajo riesgo, alto beneficio en seguridad e integridad). Los pasos 7-8 son refactors mas grandes que requieren cambios coordinados en frontend + backend + edge functions, y se pueden planificar como fase 2.
+
+---
+
+## Cambios en Codigo (Fase 1)
+
+- `supabase/config.toml`: Cambiar `verify_jwt = false` a `true`
+- Verificar que `BulkSalesUpload.tsx` y cualquier llamada a edge functions envie el header de Authorization correctamente (ya lo hacen actualmente)
+- No se requieren cambios adicionales en frontend para los pasos 1-6
