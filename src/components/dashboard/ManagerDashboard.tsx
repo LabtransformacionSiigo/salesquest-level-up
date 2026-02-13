@@ -37,7 +37,7 @@ const ManagerDashboard = () => {
                   {profile?.avatar}
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm font-bold shadow-smooth-md">
-                  {profile?.level || 'Junior'}
+                  Gerente
                 </div>
               </div>
 

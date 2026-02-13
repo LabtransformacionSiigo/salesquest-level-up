@@ -8,13 +8,12 @@ export interface Profile {
   name: string;
   avatar: string;
   xp: number;
-  level: string;
+  level_id: string | null;
   streak: number;
   shields: number;
   manager_id: string | null;
   cell_id: string | null;
   country: string | null;
-  segment: 'Empresarios' | 'Aliados' | 'B&M' | 'Despachos' | null;
   created_at: string;
   updated_at: string;
 }

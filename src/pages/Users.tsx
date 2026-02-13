@@ -26,7 +26,6 @@ const userSchema = z.object({
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').or(z.literal('')).optional(),
   role: z.enum(['GERENTE', 'EJECUTIVO'], { required_error: 'Selecciona un rol' }),
   country: z.string().optional(),
-  segment: z.enum(['Empresarios', 'Aliados', 'B&M', 'Despachos']).optional(),
   cellId: z.string().optional(),
   managerId: z.string().optional(),
 });
@@ -75,7 +74,6 @@ const Users = () => {
           name: data.name,
           email: data.email,
           country: data.country || null,
-          segment: data.segment || null,
           cell_id: data.cellId || null,
           manager_id: data.managerId || null,
         });
@@ -95,7 +93,6 @@ const Users = () => {
           role: data.role,
           avatar: data.role === 'GERENTE' ? '👨‍💼' : '👩‍💻',
           country: data.country,
-          segment: data.segment,
           cell_id: data.cellId,
           manager_id: data.managerId,
         });
@@ -127,7 +124,6 @@ const Users = () => {
     setValue('email', usr.email);
     setValue('role', usr.role as 'GERENTE' | 'EJECUTIVO');
     setValue('country', usr.country || '');
-    setValue('segment', usr.segment as any);
     setValue('cellId', usr.cell_id || '');
     setValue('managerId', usr.manager_id || '');
     setOpen(true);
@@ -314,52 +310,28 @@ const Users = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Segmento */}
-                  <div className="space-y-2">
-                    <Label htmlFor="segment" className="flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      Segmento
-                    </Label>
-                    <Select 
-                      value={watch('segment')} 
-                      onValueChange={(value) => setValue('segment', value as any)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona el segmento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Empresarios">Empresarios</SelectItem>
-                        <SelectItem value="Aliados">Aliados</SelectItem>
-                        <SelectItem value="B&M">B&M</SelectItem>
-                        <SelectItem value="Despachos">Despachos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Célula */}
-                  <div className="space-y-2">
-                    <Label htmlFor="cellId" className="flex items-center gap-2">
-                      <Briefcase className="w-4 h-4" />
-                      Célula
-                    </Label>
-                    <Select 
-                      value={watch('cellId') || ''} 
-                      onValueChange={(value) => setValue('cellId', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona la célula" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Sin asignar</SelectItem>
-                        {cells.map(cell => (
-                          <SelectItem key={cell.id} value={cell.id}>
-                            {cell.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Célula */}
+                <div className="space-y-2">
+                  <Label htmlFor="cellId" className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Célula (determina el segmento)
+                  </Label>
+                  <Select 
+                    value={watch('cellId') || ''} 
+                    onValueChange={(value) => setValue('cellId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona la célula" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin asignar</SelectItem>
+                      {cells.map(cell => (
+                        <SelectItem key={cell.id} value={cell.id}>
+                          {cell.name} ({cell.segment})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Gerente (solo para ejecutivos) */}
@@ -440,7 +412,6 @@ const Users = () => {
                     <TableHead>Email</TableHead>
                     <TableHead>Rol</TableHead>
                     <TableHead>País</TableHead>
-                    <TableHead>Segmento</TableHead>
                     <TableHead>Célula</TableHead>
                     <TableHead>Gerente</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -449,7 +420,7 @@ const Users = () => {
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         No hay usuarios registrados. Crea el primer usuario.
                       </TableCell>
                     </TableRow>
@@ -475,8 +446,9 @@ const Users = () => {
                             </span>
                           </TableCell>
                           <TableCell>{usr.country || '-'}</TableCell>
-                          <TableCell>{usr.segment || '-'}</TableCell>
-                          <TableCell>{usr.cell_id || '-'}</TableCell>
+                          <TableCell>
+                            {cells.find(c => c.id === usr.cell_id)?.name || '-'}
+                          </TableCell>
                           <TableCell>{manager?.name || '-'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">

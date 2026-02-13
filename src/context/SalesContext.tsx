@@ -46,13 +46,13 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     setSales(prev => [newSale, ...prev]);
 
     // Update user XP
-    const oldLevel = profile.level;
+    const oldLevelObj = getLevelByXP(profile.xp || 0);
     const newXP = (profile.xp || 0) + saleData.xpEarned;
     updateProfile({ xp: newXP });
 
     // Check if level up
     const newLevel = getLevelByXP(newXP);
-    if (newLevel && newLevel.level !== oldLevel) {
+    if (newLevel && oldLevelObj && newLevel.level !== oldLevelObj.level) {
       addNotification({
         userId: parseInt(profile.id) || 0,
         type: 'LEVEL_UP',

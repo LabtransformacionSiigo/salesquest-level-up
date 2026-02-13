@@ -32,7 +32,6 @@ const testUsers: User[] = [
     name: "Carlos Gerente",
     role: "GERENTE",
     xp: 450,
-    level: "Junior",
     avatar: "👨‍💼",
     streak: 3,
     shields: 1,
@@ -44,14 +43,12 @@ const testUsers: User[] = [
     name: "María Ejecutiva",
     role: "EJECUTIVO",
     xp: 120,
-    level: "Novato",
     avatar: "👩‍💻",
     streak: 0,
     shields: 0,
     managerId: 2,
     cellId: "CEL-001",
     country: "México",
-    segment: "Enterprise"
   }
 ];
 
@@ -95,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ...userDataWithoutPassword,
       id: newId,
       xp: 0,
-      level: 'Novato',
       streak: 0,
       shields: 0,
       medals: []

@@ -191,11 +191,10 @@ export type Database = {
           created_at: string
           email: string
           id: string
-          level: string | null
+          level_id: string | null
           manager_id: string | null
           name: string
           nickname: string | null
-          segment: Database["public"]["Enums"]["segment_type"] | null
           shields: number | null
           streak: number | null
           updated_at: string
@@ -208,11 +207,10 @@ export type Database = {
           created_at?: string
           email: string
           id: string
-          level?: string | null
+          level_id?: string | null
           manager_id?: string | null
           name: string
           nickname?: string | null
-          segment?: Database["public"]["Enums"]["segment_type"] | null
           shields?: number | null
           streak?: number | null
           updated_at?: string
@@ -225,11 +223,10 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
-          level?: string | null
+          level_id?: string | null
           manager_id?: string | null
           name?: string
           nickname?: string | null
-          segment?: Database["public"]["Enums"]["segment_type"] | null
           shields?: number | null
           streak?: number | null
           updated_at?: string
@@ -241,6 +238,13 @@ export type Database = {
             columns: ["cell_id"]
             isOneToOne: false
             referencedRelation: "cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
             referencedColumns: ["id"]
           },
           {
