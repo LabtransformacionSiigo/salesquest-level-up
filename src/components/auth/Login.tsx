@@ -3,15 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
 import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { isAuthenticated } = useSupabaseAuthContext();
+  const { isAuthenticated, signIn } = useSupabaseAuthContext();
   const navigate = useNavigate();
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    if (error) {
+      setError(error.message);
+    } else {
+      navigate('/dashboard');
+    }
+    setIsLoading(false);
+  };
 
   const handleMicrosoftLogin = async () => {
     setError('');
@@ -64,10 +80,10 @@ const Login = () => {
             <p className="text-sm font-semibold text-primary">Gamificación</p>
           </div>
 
-          <div className="bg-card rounded-2xl shadow-smooth-xl p-8 border border-border text-center space-y-6">
-            <div>
+          <div className="bg-card rounded-2xl shadow-smooth-xl p-8 border border-border space-y-6">
+            <div className="text-center">
               <h2 className="text-2xl font-bold text-foreground mb-2">Iniciar Sesión</h2>
-              <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa</p>
+              <p className="text-sm text-muted-foreground">Accede con tu cuenta</p>
             </div>
 
             {error && (
@@ -77,19 +93,56 @@ const Login = () => {
               </div>
             )}
 
+            {/* Email/Password form */}
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Correo electrónico"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12 rounded-xl"
+              />
+              <Input
+                type="password"
+                placeholder="Contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-12 rounded-xl"
+              />
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 text-base font-semibold rounded-xl"
+              >
+                {isLoading ? 'Ingresando...' : 'Ingresar'}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">o</span>
+              </div>
+            </div>
+
             <Button
               type="button"
+              variant="outline"
               disabled={isLoading}
               onClick={handleMicrosoftLogin}
-              className="w-full h-14 text-lg font-semibold rounded-xl border-2 hover:bg-accent transition-all hover:scale-[1.02] flex items-center justify-center gap-3 bg-card text-foreground border-border hover:border-primary"
+              className="w-full h-12 text-base font-semibold rounded-xl flex items-center justify-center gap-3"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 21 21">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
                 <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
                 <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
                 <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
                 <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
               </svg>
-              {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+              Continuar con Microsoft
             </Button>
           </div>
         </div>
