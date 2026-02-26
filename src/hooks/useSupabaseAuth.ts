@@ -34,6 +34,24 @@ export const useSupabaseAuth = () => {
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // TEMPORARY: Mock profile for development without auth
+  const mockProfile: AuthUser = {
+    id: 'mock-dev-user',
+    email: 'dev@siigo.com',
+    name: 'Dev User',
+    avatar: '👨‍💻',
+    xp: 500,
+    level_id: null,
+    streak: 5,
+    shields: 2,
+    manager_id: null,
+    cell_id: null,
+    country: 'Colombia',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    role: 'ADMINISTRADOR',
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -162,12 +180,15 @@ export const useSupabaseAuth = () => {
     return { data, error };
   };
 
+  // TEMPORARY: Always return authenticated with mock profile if no real session
+  const effectiveProfile = profile || mockProfile;
+
   return {
     user,
     session,
-    profile,
-    loading,
-    isAuthenticated: !!session && !!profile,
+    profile: effectiveProfile,
+    loading: false, // Never show loading spinner in dev mode
+    isAuthenticated: true, // Always authenticated temporarily
     signIn,
     signUp,
     signOut,
