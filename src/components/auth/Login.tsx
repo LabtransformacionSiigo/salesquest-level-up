@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
@@ -29,20 +28,6 @@ const Login = () => {
     setIsLoading(false);
   };
 
-  const handleMicrosoftLogin = async () => {
-    setError('');
-    setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    if (error) {
-      setError(error.message);
-      setIsLoading(false);
-    }
-  };
 
   if (isAuthenticated) {
     navigate('/dashboard');
@@ -120,30 +105,6 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">o</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isLoading}
-              onClick={handleMicrosoftLogin}
-              className="w-full h-12 text-base font-semibold rounded-xl flex items-center justify-center gap-3"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
-                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-              </svg>
-              Continuar con Microsoft
-            </Button>
           </div>
         </div>
       </div>
