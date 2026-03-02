@@ -1,21 +1,13 @@
 
-# Plan de Migración - Estado Actual
 
-## ✅ Fase 1 - Completada
-- CHECK constraints en sales, products, levels, profiles, medals
-- 7 índices de rendimiento
-- FKs corregidas con ON DELETE SET NULL
-- Trigger `calculate_sale_xp` para cálculo automático de XP
-- Políticas RLS de `manager_cells` corregidas a `authenticated`
-- Políticas INSERT en `sales` para gerentes y admins
+## Diagnóstico
 
-## ✅ Fase 2 - Completada
-- `profiles.level` (texto) → `profiles.level_id` (FK a `levels.id`)
-- `profiles.segment` eliminado (se deriva de `cells.segment` via `cell_id`)
-- `ranking_view` actualizada para usar `cells.segment`
-- Código frontend, hooks, edge functions actualizados
+El error `"Unsupported provider: provider is not enabled"` ocurre porque el proveedor **Azure (Microsoft)** no está habilitado en la configuración de autenticación del backend. En Lovable Cloud, solo se soportan Google y Apple como proveedores OAuth. Azure/Microsoft **no es compatible**.
 
-## Pendiente (Futuro)
-- Crear ENUMs para `medals.category` y `medals.condition_type`
-- Crear ENUM o tabla de referencia para `country`
-- Habilitar leaked password protection
+## Plan
+
+**Quitar el botón de Microsoft SSO** del login, ya que no es posible habilitarlo en Lovable Cloud. El login quedará únicamente con el formulario de correo y contraseña, que sí funciona correctamente para los usuarios de prueba y usuarios registrados.
+
+### Cambios:
+1. **`src/components/auth/Login.tsx`**: Eliminar la función `handleMicrosoftLogin`, el separador "o", y el botón de Microsoft. Dejar solo el formulario de email/password. También eliminar el import de `supabase` que ya no se necesitará.
+
