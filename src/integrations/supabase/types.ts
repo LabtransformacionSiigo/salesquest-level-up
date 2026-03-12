@@ -14,6 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
+      asesores: {
+        Row: {
+          activo: boolean | null
+          avatar_url: string | null
+          canal: string | null
+          created_at: string | null
+          email: string
+          gerente_id: string
+          id: string
+          nombre: string
+          pais: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          avatar_url?: string | null
+          canal?: string | null
+          created_at?: string | null
+          email: string
+          gerente_id: string
+          id?: string
+          nombre: string
+          pais?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          avatar_url?: string | null
+          canal?: string | null
+          created_at?: string | null
+          email?: string
+          gerente_id?: string
+          id?: string
+          nombre?: string
+          pais?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalogo_medallas: {
+        Row: {
+          activo: boolean | null
+          canal: string
+          cantidad_requerida: number | null
+          condicion_tipo: string
+          created_at: string | null
+          descripcion: string | null
+          emoji: string | null
+          id: string
+          nombre: string
+          producto: string | null
+          sp: number
+        }
+        Insert: {
+          activo?: boolean | null
+          canal: string
+          cantidad_requerida?: number | null
+          condicion_tipo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          emoji?: string | null
+          id?: string
+          nombre: string
+          producto?: string | null
+          sp?: number
+        }
+        Update: {
+          activo?: boolean | null
+          canal?: string
+          cantidad_requerida?: number | null
+          condicion_tipo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          emoji?: string | null
+          id?: string
+          nombre?: string
+          producto?: string | null
+          sp?: number
+        }
+        Relationships: []
+      }
+      config_rachas: {
+        Row: {
+          activo: boolean | null
+          canal: string
+          condicion_tipo: string
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          umbral_verde: number | null
+        }
+        Insert: {
+          activo?: boolean | null
+          canal: string
+          condicion_tipo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          umbral_verde?: number | null
+        }
+        Update: {
+          activo?: boolean | null
+          canal?: string
+          condicion_tipo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          umbral_verde?: number | null
+        }
+        Relationships: []
+      }
       gerentes: {
         Row: {
           activo: boolean | null
@@ -502,6 +649,24 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       ventas: {
         Row: {
           acv_plus: number | null
@@ -725,13 +890,21 @@ export type Database = {
         Returns: number
       }
       calcular_sp_cop: { Args: { ingresos_cop: number }; Returns: number }
+      get_user_role: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       otorgar_medalla_si_aplica: {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "gerente" | "asesor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -858,6 +1031,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "gerente", "asesor"],
+    },
   },
 } as const
