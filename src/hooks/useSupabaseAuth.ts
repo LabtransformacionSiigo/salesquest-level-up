@@ -58,15 +58,15 @@ export const useSupabaseAuth = () => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('sp_totales_gerente')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      ]);
 
-      if (error) throw error;
+      if (profileRes.error) throw profileRes.error;
 
-      if (data) {
+      if (profileRes.data) {
+        const data = profileRes.data;
         setProfile({
           id: data.id,
           user_id: data.user_id ?? userId,
@@ -82,6 +82,7 @@ export const useSupabaseAuth = () => {
           nivel: data.nivel ?? 'Prospecto',
           sp_nivel_actual: data.sp_nivel_actual ?? 0,
           sp_siguiente_nivel: data.sp_siguiente_nivel,
+          role: roleRes.data?.role ?? 'gerente',
         });
       }
     } catch (error) {
