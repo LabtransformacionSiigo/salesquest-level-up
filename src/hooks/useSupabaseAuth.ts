@@ -20,6 +20,7 @@ export interface AuthUser extends Gerente {
   nivel: string;
   sp_nivel_actual: number;
   sp_siguiente_nivel: number | null;
+  role: string | null;
 }
 
 export const useSupabaseAuth = () => {
