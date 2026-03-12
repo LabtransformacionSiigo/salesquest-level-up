@@ -10,49 +10,45 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
-const MEDALLAS_SISTEMA = [
-  { id: 'primera_conquista', nombre: 'Primera Conquista', sp: 100, condicion: 'Generar $50M COP en un mes', emoji: '🎯', categoria: 'Desempeño' },
-  { id: 'sello_cumplimiento', nombre: 'Sello de Cumplimiento', sp: 300, condicion: 'Cumplir 100% de la meta mensual ($400M COP)', emoji: '✅', categoria: 'Desempeño' },
-  { id: 'sobre_la_cima', nombre: 'Sobre la Cima', sp: 500, condicion: 'Superar 110% de la meta ($440M COP)', emoji: '⛰️', categoria: 'Desempeño' },
-  { id: 'golpe_autoridad', nombre: 'Golpe de Autoridad', sp: 800, condicion: 'Superar 125% de la meta ($500M COP)', emoji: '💥', categoria: 'Desempeño' },
-  { id: 'record_personal', nombre: 'Récord Personal', sp: 400, condicion: 'Superar tu propio récord mensual histórico', emoji: '📈', categoria: 'Desempeño' },
-  { id: 'el_millon', nombre: 'El Millón', sp: 1500, condicion: 'Acumular $1.000M COP en el año', emoji: '💰', categoria: 'Desempeño' },
-  { id: 'pulso_constante', nombre: 'Pulso Constante', sp: 600, condicion: '3 meses consecutivos cumpliendo meta', emoji: '💓', categoria: 'Consistencia' },
-  { id: 'imparable', nombre: 'Imparable', sp: 1000, condicion: '4 meses consecutivos en verde', emoji: '🚀', categoria: 'Consistencia' },
-  { id: 'sin_piedad', nombre: 'Sin Piedad', sp: 2000, condicion: 'Ningún mes del año bajo el 85% de meta', emoji: '🔱', categoria: 'Consistencia' },
-  { id: 'dominante_mes', nombre: 'El Dominante del Mes', sp: 500, condicion: 'Ser el #1 en ingresos del mes', emoji: '👑', categoria: 'Especiales' },
-  { id: 'arranque_elite', nombre: 'Arranque de Élite', sp: 250, condicion: 'Superar $200M COP en la primera quincena', emoji: '⚡', categoria: 'Especiales' },
-  { id: 'cierre_leyenda', nombre: 'Cierre de Leyenda', sp: 350, condicion: 'Generar más de $100M COP en una semana', emoji: '🌟', categoria: 'Especiales' },
-];
-
 const Medallas = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [misMediallas, setMisMedallas] = useState<any[]>([]);
+  const [misMedallas, setMisMedallas] = useState<any[]>([]);
+  const [catalogo, setCatalogo] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile?.id) return;
-    supabase
-      .from('medallas')
-      .select('*')
-      .eq('gerente_id', profile.id)
-      .then(({ data }) => {
-        setMisMedallas(data || []);
-        setDataLoading(false);
-      });
-  }, [profile?.id]);
+    if (!profile?.id || !profile?.canal) return;
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>;
-  }
+    Promise.all([
+      supabase.from('medallas').select('*').eq('gerente_id', profile.id),
+      supabase.from('catalogo_medallas').select('*').eq('canal', profile.canal).eq('activo', true).order('condicion_tipo').order('nombre'),
+    ]).then(([mRes, cRes]) => {
+      setMisMedallas(mRes.data || []);
+      setCatalogo(cRes.data || []);
+      setDataLoading(false);
+    });
+  }, [profile?.id, profile?.canal]);
 
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const medallaIds = new Set(misMediallas.map(m => m.medalla));
-  const obtenidas = MEDALLAS_SISTEMA.filter(m => medallaIds.has(m.id));
-  const categorias = ['Desempeño', 'Consistencia', 'Especiales'];
+  const medallaNames = new Set(misMedallas.map(m => m.medalla));
+  const obtenidas = catalogo.filter(m => medallaNames.has(m.nombre));
+
+  // Group by condicion_tipo
+  const grupos: Record<string, any[]> = {};
+  catalogo.forEach(m => {
+    const key = m.condicion_tipo;
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(m);
+  });
+
+  const grupoLabels: Record<string, { label: string; icon: string }> = {
+    primera_venta: { label: 'Primera Venta', icon: 'celebration' },
+    cantidad: { label: 'Cantidad Acumulada', icon: 'trending_up' },
+    monto: { label: 'Monto Acumulado', icon: 'payments' },
+    cumplimiento: { label: 'Cumplimiento', icon: 'verified' },
+  };
 
   return (
     <Layout title="Vitrina de Logros">
@@ -61,61 +57,77 @@ const Medallas = () => {
         <div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">Mis Medallas</h2>
-            <p className="text-sm text-muted-foreground">Completa retos para desbloquear logros</p>
+            <p className="text-sm text-muted-foreground">
+              Canal: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
+            </p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{MEDALLAS_SISTEMA.length}</span></p>
+            <p className="text-3xl font-bold text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
           </div>
         </div>
 
         {dataLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-40" />)}
+            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-40" />)}
           </div>
         ) : (
-          categorias.map(cat => (
-            <div key={cat}>
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <MI icon={cat === 'Desempeño' ? 'trending_up' : cat === 'Consistencia' ? 'sync' : 'star'} className="text-primary text-lg" />
-                {cat}
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {MEDALLAS_SISTEMA.filter(m => m.categoria === cat).map(medalla => {
-                  const desbloqueada = medallaIds.has(medalla.id);
-                  const dataMedalla = misMediallas.find(m => m.medalla === medalla.id);
+          Object.entries(grupos).map(([tipo, medallas]) => {
+            const info = grupoLabels[tipo] || { label: tipo, icon: 'star' };
+            return (
+              <div key={tipo}>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <MI icon={info.icon} className="text-primary text-lg" />
+                  {info.label}
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {medallas.map(medalla => {
+                    const desbloqueada = medallaNames.has(medalla.nombre);
+                    const dataMedalla = misMedallas.find(m => m.medalla === medalla.nombre);
 
-                  return (
-                    <div key={medalla.id} className={cn(
-                      "bg-card border rounded-2xl p-5 text-center transition-all group relative",
-                      desbloqueada
-                        ? "border-accent/30 shadow-smooth-sm"
-                        : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
-                    )}>
-                      <p className="text-4xl mb-3">{desbloqueada ? medalla.emoji : '🔒'}</p>
-                      <p className="text-sm font-bold text-foreground mb-1">{medalla.nombre}</p>
-                      <span className="inline-block text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2">
-                        +{medalla.sp} SP
-                      </span>
+                    return (
+                      <div key={medalla.id} className={cn(
+                        "bg-card border rounded-2xl p-5 text-center transition-all group relative",
+                        desbloqueada
+                          ? "border-accent/30 shadow-smooth-sm"
+                          : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
+                      )}>
+                        <p className="text-4xl mb-3">{desbloqueada ? medalla.emoji : '🔒'}</p>
+                        <p className="text-sm font-bold text-foreground mb-1">{medalla.nombre}</p>
+                        {medalla.producto && (
+                          <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1">
+                            {medalla.producto}
+                          </span>
+                        )}
+                        <span className="inline-block text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2">
+                          +{medalla.sp} SP
+                        </span>
 
-                      {desbloqueada && dataMedalla && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(dataMedalla.fecha_desbloqueo).toLocaleDateString('es')}
-                        </p>
-                      )}
+                        {desbloqueada && dataMedalla && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(dataMedalla.fecha_desbloqueo).toLocaleDateString('es')}
+                          </p>
+                        )}
 
-                      {/* Hover tooltip for locked */}
-                      {!desbloqueada && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 rounded-2xl p-4">
-                          <p className="text-xs text-muted-foreground text-center">{medalla.condicion}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {!desbloqueada && (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 rounded-2xl p-4">
+                            <p className="text-xs text-muted-foreground text-center">{medalla.descripcion}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
+        )}
+
+        {!dataLoading && catalogo.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <MI icon="emoji_events" className="text-5xl mb-3" />
+            <p>No hay medallas configuradas para tu canal</p>
+          </div>
         )}
       </div>
     </Layout>

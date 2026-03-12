@@ -13,6 +13,14 @@ const menuItems = [
   { path: '/mi-performance', icon: 'analytics', label: 'KPIs' },
   { path: '/medallas', icon: 'emoji_events', label: 'Medallas' },
   { path: '/reconocimientos', icon: 'diversity_3', label: 'Reconocer' },
+  { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
+];
+
+const adminItems = [
+  { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
+  { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
+  { path: '/admin/medallas', icon: 'workspace_premium', label: 'Medallas' },
+  { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },
 ];
 
 const Sidebar = () => {
@@ -26,6 +34,7 @@ const Sidebar = () => {
   };
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = profile?.role === 'admin';
 
   const canalBadge = profile?.canal === 'VN_EMPRESARIOS' ? 'EMP'
     : profile?.canal === 'VN_ALIADOS' ? 'ALI'
@@ -57,7 +66,7 @@ const Sidebar = () => {
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 flex flex-col items-center gap-0.5 w-full px-1.5">
+      <nav className="flex-1 flex flex-col items-center gap-0.5 w-full px-1.5 overflow-y-auto">
         {menuItems.map((item) => (
           <button
             key={item.path}
@@ -73,6 +82,29 @@ const Sidebar = () => {
             <span className="text-[9px] font-medium leading-tight">{item.label}</span>
           </button>
         ))}
+
+        {/* Admin section */}
+        {isAdmin && (
+          <>
+            <div className="w-8 border-t border-sidebar-border my-1" />
+            <span className="text-[7px] text-sidebar-muted-text uppercase tracking-widest mb-0.5">Admin</span>
+            {adminItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  "flex flex-col items-center gap-0.5 w-full py-2 rounded-lg transition-all text-center",
+                  isActive(item.path)
+                    ? "text-accent bg-accent/15"
+                    : "text-sidebar-muted-text hover:text-white hover:bg-white/5"
+                )}
+              >
+                <MI icon={item.icon} className="text-[18px]" />
+                <span className="text-[8px] font-medium leading-tight">{item.label}</span>
+              </button>
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Bottom */}

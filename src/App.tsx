@@ -12,7 +12,14 @@ import Rankings from '@/pages/Rankings';
 import MiPerformance from '@/pages/MiPerformance';
 import Medallas from '@/pages/Medallas';
 import Reconocimientos from '@/pages/Reconocimientos';
+import MiEquipo from '@/pages/MiEquipo';
 import NotFound from '@/pages/NotFound';
+
+// Admin Pages
+import AdminGerentes from '@/pages/admin/AdminGerentes';
+import AdminAsesores from '@/pages/admin/AdminAsesores';
+import AdminMedallas from '@/pages/admin/AdminMedallas';
+import AdminRachas from '@/pages/admin/AdminRachas';
 
 function App() {
   return (
@@ -27,6 +34,12 @@ function App() {
             <Route path="/mi-performance" element={<MiPerformance />} />
             <Route path="/medallas" element={<Medallas />} />
             <Route path="/reconocimientos" element={<Reconocimientos />} />
+            <Route path="/mi-equipo" element={<MiEquipo />} />
+            {/* Admin */}
+            <Route path="/admin/gerentes" element={<AdminGerentes />} />
+            <Route path="/admin/asesores" element={<AdminAsesores />} />
+            <Route path="/admin/medallas" element={<AdminMedallas />} />
+            <Route path="/admin/rachas" element={<AdminRachas />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
