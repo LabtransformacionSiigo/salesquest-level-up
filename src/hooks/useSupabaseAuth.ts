@@ -2,30 +2,24 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface Profile {
-  id: string;
-  email: string;
-  name: string;
-  avatar: string;
-  xp: number;
-  level_id: string | null;
-  streak: number;
-  shields: number;
-  manager_id: string | null;
-  cell_id: string | null;
-  country: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UserRole {
+export interface Gerente {
   id: string;
   user_id: string;
-  role: 'ADMINISTRADOR' | 'GERENTE' | 'EJECUTIVO';
+  nombre: string;
+  email: string;
+  canal: string | null;
+  pais: string | null;
+  lider: string | null;
+  activo: boolean;
+  avatar_url: string | null;
+  created_at: string;
 }
 
-export interface AuthUser extends Profile {
-  role: 'ADMINISTRADOR' | 'GERENTE' | 'EJECUTIVO';
+export interface AuthUser extends Gerente {
+  sp_totales: number;
+  nivel: string;
+  sp_nivel_actual: number;
+  sp_siguiente_nivel: number | null;
 }
 
 export const useSupabaseAuth = () => {
@@ -35,17 +29,12 @@ export const useSupabaseAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Defer profile fetch
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
+          setTimeout(() => fetchUserProfile(session.user.id), 0);
         } else {
           setProfile(null);
           setLoading(false);
@@ -53,11 +42,9 @@ export const useSupabaseAuth = () => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
       if (session?.user) {
         fetchUserProfile(session.user.id);
       } else {
@@ -70,32 +57,34 @@ export const useSupabaseAuth = () => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+      const { data, error } = await supabase
+        .from('sp_totales_gerente')
         .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (roleError) throw roleError;
+      if (error) throw error;
 
-      if (profileData && roleData) {
+      if (data) {
         setProfile({
-          ...profileData,
-          role: roleData.role,
-        } as AuthUser);
+          id: data.id,
+          user_id: data.user_id ?? userId,
+          nombre: data.nombre,
+          email: '',
+          canal: data.canal,
+          pais: data.pais,
+          lider: data.lider,
+          activo: data.activo ?? true,
+          avatar_url: data.avatar_url,
+          created_at: '',
+          sp_totales: data.sp_totales ?? 0,
+          nivel: data.nivel ?? 'Prospecto',
+          sp_nivel_actual: data.sp_nivel_actual ?? 0,
+          sp_siguiente_nivel: data.sp_siguiente_nivel,
+        });
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching gerente profile:', error);
     } finally {
       setLoading(false);
     }
@@ -103,35 +92,23 @@ export const useSupabaseAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setLoading(false);
       return { error };
     }
-    
     return { data, error: null };
   };
 
-  const signUp = async (
-    email: string, 
-    password: string, 
-    metadata?: { name?: string; role?: string; avatar?: string }
-  ) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
+  const signUp = async (email: string, password: string, metadata?: { name?: string }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
+        emailRedirectTo: `${window.location.origin}/`,
         data: metadata,
       },
     });
-
     return { data, error };
   };
 
@@ -145,20 +122,17 @@ export const useSupabaseAuth = () => {
     return { error };
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: new Error('No user logged in') };
-
+  const updateProfile = async (updates: Partial<Gerente>) => {
+    if (!user || !profile) return { error: new Error('No user logged in') };
     const { data, error } = await supabase
-      .from('profiles')
+      .from('gerentes')
       .update(updates)
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .select()
       .single();
-
     if (!error && data) {
       setProfile(prev => prev ? { ...prev, ...data } : null);
     }
-
     return { data, error };
   };
 

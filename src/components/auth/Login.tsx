@@ -29,7 +29,6 @@ const Login = () => {
     setIsLoading(false);
   };
 
-
   if (isAuthenticated) {
     navigate('/dashboard');
     return null;
@@ -37,7 +36,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel - branding */}
+      {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-20 left-20 w-72 h-72 rounded-full bg-primary blur-3xl" />
@@ -45,14 +44,14 @@ const Login = () => {
         </div>
         <div className="relative z-10 text-center px-12">
           <img src={siigoLogoWhite} alt="Siigo" className="h-14 mx-auto mb-8" />
-          <h1 className="text-4xl font-bold text-white mb-3">Gamificación</h1>
+          <h1 className="text-4xl font-bold text-white mb-3">Siigo Arena</h1>
           <p className="text-lg text-sidebar-foreground/70 max-w-sm mx-auto">
-            La Ruta del Héroe Comercial 🚀
+            Plataforma de Gamificación Comercial 🏟️
           </p>
           <div className="mt-10 flex items-center justify-center gap-6 text-sidebar-foreground/50 text-sm">
             <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">emoji_events</span> Rankings</span>
             <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">military_tech</span> Medallas</span>
-            <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">flight_takeoff</span> Convención</span>
+            <span className="flex items-center gap-1.5"><span className="material-icons-outlined text-base">diversity_3</span> Reconocimientos</span>
           </div>
         </div>
       </div>
@@ -60,10 +59,9 @@ const Login = () => {
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
             <img src={siigoLogoBlue} alt="Siigo" className="h-10 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-primary">Gamificación</p>
+            <p className="text-sm font-semibold text-primary">Siigo Arena</p>
           </div>
 
           <div className="bg-card rounded-2xl shadow-smooth-xl p-8 border border-border space-y-6">
@@ -79,52 +77,24 @@ const Login = () => {
               </div>
             )}
 
-            {/* Email/Password form */}
             <form onSubmit={handleEmailLogin} className="space-y-4">
-              <Input
-                type="email"
-                placeholder="Correo electrónico"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12 rounded-xl"
-              />
-              <Input
-                type="password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-12 rounded-xl"
-              />
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-12 text-base font-semibold rounded-xl"
-              >
+              <Input type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl" />
+              <Input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl" />
+              <Button type="submit" disabled={isLoading} className="w-full h-12 text-base font-semibold rounded-xl">
                 {isLoading ? 'Ingresando...' : 'Ingresar'}
               </Button>
             </form>
 
             <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">o</span>
-              </div>
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">o</span></div>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isLoading}
+            <Button type="button" variant="outline" disabled={isLoading}
               onClick={async () => {
                 setError('');
                 setIsLoading(true);
-                const result = await lovable.auth.signInWithOAuth("google", {
-                  redirect_uri: window.location.origin,
-                });
+                const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
                 if (result?.error) {
                   setError(result.error.message || 'Error al iniciar sesión con Google');
                   setIsLoading(false);
