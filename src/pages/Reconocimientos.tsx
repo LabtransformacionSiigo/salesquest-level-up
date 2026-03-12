@@ -1,0 +1,270 @@
+import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { Navigate } from 'react-router-dom';
+import Layout from '@/components/layout/Layout';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+const MI = ({ icon, className }: { icon: string; className?: string }) => (
+  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+);
+
+const TIPOS_RECONOCIMIENTO = [
+  { id: 'IMPULSO_PAR', nombre: 'Impulso de Par', sp_para: 80, sp_de: 20, desc: 'Destacar cualquier logro de un colega', emoji: '🤜' },
+  { id: 'PALABRA_LIDERAZGO', nombre: 'Palabra de Liderazgo', sp_para: 120, sp_de: 30, desc: 'Reconocer liderazgo en momentos clave', emoji: '🎖️' },
+  { id: 'SELLO_EXCELENCIA', nombre: 'Sello de Excelencia', sp_para: 200, sp_de: 50, desc: 'El mejor resultado del mes (1 vez/mes)', emoji: '⭐' },
+  { id: 'RECONOCIMIENTO_CUMBRE', nombre: 'Reconocimiento Cumbre', sp_para: 300, sp_de: 60, desc: 'Para momentos extraordinarios (1 vez/trimestre)', emoji: '🏔️' },
+];
+
+const getISOWeek = (d: Date) => {
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+};
+
+const Reconocimientos = () => {
+  const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
+  const { toast } = useToast();
+  const [gerentes, setGerentes] = useState<any[]>([]);
+  const [feed, setFeed] = useState<any[]>([]);
+  const [sentCount, setSentCount] = useState(0);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+
+  // Form state
+  const [selectedGerente, setSelectedGerente] = useState('');
+  const [selectedTipo, setSelectedTipo] = useState('');
+  const [mensaje, setMensaje] = useState('');
+
+  const currentWeek = getISOWeek(new Date());
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const fetchData = async () => {
+      const [gerentesRes, feedRes, countRes] = await Promise.all([
+        supabase.from('gerentes').select('id, nombre, avatar_url').neq('id', profile.id).eq('activo', true),
+        supabase.from('feed_reconocimientos').select('*').limit(20),
+        supabase.from('reconocimientos').select('id', { count: 'exact' })
+          .eq('de_gerente_id', profile.id)
+          .eq('semana_iso', currentWeek)
+          .eq('anio', currentYear),
+      ]);
+
+      setGerentes(gerentesRes.data || []);
+      setFeed(feedRes.data || []);
+      setSentCount(countRes.count || 0);
+      setDataLoading(false);
+    };
+
+    fetchData();
+
+    // Realtime feed
+    const channel = supabase
+      .channel('reconocimientos-feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reconocimientos' }, () => {
+        supabase.from('feed_reconocimientos').select('*').limit(20).then(({ data }) => setFeed(data || []));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id]);
+
+  const handleSend = async () => {
+    if (!profile?.id || !selectedGerente || !selectedTipo) return;
+
+    if (sentCount >= 2) {
+      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 2 reconocimientos por semana', variant: 'destructive' });
+      return;
+    }
+
+    const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === selectedTipo);
+    if (!tipo) return;
+
+    setSending(true);
+
+    // Insert reconocimiento
+    const { error } = await supabase.from('reconocimientos').insert({
+      de_gerente_id: profile.id,
+      para_gerente_id: selectedGerente,
+      tipo: selectedTipo,
+      sp_para: tipo.sp_para,
+      sp_de: tipo.sp_de,
+      semana_iso: currentWeek,
+      anio: currentYear,
+      mensaje: mensaje || null,
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      // Insert SP for both
+      await Promise.all([
+        supabase.from('sp_acumulados').insert({
+          gerente_id: selectedGerente,
+          fuente: 'RECONOCIMIENTO_RECIBIDO',
+          sp: tipo.sp_para,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`,
+          detalle: `${tipo.nombre} de ${profile.nombre}`,
+        }),
+        supabase.from('sp_acumulados').insert({
+          gerente_id: profile.id,
+          fuente: 'RECONOCIMIENTO_ENVIADO',
+          sp: tipo.sp_de,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`,
+          detalle: `${tipo.nombre} enviado`,
+        }),
+      ]);
+
+      toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colega` });
+      setSentCount(prev => prev + 1);
+      setSelectedGerente('');
+      setSelectedTipo('');
+      setMensaje('');
+    }
+
+    setSending(false);
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>;
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return (
+    <Layout title="Reconocimientos">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Form */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Weekly counter */}
+          <div className="bg-card border border-border rounded-2xl p-5 text-center">
+            <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
+            <p className="text-3xl font-bold text-primary mt-1">{2 - sentCount}<span className="text-lg text-muted-foreground">/2</span></p>
+            <p className="text-[10px] text-muted-foreground">disponibles</p>
+          </div>
+
+          {/* Form */}
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">Enviar Reconocimiento</h3>
+
+            {/* Select gerente */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
+              <select
+                value={selectedGerente}
+                onChange={e => setSelectedGerente(e.target.value)}
+                className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+              >
+                <option value="">Seleccionar gerente...</option>
+                {gerentes.map(g => (
+                  <option key={g.id} value={g.id}>{g.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Select tipo */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Tipo de reconocimiento</label>
+              <div className="grid grid-cols-2 gap-2">
+                {TIPOS_RECONOCIMIENTO.map(tipo => (
+                  <button
+                    key={tipo.id}
+                    onClick={() => setSelectedTipo(tipo.id)}
+                    className={cn(
+                      "p-3 rounded-xl border text-center transition-all text-xs",
+                      selectedTipo === tipo.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
+                    )}
+                  >
+                    <span className="text-lg block mb-1">{tipo.emoji}</span>
+                    <span className="font-medium text-[10px] block">{tipo.nombre}</span>
+                    <span className="text-[9px] text-muted-foreground block">+{tipo.sp_para} SP</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Message */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Mensaje (opcional)</label>
+              <textarea
+                value={mensaje}
+                onChange={e => setMensaje(e.target.value)}
+                placeholder="Escribe un mensaje..."
+                className="w-full h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none"
+              />
+            </div>
+
+            <Button
+              onClick={handleSend}
+              disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 2}
+              className="w-full"
+            >
+              {sending ? 'Enviando...' : 'Enviar Reconocimiento'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Right: Feed */}
+        <div className="lg:col-span-2">
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <MI icon="forum" className="text-primary text-lg" />
+              Feed de Reconocimientos
+              <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full ml-auto">En vivo</span>
+            </h3>
+
+            {dataLoading ? (
+              <div className="space-y-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16" />)}</div>
+            ) : feed.length > 0 ? (
+              <div className="space-y-3">
+                {feed.map(r => {
+                  const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === r.tipo);
+                  return (
+                    <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
+                      <span className="text-2xl mt-0.5">{tipo?.emoji || '💬'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold">{r.de_nombre}</span>
+                          <span className="text-muted-foreground"> reconoció a </span>
+                          <span className="font-semibold">{r.para_nombre}</span>
+                        </p>
+                        <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
+                        {r.mensaje && (
+                          <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[10px] text-accent font-semibold">+{r.sp_para} SP</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <MI icon="diversity_3" className="text-5xl mb-3" />
+                <p>Sé el primero en reconocer a un colega</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default Reconocimientos;

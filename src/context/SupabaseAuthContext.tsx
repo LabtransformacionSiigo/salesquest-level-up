@@ -1,5 +1,5 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { useSupabaseAuth, AuthUser } from '@/hooks/useSupabaseAuth';
+import { useSupabaseAuth, AuthUser, Gerente } from '@/hooks/useSupabaseAuth';
 import { User, Session } from '@supabase/supabase-js';
 
 interface SupabaseAuthContextType {
@@ -9,9 +9,9 @@ interface SupabaseAuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ data?: any; error: any }>;
-  signUp: (email: string, password: string, metadata?: { name?: string; role?: string; avatar?: string }) => Promise<{ data?: any; error: any }>;
+  signUp: (email: string, password: string, metadata?: { name?: string }) => Promise<{ data?: any; error: any }>;
   signOut: () => Promise<{ error: any }>;
-  updateProfile: (updates: Partial<AuthUser>) => Promise<{ data?: any; error: any }>;
+  updateProfile: (updates: Partial<Gerente>) => Promise<{ data?: any; error: any }>;
   refreshProfile: () => void;
 }
 
@@ -19,7 +19,6 @@ const SupabaseAuthContext = createContext<SupabaseAuthContextType | undefined>(u
 
 export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useSupabaseAuth();
-
   return (
     <SupabaseAuthContext.Provider value={auth}>
       {children}
