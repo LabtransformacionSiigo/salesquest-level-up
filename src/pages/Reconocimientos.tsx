@@ -178,7 +178,7 @@ const Reconocimientos = () => {
 
             {/* Select gerente */}
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
+               <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
               <select
                 value={selectedGerente}
                 onChange={e => setSelectedGerente(e.target.value)}
