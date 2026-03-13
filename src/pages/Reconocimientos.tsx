@@ -33,6 +33,7 @@ const Reconocimientos = () => {
   const [gerentes, setGerentes] = useState<any[]>([]);
   const [feed, setFeed] = useState<any[]>([]);
   const [sentCount, setSentCount] = useState(0);
+  const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
@@ -43,23 +44,34 @@ const Reconocimientos = () => {
 
   const currentWeek = getISOWeek(new Date());
   const currentYear = new Date().getFullYear();
+  const trimestre = Math.ceil((new Date().getMonth() + 1) / 3);
+  const trimestreStart = `${currentYear}-${String((trimestre - 1) * 3 + 1).padStart(2, '0')}-01`;
+  const trimestreEnd = trimestre === 4
+    ? `${currentYear + 1}-01-01`
+    : `${currentYear}-${String(trimestre * 3 + 1).padStart(2, '0')}-01`;
 
   useEffect(() => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      const [gerentesRes, feedRes, countRes] = await Promise.all([
+      const [gerentesRes, feedRes, countRes, cumbreRes] = await Promise.all([
         supabase.from('gerentes').select('id, nombre, avatar_url').neq('id', profile.id).eq('activo', true),
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
           .eq('de_gerente_id', profile.id)
           .eq('semana_iso', currentWeek)
           .eq('anio', currentYear),
+        supabase.from('reconocimientos').select('id', { count: 'exact' })
+          .eq('de_gerente_id', profile.id)
+          .eq('tipo', 'RECONOCIMIENTO_CUMBRE')
+          .gte('created_at', trimestreStart)
+          .lt('created_at', trimestreEnd),
       ]);
 
       setGerentes(gerentesRes.data || []);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
+      setCumbresTrimestre(cumbreRes.count || 0);
       setDataLoading(false);
     };
 
@@ -84,12 +96,20 @@ const Reconocimientos = () => {
       return;
     }
 
+    if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) {
+      toast({
+        title: 'Cumbre no disponible',
+        description: `Ya usaste tu Reconocimiento Cumbre este trimestre. Disponible de nuevo en el Q${trimestre < 4 ? trimestre + 1 : 1}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === selectedTipo);
     if (!tipo) return;
 
     setSending(true);
 
-    // Insert reconocimiento
     const { error } = await supabase.from('reconocimientos').insert({
       de_gerente_id: profile.id,
       para_gerente_id: selectedGerente,
@@ -104,7 +124,6 @@ const Reconocimientos = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      // Insert SP for both
       await Promise.all([
         supabase.from('sp_acumulados').insert({
           gerente_id: selectedGerente,
@@ -124,6 +143,7 @@ const Reconocimientos = () => {
 
       toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colega` });
       setSentCount(prev => prev + 1);
+      if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente('');
       setSelectedTipo('');
       setMensaje('');
@@ -175,22 +195,33 @@ const Reconocimientos = () => {
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Tipo de reconocimiento</label>
               <div className="grid grid-cols-2 gap-2">
-                {TIPOS_RECONOCIMIENTO.map(tipo => (
-                  <button
-                    key={tipo.id}
-                    onClick={() => setSelectedTipo(tipo.id)}
-                    className={cn(
-                      "p-3 rounded-xl border text-center transition-all text-xs",
-                      selectedTipo === tipo.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
-                    )}
-                  >
-                    <span className="text-lg block mb-1">{tipo.emoji}</span>
-                    <span className="font-medium text-[10px] block">{tipo.nombre}</span>
-                    <span className="text-[9px] text-muted-foreground block">+{tipo.sp_para} SP</span>
-                  </button>
-                ))}
+                {TIPOS_RECONOCIMIENTO.map(tipo => {
+                  const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
+                  return (
+                    <button
+                      key={tipo.id}
+                      onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
+                      disabled={isCumbreUsed}
+                      className={cn(
+                        "p-3 rounded-xl border text-center transition-all text-xs relative",
+                        isCumbreUsed
+                          ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
+                          : selectedTipo === tipo.id
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
+                      )}
+                    >
+                      <span className="text-lg block mb-1">{tipo.emoji}</span>
+                      <span className="font-medium text-[10px] block">{tipo.nombre}</span>
+                      <span className="text-[9px] text-muted-foreground block">+{tipo.sp_para} SP</span>
+                      {isCumbreUsed && (
+                        <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">
+                          Usado Q{trimestre}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

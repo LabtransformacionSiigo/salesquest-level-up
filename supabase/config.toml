@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.evaluate-medals]
 verify_jwt = false
+
+[functions.calcular-sp-semanal]
+verify_jwt = false
