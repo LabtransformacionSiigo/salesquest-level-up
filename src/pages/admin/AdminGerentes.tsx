@@ -143,13 +143,10 @@ const AdminGerentes = () => {
                   {PAISES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </Field>
-              <Field label="Gerente (jefe directo)">
-                <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Nombre del gerente" className={inputClass} />
-              </Field>
               <div className="flex items-end">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
-                  <span className="font-medium text-foreground">Líder activo</span>
+                  <span className="font-medium text-foreground">Gerente activo</span>
                 </label>
               </div>
             </div>
