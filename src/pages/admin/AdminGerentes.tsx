@@ -74,7 +74,7 @@ const AdminGerentes = () => {
 
         {showAdd && (
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Gerente' : 'Nuevo Gerente'}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Líder' : 'Nuevo Líder'}</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
