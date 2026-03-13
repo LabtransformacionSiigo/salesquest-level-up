@@ -48,7 +48,6 @@ const AdminCalculoSP = () => {
   const handleExecute = async () => {
     setExecuting(true);
     setResult(null);
-
     try {
       const { data, error } = await supabase.functions.invoke('calcular-sp-semanal');
       if (error) {
@@ -60,7 +59,6 @@ const AdminCalculoSP = () => {
     } catch (err) {
       setResult({ error: String(err) });
     }
-
     setExecuting(false);
   };
 
@@ -72,35 +70,32 @@ const AdminCalculoSP = () => {
     <Layout title="Motor de SP">
       <div className="space-y-6 max-w-3xl">
         {/* Header */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <MI icon="calculate" className="text-primary" />
-            Motor de SP · Cálculo Manual
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Ejecuta el cálculo de Siigo Points para la semana actual. Normalmente esto ocurre automáticamente cada viernes a las 6PM.
-          </p>
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <MI icon="calculate" className="text-primary" />
+              Motor de SP · Cálculo Manual
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Ejecuta el cálculo de Siigo Points para la semana actual. Normalmente esto ocurre automáticamente cada viernes a las 6PM.
+            </p>
+          </div>
 
-          <div className="mt-4 flex items-center gap-4">
-            <div className="bg-muted rounded-xl px-4 py-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Semana ISO</p>
+          <div className="flex items-center gap-4">
+            <div className="bg-muted/50 rounded-xl px-5 py-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Semana ISO</p>
               <p className="text-xl font-bold text-foreground">{anio}-W{String(semana).padStart(2, '0')}</p>
             </div>
 
-            <Button
-              onClick={handleExecute}
-              disabled={executing}
-              size="lg"
-              className="flex-1"
-            >
+            <Button onClick={handleExecute} disabled={executing} size="lg" className="flex-1 h-14 text-base">
               {executing ? (
                 <span className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground" />
                   Procesando líderes...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <MI icon="play_arrow" className="text-lg" />
+                  <MI icon="play_arrow" className="text-xl" />
                   Ejecutar Cálculo Semanal
                 </span>
               )}
@@ -114,10 +109,14 @@ const AdminCalculoSP = () => {
             "border rounded-2xl p-6",
             result.error ? "bg-destructive/5 border-destructive/30" : "bg-secondary/5 border-secondary/30"
           )}>
-            <h3 className="text-sm font-bold text-foreground mb-3">
-              {result.error ? '❌ Error' : '✅ Resultado'}
+            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              {result.error ? (
+                <><MI icon="error_outline" className="text-destructive" /> Error en el procesamiento</>
+              ) : (
+                <><MI icon="check_circle" className="text-secondary" /> Cálculo completado</>
+              )}
             </h3>
-            <pre className="text-xs bg-muted rounded-lg p-4 overflow-auto text-foreground">
+            <pre className="text-xs bg-muted rounded-lg p-4 overflow-auto text-foreground font-mono">
               {JSON.stringify(result, null, 2)}
             </pre>
           </div>
@@ -136,23 +135,23 @@ const AdminCalculoSP = () => {
             <div className="overflow-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-border text-muted-foreground text-left">
-                    <th className="pb-2 pr-4">Líder ID</th>
-                    <th className="pb-2 pr-4">SP</th>
-                    <th className="pb-2 pr-4">Periodo</th>
-                    <th className="pb-2 pr-4">Detalle</th>
-                    <th className="pb-2">Hora</th>
+                  <tr className="border-b border-border text-muted-foreground text-left bg-muted/30">
+                    <th className="pb-2 pr-4 py-2 px-3">Líder ID</th>
+                    <th className="pb-2 pr-4 py-2">SP</th>
+                    <th className="pb-2 pr-4 py-2">Periodo</th>
+                    <th className="pb-2 pr-4 py-2">Detalle</th>
+                    <th className="pb-2 py-2">Hora</th>
                   </tr>
                 </thead>
                 <tbody>
                   {historial.map((row) => (
-                    <tr key={row.id} className="border-b border-border/50">
-                      <td className="py-2 pr-4 font-mono text-[10px]">{row.gerente_id?.slice(0, 8)}...</td>
-                      <td className="py-2 pr-4 font-bold text-primary">+{row.sp}</td>
-                      <td className="py-2 pr-4">{row.periodo}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">{row.detalle}</td>
-                      <td className="py-2 text-muted-foreground">
-                        {row.created_at ? new Date(row.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                    <tr key={row.id} className="border-b border-border/50 hover:bg-muted/20">
+                      <td className="py-2.5 pr-4 px-3 font-mono text-[10px]">{row.gerente_id?.slice(0, 8)}...</td>
+                      <td className="py-2.5 pr-4 font-bold text-primary">+{row.sp}</td>
+                      <td className="py-2.5 pr-4">{row.periodo}</td>
+                      <td className="py-2.5 pr-4 text-muted-foreground">{row.detalle}</td>
+                      <td className="py-2.5 text-muted-foreground">
+                        {row.created_at ? new Date(row.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                     </tr>
                   ))}
@@ -160,7 +159,10 @@ const AdminCalculoSP = () => {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No hay registros de SP hoy</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <MI icon="history" className="text-3xl mb-2 opacity-30" />
+              <p className="text-sm">No hay registros de SP hoy</p>
+            </div>
           )}
         </div>
       </div>
