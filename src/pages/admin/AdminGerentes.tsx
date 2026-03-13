@@ -88,16 +88,16 @@ const AdminGerentes = () => {
   const activos = gerentes.filter(g => g.activo).length;
 
   return (
-    <Layout title="Admin · Líderes">
+    <Layout title="Admin · Gerentes">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Gestión de Líderes</h2>
+            <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true }); }}>
-            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Líder
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true }); }}>
+            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
           </Button>
         </div>
 
