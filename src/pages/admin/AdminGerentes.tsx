@@ -38,7 +38,7 @@ const AdminGerentes = () => {
   const [gerentes, setGerentes] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true });
+  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true });
   const [showAdd, setShowAdd] = useState(false);
   const [filterCanal, setFilterCanal] = useState('TODOS');
 
