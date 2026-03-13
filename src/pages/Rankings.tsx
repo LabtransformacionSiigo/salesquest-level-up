@@ -28,7 +28,6 @@ const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [canal, setCanal] = useState('TODOS');
   const [pais, setPais] = useState('TODOS');
 
   const fetchRanking = async () => {
