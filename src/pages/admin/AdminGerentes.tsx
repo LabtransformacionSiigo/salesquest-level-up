@@ -119,7 +119,7 @@ const AdminGerentes = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <MI icon={editing ? 'edit' : 'person_add'} className="text-primary text-base" />
-                {editing ? 'Editar Líder' : 'Registrar Nuevo Líder'}
+                {editing ? 'Editar Gerente' : 'Registrar Nuevo Gerente'}
               </h3>
               <button onClick={() => { setShowAdd(false); setEditing(null); }} className="text-muted-foreground hover:text-foreground">
                 <MI icon="close" className="text-lg" />
