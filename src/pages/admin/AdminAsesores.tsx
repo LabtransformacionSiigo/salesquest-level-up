@@ -96,7 +96,7 @@ const AdminAsesores = () => {
               <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Seleccionar gerente...</option>
+                <option value="">Seleccionar líder...</option>
                 {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
               </select>
               <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
