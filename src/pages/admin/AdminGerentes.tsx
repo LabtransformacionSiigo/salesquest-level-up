@@ -84,7 +84,7 @@ const AdminGerentes = () => {
               <select value={form.pais} onChange={e => setForm(f => ({ ...f, pais: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
                 {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Líder" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
+              <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Gerente" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
                 Activo
