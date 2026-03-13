@@ -38,7 +38,7 @@ const AdminGerentes = () => {
   const [gerentes, setGerentes] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true });
+  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true });
   const [showAdd, setShowAdd] = useState(false);
   const [filterCanal, setFilterCanal] = useState('TODOS');
 
@@ -63,11 +63,11 @@ const AdminGerentes = () => {
     if (editing) {
       const { error } = await supabase.from('gerentes').update(form).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Líder actualizado ✅' });
+      toast({ title: 'Gerente actualizado ✅' });
     } else {
       const { error } = await supabase.from('gerentes').insert(form);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Líder creado ✅' });
+      toast({ title: 'Gerente creado ✅' });
     }
     setEditing(null);
     setShowAdd(false);
@@ -76,7 +76,7 @@ const AdminGerentes = () => {
 
   const startEdit = (g: any) => {
     setEditing(g.id);
-    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', lider: g.lider || '', activo: g.activo ?? true });
+    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', activo: g.activo ?? true });
     setShowAdd(true);
   };
 
@@ -88,16 +88,16 @@ const AdminGerentes = () => {
   const activos = gerentes.filter(g => g.activo).length;
 
   return (
-    <Layout title="Admin · Líderes">
+    <Layout title="Admin · Gerentes">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Gestión de Líderes</h2>
+            <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true }); }}>
-            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Líder
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true }); }}>
+            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
           </Button>
         </div>
 
@@ -119,7 +119,7 @@ const AdminGerentes = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <MI icon={editing ? 'edit' : 'person_add'} className="text-primary text-base" />
-                {editing ? 'Editar Líder' : 'Registrar Nuevo Líder'}
+                {editing ? 'Editar Gerente' : 'Registrar Nuevo Gerente'}
               </h3>
               <button onClick={() => { setShowAdd(false); setEditing(null); }} className="text-muted-foreground hover:text-foreground">
                 <MI icon="close" className="text-lg" />
@@ -143,20 +143,17 @@ const AdminGerentes = () => {
                   {PAISES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </Field>
-              <Field label="Gerente (jefe directo)">
-                <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Nombre del gerente" className={inputClass} />
-              </Field>
               <div className="flex items-end">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
-                  <span className="font-medium text-foreground">Líder activo</span>
+                  <span className="font-medium text-foreground">Gerente activo</span>
                 </label>
               </div>
             </div>
 
             <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancelar</Button>
-              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Líder'}</Button>
+              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Gerente'}</Button>
             </div>
           </div>
         )}
@@ -169,11 +166,10 @@ const AdminGerentes = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider bg-muted/30">
-                  <th className="text-left px-4 py-3">Líder</th>
+                  <th className="text-left px-4 py-3">Gerente</th>
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
-                  <th className="text-left px-4 py-3">Gerente</th>
                   <th className="text-center px-4 py-3">Estado</th>
                   <th className="text-center px-4 py-3">Acciones</th>
                 </tr>
@@ -190,7 +186,6 @@ const AdminGerentes = () => {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{g.email}</td>
                     <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === g.canal)?.label || g.canal}</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{g.pais}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{g.lider || '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", g.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
                         {g.activo ? 'Activo' : 'Inactivo'}
@@ -204,7 +199,7 @@ const AdminGerentes = () => {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">Sin líderes registrados</td></tr>
+                  <tr><td colSpan={6} className="text-center py-12 text-muted-foreground text-sm">Sin gerentes registrados</td></tr>
                 )}
               </tbody>
             </table>

@@ -62,7 +62,7 @@ const AdminAsesores = () => {
 
   const handleSave = async () => {
     if (!form.nombre.trim() || !form.email.trim() || !form.gerente_id) {
-      toast({ title: 'Campos requeridos', description: 'Nombre, email y líder son obligatorios', variant: 'destructive' });
+      toast({ title: 'Campos requeridos', description: 'Nombre, email y gerente son obligatorios', variant: 'destructive' });
       return;
     }
     if (editing) {
@@ -141,9 +141,9 @@ const AdminAsesores = () => {
               <Field label="Correo electrónico">
                 <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@siigo.com" className={inputClass} />
               </Field>
-              <Field label="Líder asignado">
+              <Field label="Gerente asignado">
                 <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className={inputClass}>
-                  <option value="">Seleccionar líder...</option>
+                  <option value="">Seleccionar gerente...</option>
                   {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
                 </select>
               </Field>
@@ -180,7 +180,7 @@ const AdminAsesores = () => {
                 <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider bg-muted/30">
                   <th className="text-left px-4 py-3">Asesor</th>
                   <th className="text-left px-4 py-3">Email</th>
-                  <th className="text-left px-4 py-3">Líder</th>
+                  <th className="text-left px-4 py-3">Gerente</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
                   <th className="text-center px-4 py-3">Estado</th>
