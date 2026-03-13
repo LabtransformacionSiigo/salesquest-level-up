@@ -12,7 +12,28 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
-const CANALES = ['VN_EMPRESARIOS', 'VN_ALIADOS', 'VC'];
+const CANALES = [
+  { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
+  { value: 'VN_ALIADOS', label: 'VN Aliados' },
+  { value: 'VC', label: 'Venta Cruzada' },
+];
+
+const CONDICION_TIPOS = [
+  { value: 'ventas_semanales', label: 'Ventas Semanales', desc: 'Suma de valor_producto en la semana' },
+  { value: 'referidos_semanales', label: 'Referidos Semanales', desc: 'Cantidad de referidos en la semana' },
+  { value: 'acv_semanal', label: 'ACV+ Semanal', desc: 'ACV+ acumulado en la semana' },
+  { value: 'conversiones_semanales', label: 'Conversiones Semanales', desc: 'Número de conversiones en la semana' },
+];
+
+const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold text-foreground">{label}</label>
+    {children}
+    {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+  </div>
+);
+
+const inputClass = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors";
 
 const AdminRachas = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
@@ -37,6 +58,10 @@ const AdminRachas = () => {
   };
 
   const handleSave = async () => {
+    if (!form.nombre.trim()) {
+      toast({ title: 'Campo requerido', description: 'El nombre es obligatorio', variant: 'destructive' });
+      return;
+    }
     const payload = { ...form, umbral_verde: Number(form.umbral_verde) };
     if (editing) {
       const { error } = await supabase.from('config_rachas').update(payload).eq('id', editing);
@@ -62,69 +87,117 @@ const AdminRachas = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
+  const selectedCondicion = CONDICION_TIPOS.find(c => c.value === form.condicion_tipo);
+
   return (
     <Layout title="Admin · Rachas">
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Configuración de Rachas por Canal</h2>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Configuración de Rachas</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Define los umbrales semanales por canal para activar rachas</p>
+          </div>
           <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true }); }}>
             <MI icon="add_circle" className="text-sm mr-1" /> Nueva Racha
           </Button>
         </div>
 
+        {/* Form */}
         {showAdd && (
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Configuración' : 'Nueva Configuración'}</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
-              <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                {CANALES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
-              </select>
-              <select value={form.condicion_tipo} onChange={e => setForm(f => ({ ...f, condicion_tipo: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="ventas_semanales">Ventas Semanales</option>
-                <option value="referidos_semanales">Referidos Semanales</option>
-                <option value="acv_semanal">ACV+ Semanal</option>
-                <option value="conversiones_semanales">Conversiones Semanales</option>
-              </select>
-              <input type="number" value={form.umbral_verde} onChange={e => setForm(f => ({ ...f, umbral_verde: Number(e.target.value) }))} placeholder="Umbral verde" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
-              <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción" className="h-10 rounded-lg border border-border bg-background px-3 text-sm col-span-2" />
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <MI icon={editing ? 'edit' : 'local_fire_department'} className="text-accent text-base" />
+                {editing ? 'Editar Configuración' : 'Nueva Configuración de Racha'}
+              </h3>
+              <button onClick={() => { setShowAdd(false); setEditing(null); }} className="text-muted-foreground hover:text-foreground">
+                <MI icon="close" className="text-lg" />
+              </button>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Nombre de la racha">
+                <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej: Racha de Ventas VC" className={inputClass} />
+              </Field>
+              <Field label="Canal">
+                <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className={inputClass}>
+                  {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Tipo de condición" hint={selectedCondicion?.desc}>
+                <select value={form.condicion_tipo} onChange={e => setForm(f => ({ ...f, condicion_tipo: e.target.value }))} className={inputClass}>
+                  {CONDICION_TIPOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Umbral verde (mínimo semanal)" hint="Valor mínimo para mantener semana verde">
+                <input type="number" value={form.umbral_verde} onChange={e => setForm(f => ({ ...f, umbral_verde: Number(e.target.value) }))} className={inputClass} />
+              </Field>
+              <Field label="Descripción">
+                <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" className={inputClass} />
+              </Field>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
+                  <span className="font-medium text-foreground">Racha activa</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancelar</Button>
+              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Racha'}</Button>
             </div>
           </div>
         )}
 
+        {/* Cards by canal */}
         {dataLoading ? <Skeleton className="h-64" /> : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {CANALES.map(canal => (
-              <div key={canal} className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <MI icon="local_fire_department" className="text-accent text-lg" />
-                  {canal.replace(/_/g, ' ')}
-                </h3>
-                {configs.filter(c => c.canal === canal).map(c => (
-                  <div key={c.id} className={cn("bg-card border rounded-2xl p-5 group relative", c.activo ? "border-border" : "border-destructive/20 opacity-60")}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🔥</span>
-                      <span className="text-sm font-bold text-foreground">{c.nombre}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {CANALES.map(canal => {
+              const canalConfigs = configs.filter(c => c.canal === canal.value);
+              return (
+                <div key={canal.value} className="space-y-3">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <MI icon="local_fire_department" className="text-accent text-lg" />
+                    {canal.label}
+                    <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full ml-auto">{canalConfigs.length} reglas</span>
+                  </h3>
+                  {canalConfigs.map(c => (
+                    <div key={c.id} className={cn(
+                      "bg-card border rounded-2xl p-5 group relative transition-all hover:shadow-smooth-sm",
+                      c.activo ? "border-border" : "border-destructive/20 opacity-60"
+                    )}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">🔥</span>
+                        <span className="text-sm font-bold text-foreground">{c.nombre}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">{c.descripcion}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                          {CONDICION_TIPOS.find(ct => ct.value === c.condicion_tipo)?.label || c.condicion_tipo}
+                        </span>
+                        <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-semibold">
+                          Umbral: ${(c.umbral_verde / 1_000_000).toFixed(0)}M
+                        </span>
+                        {!c.activo && <span className="text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">Inactiva</span>}
+                      </div>
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(c)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors">
+                          <MI icon="edit" className="text-sm" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">{c.descripcion}</p>
-                    <div className="flex gap-2 mt-3">
-                      <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c.condicion_tipo.replace(/_/g, ' ')}</span>
-                      <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">Umbral: ${(c.umbral_verde / 1_000_000).toFixed(0)}M</span>
+                  ))}
+                  {canalConfigs.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border">
+                      <MI icon="local_fire_department" className="text-3xl mb-1 opacity-30" />
+                      <p className="text-xs">Sin configuración</p>
                     </div>
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => startEdit(c)} className="text-primary hover:text-primary/80"><MI icon="edit" className="text-sm" /></button>
-                    </div>
-                  </div>
-                ))}
-                {configs.filter(c => c.canal === canal).length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Sin configuración</p>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

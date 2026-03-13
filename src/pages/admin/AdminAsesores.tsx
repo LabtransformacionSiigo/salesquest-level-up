@@ -12,6 +12,26 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
+const CANALES = [
+  { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
+  { value: 'VN_ALIADOS', label: 'VN Aliados' },
+  { value: 'VC', label: 'Venta Cruzada' },
+];
+const PAISES = [
+  { value: 'COL', label: '🇨🇴 Colombia' },
+  { value: 'MEX', label: '🇲🇽 México' },
+  { value: 'ECU', label: '🇪🇨 Ecuador' },
+];
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold text-foreground">{label}</label>
+    {children}
+  </div>
+);
+
+const inputClass = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors";
+
 const AdminAsesores = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
@@ -41,6 +61,10 @@ const AdminAsesores = () => {
   };
 
   const handleSave = async () => {
+    if (!form.nombre.trim() || !form.email.trim() || !form.gerente_id) {
+      toast({ title: 'Campos requeridos', description: 'Nombre, email y líder son obligatorios', variant: 'destructive' });
+      return;
+    }
     if (editing) {
       const { error } = await supabase.from('asesores').update(form).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
@@ -66,12 +90,17 @@ const AdminAsesores = () => {
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const filtered = filterGerente === 'TODOS' ? asesores : asesores.filter(a => a.gerente_id === filterGerente);
+  const activos = asesores.filter(a => a.activo).length;
 
   return (
     <Layout title="Admin · Asesores">
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Gestión de Asesores</h2>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Gestión de Asesores</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {asesores.length} registrados</p>
+          </div>
           <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', gerente_id: '', canal: 'VC', pais: 'MEX', activo: true }); }}>
             <MI icon="person_add" className="text-sm mr-1" /> Nuevo Asesor
           </Button>
@@ -79,54 +108,77 @@ const AdminAsesores = () => {
 
         {/* Filter by líder */}
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setFilterGerente('TODOS')} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === 'TODOS' ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground")}>
-            Todos
+          <button onClick={() => setFilterGerente('TODOS')} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === 'TODOS' ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
+            Todos ({asesores.length})
           </button>
-          {gerentes.map(g => (
-            <button key={g.id} onClick={() => setFilterGerente(g.id)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === g.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground")}>
-              {g.nombre}
-            </button>
-          ))}
+          {gerentes.map(g => {
+            const count = asesores.filter(a => a.gerente_id === g.id).length;
+            return (
+              <button key={g.id} onClick={() => setFilterGerente(g.id)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === g.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
+                {g.nombre} ({count})
+              </button>
+            );
+          })}
         </div>
 
+        {/* Form */}
         {showAdd && (
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Asesor' : 'Nuevo Asesor'}</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
-              <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
-              <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Seleccionar líder...</option>
-                {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-              </select>
-              <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="VN_EMPRESARIOS">VN Empresarios</option>
-                <option value="VN_ALIADOS">VN Aliados</option>
-                <option value="VC">VC</option>
-              </select>
-              <select value={form.pais} onChange={e => setForm(f => ({ ...f, pais: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="COL">COL</option>
-                <option value="MEX">MEX</option>
-                <option value="ECU">ECU</option>
-              </select>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
-                Activo
-              </label>
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <MI icon={editing ? 'edit' : 'person_add'} className="text-primary text-base" />
+                {editing ? 'Editar Asesor' : 'Registrar Nuevo Asesor'}
+              </h3>
+              <button onClick={() => { setShowAdd(false); setEditing(null); }} className="text-muted-foreground hover:text-foreground">
+                <MI icon="close" className="text-lg" />
+              </button>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Nombre completo">
+                <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej: María López" className={inputClass} />
+              </Field>
+              <Field label="Correo electrónico">
+                <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@siigo.com" className={inputClass} />
+              </Field>
+              <Field label="Líder asignado">
+                <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className={inputClass}>
+                  <option value="">Seleccionar líder...</option>
+                  {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                </select>
+              </Field>
+              <Field label="Canal">
+                <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className={inputClass}>
+                  {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="País">
+                <select value={form.pais} onChange={e => setForm(f => ({ ...f, pais: e.target.value }))} className={inputClass}>
+                  {PAISES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </Field>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
+                  <span className="font-medium text-foreground">Asesor activo</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancelar</Button>
+              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Asesor'}</Button>
             </div>
           </div>
         )}
 
+        {/* Table */}
         {dataLoading ? <Skeleton className="h-64" /> : (
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider">
-                  <th className="text-left px-4 py-3">Nombre</th>
+                <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider bg-muted/30">
+                  <th className="text-left px-4 py-3">Asesor</th>
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Líder</th>
                   <th className="text-left px-4 py-3">Canal</th>
@@ -137,11 +189,16 @@ const AdminAsesores = () => {
               </thead>
               <tbody>
                 {filtered.map(a => (
-                  <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{a.nombre}</td>
+                  <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">{a.avatar_url || '👤'}</div>
+                        <span className="text-sm font-medium text-foreground">{a.nombre}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{a.email}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.gerentes?.nombre || '-'}</td>
-                    <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.gerentes?.nombre || '—'}</td>
+                    <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === a.canal)?.label || a.canal}</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{a.pais}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
@@ -149,14 +206,14 @@ const AdminAsesores = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button onClick={() => startEdit(a)} className="text-primary hover:text-primary/80">
+                      <button onClick={() => startEdit(a)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center justify-center transition-colors">
                         <MI icon="edit" className="text-base" />
                       </button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Sin asesores</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">Sin asesores registrados</td></tr>
                 )}
               </tbody>
             </table>
