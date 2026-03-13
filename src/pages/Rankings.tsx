@@ -10,12 +10,11 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
-const CANALES = [
-  { value: 'TODOS', label: 'Todos' },
-  { value: 'VN_EMPRESARIOS', label: 'Empresarios' },
-  { value: 'VN_ALIADOS', label: 'Aliados' },
-  { value: 'VC', label: 'Venta Cruzada' },
-];
+const CANALES_LABEL: Record<string, string> = {
+  VN_EMPRESARIOS: 'VN Empresarios',
+  VN_ALIADOS: 'VN Aliados',
+  VC: 'Venta Cruzada',
+};
 
 const PAISES = [
   { value: 'TODOS', label: 'Todos' },
