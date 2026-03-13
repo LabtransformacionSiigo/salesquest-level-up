@@ -82,7 +82,7 @@ export const useSupabaseAuth = () => {
           nivel: data.nivel ?? 'Prospecto',
           sp_nivel_actual: data.sp_nivel_actual ?? 0,
           sp_siguiente_nivel: data.sp_siguiente_nivel,
-          role: roleRes.data?.role ?? 'gerente',
+           role: roleRes.data?.role ?? 'gerente',
         });
       }
     } catch (error) {
