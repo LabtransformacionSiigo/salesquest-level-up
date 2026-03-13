@@ -137,7 +137,7 @@ const AdminCalculoSP = () => {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border text-muted-foreground text-left">
-                    <th className="pb-2 pr-4">Gerente ID</th>
+                    <th className="pb-2 pr-4">Líder ID</th>
                     <th className="pb-2 pr-4">SP</th>
                     <th className="pb-2 pr-4">Periodo</th>
                     <th className="pb-2 pr-4">Detalle</th>

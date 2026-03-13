@@ -111,7 +111,7 @@ const Rankings = () => {
                   <thead>
                     <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider">
                       <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">Gerente</th>
+                      <th className="text-left px-4 py-3">Líder</th>
                       <th className="text-left px-4 py-3">Canal</th>
                       <th className="text-right px-4 py-3">SP</th>
                       <th className="text-left px-4 py-3">Nivel</th>

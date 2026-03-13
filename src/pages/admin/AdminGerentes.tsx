@@ -108,7 +108,7 @@ const AdminGerentes = () => {
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
-                  <th className="text-left px-4 py-3">Líder</th>
+                  <th className="text-left px-4 py-3">Gerente</th>
                   <th className="text-center px-4 py-3">Estado</th>
                   <th className="text-center px-4 py-3">Acciones</th>
                 </tr>
