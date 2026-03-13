@@ -41,7 +41,7 @@ const AdminGerentes = () => {
     if (editing) {
       const { error } = await supabase.from('gerentes').update(form).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Gerente actualizado ✅' });
+      toast({ title: 'Líder actualizado ✅' });
     } else {
       const { error } = await supabase.from('gerentes').insert(form);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
