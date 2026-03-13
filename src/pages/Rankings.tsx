@@ -41,14 +41,14 @@ const Rankings = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !profile?.canal) return;
     fetchRanking();
     const channel = supabase
       .channel('ranking-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isAuthenticated, canal, pais]);
+  }, [isAuthenticated, profile?.canal, pais]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
