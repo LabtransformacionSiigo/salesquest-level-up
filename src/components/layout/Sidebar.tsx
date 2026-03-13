@@ -12,6 +12,7 @@ const menuItems = [
   { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
   { path: '/mi-performance', icon: 'analytics', label: 'KPIs' },
   { path: '/medallas', icon: 'emoji_events', label: 'Medallas' },
+  { path: '/retos', icon: 'flag', label: 'Retos' },
   { path: '/reconocimientos', icon: 'diversity_3', label: 'Reconocer' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
