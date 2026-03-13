@@ -96,7 +96,7 @@ const AdminCalculoSP = () => {
               {executing ? (
                 <span className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
-                  Procesando gerentes...
+                  Procesando líderes...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
