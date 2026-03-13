@@ -63,12 +63,12 @@ const AdminGerentes = () => {
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout title="Admin · Gerentes">
+    <Layout title="Admin · Líderes">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
+          <h2 className="text-lg font-bold text-foreground">Gestión de Líderes</h2>
           <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true }); }}>
-            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
+            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Líder
           </Button>
         </div>
 
