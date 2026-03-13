@@ -141,9 +141,9 @@ const AdminAsesores = () => {
               <Field label="Correo electrónico">
                 <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@siigo.com" className={inputClass} />
               </Field>
-              <Field label="Líder asignado">
+              <Field label="Gerente asignado">
                 <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className={inputClass}>
-                  <option value="">Seleccionar líder...</option>
+                  <option value="">Seleccionar gerente...</option>
                   {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
                 </select>
               </Field>
