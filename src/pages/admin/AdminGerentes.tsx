@@ -41,11 +41,11 @@ const AdminGerentes = () => {
     if (editing) {
       const { error } = await supabase.from('gerentes').update(form).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Gerente actualizado ✅' });
+      toast({ title: 'Líder actualizado ✅' });
     } else {
       const { error } = await supabase.from('gerentes').insert(form);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Gerente creado ✅' });
+      toast({ title: 'Líder creado ✅' });
     }
     setEditing(null);
     setShowAdd(false);
@@ -63,18 +63,18 @@ const AdminGerentes = () => {
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout title="Admin · Gerentes">
+    <Layout title="Admin · Líderes">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
+          <h2 className="text-lg font-bold text-foreground">Gestión de Líderes</h2>
           <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', lider: '', activo: true }); }}>
-            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
+            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Líder
           </Button>
         </div>
 
         {showAdd && (
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Gerente' : 'Nuevo Gerente'}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{editing ? 'Editar Líder' : 'Nuevo Líder'}</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
@@ -84,7 +84,7 @@ const AdminGerentes = () => {
               <select value={form.pais} onChange={e => setForm(f => ({ ...f, pais: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
                 {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Líder" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
+              <input value={form.lider} onChange={e => setForm(f => ({ ...f, lider: e.target.value }))} placeholder="Gerente" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
                 Activo
@@ -108,7 +108,7 @@ const AdminGerentes = () => {
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
-                  <th className="text-left px-4 py-3">Líder</th>
+                  <th className="text-left px-4 py-3">Gerente</th>
                   <th className="text-center px-4 py-3">Estado</th>
                   <th className="text-center px-4 py-3">Acciones</th>
                 </tr>

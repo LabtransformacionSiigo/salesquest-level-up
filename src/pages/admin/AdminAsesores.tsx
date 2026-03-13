@@ -77,7 +77,7 @@ const AdminAsesores = () => {
           </Button>
         </div>
 
-        {/* Filter by gerente */}
+        {/* Filter by líder */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setFilterGerente('TODOS')} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === 'TODOS' ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground")}>
             Todos
@@ -96,7 +96,7 @@ const AdminAsesores = () => {
               <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
               <select value={form.gerente_id} onChange={e => setForm(f => ({ ...f, gerente_id: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Seleccionar gerente...</option>
+                <option value="">Seleccionar líder...</option>
                 {gerentes.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
               </select>
               <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
@@ -128,7 +128,7 @@ const AdminAsesores = () => {
                 <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider">
                   <th className="text-left px-4 py-3">Nombre</th>
                   <th className="text-left px-4 py-3">Email</th>
-                  <th className="text-left px-4 py-3">Gerente</th>
+                  <th className="text-left px-4 py-3">Líder</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
                   <th className="text-center px-4 py-3">Estado</th>

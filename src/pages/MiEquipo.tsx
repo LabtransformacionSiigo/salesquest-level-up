@@ -103,9 +103,9 @@ const MiEquipo = () => {
                 </div>
 
                 {/* Fecha ingreso */}
-                {a.created_at && (
-                  <p className="text-[10px] text-muted-foreground mb-3">
-                    📅 En el equipo desde: {formatFechaIngreso(a.created_at)}
+                 {a.created_at && (
+                   <p className="text-[10px] text-muted-foreground mb-3">
+                     📅 En el equipo desde: {formatFechaIngreso(a.created_at)}
                   </p>
                 )}
 

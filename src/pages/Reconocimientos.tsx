@@ -178,13 +178,13 @@ const Reconocimientos = () => {
 
             {/* Select gerente */}
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
+               <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
               <select
                 value={selectedGerente}
                 onChange={e => setSelectedGerente(e.target.value)}
                 className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
               >
-                <option value="">Seleccionar gerente...</option>
+                <option value="">Seleccionar líder...</option>
                 {gerentes.map(g => (
                   <option key={g.id} value={g.id}>{g.nombre}</option>
                 ))}
