@@ -18,7 +18,7 @@ const menuItems = [
 ];
 
 const adminItems = [
-  { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Líderes' },
+  { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
   { path: '/admin/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },

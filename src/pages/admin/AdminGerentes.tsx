@@ -199,7 +199,7 @@ const AdminGerentes = () => {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">Sin líderes registrados</td></tr>
+                  <tr><td colSpan={6} className="text-center py-12 text-muted-foreground text-sm">Sin gerentes registrados</td></tr>
                 )}
               </tbody>
             </table>
