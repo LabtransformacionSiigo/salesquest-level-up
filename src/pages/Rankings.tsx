@@ -64,7 +64,7 @@ const Rankings = () => {
   const podiumIcons = ['👑', '🥈', '🥉'];
 
   return (
-    <Layout title="Tabla de Líderes">
+    <Layout title="Ranking">
       <div className="space-y-6">
         <div className="flex flex-wrap gap-2">
           {CANALES.map(c => (
