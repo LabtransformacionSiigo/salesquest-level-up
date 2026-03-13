@@ -77,7 +77,7 @@ const AdminAsesores = () => {
           </Button>
         </div>
 
-        {/* Filter by gerente */}
+        {/* Filter by líder */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setFilterGerente('TODOS')} className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all", filterGerente === 'TODOS' ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground")}>
             Todos
