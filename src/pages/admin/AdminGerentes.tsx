@@ -153,7 +153,7 @@ const AdminGerentes = () => {
 
             <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancelar</Button>
-              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Líder'}</Button>
+              <Button onClick={handleSave}>{editing ? 'Guardar Cambios' : 'Crear Gerente'}</Button>
             </div>
           </div>
         )}
