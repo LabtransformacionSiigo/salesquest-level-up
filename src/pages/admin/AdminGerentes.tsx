@@ -186,7 +186,6 @@ const AdminGerentes = () => {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{g.email}</td>
                     <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === g.canal)?.label || g.canal}</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{g.pais}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{g.lider || '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", g.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
                         {g.activo ? 'Activo' : 'Inactivo'}
