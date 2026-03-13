@@ -62,7 +62,7 @@ const AdminAsesores = () => {
 
   const handleSave = async () => {
     if (!form.nombre.trim() || !form.email.trim() || !form.gerente_id) {
-      toast({ title: 'Campos requeridos', description: 'Nombre, email y líder son obligatorios', variant: 'destructive' });
+      toast({ title: 'Campos requeridos', description: 'Nombre, email y gerente son obligatorios', variant: 'destructive' });
       return;
     }
     if (editing) {
