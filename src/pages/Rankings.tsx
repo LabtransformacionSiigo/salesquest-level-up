@@ -32,8 +32,8 @@ const Rankings = () => {
   const [pais, setPais] = useState('TODOS');
 
   const fetchRanking = async () => {
-    let query = supabase.from('ranking_general').select('*');
-    if (canal !== 'TODOS') query = query.eq('canal', canal);
+    if (!profile?.canal) return;
+    let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
     if (pais !== 'TODOS') query = query.eq('pais', pais);
     const { data } = await query;
     setRanking(data || []);
