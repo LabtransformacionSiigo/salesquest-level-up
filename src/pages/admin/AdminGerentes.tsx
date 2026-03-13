@@ -76,7 +76,7 @@ const AdminGerentes = () => {
 
   const startEdit = (g: any) => {
     setEditing(g.id);
-    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', lider: g.lider || '', activo: g.activo ?? true });
+    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', activo: g.activo ?? true });
     setShowAdd(true);
   };
 
