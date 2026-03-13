@@ -45,7 +45,7 @@ const AdminGerentes = () => {
     } else {
       const { error } = await supabase.from('gerentes').insert(form);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Gerente creado ✅' });
+      toast({ title: 'Líder creado ✅' });
     }
     setEditing(null);
     setShowAdd(false);
