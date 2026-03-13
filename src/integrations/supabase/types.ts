@@ -210,6 +210,7 @@ export type Database = {
           hc_final: number | null
           hc_inicial: number | null
           meta: number | null
+          moneda: string | null
           sa_creados: number | null
           sc_creados: number | null
           terminaciones: number | null
@@ -226,6 +227,7 @@ export type Database = {
           hc_final?: number | null
           hc_inicial?: number | null
           meta?: number | null
+          moneda?: string | null
           sa_creados?: number | null
           sc_creados?: number | null
           terminaciones?: number | null
@@ -242,6 +244,7 @@ export type Database = {
           hc_final?: number | null
           hc_inicial?: number | null
           meta?: number | null
+          moneda?: string | null
           sa_creados?: number | null
           sc_creados?: number | null
           terminaciones?: number | null
@@ -812,6 +815,7 @@ export type Database = {
           nombre_racha: string | null
           semana_iso: number | null
           semanas_consecutivas: number | null
+          umbral_verde: number | null
         }
         Relationships: [
           {
