@@ -62,17 +62,10 @@ const Rankings = () => {
   const podiumIcons = ['👑', '🥈', '🥉'];
 
   return (
-    <Layout title="Ranking">
+    <Layout title={`Ranking · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2">
-          {CANALES.map(c => (
-            <button key={c.value} onClick={() => setCanal(c.value)}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                canal === c.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
-              {c.label}
-            </button>
-          ))}
-          <div className="w-px bg-border mx-1" />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground mr-2">Filtrar por país:</span>
           {PAISES.map(p => (
             <button key={p.value} onClick={() => setPais(p.value)}
               className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
