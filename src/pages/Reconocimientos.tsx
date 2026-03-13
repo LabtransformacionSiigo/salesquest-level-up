@@ -54,8 +54,10 @@ const Reconocimientos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
+      const gerenteQuery = supabase.from('gerentes').select('id, nombre, avatar_url').neq('id', profile.id).eq('activo', true);
+      if (profile.canal) gerenteQuery.eq('canal', profile.canal);
       const [gerentesRes, feedRes, countRes, cumbreRes] = await Promise.all([
-        supabase.from('gerentes').select('id, nombre, avatar_url').neq('id', profile.id).eq('activo', true),
+        gerenteQuery,
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
           .eq('de_gerente_id', profile.id)

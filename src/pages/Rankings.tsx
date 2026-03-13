@@ -10,12 +10,11 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
-const CANALES = [
-  { value: 'TODOS', label: 'Todos' },
-  { value: 'VN_EMPRESARIOS', label: 'Empresarios' },
-  { value: 'VN_ALIADOS', label: 'Aliados' },
-  { value: 'VC', label: 'Venta Cruzada' },
-];
+const CANALES_LABEL: Record<string, string> = {
+  VN_EMPRESARIOS: 'VN Empresarios',
+  VN_ALIADOS: 'VN Aliados',
+  VC: 'Venta Cruzada',
+};
 
 const PAISES = [
   { value: 'TODOS', label: 'Todos' },
@@ -28,12 +27,11 @@ const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [canal, setCanal] = useState('TODOS');
   const [pais, setPais] = useState('TODOS');
 
   const fetchRanking = async () => {
-    let query = supabase.from('ranking_general').select('*');
-    if (canal !== 'TODOS') query = query.eq('canal', canal);
+    if (!profile?.canal) return;
+    let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
     if (pais !== 'TODOS') query = query.eq('pais', pais);
     const { data } = await query;
     setRanking(data || []);
@@ -41,14 +39,14 @@ const Rankings = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !profile?.canal) return;
     fetchRanking();
     const channel = supabase
       .channel('ranking-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isAuthenticated, canal, pais]);
+  }, [isAuthenticated, profile?.canal, pais]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
@@ -64,17 +62,10 @@ const Rankings = () => {
   const podiumIcons = ['👑', '🥈', '🥉'];
 
   return (
-    <Layout title="Ranking">
+    <Layout title={`Ranking · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2">
-          {CANALES.map(c => (
-            <button key={c.value} onClick={() => setCanal(c.value)}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                canal === c.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
-              {c.label}
-            </button>
-          ))}
-          <div className="w-px bg-border mx-1" />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground mr-2">Filtrar por país:</span>
           {PAISES.map(p => (
             <button key={p.value} onClick={() => setPais(p.value)}
               className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
