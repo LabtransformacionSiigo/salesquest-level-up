@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+  <span className={cn("material-icons-round", className)}>{icon}</span>
 );
 
 const Header = ({ title }: HeaderProps) => {
@@ -27,16 +27,9 @@ const Header = ({ title }: HeaderProps) => {
   }, [profile?.id]);
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-5 flex-shrink-0">
-      <div className="flex items-center gap-3">
-        <img src={siigoLogo} alt="Siigo" className="h-7" />
-        <span className="text-sm font-light text-muted-foreground">Arena</span>
-        {title && (
-          <>
-            <span className="text-border mx-1">|</span>
-            <span className="text-xs text-muted-foreground font-medium">{title}</span>
-          </>
-        )}
+    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 flex-shrink-0">
+      <div className="flex items-center gap-2">
+        <h1 className="text-base font-bold text-foreground">{title}</h1>
       </div>
 
       <div className="flex items-center gap-3">
@@ -45,26 +38,14 @@ const Header = ({ title }: HeaderProps) => {
           <div className="flex items-center gap-1.5 bg-accent/10 border border-accent/20 rounded-full px-3 py-1.5">
             <span className="text-sm">🔥</span>
             <span className="text-xs font-bold text-accent">×{racha.multiplicador}</span>
-            <span className="text-[10px] text-muted-foreground hidden md:inline">{racha.nombre_racha}</span>
+            <span className="text-[11px] text-muted-foreground hidden md:inline">{racha.nombre_racha}</span>
           </div>
         )}
 
-        {/* SP */}
-        <div className="flex items-center gap-2 border border-border rounded-full px-3 py-1.5">
-          <MI icon="stars" className="text-accent text-sm" />
-          <span className="text-xs font-bold text-foreground">{(profile?.sp_totales || 0).toLocaleString()} SP</span>
-        </div>
-
-        {/* User info */}
-        <div className="flex items-center gap-2">
-          <div className="text-right hidden md:block">
-            <p className="text-xs font-semibold text-foreground leading-tight">{profile?.nombre}</p>
-            <p className="text-[10px] text-primary font-medium leading-tight">{profile?.nivel}</p>
-          </div>
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-lg">
-            {profile?.avatar_url || '👤'}
-          </div>
-        </div>
+        {/* Notifications placeholder */}
+        <button className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors">
+          <MI icon="notifications_none" className="text-xl" />
+        </button>
       </div>
     </header>
   );
