@@ -58,35 +58,76 @@ export const useSupabaseAuth = () => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-        supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
-      ]);
+      const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
+      const userRole = roleRes.data?.role ?? 'gerente';
 
-      if (profileRes.error) throw profileRes.error;
+      if (userRole === 'asesor') {
+        // Fetch asesor profile
+        const asesorRes = await supabase
+          .from('asesores')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (profileRes.data) {
-        const data = profileRes.data;
-        setProfile({
-          id: data.id,
-          user_id: data.user_id ?? userId,
-          nombre: data.nombre,
-          email: '',
-          canal: data.canal,
-          pais: data.pais,
-          lider: data.lider,
-          activo: data.activo ?? true,
-          avatar_url: data.avatar_url,
-          created_at: '',
-          sp_totales: data.sp_totales ?? 0,
-          nivel: data.nivel ?? 'Prospecto',
-          sp_nivel_actual: data.sp_nivel_actual ?? 0,
-          sp_siguiente_nivel: data.sp_siguiente_nivel,
-           role: roleRes.data?.role ?? 'gerente',
-        });
+        if (asesorRes.error) throw asesorRes.error;
+
+        if (asesorRes.data) {
+          const a = asesorRes.data;
+          setProfile({
+            id: a.id,
+            user_id: a.user_id ?? userId,
+            nombre: a.nombre,
+            email: a.email,
+            canal: a.canal,
+            pais: a.pais,
+            lider: null,
+            activo: a.activo ?? true,
+            avatar_url: a.avatar_url,
+            created_at: a.created_at ?? '',
+            sp_totales: 0,
+            nivel: 'Prospecto',
+            sp_nivel_actual: 0,
+            sp_siguiente_nivel: null,
+            role: 'asesor',
+          });
+        } else {
+          setProfile(null);
+        }
+      } else {
+        // Fetch gerente profile
+        const profileRes = await supabase
+          .from('sp_totales_gerente')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (profileRes.error) throw profileRes.error;
+
+        if (profileRes.data) {
+          const data = profileRes.data;
+          setProfile({
+            id: data.id,
+            user_id: data.user_id ?? userId,
+            nombre: data.nombre,
+            email: '',
+            canal: data.canal,
+            pais: data.pais,
+            lider: data.lider,
+            activo: data.activo ?? true,
+            avatar_url: data.avatar_url,
+            created_at: '',
+            sp_totales: data.sp_totales ?? 0,
+            nivel: data.nivel ?? 'Prospecto',
+            sp_nivel_actual: data.sp_nivel_actual ?? 0,
+            sp_siguiente_nivel: data.sp_siguiente_nivel,
+            role: userRole,
+          });
+        } else {
+          setProfile(null);
+        }
       }
     } catch (error) {
-      console.error('Error fetching gerente profile:', error);
+      console.error('Error fetching user profile:', error);
     } finally {
       setLoading(false);
     }
