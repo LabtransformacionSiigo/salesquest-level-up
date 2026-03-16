@@ -141,9 +141,9 @@
   }
 }
 
-/* Dark sidebar & header */
+/* Dark sidebar & header - Siigo navy #00244C */
 .bg-sidebar-dark {
-  background-color: hsl(220 40% 13%);
+  background-color: hsl(210 100% 15%);
 }
 .bg-header-dark {
   background-color: hsl(220 40% 16%);
