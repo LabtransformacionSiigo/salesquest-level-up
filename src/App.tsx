@@ -22,6 +22,7 @@ import AdminAsesores from '@/pages/admin/AdminAsesores';
 import AdminMedallas from '@/pages/admin/AdminMedallas';
 import AdminRachas from '@/pages/admin/AdminRachas';
 import AdminCalculoSP from '@/pages/admin/AdminCalculoSP';
+import AdminDatabricks from '@/pages/admin/AdminDatabricks';
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
             <Route path="/admin/medallas" element={<AdminMedallas />} />
             <Route path="/admin/rachas" element={<AdminRachas />} />
             <Route path="/admin/calculos" element={<AdminCalculoSP />} />
+            <Route path="/admin/databricks" element={<AdminDatabricks />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
