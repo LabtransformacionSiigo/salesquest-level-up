@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.calcular-sp-semanal]
 verify_jwt = false
+
+[functions.sync-databricks]
+verify_jwt = false
