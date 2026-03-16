@@ -62,16 +62,16 @@
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
     --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.08);
 
-    /* Sidebar: Dark navy */
-    --sidebar-background: 220 40% 13%;
-    --sidebar-foreground: 210 40% 98%;
+    /* Sidebar: Siigo sub-brand navy #00244C */
+    --sidebar-background: 210 100% 15%;
+    --sidebar-foreground: 0 0% 96%;
     --sidebar-primary: 200 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 30% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 30% 18%;
+    --sidebar-accent: 210 80% 20%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 210 80% 18%;
     --sidebar-ring: 200 100% 50%;
-    --sidebar-muted: 215 16% 47%;
+    --sidebar-muted: 0 0% 64%;
 
     --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
