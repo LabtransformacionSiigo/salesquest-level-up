@@ -23,6 +23,7 @@ const adminItems = [
   { path: '/admin/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
+  { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
 ];
 
 const Sidebar = () => {
