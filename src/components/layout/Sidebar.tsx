@@ -4,16 +4,16 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+  <span className={cn("material-icons-round", className)}>{icon}</span>
 );
 
 const menuItems = [
-  { path: '/dashboard', icon: 'stadium', label: 'Mi Arena' },
+  { path: '/dashboard', icon: 'home', label: 'Inicio' },
   { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
-  { path: '/mi-performance', icon: 'analytics', label: 'KPIs' },
+  { path: '/mi-performance', icon: 'insights', label: 'KPIs' },
   { path: '/medallas', icon: 'emoji_events', label: 'Medallas' },
   { path: '/retos', icon: 'flag', label: 'Retos' },
-  { path: '/reconocimientos', icon: 'diversity_3', label: 'Reconocer' },
+  { path: '/reconocimientos', icon: 'favorite', label: 'Reconocer' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
 
@@ -39,85 +39,82 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
 
-  const canalBadge = profile?.canal === 'VN_EMPRESARIOS' ? 'EMP'
-    : profile?.canal === 'VN_ALIADOS' ? 'ALI'
-    : profile?.canal === 'VC' ? 'VC' : '';
-
   return (
-    <aside className="w-[72px] bg-sidebar-dark flex flex-col items-center py-4 flex-shrink-0">
+    <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border">
       {/* Logo */}
-      <div className="mb-4">
-        <img src={siigoLogo} alt="Siigo" className="w-12" />
+      <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
+        <img src={siigoLogo} alt="Siigo" className="h-7" />
       </div>
 
-      {/* Avatar + canal badge */}
-      <div className="relative mb-1">
-        <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-xl">
-          {profile?.avatar_url || '👤'}
+      {/* Profile summary */}
+      <div className="px-4 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-lg text-sidebar-foreground">
+            {profile?.avatar_url || '👤'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{profile?.nivel || 'Prospecto'}</p>
+          </div>
         </div>
-        {canalBadge && (
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-bold bg-primary text-primary-foreground px-1.5 py-0 rounded-full leading-relaxed">
-            {canalBadge}
-          </span>
-        )}
+        <div className="mt-3 flex items-center gap-2 bg-sidebar-accent/60 rounded-lg px-3 py-2">
+          <MI icon="stars" className="text-accent text-base" />
+          <span className="text-sm font-bold text-sidebar-foreground">{(profile?.sp_totales || 0).toLocaleString()}</span>
+          <span className="text-xs text-sidebar-muted font-medium">SP</span>
+        </div>
       </div>
 
-      {/* SP badge */}
-      <div className="text-center mb-4">
-        <p className="text-[9px] font-bold text-primary">{(profile?.sp_totales || 0).toLocaleString()}</p>
-        <p className="text-[7px] text-sidebar-muted-text uppercase tracking-wider">SP</p>
-      </div>
-
-      {/* Nav items */}
-      <nav className="flex-1 flex flex-col items-center gap-0.5 w-full px-1.5 overflow-y-auto">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {menuItems.map((item) => (
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
             className={cn(
-              "flex flex-col items-center gap-0.5 w-full py-2 rounded-lg transition-all text-center",
+              "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-all duration-150",
               isActive(item.path)
-                ? "text-primary bg-primary/15"
-                : "text-sidebar-muted-text hover:text-white hover:bg-white/5"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             )}
           >
             <MI icon={item.icon} className="text-[20px]" />
-            <span className="text-[9px] font-medium leading-tight">{item.label}</span>
+            <span className="text-[13px] font-semibold">{item.label}</span>
           </button>
         ))}
 
         {/* Admin section */}
         {isAdmin && (
           <>
-            <div className="w-8 border-t border-sidebar-border my-1" />
-            <span className="text-[7px] text-sidebar-muted-text uppercase tracking-widest mb-0.5">Admin</span>
+            <div className="pt-4 pb-2 px-3">
+              <p className="text-[10px] font-bold text-sidebar-muted uppercase tracking-widest">Administración</p>
+            </div>
             {adminItems.map((item) => (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 w-full py-2 rounded-lg transition-all text-center",
+                  "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-all duration-150",
                   isActive(item.path)
-                    ? "text-accent bg-accent/15"
-                    : "text-sidebar-muted-text hover:text-white hover:bg-white/5"
+                    ? "bg-accent/20 text-accent"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <MI icon={item.icon} className="text-[18px]" />
-                <span className="text-[8px] font-medium leading-tight">{item.label}</span>
+                <span className="text-[13px] font-semibold">{item.label}</span>
               </button>
             ))}
           </>
         )}
       </nav>
 
-      {/* Bottom */}
-      <div className="flex flex-col items-center gap-1 w-full px-1.5">
+      {/* Bottom logout */}
+      <div className="px-3 py-4 border-t border-sidebar-border">
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-0.5 w-full py-2 rounded-lg text-sidebar-muted-text hover:text-red-400 hover:bg-red-500/10 transition-all"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sidebar-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
         >
           <MI icon="logout" className="text-[20px]" />
-          <span className="text-[9px] font-medium">Salir</span>
+          <span className="text-[13px] font-semibold">Cerrar sesión</span>
         </button>
       </div>
     </aside>
