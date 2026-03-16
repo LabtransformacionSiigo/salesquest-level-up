@@ -14,26 +14,36 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const testUsers = [
-    { email: "alejandro.rivas@siigo.com", nombre: "Alejandro Rivas Cruz", canal: "VN_ALIADOS" },
-    { email: "ana.guerrero@siigo.com", nombre: "Ana Guerrero Téllez", canal: "VC" },
-    { email: "luis.avila@siigo.com", nombre: "Luis Ávila Mendoza", canal: "VN_EMPRESARIOS" },
-  ];
+  const password = "SiigoArena2026!";
+  const adminEmail = "juankmilo216@gmail.com";
+
+  // Get all gerentes without a user_id (no login yet), excluding admin
+  const { data: gerentes, error: fetchError } = await supabaseAdmin
+    .from("gerentes")
+    .select("id, nombre, email, canal")
+    .is("user_id", null)
+    .neq("email", adminEmail)
+    .order("nombre");
+
+  if (fetchError) {
+    return new Response(JSON.stringify({ error: fetchError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const results = [];
-  const password = "SiigoArena2026!";
 
-  for (const u of testUsers) {
-    // Create auth user
+  for (const g of gerentes || []) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: u.email,
+      email: g.email,
       password,
       email_confirm: true,
-      user_metadata: { name: u.nombre },
+      user_metadata: { name: g.nombre },
     });
 
     if (authError) {
-      results.push({ email: u.email, error: authError.message });
+      results.push({ email: g.email, error: authError.message });
       continue;
     }
 
@@ -41,25 +51,24 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabaseAdmin
       .from("gerentes")
       .update({ user_id: authData.user.id })
-      .eq("email", u.email);
+      .eq("id", g.id);
 
-    // Delete the duplicate gerente created by trigger (if any)
+    // Delete duplicate gerente created by trigger (if any)
     await supabaseAdmin
       .from("gerentes")
       .delete()
       .eq("user_id", authData.user.id)
-      .neq("email", u.email);
+      .neq("id", g.id);
 
     results.push({
-      email: u.email,
-      nombre: u.nombre,
-      canal: u.canal,
-      password,
+      email: g.email,
+      nombre: g.nombre,
+      canal: g.canal,
       linked: !updateError,
     });
   }
 
-  return new Response(JSON.stringify({ results }, null, 2), {
+  return new Response(JSON.stringify({ total: results.length, password, results }, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
