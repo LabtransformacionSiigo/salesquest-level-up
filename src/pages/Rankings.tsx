@@ -36,12 +36,31 @@ const Rankings = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [pais, setPais] = useState('TODOS');
 
+  const isVC = profile?.canal === 'VC';
+
   const fetchRanking = async () => {
     if (!profile?.canal) return;
-    let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
-    if (pais !== 'TODOS') query = query.eq('pais', pais);
-    const { data } = await query;
-    setRanking(data || []);
+
+    if (isVC) {
+      // VC: rank by comercial (sales rep) using ACV Plus
+      const { data } = await supabase.from('ranking_vc_comerciales').select('*');
+      setRanking((data || []).map((r: any) => ({
+        id: r.nombre,
+        nombre: r.nombre,
+        gerente_nombre: r.gerente_nombre,
+        sp_totales: Math.round(Number(r.acv_total) || 0),
+        ventas_count: r.ventas_count,
+        posicion: r.posicion,
+        canal: 'VC',
+        pais: 'COL',
+        nivel: null,
+      })));
+    } else {
+      let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
+      if (pais !== 'TODOS') query = query.eq('pais', pais);
+      const { data } = await query;
+      setRanking(data || []);
+    }
     setDataLoading(false);
   };
 
@@ -56,6 +75,8 @@ const Rankings = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const sorted = [...ranking].sort((a, b) => (b.sp_totales || 0) - (a.sp_totales || 0));
+  const metricLabel = isVC ? 'ACV' : 'SP';
+  const formatMetric = (val: number) => isVC ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
@@ -107,8 +128,9 @@ const Rankings = () => {
                       initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}
-                    >{(g.sp_totales || 0).toLocaleString()} SP</motion.p>
-                    <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>
+                    >{formatMetric(g.sp_totales || 0)} {metricLabel}</motion.p>
+                    {!isVC && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
+                    {isVC && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
                   </motion.div>
                 ))}
               </motion.div>
@@ -126,10 +148,11 @@ const Rankings = () => {
                   <thead>
                     <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                       <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">Gerente</th>
-                      <th className="text-left px-4 py-3">Canal</th>
-                      <th className="text-right px-4 py-3">SP</th>
-                      <th className="text-left px-4 py-3">Nivel</th>
+                      <th className="text-left px-4 py-3">{isVC ? 'Comercial' : 'Gerente'}</th>
+                      {!isVC && <th className="text-left px-4 py-3">Canal</th>}
+                      {isVC && <th className="text-left px-4 py-3">Líder</th>}
+                      <th className="text-right px-4 py-3">{metricLabel}</th>
+                      {!isVC && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -142,14 +165,15 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{i + 4}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>
+                            {!isVC && <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>}
                             <span className="text-sm text-foreground">{g.nombre}</span>
                             {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>
-                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{(g.sp_totales || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>
+                        {!isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
+                        {isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
+                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMetric(g.sp_totales || 0)}</td>
+                        {!isVC && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
                   </tbody>

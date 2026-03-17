@@ -882,6 +882,16 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_vc_comerciales: {
+        Row: {
+          acv_total: number | null
+          gerente_nombre: string | null
+          nombre: string | null
+          posicion: number | null
+          ventas_count: number | null
+        }
+        Relationships: []
+      }
       sp_totales_gerente: {
         Row: {
           activo: boolean | null
