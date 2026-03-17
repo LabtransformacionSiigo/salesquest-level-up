@@ -1,5 +1,4 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
-import siigoLogo from '@/assets/siigo-logo-blue.png';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,23 +26,30 @@ const Header = ({ title }: HeaderProps) => {
   }, [profile?.id]);
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 flex-shrink-0">
-      <div className="flex items-center gap-2">
+    <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-6 flex-shrink-0">
+      <div className="flex items-center gap-3">
+        <span className="text-lg">⚽</span>
         <h1 className="text-base font-bold text-foreground">{title}</h1>
       </div>
 
       <div className="flex items-center gap-3">
         {/* Racha */}
         {racha && racha.semanas_consecutivas > 0 && (
-          <div className="flex items-center gap-1.5 bg-accent/10 border border-accent/20 rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5">
             <span className="text-sm">🔥</span>
-            <span className="text-xs font-bold text-accent">×{racha.multiplicador}</span>
+            <span className="text-xs font-bold font-scoreboard text-primary">×{racha.multiplicador}</span>
             <span className="text-[11px] text-muted-foreground hidden md:inline">{racha.nombre_racha}</span>
           </div>
         )}
 
-        {/* Notifications placeholder */}
-        <button className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors">
+        {/* World Cup 2026 badge */}
+        <div className="hidden md:flex items-center gap-1.5 bg-purple/10 border border-purple/20 rounded-full px-3 py-1.5">
+          <span className="text-sm">🌎</span>
+          <span className="text-[10px] font-bold text-purple">FIFA 2026</span>
+        </div>
+
+        {/* Notifications */}
+        <button className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
           <MI icon="notifications_none" className="text-xl" />
         </button>
       </div>

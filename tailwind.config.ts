@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         display: ["'Nunito Sans'", "sans-serif"],
+        scoreboard: ["'Orbitron'", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -46,6 +47,10 @@ export default {
           DEFAULT: "hsl(var(--orange))",
           foreground: "hsl(var(--orange-foreground))",
         },
+        purple: {
+          DEFAULT: "hsl(var(--purple))",
+          foreground: "hsl(var(--purple-foreground))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -68,17 +73,18 @@ export default {
       },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
-        'gradient-secondary': 'var(--gradient-secondary)',
-        'gradient-accent': 'var(--gradient-accent)',
-        'gradient-bg': 'var(--gradient-bg)',
-        'gradient-progress': 'var(--gradient-progress)',
-        'gradient-danger': 'var(--gradient-danger)',
+        'gradient-trophy': 'var(--gradient-trophy)',
+        'gradient-scoreboard': 'var(--gradient-scoreboard)',
+        'gradient-purple': 'var(--gradient-purple)',
+        'gradient-pitch': 'var(--gradient-pitch)',
       },
       boxShadow: {
         'smooth-sm': 'var(--shadow-sm)',
         'smooth-md': 'var(--shadow-md)',
         'smooth-lg': 'var(--shadow-lg)',
         'smooth-xl': 'var(--shadow-xl)',
+        'glow-green': 'var(--shadow-glow-green)',
+        'glow-gold': 'var(--shadow-glow-gold)',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -94,10 +100,21 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "bounce-ball": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        "goal-flash": {
+          "0%": { opacity: "0", transform: "scale(0.5)" },
+          "50%": { opacity: "1", transform: "scale(1.2)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "bounce-ball": "bounce-ball 0.4s ease-in-out",
+        "goal-flash": "goal-flash 0.6s ease-out",
       },
     },
   },
