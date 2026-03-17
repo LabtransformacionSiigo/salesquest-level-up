@@ -134,8 +134,8 @@
 /* Spotlight glow */
 .spotlight-glow {
   box-shadow:
-    0 0 30px hsla(145, 80%, 48%, 0.1),
-    0 0 60px hsla(145, 80%, 48%, 0.05);
+    0 0 30px hsla(200, 100%, 50%, 0.1),
+    0 0 60px hsla(200, 100%, 50%, 0.04);
 }
 
 /* ═══ GLASSMORPHISM BROADCAST CARD ═══ */
