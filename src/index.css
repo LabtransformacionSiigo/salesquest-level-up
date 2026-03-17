@@ -243,10 +243,10 @@
 /* ═══ FOOTBALL PITCH ═══ */
 .football-pitch {
   background: linear-gradient(180deg, 
-    hsla(140, 50%, 25%, 0.4) 0%,
-    hsla(140, 50%, 20%, 0.5) 100%
+    hsla(200, 40%, 15%, 0.4) 0%,
+    hsla(200, 40%, 10%, 0.5) 100%
   );
-  border: 2px solid hsla(0, 0%, 100%, 0.15);
+  border: 2px solid hsla(200, 100%, 50%, 0.12);
   border-radius: 12px;
   position: relative;
 }
@@ -257,7 +257,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: hsla(0, 0%, 100%, 0.12);
+  background: hsla(200, 100%, 50%, 0.1);
 }
 .football-pitch::after {
   content: '';
@@ -268,7 +268,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 1px solid hsla(0, 0%, 100%, 0.12);
+  border: 1px solid hsla(200, 100%, 50%, 0.1);
 }
 
 /* Turf sidebar pattern */
