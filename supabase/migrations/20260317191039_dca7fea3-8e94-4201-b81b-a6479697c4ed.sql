@@ -1,0 +1,1 @@
+ALTER TABLE public.ventas DROP CONSTRAINT IF EXISTS ventas_documento_factura_key;
