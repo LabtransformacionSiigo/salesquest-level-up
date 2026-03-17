@@ -71,7 +71,7 @@ const Reconocimientos = () => {
           .lt('created_at', trimestreEnd),
       ]);
 
-      setGerentes(gerentesRes.data || []);
+      setAsesores(asesoresRes.data || []);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
       setCumbresTrimestre(cumbreRes.count || 0);
