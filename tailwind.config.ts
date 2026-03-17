@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         display: ["'Nunito Sans'", "sans-serif"],
+        heading: ["'Montserrat'", "sans-serif"],
         scoreboard: ["'Orbitron'", "monospace"],
       },
       colors: {
@@ -47,6 +48,10 @@ export default {
           DEFAULT: "hsl(var(--orange))",
           foreground: "hsl(var(--orange-foreground))",
         },
+        yellow: {
+          DEFAULT: "hsl(var(--yellow))",
+          foreground: "hsl(var(--yellow-foreground))",
+        },
         purple: {
           DEFAULT: "hsl(var(--purple))",
           foreground: "hsl(var(--purple-foreground))",
@@ -74,18 +79,13 @@ export default {
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-trophy': 'var(--gradient-trophy)',
-        'gradient-scoreboard': 'var(--gradient-scoreboard)',
-        'gradient-purple': 'var(--gradient-purple)',
-        'gradient-pitch': 'var(--gradient-pitch)',
+        'gradient-progress': 'var(--gradient-progress)',
       },
       boxShadow: {
         'smooth-sm': 'var(--shadow-sm)',
         'smooth-md': 'var(--shadow-md)',
         'smooth-lg': 'var(--shadow-lg)',
         'smooth-xl': 'var(--shadow-xl)',
-        'glow-blue': 'var(--shadow-glow-blue)',
-        'glow-green': 'var(--shadow-glow-green)',
-        'glow-gold': 'var(--shadow-glow-gold)',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -101,10 +101,6 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "bounce-ball": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-4px)" },
-        },
         "goal-flash": {
           "0%": { opacity: "0", transform: "scale(0.5)" },
           "50%": { opacity: "1", transform: "scale(1.2)" },
@@ -114,7 +110,6 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "bounce-ball": "bounce-ball 0.4s ease-in-out",
         "goal-flash": "goal-flash 0.6s ease-out",
       },
     },
