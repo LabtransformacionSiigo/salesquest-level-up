@@ -6,9 +6,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>
+);
+
+const InfoTip = ({ text }: { text: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-muted-foreground cursor-help hover:bg-primary/10 hover:text-primary transition-colors">
+        <MI icon="help_outline" className="!text-[14px]" />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+      {text}
+    </TooltipContent>
+  </Tooltip>
 );
 
 const MiPerformance = () => {
@@ -50,6 +64,7 @@ const MiPerformance = () => {
 
   return (
     <Layout title="Mis KPIs">
+      <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
         {/* Canal badge */}
         <div className="flex items-center gap-2">
@@ -68,13 +83,14 @@ const MiPerformance = () => {
             {/* ═══════════ VN EMPRESARIOS ═══════════ */}
             {isEmpresarios && (
               <>
-                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje en la gamificación. Se actualizan mensualmente." />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <KPICard
                     icon="inventory_2"
                     label="Unidades"
                     value={String(kpis?.sc_creados || 0)}
                     sub="Unidades vendidas este mes"
+                    tip="Cantidad total de productos o suscripciones vendidas durante el mes en curso."
                   />
                   <KPICard
                     icon="trending_up"
@@ -82,6 +98,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.acv_f)}
                     sub="Valor contractual anual"
                     color="text-secondary"
+                    tip="ACV (Annual Contract Value): Valor total anualizado de los contratos cerrados este mes."
                   />
                   <KPICard
                     icon="group_add"
@@ -89,10 +106,11 @@ const MiPerformance = () => {
                     value={String(kpis?.cant_recomendados || 0)}
                     sub="Referidos generados"
                     color="text-accent"
+                    tip="Número de clientes potenciales que llegaron por recomendación de clientes actuales."
                   />
                 </div>
 
-                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos que se evalúan cada semana. Completarlos otorga SP extra." />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <RetoCard
                     icon="target"
@@ -100,6 +118,7 @@ const MiPerformance = () => {
                     value={`${kpis?.efectividad_sql_pct || 0}%`}
                     progress={Number(kpis?.efectividad_sql_pct || 0)}
                     description="% de SQL convertidos en venta"
+                    tip="Porcentaje de leads calificados (SQL) que se convirtieron en una venta efectiva. Fórmula: (Ventas SQL ÷ Total SQL) × 100."
                   />
                   <RetoCard
                     icon="speed"
@@ -107,6 +126,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.productividad_por_asesor)}
                     progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)}
                     description="Ventas / HC activo del equipo"
+                    tip="Mide cuánto vende en promedio cada asesor activo de tu equipo. Fórmula: Ventas totales del mes ÷ Headcount activo."
                   />
                 </div>
 
@@ -117,13 +137,14 @@ const MiPerformance = () => {
             {/* ═══════════ VN ALIADOS ═══════════ */}
             {isAliados && (
               <>
-                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje en la gamificación. Se actualizan mensualmente." />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <KPICard
                     icon="inventory_2"
                     label="Unidades"
                     value={String(kpis?.sc_creados || 0)}
                     sub="Unidades vendidas este mes"
+                    tip="Cantidad total de productos o suscripciones vendidas durante el mes en curso."
                   />
                   <KPICard
                     icon="trending_up"
@@ -131,6 +152,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.acv_f)}
                     sub="Valor contractual anual"
                     color="text-secondary"
+                    tip="ACV (Annual Contract Value): Valor total anualizado de los contratos cerrados este mes."
                   />
                   <KPICard
                     icon="person_add"
@@ -138,10 +160,11 @@ const MiPerformance = () => {
                     value={String(kpis?.cant_recomendados || 0)}
                     sub="Referidos por canal aliados"
                     color="text-accent"
+                    tip="Referidos que llegan a través de contadores aliados que recomiendan Siigo a sus clientes."
                   />
                 </div>
 
-                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos que se evalúan cada semana. Completarlos otorga SP extra." />
                 <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                   <RetoCard
                     icon="handshake"
@@ -149,6 +172,7 @@ const MiPerformance = () => {
                     value={`${kpis?.efectividad_referidos_pct || 0}%`}
                     progress={Number(kpis?.efectividad_referidos_pct || 0)}
                     description="% de referidos que se convirtieron en venta"
+                    tip="Porcentaje de referidos del contador que terminaron comprando. Fórmula: (Ventas por referidos ÷ Total referidos) × 100."
                   />
                 </div>
 
@@ -159,9 +183,12 @@ const MiPerformance = () => {
             {/* ═══════════ VENTA CRUZADA ═══════════ */}
             {isVC && (
               <>
-                <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPI de Gamificación" tip="Métrica principal de Venta Cruzada. El ACV+ suma el valor de productos adicionales vendidos a clientes existentes." />
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                  <div className="bg-card border border-border rounded-2xl p-8 text-center relative">
+                    <div className="absolute top-4 right-4">
+                      <InfoTip text="ACV+ (Annual Contract Value Plus): Valor anualizado de ventas cruzadas — productos adicionales vendidos a clientes que ya usan Siigo." />
+                    </div>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">ACV+ del Mes</p>
                     <p className="text-4xl font-bold text-primary">
@@ -214,6 +241,7 @@ const MiPerformance = () => {
           </>
         )}
       </div>
+      </TooltipProvider>
     </Layout>
   );
 };
@@ -229,15 +257,17 @@ const formatMoney = (val: number | null | undefined) => {
 
 /* ─── Sub-components ─── */
 
-const SectionTitle = ({ icon, title }: { icon: string; title: string }) => (
+const SectionTitle = ({ icon, title, tip }: { icon: string; title: string; tip?: string }) => (
   <h3 className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider pt-2">
     <MI icon={icon} className="text-primary text-lg" />
     {title}
+    {tip && <InfoTip text={tip} />}
   </h3>
 );
 
-const KPICard = ({ icon, label, value, sub, color }: { icon: string; label: string; value: string; sub: string; color?: string }) => (
-  <div className="bg-card border border-border rounded-2xl p-6 text-center hover:shadow-md transition-shadow">
+const KPICard = ({ icon, label, value, sub, color, tip }: { icon: string; label: string; value: string; sub: string; color?: string; tip?: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6 text-center hover:shadow-md transition-shadow relative">
+    {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <MI icon={icon} className={cn("text-3xl mb-2", color || "text-primary")} />
     <p className={cn("text-3xl font-bold", color || "text-foreground")}>{value}</p>
     <p className="text-xs font-semibold text-foreground uppercase tracking-wider mt-1">{label}</p>
@@ -245,8 +275,9 @@ const KPICard = ({ icon, label, value, sub, color }: { icon: string; label: stri
   </div>
 );
 
-const RetoCard = ({ icon, label, value, progress, description }: { icon: string; label: string; value: string; progress: number; description: string }) => (
-  <div className="bg-card border border-border rounded-2xl p-6">
+const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: string; label: string; value: string; progress: number; description: string; tip?: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6 relative">
+    {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <div className="flex items-center gap-3 mb-4">
       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
         <MI icon={icon} className="text-primary text-xl" />
@@ -263,7 +294,7 @@ const RetoCard = ({ icon, label, value, progress, description }: { icon: string;
 
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>
-    <SectionTitle icon="donut_large" title="Cumplimiento de Meta" />
+    <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="Porcentaje de avance hacia la meta de ventas del mes. Se calcula como: (Ventas actuales ÷ Meta asignada) × 100." />
     <div className="bg-card border border-border rounded-2xl p-6">
       <div className="flex items-center gap-8">
         <div className="relative w-28 h-28 shrink-0">
