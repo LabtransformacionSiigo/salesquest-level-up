@@ -81,7 +81,9 @@ Deno.serve(async (req) => {
     `;
 
     console.log("Querying Databricks:", sql.trim());
-
+    console.log("Databricks URL:", databricksUrl);
+    console.log("Warehouse ID:", DATABRICKS_WAREHOUSE_ID);
+    console.log("Token prefix:", DATABRICKS_TOKEN?.substring(0, 10) + "...");
     // Execute query on Databricks
     const dbResponse = await fetch(databricksUrl, {
       method: "POST",
