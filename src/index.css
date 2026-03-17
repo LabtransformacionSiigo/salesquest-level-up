@@ -115,7 +115,7 @@
 
 /* Progress bar gradient */
 .progress-gradient {
-  background: linear-gradient(90deg, hsl(145 80% 48%) 0%, hsl(43 100% 55%) 100%);
+  background: linear-gradient(90deg, hsl(200 100% 50%) 0%, hsl(95 55% 49%) 100%);
 }
 
 /* Stadium turf texture */
