@@ -14,7 +14,7 @@ const TABLE_CONFIGS: Record<string, { sql: (limit: string) => string; label: str
   },
   ventas_vc: {
     label: "Ventas VC",
-    sql: (limit: string) => `SELECT * FROM db_comercial.tbl_gld_Ventas_VC WHERE Anio = 2026 ${limit}`,
+    sql: (limit: string) => `SELECT * FROM db_comercial.tbl_gld_Ventas_VC WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador','Uruguay') ${limit}`,
   },
 };
 
