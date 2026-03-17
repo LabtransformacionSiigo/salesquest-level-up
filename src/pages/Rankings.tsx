@@ -36,12 +36,31 @@ const Rankings = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [pais, setPais] = useState('TODOS');
 
+  const isVC = profile?.canal === 'VC';
+
   const fetchRanking = async () => {
     if (!profile?.canal) return;
-    let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
-    if (pais !== 'TODOS') query = query.eq('pais', pais);
-    const { data } = await query;
-    setRanking(data || []);
+
+    if (isVC) {
+      // VC: rank by comercial (sales rep) using ACV Plus
+      const { data } = await supabase.from('ranking_vc_comerciales').select('*');
+      setRanking((data || []).map((r: any) => ({
+        id: r.nombre,
+        nombre: r.nombre,
+        gerente_nombre: r.gerente_nombre,
+        sp_totales: Math.round(Number(r.acv_total) || 0),
+        ventas_count: r.ventas_count,
+        posicion: r.posicion,
+        canal: 'VC',
+        pais: 'COL',
+        nivel: null,
+      })));
+    } else {
+      let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
+      if (pais !== 'TODOS') query = query.eq('pais', pais);
+      const { data } = await query;
+      setRanking(data || []);
+    }
     setDataLoading(false);
   };
 
