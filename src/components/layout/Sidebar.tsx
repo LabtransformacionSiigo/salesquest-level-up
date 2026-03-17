@@ -50,7 +50,7 @@ const Sidebar = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <img src={siigoLogo} alt="Siigo" className="h-7" />
+        <img src={siigoLogo} alt="Siigo" className="h-10" />
       </motion.div>
 
       {/* Profile summary */}
