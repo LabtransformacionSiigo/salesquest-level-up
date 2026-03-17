@@ -83,6 +83,7 @@ export default {
         'smooth-md': 'var(--shadow-md)',
         'smooth-lg': 'var(--shadow-lg)',
         'smooth-xl': 'var(--shadow-xl)',
+        'glow-blue': 'var(--shadow-glow-blue)',
         'glow-green': 'var(--shadow-glow-green)',
         'glow-gold': 'var(--shadow-glow-gold)',
       },

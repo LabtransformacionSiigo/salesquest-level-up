@@ -83,7 +83,7 @@ const Sidebar = () => {
           whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
         >
           <span className="text-accent text-base">🏆</span>
-          <span className="text-sm font-bold font-scoreboard text-neon-green">{(profile?.sp_totales || 0).toLocaleString()}</span>
+          <span className="text-sm font-bold font-scoreboard text-neon-blue">{(profile?.sp_totales || 0).toLocaleString()}</span>
           <span className="text-xs text-sidebar-muted font-medium">SP</span>
         </motion.div>
       </motion.div>
@@ -144,7 +144,7 @@ const Sidebar = () => {
       {/* FIFA badge */}
       <div className="px-4 py-3 border-t border-sidebar-border relative z-10">
         <div className="text-center text-[10px] text-sidebar-muted">
-          <span className="text-neon-green font-bold">SalesQuest</span> · Mundial 2026 🌎
+          <span className="text-neon-blue font-bold">SalesQuest</span> · Siigo 🚀
         </div>
       </div>
 
