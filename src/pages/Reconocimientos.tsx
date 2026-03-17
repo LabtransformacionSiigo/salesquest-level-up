@@ -8,17 +8,16 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
 const TIPOS_RECONOCIMIENTO = [
-  { id: 'IMPULSO_PAR', nombre: 'Pase de Gol', sp_para: 80, sp_de: 20, desc: 'Destacar cualquier logro de un colega', emoji: '⚽' },
-  { id: 'PALABRA_LIDERAZGO', nombre: 'Capitán del Partido', sp_para: 120, sp_de: 30, desc: 'Reconocer liderazgo en momentos clave', emoji: '©️' },
-  { id: 'SELLO_EXCELENCIA', nombre: 'Balón de Oro', sp_para: 200, sp_de: 50, desc: 'El mejor resultado del mes (1 vez/mes)', emoji: '🌟' },
-  { id: 'RECONOCIMIENTO_CUMBRE', nombre: 'Copa del Mundo', sp_para: 300, sp_de: 60, desc: 'Para momentos extraordinarios (1 vez/trimestre)', emoji: '🏆' },
+  { id: 'IMPULSO_PAR', nombre: 'Impulso', sp_para: 80, sp_de: 20, desc: 'Destacar cualquier logro de un colega', emoji: '👏' },
+  { id: 'PALABRA_LIDERAZGO', nombre: 'Liderazgo', sp_para: 120, sp_de: 30, desc: 'Reconocer liderazgo en momentos clave', emoji: '🌟' },
+  { id: 'SELLO_EXCELENCIA', nombre: 'Excelencia', sp_para: 200, sp_de: 50, desc: 'El mejor resultado del mes (1 vez/mes)', emoji: '💎' },
+  { id: 'RECONOCIMIENTO_CUMBRE', nombre: 'Cumbre', sp_para: 300, sp_de: 60, desc: 'Para momentos extraordinarios (1 vez/trimestre)', emoji: '🏆' },
 ];
 
 const getISOWeek = (d: Date) => {
@@ -55,19 +54,14 @@ const Reconocimientos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      const asesoresQuery = supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true);
       const [asesoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
-        asesoresQuery,
+        supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true),
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
-          .eq('de_gerente_id', profile.id)
-          .eq('semana_iso', currentWeek)
-          .eq('anio', currentYear),
+          .eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
-          .eq('de_gerente_id', profile.id)
-          .eq('tipo', 'RECONOCIMIENTO_CUMBRE')
-          .gte('created_at', trimestreStart)
-          .lt('created_at', trimestreEnd),
+          .eq('de_gerente_id', profile.id).eq('tipo', 'RECONOCIMIENTO_CUMBRE')
+          .gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
       ]);
 
       setAsesores(asesoresRes.data || []);
@@ -93,16 +87,12 @@ const Reconocimientos = () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
 
     if (sentCount >= 6) {
-      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 premios por semana', variant: 'destructive' });
+      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' });
       return;
     }
 
     if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) {
-      toast({
-        title: 'Copa no disponible',
-        description: `Ya usaste tu Copa del Mundo este trimestre. Disponible de nuevo en el Q${trimestre < 4 ? trimestre + 1 : 1}.`,
-        variant: 'destructive',
-      });
+      toast({ title: 'No disponible', description: `Ya usaste tu reconocimiento Cumbre este trimestre.`, variant: 'destructive' });
       return;
     }
 
@@ -127,109 +117,76 @@ const Reconocimientos = () => {
     } else {
       await Promise.all([
         supabase.from('sp_acumulados').insert({
-          gerente_id: selectedGerente,
-          fuente: 'RECONOCIMIENTO_RECIBIDO',
-          sp: tipo.sp_para,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`,
-          detalle: `${tipo.nombre} de ${profile.nombre}`,
+          gerente_id: selectedGerente, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
         }),
         supabase.from('sp_acumulados').insert({
-          gerente_id: profile.id,
-          fuente: 'RECONOCIMIENTO_ENVIADO',
-          sp: tipo.sp_de,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`,
-          detalle: `${tipo.nombre} enviado`,
+          gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado`,
         }),
       ]);
 
-      toast({ title: '⚽ ¡Premio enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu jugador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
       if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
-      setSelectedGerente('');
-      setSelectedTipo('');
-      setMensaje('');
+      setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
 
     setSending(false);
   };
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>;
-  }
-
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const isGerente = profile?.role === 'gerente' || profile?.role === 'admin';
 
   return (
-    <Layout title="🎖️ Premios FIFA">
+    <Layout title="🎖️ Reconocimientos">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Form */}
         <div className="lg:col-span-1 space-y-4">
           {!isGerente ? (
             <div className="scoreboard-card rounded-2xl p-6 text-center">
               <span className="text-4xl mb-2 block">🔒</span>
-              <p className="text-sm font-semibold text-foreground">Solo para DTs</p>
-              <p className="text-xs text-muted-foreground mt-1">Los premios solo pueden ser entregados por directores técnicos.</p>
+              <p className="text-sm font-semibold text-foreground">Solo para Gerentes</p>
+              <p className="text-xs text-muted-foreground mt-1">Los reconocimientos solo pueden ser entregados por gerentes.</p>
             </div>
           ) : (
             <>
-              {/* Weekly counter */}
               <div className="scoreboard-card rounded-2xl p-5 text-center">
-                <p className="text-sm text-muted-foreground">Premios esta semana</p>
+                <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
                 <p className="text-3xl font-bold font-scoreboard text-primary mt-1">{6 - sentCount}<span className="text-lg text-muted-foreground">/6</span></p>
                 <p className="text-[10px] text-muted-foreground">disponibles</p>
               </div>
 
-              {/* Form */}
               <div className="scoreboard-card rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span>🏆</span> Entregar Premio
+                  <span>🎖️</span> Enviar Reconocimiento
                 </h3>
 
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">¿A quién premias?</label>
-                  <select
-                    value={selectedGerente}
-                    onChange={e => setSelectedGerente(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-border bg-muted px-3 text-sm text-foreground"
-                  >
-                    <option value="">Seleccionar jugador...</option>
-                    {asesores.map(a => (
-                      <option key={a.id} value={a.id}>{a.nombre}</option>
-                    ))}
+                  <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
+                  <select value={selectedGerente} onChange={e => setSelectedGerente(e.target.value)}
+                    className="w-full h-10 rounded-lg border border-border bg-muted px-3 text-sm text-foreground">
+                    <option value="">Seleccionar colaborador...</option>
+                    {asesores.map(a => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Tipo de premio</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
                   <div className="grid grid-cols-2 gap-2">
                     {TIPOS_RECONOCIMIENTO.map(tipo => {
                       const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
                       return (
-                        <button
-                          key={tipo.id}
-                          onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
-                          disabled={isCumbreUsed}
-                          className={cn(
-                            "p-3 rounded-xl border text-center transition-all text-xs relative",
-                            isCumbreUsed
-                              ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
-                              : selectedTipo === tipo.id
-                                ? "border-primary bg-primary/10 text-primary shadow-glow-green"
-                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
-                          )}
-                        >
+                        <button key={tipo.id} onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)} disabled={isCumbreUsed}
+                          className={cn("p-3 rounded-xl border text-center transition-all text-xs relative",
+                            isCumbreUsed ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
+                              : selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50")}>
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
                           <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
-                          {isCumbreUsed && (
-                            <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">
-                              Usado Q{trimestre}
-                            </span>
-                          )}
+                          {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
                         </button>
                       );
                     })}
@@ -238,32 +195,22 @@ const Reconocimientos = () => {
 
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Mensaje (opcional)</label>
-                  <textarea
-                    value={mensaje}
-                    onChange={e => setMensaje(e.target.value)}
-                    placeholder="Escribe un mensaje..."
-                    className="w-full h-20 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground resize-none"
-                  />
+                  <textarea value={mensaje} onChange={e => setMensaje(e.target.value)} placeholder="Escribe un mensaje..."
+                    className="w-full h-20 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground resize-none" />
                 </div>
 
-                <Button
-                  onClick={handleSend}
-                  disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 6}
-                  className="w-full"
-                >
-                  {sending ? 'Enviando...' : '⚽ Entregar Premio'}
+                <Button onClick={handleSend} disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 6} className="w-full">
+                  {sending ? 'Enviando...' : '✅ Enviar Reconocimiento'}
                 </Button>
               </div>
             </>
           )}
         </div>
 
-        {/* Right: Feed */}
         <div className="lg:col-span-2">
           <div className="scoreboard-card rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <span>📺</span>
-              Transmisión en Vivo
+              <span>📢</span> Feed en Vivo
               <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> EN VIVO
               </span>
@@ -277,17 +224,15 @@ const Reconocimientos = () => {
                   const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === r.tipo);
                   return (
                     <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
-                      <span className="text-2xl mt-0.5">{tipo?.emoji || '⚽'}</span>
+                      <span className="text-2xl mt-0.5">{tipo?.emoji || '🎖️'}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground">
                           <span className="font-semibold">{r.de_nombre}</span>
-                          <span className="text-muted-foreground"> premió a </span>
+                          <span className="text-muted-foreground"> reconoció a </span>
                           <span className="font-semibold">{r.para_nombre}</span>
                         </p>
                         <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
-                        {r.mensaje && (
-                          <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>
-                        )}
+                        {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
                         <div className="flex items-center gap-3 mt-1.5">
                           <span className="text-[10px] text-accent font-semibold font-scoreboard">+{r.sp_para} SP</span>
                           <span className="text-[10px] text-muted-foreground">
@@ -301,8 +246,8 @@ const Reconocimientos = () => {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <span className="text-5xl mb-3 block">🏟️</span>
-                <p>Sé el primero en premiar a un jugador</p>
+                <span className="text-5xl mb-3 block">🤝</span>
+                <p>Sé el primero en reconocer a un colaborador</p>
               </div>
             )}
           </div>

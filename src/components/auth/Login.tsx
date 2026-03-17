@@ -29,39 +29,33 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1920&q=80')` }} />
-      <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/85 to-background/90" />
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-card" />
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/[0.06] blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-purple/[0.08] blur-[100px]" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-primary/[0.04] blur-[100px]" />
       </div>
       <div className="hidden lg:flex lg:w-[520px] flex-col items-center justify-center relative z-10">
         <div className="text-center px-12">
           <img src={siigoLogoWhite} alt="Siigo" className="h-10 mx-auto mb-8" />
-          <div className="text-7xl mb-6">⚽</div>
-          <h1 className="text-4xl font-black text-foreground mb-2">SalesQuest</h1>
-          <p className="text-xl font-bold text-neon-green mb-2">Mundial 2026 Edition</p>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">Tu camino hacia la Copa del Mundo de las Ventas</p>
+          <h1 className="text-4xl font-black text-foreground mb-2">Siigo Arena</h1>
+          <p className="text-xl font-bold text-primary mb-2">Plataforma de Gamificación</p>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto">Potencia tus resultados comerciales con Siigo Points</p>
           <div className="mt-10 grid grid-cols-3 gap-6 text-muted-foreground text-xs">
-            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🏆</div><span className="font-semibold">Trofeos</span></div>
-            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">⚽</div><span className="font-semibold">Partidos</span></div>
-            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🌟</div><span className="font-semibold">Balón de Oro</span></div>
-          </div>
-          <div className="mt-8 flex items-center justify-center gap-3 text-muted-foreground/50 text-xs">
-            <span>🇨🇴</span><span>🇲🇽</span><span>🇪🇨</span><span>🇺🇸</span>
-            <span className="ml-1 font-scoreboard text-[10px] text-primary/60">FIFA 2026</span>
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🏅</div><span className="font-semibold">Medallas</span></div>
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🎯</div><span className="font-semibold">Retos</span></div>
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">📊</div><span className="font-semibold">Rankings</span></div>
           </div>
         </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
-            <span className="text-5xl block mb-3">⚽</span>
-            <p className="text-lg font-bold text-neon-green">SalesQuest · Mundial 2026</p>
+            <img src={siigoLogoWhite} alt="Siigo" className="h-8 mx-auto mb-3" />
+            <p className="text-lg font-bold text-primary">Siigo Arena</p>
           </div>
           <div className="glass-card rounded-3xl p-8 space-y-6">
             <div>
-              <h2 className="text-2xl font-black text-foreground mb-1">Entra al Estadio</h2>
+              <h2 className="text-2xl font-black text-foreground mb-1">Iniciar Sesión</h2>
               <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa</p>
             </div>
             {error && (
@@ -79,7 +73,7 @@ const Login = () => {
                 <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted/50 border-border/50 backdrop-blur" />
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-12 text-base" size="lg">
-                {isLoading ? '⚽ Entrando...' : '⚽ Entrar al Estadio'}
+                {isLoading ? 'Ingresando...' : 'Ingresar'}
               </Button>
             </form>
             <div className="relative">

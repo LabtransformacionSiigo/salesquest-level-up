@@ -9,26 +9,22 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, popIn, scoreboardSlide } from '@/lib/animations';
 
-const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-round", className)}>{icon}</span>
-);
-
 const NIVELES = [
-  { nombre: 'Debutante', min: 0, max: 499 },
-  { nombre: 'Titular', min: 500, max: 1499 },
-  { nombre: 'Goleador', min: 1500, max: 3499 },
-  { nombre: 'Capitán', min: 3500, max: 6999 },
-  { nombre: 'MVP', min: 7000, max: 12999 },
-  { nombre: 'Balón de Oro', min: 13000, max: 21999 },
-  { nombre: 'Leyenda FIFA', min: 22000, max: 34999 },
-  { nombre: 'Hall of Fame', min: 35000, max: 54999 },
+  { nombre: 'Bronce', min: 0, max: 499 },
+  { nombre: 'Plata', min: 500, max: 1499 },
+  { nombre: 'Oro', min: 1500, max: 3499 },
+  { nombre: 'Platino', min: 3500, max: 6999 },
+  { nombre: 'Diamante', min: 7000, max: 12999 },
+  { nombre: 'Élite', min: 13000, max: 21999 },
+  { nombre: 'Master', min: 22000, max: 34999 },
+  { nombre: 'Leyenda', min: 35000, max: 54999 },
   { nombre: 'GOAT', min: 55000, max: 999999 },
 ];
 
 const RETOS_SEMANALES = [
-  { id: 'semana_ejecutada', nombre: '⚽ Fase de Grupos', sp: 100, umbral: 50_000_000 },
-  { id: 'semana_en_fuego', nombre: '🔥 Cuartos de Final', sp: 160, umbral: 80_000_000 },
-  { id: 'semana_elite', nombre: '🏆 La Final', sp: 250, umbral: 100_000_000 },
+  { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
+  { id: 'semana_en_fuego', nombre: '🔥 Reto Intermedio', sp: 160, umbral: 80_000_000 },
+  { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
 ];
 
 const getISOWeek = (d: Date) => {
@@ -117,26 +113,26 @@ const Dashboard = () => {
   const progressPct = nivelSiguiente ? Math.min(100, ((sp - nivelActual.min) / (nivelSiguiente.min - nivelActual.min)) * 100) : 100;
 
   return (
-    <Layout title="🏟️ Estadio Principal">
+    <Layout title="Panel Principal">
       <motion.div className="space-y-5 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
 
-        {/* ═══ JUMBOTRON — Player of the Match ═══ */}
+        {/* ═══ TOP PERFORMER ═══ */}
         {topSeller && (
           <motion.div className="jumbotron rounded-3xl p-8 flex items-center gap-8" variants={fadeUpItem}>
             <div className="flex-shrink-0 relative">
-              <div className="w-20 h-20 rounded-full bg-primary/20 border-3 border-primary/50 flex items-center justify-center text-4xl shadow-glow-green">
-                {topSeller.avatar_url || '⚽'}
+              <div className="w-20 h-20 rounded-full bg-primary/20 border-3 border-primary/50 flex items-center justify-center text-4xl">
+                🏆
               </div>
               <motion.div 
                 className="absolute -top-2 -right-2 text-2xl"
                 animate={{ rotate: [0, -15, 15, 0], scale: [1, 1.2, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
-              >🌟</motion.div>
+              >⭐</motion.div>
             </div>
             <div className="flex-1">
               <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-1 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                Jugador del Partido · MVP
+                Top Performer · Líder del Canal
               </p>
               <p className="text-2xl font-black text-foreground">{topSeller.nombre}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
@@ -159,7 +155,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                  <span>⚽</span> Siigo Points
+                  <span>⚡</span> Siigo Points
                 </p>
                 <motion.p 
                   className="text-4xl font-black font-scoreboard text-neon-green tracking-tight"
@@ -172,7 +168,7 @@ const Dashboard = () => {
                 </motion.p>
               </div>
               <motion.span className="inline-flex items-center gap-1.5 glass-card text-accent rounded-full px-4 py-2 text-sm font-bold" variants={popIn}>
-                <span>🏆</span>{profile?.nivel}
+                <span>🏅</span>{profile?.nivel}
               </motion.span>
             </div>
             <div className="space-y-2">
@@ -200,9 +196,9 @@ const Dashboard = () => {
           </motion.div>
         </motion.div>
 
-        {/* KPIs — Broadcast scoreboard */}
+        {/* KPIs */}
         <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>📊</span> Marcador del Mes</h3>
+          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>📊</span> Resumen del Mes</h3>
           {dataLoading ? (
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">{[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : kpis ? (
@@ -220,10 +216,10 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Match progress */}
+        {/* Weekly challenges */}
         <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><span>⚽</span> Partidos de la Semana</h3>
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><span>🎯</span> Retos de la Semana</h3>
             <Link to="/retos" className="text-xs text-primary font-bold hover:underline">Ver todos →</Link>
           </div>
           {dataLoading ? (
@@ -244,7 +240,7 @@ const Dashboard = () => {
                       <span className="font-scoreboard">{Math.round(pct)}%</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />
-                    {completed && <motion.p className="text-center text-xs font-bold text-neon-green mt-2" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>⚽ ¡GOL!</motion.p>}
+                    {completed && <motion.p className="text-center text-xs font-bold text-neon-green mt-2" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>✅ ¡Completado!</motion.p>}
                   </motion.div>
                 );
               })}
@@ -252,10 +248,10 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Bottom: Trofeos + Feed */}
+        {/* Bottom: Medals + Feed */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={fadeUpItem}>
           <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>🏆</span> Trofeos Recientes</h3>
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>🏅</span> Medallas Recientes</h3>
             {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : medallas.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {medallas.map((m, i) => (
@@ -267,8 +263,8 @@ const Dashboard = () => {
               </motion.div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <div className="text-5xl mb-3 opacity-30">🏟️</div>
-                <p className="text-sm">Aún no tienes trofeos</p>
+                <div className="text-5xl mb-3 opacity-30">🏅</div>
+                <p className="text-sm">Aún no tienes medallas</p>
               </div>
             )}
           </motion.div>
@@ -276,7 +272,7 @@ const Dashboard = () => {
           <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
             <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <span>🎖️</span> Reconocimientos
-              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> LIVE</span>
+              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> EN VIVO</span>
             </h3>
             {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : feed.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
@@ -292,7 +288,7 @@ const Dashboard = () => {
               </motion.div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <div className="text-5xl mb-3 opacity-30">⚽</div>
+                <div className="text-5xl mb-3 opacity-30">🤝</div>
                 <p className="text-sm">Sin reconocimientos aún</p>
               </div>
             )}

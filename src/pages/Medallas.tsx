@@ -8,18 +8,11 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, popIn, trophyWobble } from '@/lib/animations';
 
-const TROPHY_MAP: Record<string, string> = {
-  primera_venta: '⚽',
-  cantidad: '🥾',       // Golden Boot
-  monto: '🏆',          // World Cup Trophy
-  cumplimiento: '🌟',   // Golden Ball
-};
-
 const TROPHY_LABELS: Record<string, { label: string; emoji: string }> = {
-  primera_venta: { label: 'Primer Gol', emoji: '⚽' },
-  cantidad: { label: 'Bota de Oro', emoji: '🥾' },
-  monto: { label: 'Copa del Mundo', emoji: '🏆' },
-  cumplimiento: { label: 'Balón de Oro', emoji: '🌟' },
+  primera_venta: { label: 'Primera Venta', emoji: '🎯' },
+  cantidad: { label: 'Por Cantidad', emoji: '📦' },
+  monto: { label: 'Por Monto', emoji: '💰' },
+  cumplimiento: { label: 'Cumplimiento', emoji: '🏆' },
 };
 
 const Medallas = () => {
@@ -55,16 +48,16 @@ const Medallas = () => {
   });
 
   return (
-    <Layout title="🏆 Vitrina de Trofeos">
+    <Layout title="🏅 Medallas">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Counter */}
         <motion.div className="scoreboard-card rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <span>🏆</span> Mis Trofeos
+              <span>🏅</span> Mis Medallas
             </h2>
             <p className="text-sm text-muted-foreground">
-              Selección: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
+              Canal: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
             </p>
           </div>
           <motion.div 
@@ -74,7 +67,7 @@ const Medallas = () => {
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
           >
             <p className="text-3xl font-bold font-scoreboard text-gradient-trophy">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Conquistados</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
           </motion.div>
         </motion.div>
 
@@ -113,7 +106,6 @@ const Medallas = () => {
                         variants={desbloqueada ? trophyWobble : fadeUpItem}
                         whileHover={{ scale: 1.05, y: -4, transition: { duration: 0.2 } }}
                       >
-                        {/* Golden shimmer overlay for unlocked */}
                         {desbloqueada && (
                           <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
                         )}
@@ -122,7 +114,7 @@ const Medallas = () => {
                           className="text-4xl mb-3 relative z-10"
                           animate={desbloqueada ? { rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] } : {}}
                           transition={{ duration: 0.8, delay: 0.3 }}
-                        >{desbloqueada ? (TROPHY_MAP[medalla.condicion_tipo] || medalla.emoji) : '🔒'}</motion.p>
+                        >{desbloqueada ? (medalla.emoji || '🏅') : '🔒'}</motion.p>
                         <p className="text-sm font-bold text-foreground mb-1 relative z-10">{medalla.nombre}</p>
                         {medalla.producto && (
                           <span className="inline-block text-[9px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full mb-1 relative z-10">
@@ -155,8 +147,8 @@ const Medallas = () => {
 
         {!dataLoading && catalogo.length === 0 && (
           <motion.div className="text-center py-16 text-muted-foreground" variants={fadeUpItem}>
-            <span className="text-5xl mb-3 block">🏟️</span>
-            <p>No hay trofeos configurados para tu selección</p>
+            <span className="text-5xl mb-3 block">🏅</span>
+            <p>No hay medallas configuradas para tu canal</p>
           </motion.div>
         )}
       </motion.div>
