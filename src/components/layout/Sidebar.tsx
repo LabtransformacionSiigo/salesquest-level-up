@@ -144,7 +144,7 @@ const Sidebar = () => {
       {/* FIFA badge */}
       <div className="px-4 py-3 border-t border-sidebar-border relative z-10">
         <div className="text-center text-[10px] text-sidebar-muted">
-          <span className="text-neon-green font-bold">SalesQuest</span> · Mundial 2026 🌎
+          <span className="text-neon-blue font-bold">SalesQuest</span> · Siigo 🚀
         </div>
       </div>
 
