@@ -32,7 +32,7 @@ const getISOWeek = (d: Date) => {
 const Reconocimientos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
-  const [gerentes, setGerentes] = useState<any[]>([]);
+  const [asesores, setAsesores] = useState<any[]>([]);
   const [feed, setFeed] = useState<any[]>([]);
   const [sentCount, setSentCount] = useState(0);
   const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
