@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import siigoLogo from '@/assets/siigo-logo-white.png';
+import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -45,44 +45,44 @@ const Sidebar = () => {
     <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
       {/* Logo */}
       <motion.div 
-        className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border relative z-10"
+        className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <img src={siigoLogo} alt="Siigo" className="h-8" />
-        <span className="text-[10px] font-bold text-primary/60 tracking-wide">ARENA</span>
+        <img src={siigoLogoWhite} alt="Siigo" className="h-8" />
+        <span className="text-[10px] font-bold text-sidebar-primary tracking-wide font-heading">ARENA</span>
       </motion.div>
 
       {/* Profile */}
       <motion.div 
-        className="px-4 py-5 border-b border-sidebar-border relative z-10"
+        className="px-4 py-5 border-b border-sidebar-border"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-lg text-sidebar-foreground">
-            <MI icon="person" className="text-primary" />
+          <div className="w-10 h-10 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
+            <MI icon="person" className="text-sidebar-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-primary font-semibold">{profile?.nivel || 'Nivel 1'}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{profile?.nivel || 'Nivel 1'}</p>
           </div>
         </div>
         <motion.div 
-          className="mt-3 flex items-center gap-2 glass-card rounded-lg px-3 py-2"
+          className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-3 py-2"
           whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
         >
-          <MI icon="bolt" className="text-accent text-base" />
-          <span className="text-sm font-bold font-scoreboard text-neon-blue">{(profile?.sp_totales || 0).toLocaleString()}</span>
+          <MI icon="bolt" className="text-sidebar-primary text-base" />
+          <span className="text-sm font-bold font-scoreboard text-sidebar-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
           <span className="text-xs text-sidebar-muted font-medium">SP</span>
         </motion.div>
       </motion.div>
 
       {/* Navigation */}
       <motion.nav 
-        className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto relative z-10"
+        className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto"
         variants={staggerContainer}
         initial="hidden"
         animate="show"
@@ -97,8 +97,8 @@ const Sidebar = () => {
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-colors duration-150",
               isActive(item.path)
-                ? "glass-card text-primary border-primary/30"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                ? "bg-sidebar-primary text-white"
+                : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
             )}
           >
             <MI icon={item.icon} className="text-[20px]" />
@@ -121,8 +121,8 @@ const Sidebar = () => {
                 className={cn(
                   "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-colors duration-150",
                   isActive(item.path)
-                    ? "bg-purple/20 text-purple"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    ? "bg-sidebar-primary text-white"
+                    : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <MI icon={item.icon} className="text-[18px]" />
@@ -133,20 +133,21 @@ const Sidebar = () => {
         )}
       </motion.nav>
 
-      {/* Footer */}
-      <div className="px-4 py-3 border-t border-sidebar-border relative z-10">
-        <div className="text-center text-[10px] text-sidebar-muted">
-          <span className="text-neon-blue font-bold">Siigo Arena</span> · Gamificación
+      {/* Footer — Logo Siigo bottom */}
+      <div className="px-4 py-3 border-t border-sidebar-border">
+        <div className="text-center">
+          <img src={siigoLogoWhite} alt="Siigo" className="h-5 mx-auto opacity-50" />
+          <p className="text-[9px] text-sidebar-muted mt-1">Siigo Arena · Gamificación</p>
         </div>
       </div>
 
       {/* Logout */}
-      <div className="px-3 py-3 border-t border-sidebar-border relative z-10">
+      <div className="px-3 py-3 border-t border-sidebar-border">
         <motion.button
           onClick={handleLogout}
           whileHover={{ x: 3 }}
           whileTap={{ scale: 0.97 }}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sidebar-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sidebar-muted hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
         >
           <MI icon="logout" className="text-[20px]" />
           <span className="text-[13px] font-semibold">Cerrar sesión</span>

@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round|Material+Icons+Outlined');
 
@@ -8,77 +9,76 @@
 
 @layer base {
   :root {
-    /* ═══ SIIGO REFINADO — DARK MODE ═══ */
-    --background: 215 30% 7%;
-    --foreground: 210 20% 92%;
+    /* ═══ SIIGO BRAND BOOK 2020 — LIGHT MODE ═══ */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
 
-    /* Cards: Glassmorphism dark with blue tint */
-    --card: 215 25% 11%;
-    --card-foreground: 210 20% 92%;
+    /* Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
 
-    --popover: 215 25% 11%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
 
     /* Primary: Siigo Blue #00AAFF */
     --primary: 200 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Siigo lighter blue */
-    --secondary: 210 80% 60%;
+    /* Secondary: #00244C azul oscuro */
+    --secondary: 210 100% 15%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Accent: Siigo Success Green #7AC23A */
+    /* Accent: Verde Siigo #7AC23A */
     --accent: 95 55% 49%;
     --accent-foreground: 0 0% 100%;
 
-    /* Muted */
-    --muted: 215 20% 15%;
-    --muted-foreground: 215 15% 50%;
+    /* Muted: fondos sutiles #EDEDED */
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
 
-    /* Destructive */
-    --destructive: 0 75% 55%;
+    /* Destructive: Rojo/Fucsia #F7274E */
+    --destructive: 349 93% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Orange (warnings) */
-    --orange: 30 90% 55%;
+    /* Orange #FFA532 */
+    --orange: 33 100% 60%;
     --orange-foreground: 0 0% 100%;
+
+    /* Yellow #FFC933 */
+    --yellow: 43 100% 60%;
+    --yellow-foreground: 0 0% 20%;
 
     /* Purple (admin) */
     --purple: 260 50% 55%;
     --purple-foreground: 0 0% 100%;
 
-    --border: 215 20% 16%;
-    --input: 215 20% 16%;
+    --border: 0 0% 84%;
+    --input: 0 0% 84%;
     --ring: 200 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
-    --shadow-glow-blue: 0 0 20px hsla(200, 100%, 50%, 0.15), 0 0 40px hsla(200, 100%, 50%, 0.06);
-    --shadow-glow-green: 0 0 20px hsla(95, 55%, 49%, 0.15), 0 0 40px hsla(95, 55%, 49%, 0.06);
-    --shadow-glow-gold: 0 0 20px hsla(43, 100%, 55%, 0.15), 0 0 40px hsla(43, 100%, 55%, 0.06);
+    /* Shadows — clean and minimal */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12);
 
-    /* Sidebar: Deep Siigo Navy */
-    --sidebar-background: 210 60% 10%;
-    --sidebar-foreground: 210 20% 92%;
+    /* Sidebar: #00244C */
+    --sidebar-background: 210 100% 15%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 200 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 30% 16%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 210 30% 14%;
+    --sidebar-accent: 210 80% 22%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 60% 20%;
     --sidebar-ring: 200 100% 50%;
-    --sidebar-muted: 215 15% 45%;
+    --sidebar-muted: 0 0% 64%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(200 100% 50%), hsl(210 80% 45%));
-    --gradient-trophy: linear-gradient(135deg, hsl(43 100% 55%), hsl(35 100% 45%));
-    --gradient-scoreboard: linear-gradient(180deg, hsla(215, 25%, 12%, 0.9) 0%, hsla(215, 25%, 8%, 0.95) 100%);
-    --gradient-purple: linear-gradient(135deg, hsl(260 50% 55%), hsl(270 45% 45%));
-    --gradient-pitch: linear-gradient(135deg, hsl(215 30% 7%) 0%, hsl(215 35% 5%) 50%, hsl(220 25% 9%) 100%);
+    --gradient-trophy: linear-gradient(135deg, hsl(43 100% 60%), hsl(35 100% 50%));
+    --gradient-progress: linear-gradient(90deg, hsl(200 100% 50%), hsl(95 55% 49%));
 
     --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -118,48 +118,51 @@
   background: linear-gradient(90deg, hsl(200 100% 50%) 0%, hsl(95 55% 49%) 100%);
 }
 
-/* Stadium turf texture */
-.stadium-bg {
-  position: relative;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 40px,
-      hsla(200, 100%, 50%, 0.008) 40px,
-      hsla(200, 100%, 50%, 0.008) 80px
-    );
+/* ═══ SIIGO CARD STYLES ═══ */
+.siigo-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+.siigo-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-/* Spotlight glow */
-.spotlight-glow {
-  box-shadow:
-    0 0 30px hsla(200, 100%, 50%, 0.1),
-    0 0 60px hsla(200, 100%, 50%, 0.04);
+/* Card with blue header stripe */
+.siigo-card-header {
+  background: hsl(var(--primary));
+  color: white;
+  border-radius: 1rem 1rem 0 0;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
 }
 
-/* ═══ GLASSMORPHISM BROADCAST CARD ═══ */
-.glass-card {
-  background: hsla(215, 25%, 11%, 0.8);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  border: 1px solid hsla(200, 100%, 50%, 0.08);
-  box-shadow: 
-    0 4px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 hsla(0, 0%, 100%, 0.03);
-}
-
-/* Scoreboard card — TV broadcast style */
+/* Scoreboard card — clean with top accent */
 .scoreboard-card {
-  background: hsla(215, 25%, 11%, 0.85);
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  border: 1px solid hsla(200, 100%, 50%, 0.1);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-top: 3px solid hsl(var(--primary));
-  box-shadow: 
-    0 4px 24px rgba(0, 0, 0, 0.4),
-    var(--shadow-glow-blue),
-    inset 0 1px 0 hsla(0, 0%, 100%, 0.03);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Glass card — now clean white */
+.glass-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Jumbotron — Siigo Blue hero */
+.jumbotron {
+  background: hsl(var(--primary));
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
 }
 
 /* Trophy card hover */
@@ -167,123 +170,47 @@
   transition: all 0.3s ease;
 }
 .trophy-card:hover {
-  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
+  box-shadow: var(--shadow-md);
   transform: translateY(-4px);
 }
 
-/* Match card — broadcast lower third */
-.match-card {
-  background: hsla(215, 25%, 11%, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid hsla(200, 100%, 50%, 0.06);
-  border-left: 4px solid hsl(var(--primary));
-}
-
-/* ═══ TICKET STYLE ═══ */
-.ticket-card {
-  background: hsla(215, 25%, 11%, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px dashed hsla(200, 100%, 50%, 0.15);
-  position: relative;
-}
-.ticket-card::before,
-.ticket-card::after {
-  content: '';
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  background: hsl(var(--background));
-  border-radius: 50%;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.ticket-card::before { left: -10px; }
-.ticket-card::after { right: -10px; }
-
-/* Trophy shimmer text */
+/* ═══ TEXT STYLES (brand book) ═══ */
 .text-gradient-trophy {
-  background: linear-gradient(135deg, hsl(43 100% 55%), hsl(35 100% 65%), hsl(43 100% 55%));
+  background: linear-gradient(135deg, hsl(43 100% 60%), hsl(35 100% 50%));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-size: 200% 100%;
-  animation: trophy-shimmer 3s ease-in-out infinite;
 }
 
 .text-gradient-blue {
-  background: linear-gradient(135deg, hsl(200 100% 50%), hsl(210 80% 60%));
+  background: linear-gradient(135deg, hsl(200 100% 50%), hsl(210 80% 45%));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.text-gradient-green {
-  background: linear-gradient(135deg, hsl(95 55% 49%), hsl(110 50% 55%));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Colored text helpers */
+.text-siigo-blue { color: #00AAFF; }
+.text-siigo-dark { color: #00244C; }
+.text-siigo-green { color: #7AC23A; }
+.text-siigo-yellow { color: #FFC933; }
+.text-siigo-orange { color: #FFA532; }
+.text-siigo-red { color: #F7274E; }
+.text-siigo-gray { color: #666666; }
+.text-siigo-gray-light { color: #A3A3A3; }
+
+/* Badge backgrounds */
+.bg-siigo-red { background-color: #F7274E; color: white; }
+.bg-siigo-orange { background-color: #FFA532; color: white; }
+.bg-siigo-yellow { background-color: #FFC933; color: #333; }
+.bg-siigo-green { background-color: #7AC23A; color: white; }
+
+/* Alternating row backgrounds */
+.row-alt:nth-child(even) {
+  background-color: #F5F9FF;
 }
 
-/* Neon glow text */
-.text-neon-blue {
-  color: hsl(200 100% 50%);
-  text-shadow: 0 0 10px hsla(200, 100%, 50%, 0.4), 0 0 20px hsla(200, 100%, 50%, 0.2);
-}
-.text-neon-green {
-  color: hsl(95 55% 49%);
-  text-shadow: 0 0 10px hsla(95, 55%, 49%, 0.4), 0 0 20px hsla(95, 55%, 49%, 0.2);
-}
-.text-neon-gold {
-  color: hsl(43 100% 55%);
-  text-shadow: 0 0 10px hsla(43, 100%, 55%, 0.4), 0 0 20px hsla(43, 100%, 55%, 0.2);
-}
-
-/* ═══ FOOTBALL PITCH ═══ */
-.football-pitch {
-  background: linear-gradient(180deg, 
-    hsla(200, 40%, 15%, 0.4) 0%,
-    hsla(200, 40%, 10%, 0.5) 100%
-  );
-  border: 2px solid hsla(200, 100%, 50%, 0.12);
-  border-radius: 12px;
-  position: relative;
-}
-.football-pitch::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: hsla(200, 100%, 50%, 0.1);
-}
-.football-pitch::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 1px solid hsla(200, 100%, 50%, 0.1);
-}
-
-/* Turf sidebar pattern */
-.turf-pattern {
-  background-image: 
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 8px,
-      hsla(200, 100%, 50%, 0.015) 8px,
-      hsla(200, 100%, 50%, 0.015) 16px
-    );
-}
-
-/* Animations */
+/* ═══ ANIMATIONS (subtle, functional) ═══ */
 @keyframes shimmer {
   0% { background-position: -1000px 0; }
   100% { background-position: 1000px 0; }
@@ -295,89 +222,10 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsla(200, 100%, 50%, 0.25); }
-  50% { box-shadow: 0 0 0 8px hsla(200, 100%, 50%, 0); }
-}
-
-@keyframes stadium-lights {
-  0%, 100% { opacity: 0.03; }
-  50% { opacity: 0.06; }
-}
-
-@keyframes confetti-fall {
-  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
-}
-
-@keyframes broadcast-scan {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-@keyframes neon-pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%, 100% { box-shadow: 0 0 0 0 hsla(200, 100%, 50%, 0.2); }
+  50% { box-shadow: 0 0 0 6px hsla(200, 100%, 50%, 0); }
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.animate-neon-pulse {
-  animation: neon-pulse 2s ease-in-out infinite;
-}
-
-/* Jumbotron style */
-.jumbotron {
-  background: linear-gradient(135deg, 
-    hsla(215, 30%, 9%, 0.92) 0%, 
-    hsla(200, 30%, 12%, 0.88) 50%,
-    hsla(215, 30%, 9%, 0.92) 100%
-  );
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid hsla(200, 100%, 50%, 0.12);
-  box-shadow: 
-    0 8px 40px rgba(0, 0, 0, 0.5),
-    var(--shadow-glow-blue),
-    inset 0 0 80px hsla(200, 100%, 50%, 0.02);
-  position: relative;
-  overflow: hidden;
-}
-.jumbotron::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, hsl(200 100% 50%), transparent);
-  animation: broadcast-scan 3s linear infinite;
-}
-
-/* Stadium background image overlay */
-.stadium-overlay {
-  position: relative;
-}
-.stadium-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, 
-    hsla(215, 30%, 7%, 0.88) 0%,
-    hsla(215, 30%, 7%, 0.72) 40%,
-    hsla(215, 30%, 7%, 0.92) 100%
-  );
-  z-index: 1;
-}
-
-/* Net texture overlay */
-.net-texture {
-  background-image: 
-    linear-gradient(45deg, hsla(0,0%,100%,0.02) 25%, transparent 25%),
-    linear-gradient(-45deg, hsla(0,0%,100%,0.02) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, hsla(0,0%,100%,0.02) 75%),
-    linear-gradient(-45deg, transparent 75%, hsla(0,0%,100%,0.02) 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }

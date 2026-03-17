@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, popIn, scoreboardSlide } from '@/lib/animations';
+import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 
 const NIVELES = [
   { nombre: 'Bronce', min: 0, max: 499 },
@@ -116,11 +117,11 @@ const Dashboard = () => {
     <Layout title="Panel Principal">
       <motion.div className="space-y-5 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
 
-        {/* ═══ TOP PERFORMER ═══ */}
+        {/* ═══ TOP PERFORMER — Jumbotron hero azul ═══ */}
         {topSeller && (
           <motion.div className="jumbotron rounded-3xl p-8 flex items-center gap-8" variants={fadeUpItem}>
             <div className="flex-shrink-0 relative">
-              <div className="w-20 h-20 rounded-full bg-primary/20 border-3 border-primary/50 flex items-center justify-center text-4xl">
+              <div className="w-20 h-20 rounded-full bg-white/20 border-3 border-white/40 flex items-center justify-center text-4xl">
                 🏆
               </div>
               <motion.div 
@@ -130,35 +131,37 @@ const Dashboard = () => {
               >⭐</motion.div>
             </div>
             <div className="flex-1">
-              <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-1 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <p className="text-[10px] font-bold text-white/70 uppercase tracking-[0.2em] mb-1 flex items-center gap-2 font-heading">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 Top Performer · Líder del Canal
               </p>
-              <p className="text-2xl font-black text-foreground">{topSeller.nombre}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+              <p className="text-2xl font-black font-heading text-white">{topSeller.nombre}</p>
+              <p className="text-xs text-white/70 flex items-center gap-2 mt-0.5">
                 {topSeller.pais === 'COL' ? '🇨🇴' : topSeller.pais === 'MEX' ? '🇲🇽' : '🇪🇨'} {topSeller.canal?.replace(/_/g, ' ')}
-                <span className="text-primary">·</span>
-                <span className="font-scoreboard text-primary">{(topSeller.sp_totales || 0).toLocaleString()} SP</span>
+                <span className="text-white/50">·</span>
+                <span className="font-scoreboard text-white">{(topSeller.sp_totales || 0).toLocaleString()} SP</span>
               </p>
             </div>
             <motion.div 
-              className="text-6xl font-black font-scoreboard text-neon-gold"
+              className="text-6xl font-black font-scoreboard text-white/90"
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >#1</motion.div>
+            {/* Logo bottom right */}
+            <img src={siigoLogoWhite} alt="Siigo" className="absolute bottom-4 right-6 h-5 opacity-30" />
           </motion.div>
         )}
 
         {/* Top row: SP + Racha */}
         <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={fadeUpItem}>
-          <motion.div className="scoreboard-card rounded-2xl p-6 col-span-1 md:col-span-2" whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}>
+          <motion.div className="bg-card border border-border rounded-2xl p-6 col-span-1 md:col-span-2 shadow-smooth-sm" whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}>
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5 font-heading">
                   <span>⚡</span> Siigo Points
                 </p>
                 <motion.p 
-                  className="text-4xl font-black font-scoreboard text-neon-green tracking-tight"
+                  className="text-4xl font-black font-scoreboard text-primary tracking-tight"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
@@ -167,7 +170,7 @@ const Dashboard = () => {
                   <span className="text-lg font-bold text-primary ml-2">SP</span>
                 </motion.p>
               </div>
-              <motion.span className="inline-flex items-center gap-1.5 glass-card text-accent rounded-full px-4 py-2 text-sm font-bold" variants={popIn}>
+              <motion.span className="inline-flex items-center gap-1.5 bg-primary text-white rounded-full px-4 py-2 text-sm font-bold" variants={popIn}>
                 <span>🏅</span>{profile?.nivel}
               </motion.span>
             </div>
@@ -182,11 +185,11 @@ const Dashboard = () => {
             </div>
           </motion.div>
 
-          <motion.div className="scoreboard-card rounded-2xl p-6" variants={popIn}>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><span>🔥</span> Racha Activa</p>
+          <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={popIn}>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5 font-heading"><span>🔥</span> Racha Activa</p>
             {dataLoading ? <Skeleton className="h-16 w-full" /> : racha && racha.semanas_consecutivas > 0 ? (
               <motion.div className="text-center py-2" initial={{ scale: 0 }} animate={{ scale: [0, 1.2, 1] }} transition={{ duration: 0.6 }}>
-                <p className="text-3xl font-black font-scoreboard text-gradient-trophy">🔥 ×{racha.multiplicador}</p>
+                <p className="text-3xl font-black font-scoreboard text-siigo-orange">🔥 ×{racha.multiplicador}</p>
                 <p className="text-sm font-bold text-foreground mt-2">{racha.nombre_racha}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{racha.semanas_consecutivas} semanas</p>
               </motion.div>
@@ -197,15 +200,15 @@ const Dashboard = () => {
         </motion.div>
 
         {/* KPIs */}
-        <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>📊</span> Resumen del Mes</h3>
+        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+          <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2"><span>📊</span> Resumen del Mes</h3>
           {dataLoading ? (
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">{[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : kpis ? (
             <motion.div className="grid grid-cols-3 md:grid-cols-6 gap-3" variants={staggerContainer} initial="hidden" animate="show">
               <StatCard label="Ventas" value={`$${(kpis.ventas / 1_000_000).toFixed(0)}M`} emoji="💰" delay={0} />
               <StatCard label="Cumpl." value={`${kpis.pct_cumplimiento}%`} emoji="🎯" delay={0.05}
-                color={Number(kpis.pct_cumplimiento) >= 100 ? 'text-neon-green' : Number(kpis.pct_cumplimiento) >= 80 ? 'text-neon-gold' : 'text-destructive'} />
+                color={Number(kpis.pct_cumplimiento) >= 100 ? 'text-accent' : Number(kpis.pct_cumplimiento) >= 80 ? 'text-siigo-orange' : 'text-destructive'} />
               <StatCard label="Referidos" value={String(kpis.cant_recomendados || 0)} emoji="🤝" delay={0.1} />
               <StatCard label="Productividad" value={`$${((kpis.productividad_por_asesor || 0) / 1_000_000).toFixed(0)}M`} emoji="⚡" delay={0.15} />
               <StatCard label="Unidades" value={String(unidades)} emoji="📦" delay={0.2} />
@@ -217,9 +220,9 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Weekly challenges */}
-        <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
+        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><span>🎯</span> Retos de la Semana</h3>
+            <h3 className="text-sm font-bold font-heading text-secondary flex items-center gap-2"><span>🎯</span> Retos de la Semana</h3>
             <Link to="/retos" className="text-xs text-primary font-bold hover:underline">Ver todos →</Link>
           </div>
           {dataLoading ? (
@@ -230,17 +233,17 @@ const Dashboard = () => {
                 const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                 const completed = pct >= 100;
                 return (
-                  <motion.div key={reto.id} className={cn("glass-card rounded-xl p-4 border-l-4 transition-all", completed ? "border-l-primary" : "border-l-muted")} variants={scoreboardSlide} whileHover={{ scale: 1.03 }}>
+                  <motion.div key={reto.id} className={cn("bg-card border rounded-xl p-4 border-l-4 transition-all shadow-smooth-sm", completed ? "border-l-accent" : "border-l-muted")} variants={scoreboardSlide} whileHover={{ scale: 1.02 }}>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-bold text-foreground">{reto.nombre}</p>
-                      <span className={cn("text-[10px] font-black font-scoreboard px-2 py-0.5 rounded-full", completed ? "bg-primary/20 text-primary" : "bg-accent/10 text-accent")}>{reto.sp} SP</span>
+                      <span className={cn("text-[10px] font-black font-scoreboard px-2 py-0.5 rounded-full", completed ? "bg-accent text-white" : "bg-muted text-muted-foreground")}>{reto.sp} SP</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5 font-medium">
                       <span>${(ventasSemana / 1_000_000).toFixed(0)}M / ${(reto.umbral / 1_000_000).toFixed(0)}M</span>
                       <span className="font-scoreboard">{Math.round(pct)}%</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />
-                    {completed && <motion.p className="text-center text-xs font-bold text-neon-green mt-2" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>✅ ¡Completado!</motion.p>}
+                    {completed && <motion.p className="text-center text-xs font-bold text-accent mt-2" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>✅ ¡Completado!</motion.p>}
                   </motion.div>
                 );
               })}
@@ -250,14 +253,14 @@ const Dashboard = () => {
 
         {/* Bottom: Medals + Feed */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={fadeUpItem}>
-          <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>🏅</span> Medallas Recientes</h3>
+          <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+            <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2"><span>🏅</span> Medallas Recientes</h3>
             {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : medallas.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {medallas.map((m, i) => (
-                  <motion.div key={i} className="flex items-center gap-3 p-3 glass-card rounded-xl trophy-card" variants={fadeUpItem}>
+                  <motion.div key={i} className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl hover:shadow-smooth-sm transition-shadow" variants={fadeUpItem}>
                     <motion.span className="text-xl" animate={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 0.5, delay: i * 0.2 + 0.5 }}>🏅</motion.span>
-                    <div className="flex-1"><p className="text-sm font-semibold text-foreground">{m.medalla}</p><p className="text-[11px] font-bold font-scoreboard text-neon-green">+{m.sp_otorgados} SP</p></div>
+                    <div className="flex-1"><p className="text-sm font-semibold text-foreground">{m.medalla}</p><p className="text-[11px] font-bold font-scoreboard text-accent">+{m.sp_otorgados} SP</p></div>
                   </motion.div>
                 ))}
               </motion.div>
@@ -269,19 +272,19 @@ const Dashboard = () => {
             )}
           </motion.div>
 
-          <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+          <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+            <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
               <span>🎖️</span> Reconocimientos
-              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> EN VIVO</span>
+              <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full ml-auto flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span>
             </h3>
             {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : feed.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {feed.map((r) => (
-                  <motion.div key={r.id} className="flex items-start gap-3 p-3 glass-card rounded-xl" variants={fadeUpItem} whileHover={{ x: 4 }}>
-                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 text-sm">🤝</div>
+                  <motion.div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 border border-border rounded-xl" variants={fadeUpItem} whileHover={{ x: 4 }}>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-sm">🤝</div>
                     <div className="min-w-0">
                       <p className="text-xs text-foreground font-medium"><span className="font-bold">{r.de_nombre}</span>{' → '}<span className="font-bold">{r.para_nombre}</span></p>
-                      <p className="text-[11px] text-secondary font-bold">{r.tipo?.replace(/_/g, ' ')}</p>
+                      <p className="text-[11px] text-primary font-bold">{r.tipo?.replace(/_/g, ' ')}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -301,14 +304,14 @@ const Dashboard = () => {
 
 const StatCard = ({ label, value, emoji, color, delay = 0 }: { label: string; value: string; emoji: string; color?: string; delay?: number }) => (
   <motion.div 
-    className="glass-card rounded-xl p-4 text-center hover:border-primary/30 transition-colors"
+    className="bg-white border border-border rounded-xl p-4 text-center hover:shadow-smooth-md transition-shadow"
     initial={{ opacity: 0, y: 15, scale: 0.95 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ duration: 0.35, delay: 0.4 + delay, ease: 'easeOut' }}
-    whileHover={{ scale: 1.05, transition: { duration: 0.15 } }}
+    whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
   >
     <span className="text-2xl mb-1 block">{emoji}</span>
-    <p className={cn("text-lg font-black font-scoreboard", color || "text-foreground")}>{value}</p>
+    <p className={cn("text-lg font-black font-scoreboard", color || "text-primary")}>{value}</p>
     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</p>
   </motion.div>
 );

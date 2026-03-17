@@ -51,9 +51,9 @@ const Medallas = () => {
     <Layout title="🏅 Medallas">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Counter */}
-        <motion.div className="scoreboard-card rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
+        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
           <div>
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2">
               <span>🏅</span> Mis Medallas
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -66,7 +66,7 @@ const Medallas = () => {
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
           >
-            <p className="text-3xl font-bold font-scoreboard text-gradient-trophy">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
+            <p className="text-3xl font-bold font-scoreboard text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
           </motion.div>
         </motion.div>
@@ -80,7 +80,7 @@ const Medallas = () => {
             const info = TROPHY_LABELS[tipo] || { label: tipo, emoji: '🏅' };
             return (
               <motion.div key={tipo} variants={fadeUpItem}>
-                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold font-heading text-secondary mb-3 flex items-center gap-2">
                   <span className="text-lg">{info.emoji}</span>
                   {info.label}
                 </h3>
@@ -98,16 +98,16 @@ const Medallas = () => {
                       <motion.div 
                         key={medalla.id} 
                         className={cn(
-                          "bg-card border rounded-2xl p-5 text-center transition-all group relative overflow-hidden",
+                          "bg-white border rounded-2xl p-5 text-center transition-all group relative overflow-hidden shadow-smooth-sm",
                           desbloqueada
-                            ? "border-accent/30 shadow-glow-gold trophy-card"
+                            ? "border-yellow bg-siigo-yellow/5 trophy-card"
                             : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
                         )}
                         variants={desbloqueada ? trophyWobble : fadeUpItem}
-                        whileHover={{ scale: 1.05, y: -4, transition: { duration: 0.2 } }}
+                        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
                       >
                         {desbloqueada && (
-                          <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
+                          <div className="absolute inset-0 bg-gradient-to-b from-yellow/10 to-transparent pointer-events-none" />
                         )}
                         
                         <motion.p 
@@ -117,11 +117,11 @@ const Medallas = () => {
                         >{desbloqueada ? (medalla.emoji || '🏅') : '🔒'}</motion.p>
                         <p className="text-sm font-bold text-foreground mb-1 relative z-10">{medalla.nombre}</p>
                         {medalla.producto && (
-                          <span className="inline-block text-[9px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full mb-1 relative z-10">
+                          <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1 relative z-10">
                             {medalla.producto}
                           </span>
                         )}
-                        <span className="inline-block text-[10px] font-semibold font-scoreboard bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2 relative z-10">
+                        <span className="inline-block text-[10px] font-semibold font-scoreboard bg-accent text-white px-2 py-0.5 rounded-full mb-2 relative z-10">
                           +{medalla.sp} SP
                         </span>
 
@@ -132,7 +132,7 @@ const Medallas = () => {
                         )}
 
                         {!desbloqueada && (
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 rounded-2xl p-4">
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-2xl p-4">
                             <p className="text-xs text-muted-foreground text-center">{medalla.descripcion}</p>
                           </div>
                         )}

@@ -60,21 +60,21 @@ const MiPerformance = () => {
     <Layout title="📊 Mi Performance">
       <TooltipProvider delayDuration={200}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-        {/* Profile header */}
+        {/* Profile header — Siigo Blue jumbotron */}
         <motion.div className="jumbotron rounded-2xl p-6 flex items-center gap-4" variants={fadeUpItem}>
-          <div className="w-14 h-14 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-2xl">
-            <MI icon="person" className="text-primary" />
+          <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
+            <MI icon="person" className="text-white" />
           </div>
           <div>
-            <p className="text-lg font-bold text-foreground">{profile?.nombre}</p>
-            <p className="text-xs text-muted-foreground flex items-center gap-2">
+            <p className="text-lg font-bold font-heading text-white">{profile?.nombre}</p>
+            <p className="text-xs text-white/70 flex items-center gap-2">
               <span>{FLAG_MAP[profile?.pais || ''] || '🌎'}</span>
-              <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-bold">{canalLabel}</span>
+              <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{canalLabel}</span>
             </p>
           </div>
           <div className="ml-auto text-right">
-            <p className="text-2xl font-black font-scoreboard text-neon-green">{(profile?.sp_totales || 0).toLocaleString()}</p>
-            <p className="text-[10px] text-muted-foreground font-scoreboard">SIIGO POINTS</p>
+            <p className="text-2xl font-black font-scoreboard text-white">{(profile?.sp_totales || 0).toLocaleString()}</p>
+            <p className="text-[10px] text-white/60 font-scoreboard">SIIGO POINTS</p>
           </div>
         </motion.div>
 
@@ -87,7 +87,7 @@ const MiPerformance = () => {
                 <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje." />
                 <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                   <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" tip="Cantidad total de productos vendidas." />
-                  <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-secondary" tip="Valor anualizado de contratos cerrados." />
+                  <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
                   <KPICard icon="group_add" label="# de Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                 </motion.div>
                 <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos semanales para SP extra." />
@@ -103,7 +103,7 @@ const MiPerformance = () => {
                 <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
                 <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                   <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
-                  <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-secondary" />
+                  <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
                   <KPICard icon="person_add" label="Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos aliados" color="text-accent" />
                 </motion.div>
                 <SectionTitle icon="emoji_events" title="Retos Semanales" />
@@ -116,10 +116,10 @@ const MiPerformance = () => {
             {isVC && (
               <>
                 <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
-                <motion.div className="glass-card rounded-2xl p-8 text-center" variants={fadeUpItem}>
+                <motion.div className="bg-white border border-border rounded-2xl p-8 text-center shadow-smooth-sm" variants={fadeUpItem}>
                   <MI icon="add_chart" className="text-4xl text-primary mb-2" />
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">ACV+ del Mes</p>
-                  <p className="text-4xl font-bold font-scoreboard text-neon-green">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-heading">ACV+ del Mes</p>
+                  <p className="text-4xl font-bold font-scoreboard text-primary">
                     {acvData.length > 0 ? `$${((acvData[0]?.acv_plus_total || 0) / 1_000_000).toFixed(1)}M` : '$0M'}
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">{acvData.length > 0 ? acvData[0]?.unidades || 0 : 0} unidades</p>
@@ -129,19 +129,19 @@ const MiPerformance = () => {
                     <SectionTitle icon="pie_chart" title="Desglose por Bloque" />
                     <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                       <BloqueCard label="Nómina-e" value={acvData[0]?.acv_nomina || 0} color="bg-primary" />
-                      <BloqueCard label="FE" value={acvData[0]?.acv_fe || 0} color="bg-secondary" />
-                      <BloqueCard label="Conversiones" value={acvData[0]?.acv_conversiones || 0} color="bg-accent" />
+                      <BloqueCard label="FE" value={acvData[0]?.acv_fe || 0} color="bg-accent" />
+                      <BloqueCard label="Conversiones" value={acvData[0]?.acv_conversiones || 0} color="bg-orange" />
                     </motion.div>
                   </>
                 )}
                 {acvData.length > 1 && (
                   <>
                     <SectionTitle icon="history" title="Histórico ACV+" />
-                    <motion.div className="glass-card rounded-2xl p-6" variants={fadeUpItem}>
+                    <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
                       {acvData.map((d, i) => (
-                        <div key={i} className="flex items-center justify-between py-3 border-b border-border/20 last:border-0">
+                        <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                           <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
-                          <span className="text-sm font-bold font-scoreboard text-foreground">${((d.acv_plus_total || 0) / 1_000_000).toFixed(1)}M</span>
+                          <span className="text-sm font-bold font-scoreboard text-primary">${((d.acv_plus_total || 0) / 1_000_000).toFixed(1)}M</span>
                         </div>
                       ))}
                     </motion.div>
@@ -171,30 +171,28 @@ const formatMoney = (val: number | null | undefined) => {
 };
 
 const SectionTitle = ({ icon, title, tip }: { icon: string; title: string; tip?: string }) => (
-  <motion.h3 className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider pt-2" variants={fadeUpItem}>
+  <motion.h3 className="flex items-center gap-2 text-sm font-bold font-heading text-secondary uppercase tracking-wider pt-2" variants={fadeUpItem}>
     <MI icon={icon} className="text-primary text-lg" />{title}{tip && <InfoTip text={tip} />}
   </motion.h3>
 );
 
 const KPICard = ({ icon, label, value, sub, color, tip }: { icon: string; label: string; value: string; sub: string; color?: string; tip?: string }) => (
-  <motion.div className="glass-card rounded-2xl p-6 text-center hover:shadow-glow-green transition-shadow relative" variants={fadeUpItem}>
+  <motion.div className="bg-white border border-border rounded-2xl p-6 text-center hover:shadow-smooth-md transition-shadow relative shadow-smooth-sm" variants={fadeUpItem}>
     {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <MI icon={icon} className={cn("text-3xl mb-2", color || "text-primary")} />
-    <p className={cn("text-3xl font-bold font-scoreboard", color || "text-foreground")}>{value}</p>
-    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mt-1">{label}</p>
+    <p className={cn("text-3xl font-bold font-scoreboard", color || "text-primary")}>{value}</p>
+    <p className="text-xs font-semibold text-secondary uppercase tracking-wider mt-1 font-heading">{label}</p>
     <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>
   </motion.div>
 );
 
-const MI2 = MI;
-
 const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: string; label: string; value: string; progress: number; description: string; tip?: string }) => (
-  <motion.div className="glass-card rounded-2xl p-6 relative" variants={fadeUpItem}>
+  <motion.div className="bg-white border border-border rounded-2xl p-6 relative shadow-smooth-sm" variants={fadeUpItem}>
     {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <div className="flex items-center gap-3 mb-4">
       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><MI icon={icon} className="text-primary text-xl" /></div>
       <div><p className="text-sm font-bold text-foreground">{label}</p><p className="text-[11px] text-muted-foreground">{description}</p></div>
-      <span className="ml-auto text-2xl font-bold font-scoreboard text-neon-green">{value}</span>
+      <span className="ml-auto text-2xl font-bold font-scoreboard text-primary">{value}</span>
     </div>
     <Progress value={Math.min(100, progress)} className="h-2" />
   </motion.div>
@@ -203,7 +201,7 @@ const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: st
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>
     <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(Ventas actuales ÷ Meta) × 100." />
-    <motion.div className="glass-card rounded-2xl p-6" variants={fadeUpItem}>
+    <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
       <div className="flex items-center gap-8">
         <div className="relative w-28 h-28 shrink-0">
           <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
@@ -211,7 +209,7 @@ const CumplimientoSection = ({ kpis }: { kpis: any }) => (
             <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, Number(kpis?.pct_cumplimiento || 0)) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold font-scoreboard text-neon-green">{kpis?.pct_cumplimiento || 0}%</span>
+            <span className="text-xl font-bold font-scoreboard text-primary">{kpis?.pct_cumplimiento || 0}%</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
@@ -230,7 +228,7 @@ const MetaRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const BloqueCard = ({ label, value, color }: { label: string; value: number; color: string }) => (
-  <motion.div className="glass-card rounded-2xl p-5 text-center hover:shadow-glow-green transition-shadow" variants={fadeUpItem}>
+  <motion.div className="bg-white border border-border rounded-2xl p-5 text-center hover:shadow-smooth-md transition-shadow shadow-smooth-sm" variants={fadeUpItem}>
     <div className={cn("w-3 h-3 rounded-full mx-auto mb-3", color)} />
     <p className="text-xl font-bold font-scoreboard text-foreground">${(value / 1_000_000).toFixed(1)}M</p>
     <p className="text-xs text-muted-foreground font-medium">{label}</p>

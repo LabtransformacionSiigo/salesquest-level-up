@@ -145,21 +145,21 @@ const Reconocimientos = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           {!isGerente ? (
-            <div className="scoreboard-card rounded-2xl p-6 text-center">
+            <div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 text-center shadow-smooth-sm">
               <span className="text-4xl mb-2 block">🔒</span>
               <p className="text-sm font-semibold text-foreground">Solo para Gerentes</p>
               <p className="text-xs text-muted-foreground mt-1">Los reconocimientos solo pueden ser entregados por gerentes.</p>
             </div>
           ) : (
             <>
-              <div className="scoreboard-card rounded-2xl p-5 text-center">
+              <div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-5 text-center shadow-smooth-sm">
                 <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
                 <p className="text-3xl font-bold font-scoreboard text-primary mt-1">{6 - sentCount}<span className="text-lg text-muted-foreground">/6</span></p>
                 <p className="text-[10px] text-muted-foreground">disponibles</p>
               </div>
 
-              <div className="scoreboard-card rounded-2xl p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-smooth-sm">
+                <h3 className="text-sm font-semibold font-heading text-secondary flex items-center gap-2">
                   <span>🎖️</span> Enviar Reconocimiento
                 </h3>
 
@@ -182,11 +182,11 @@ const Reconocimientos = () => {
                           className={cn("p-3 rounded-xl border text-center transition-all text-xs relative",
                             isCumbreUsed ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
                               : selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50")}>
+                                : "border-border bg-white text-muted-foreground hover:border-primary/50")}>
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
                           <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
-                          {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
+                          {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive text-white px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
                         </button>
                       );
                     })}
@@ -208,11 +208,11 @@ const Reconocimientos = () => {
         </div>
 
         <div className="lg:col-span-2">
-          <div className="scoreboard-card rounded-2xl p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-smooth-sm">
+            <h3 className="text-sm font-semibold font-heading text-secondary mb-4 flex items-center gap-2">
               <span>📢</span> Feed en Vivo
-              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> EN VIVO
+              <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
               </span>
             </h3>
 
@@ -223,7 +223,7 @@ const Reconocimientos = () => {
                 {feed.map(r => {
                   const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === r.tipo);
                   return (
-                    <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
+                    <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border">
                       <span className="text-2xl mt-0.5">{tipo?.emoji || '🎖️'}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground">
