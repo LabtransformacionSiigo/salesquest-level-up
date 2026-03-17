@@ -128,8 +128,9 @@ const Rankings = () => {
                       initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}
-                    >{(g.sp_totales || 0).toLocaleString()} SP</motion.p>
-                    <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>
+                    >{formatMetric(g.sp_totales || 0)} {metricLabel}</motion.p>
+                    {!isVC && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
+                    {isVC && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
                   </motion.div>
                 ))}
               </motion.div>
