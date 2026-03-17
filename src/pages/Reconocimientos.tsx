@@ -93,8 +93,8 @@ const Reconocimientos = () => {
   const handleSend = async () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
 
-    if (sentCount >= 2) {
-      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 2 reconocimientos por semana', variant: 'destructive' });
+    if (sentCount >= 6) {
+      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' });
       return;
     }
 
@@ -162,90 +162,102 @@ const Reconocimientos = () => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
+  const isGerente = profile?.role === 'gerente' || profile?.role === 'admin';
+
   return (
     <Layout title="Reconocimientos">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Form */}
+        {/* Left: Form (solo gerentes) */}
         <div className="lg:col-span-1 space-y-4">
-          {/* Weekly counter */}
-          <div className="bg-card border border-border rounded-2xl p-5 text-center">
-            <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
-            <p className="text-3xl font-bold text-primary mt-1">{2 - sentCount}<span className="text-lg text-muted-foreground">/2</span></p>
-            <p className="text-[10px] text-muted-foreground">disponibles</p>
-          </div>
-
-          {/* Form */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Enviar Reconocimiento</h3>
-
-            {/* Select gerente */}
-            <div>
-               <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
-              <select
-                value={selectedGerente}
-                onChange={e => setSelectedGerente(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-              >
-                <option value="">Seleccionar gerente...</option>
-                {gerentes.map(g => (
-                  <option key={g.id} value={g.id}>{g.nombre}</option>
-                ))}
-              </select>
+          {!isGerente ? (
+            <div className="bg-card border border-border rounded-2xl p-6 text-center">
+              <span className="material-icons-outlined text-4xl text-muted-foreground mb-2">lock</span>
+              <p className="text-sm font-semibold text-foreground">Solo para Gerentes</p>
+              <p className="text-xs text-muted-foreground mt-1">Los reconocimientos solo pueden ser enviados por gerentes.</p>
             </div>
-
-            {/* Select tipo */}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Tipo de reconocimiento</label>
-              <div className="grid grid-cols-2 gap-2">
-                {TIPOS_RECONOCIMIENTO.map(tipo => {
-                  const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
-                  return (
-                    <button
-                      key={tipo.id}
-                      onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
-                      disabled={isCumbreUsed}
-                      className={cn(
-                        "p-3 rounded-xl border text-center transition-all text-xs relative",
-                        isCumbreUsed
-                          ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
-                          : selectedTipo === tipo.id
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
-                      )}
-                    >
-                      <span className="text-lg block mb-1">{tipo.emoji}</span>
-                      <span className="font-medium text-[10px] block">{tipo.nombre}</span>
-                      <span className="text-[9px] text-muted-foreground block">+{tipo.sp_para} SP</span>
-                      {isCumbreUsed && (
-                        <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">
-                          Usado Q{trimestre}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+          ) : (
+            <>
+              {/* Weekly counter */}
+              <div className="bg-card border border-border rounded-2xl p-5 text-center">
+                <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
+                <p className="text-3xl font-bold text-primary mt-1">{6 - sentCount}<span className="text-lg text-muted-foreground">/6</span></p>
+                <p className="text-[10px] text-muted-foreground">disponibles</p>
               </div>
-            </div>
 
-            {/* Message */}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Mensaje (opcional)</label>
-              <textarea
-                value={mensaje}
-                onChange={e => setMensaje(e.target.value)}
-                placeholder="Escribe un mensaje..."
-                className="w-full h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none"
-              />
-            </div>
+              {/* Form */}
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Enviar Reconocimiento</h3>
 
-            <Button
-              onClick={handleSend}
-              disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 2}
-              className="w-full"
-            >
-              {sending ? 'Enviando...' : 'Enviar Reconocimiento'}
-            </Button>
-          </div>
+                {/* Select gerente */}
+                <div>
+                   <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
+                  <select
+                    value={selectedGerente}
+                    onChange={e => setSelectedGerente(e.target.value)}
+                    className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  >
+                    <option value="">Seleccionar gerente...</option>
+                    {gerentes.map(g => (
+                      <option key={g.id} value={g.id}>{g.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Select tipo */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tipo de reconocimiento</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TIPOS_RECONOCIMIENTO.map(tipo => {
+                      const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
+                      return (
+                        <button
+                          key={tipo.id}
+                          onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
+                          disabled={isCumbreUsed}
+                          className={cn(
+                            "p-3 rounded-xl border text-center transition-all text-xs relative",
+                            isCumbreUsed
+                              ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
+                              : selectedTipo === tipo.id
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
+                          )}
+                        >
+                          <span className="text-lg block mb-1">{tipo.emoji}</span>
+                          <span className="font-medium text-[10px] block">{tipo.nombre}</span>
+                          <span className="text-[9px] text-muted-foreground block">+{tipo.sp_para} SP</span>
+                          {isCumbreUsed && (
+                            <span className="absolute top-1 right-1 text-[8px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-bold">
+                              Usado Q{trimestre}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Mensaje (opcional)</label>
+                  <textarea
+                    value={mensaje}
+                    onChange={e => setMensaje(e.target.value)}
+                    placeholder="Escribe un mensaje..."
+                    className="w-full h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none"
+                  />
+                </div>
+
+                <Button
+                  onClick={handleSend}
+                  disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 6}
+                  className="w-full"
+                >
+                  {sending ? 'Enviando...' : 'Enviar Reconocimiento'}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: Feed */}
