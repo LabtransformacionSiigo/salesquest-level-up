@@ -148,10 +148,11 @@ const Rankings = () => {
                   <thead>
                     <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                       <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">Gerente</th>
-                      <th className="text-left px-4 py-3">Canal</th>
-                      <th className="text-right px-4 py-3">SP</th>
-                      <th className="text-left px-4 py-3">Nivel</th>
+                      <th className="text-left px-4 py-3">{isVC ? 'Comercial' : 'Gerente'}</th>
+                      {!isVC && <th className="text-left px-4 py-3">Canal</th>}
+                      {isVC && <th className="text-left px-4 py-3">Líder</th>}
+                      <th className="text-right px-4 py-3">{metricLabel}</th>
+                      {!isVC && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
                   <tbody>
