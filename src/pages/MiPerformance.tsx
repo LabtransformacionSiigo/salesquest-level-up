@@ -6,9 +6,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>
+);
+
+const InfoTip = ({ text }: { text: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-muted-foreground cursor-help hover:bg-primary/10 hover:text-primary transition-colors">
+        <MI icon="help_outline" className="!text-[14px]" />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+      {text}
+    </TooltipContent>
+  </Tooltip>
 );
 
 const MiPerformance = () => {
