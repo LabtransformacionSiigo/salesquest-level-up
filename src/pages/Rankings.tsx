@@ -75,6 +75,8 @@ const Rankings = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const sorted = [...ranking].sort((a, b) => (b.sp_totales || 0) - (a.sp_totales || 0));
+  const metricLabel = isVC ? 'ACV' : 'SP';
+  const formatMetric = (val: number) => isVC ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
