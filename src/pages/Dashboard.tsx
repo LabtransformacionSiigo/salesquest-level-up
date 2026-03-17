@@ -57,6 +57,7 @@ const Dashboard = () => {
   const [unidades, setUnidades] = useState(0);
   const [acvMes, setAcvMes] = useState(0);
   const [ventasSemana, setVentasSemana] = useState(0);
+  const [topSeller, setTopSeller] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -70,7 +71,7 @@ const Dashboard = () => {
     weekEnd.setDate(weekEnd.getDate() + 7);
 
     const fetchData = async () => {
-      const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes] = await Promise.all([
+      const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, topRes] = await Promise.all([
         supabase.from('racha_activa').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
@@ -83,6 +84,7 @@ const Dashboard = () => {
           .eq('gerente_id', profile.id)
           .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
           .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
+        supabase.from('ranking_general').select('*').eq('canal', profile.canal).order('sp_totales', { ascending: false }).limit(1),
       ]);
 
       setRacha(rachaRes.data);
@@ -91,13 +93,10 @@ const Dashboard = () => {
       setFeed(feedRes.data || []);
       setUnidades(unidadesRes.count || 0);
       setVentasSemana((ventasSemanaRes.data || []).reduce((s, v) => s + (Number(v.valor_producto) || 0), 0));
+      setTopSeller(topRes.data?.[0] || null);
 
       if (profile.canal === 'VC') {
-        const { data: acvData } = await supabase
-          .from('acv_vc_mensual')
-          .select('acv_plus_total')
-          .eq('gerente_id', profile.id)
-          .maybeSingle();
+        const { data: acvData } = await supabase.from('acv_vc_mensual').select('acv_plus_total').eq('gerente_id', profile.id).maybeSingle();
         setAcvMes(Number(acvData?.acv_plus_total) || 0);
       } else {
         setAcvMes(Number(kpisRes.data?.acv_f) || 0);
@@ -109,40 +108,61 @@ const Dashboard = () => {
     fetchData();
   }, [profile?.id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const sp = profile?.sp_totales || 0;
   const nivelActual = NIVELES.find(n => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelSiguiente = NIVELES[NIVELES.indexOf(nivelActual) + 1];
-  const progressPct = nivelSiguiente
-    ? Math.min(100, ((sp - nivelActual.min) / (nivelSiguiente.min - nivelActual.min)) * 100)
-    : 100;
+  const progressPct = nivelSiguiente ? Math.min(100, ((sp - nivelActual.min) / (nivelSiguiente.min - nivelActual.min)) * 100) : 100;
 
   return (
     <Layout title="🏟️ Estadio Principal">
       <motion.div className="space-y-5 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
+
+        {/* ═══ JUMBOTRON — Player of the Match ═══ */}
+        {topSeller && (
+          <motion.div className="jumbotron rounded-3xl p-8 flex items-center gap-8" variants={fadeUpItem}>
+            <div className="flex-shrink-0 relative">
+              <div className="w-20 h-20 rounded-full bg-primary/20 border-3 border-primary/50 flex items-center justify-center text-4xl shadow-glow-green">
+                {topSeller.avatar_url || '⚽'}
+              </div>
+              <motion.div 
+                className="absolute -top-2 -right-2 text-2xl"
+                animate={{ rotate: [0, -15, 15, 0], scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
+              >🌟</motion.div>
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-1 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Jugador del Partido · MVP
+              </p>
+              <p className="text-2xl font-black text-foreground">{topSeller.nombre}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                {topSeller.pais === 'COL' ? '🇨🇴' : topSeller.pais === 'MEX' ? '🇲🇽' : '🇪🇨'} {topSeller.canal?.replace(/_/g, ' ')}
+                <span className="text-primary">·</span>
+                <span className="font-scoreboard text-primary">{(topSeller.sp_totales || 0).toLocaleString()} SP</span>
+              </p>
+            </div>
+            <motion.div 
+              className="text-6xl font-black font-scoreboard text-neon-gold"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >#1</motion.div>
+          </motion.div>
+        )}
+
         {/* Top row: SP + Racha */}
         <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={fadeUpItem}>
-          {/* SP Scoreboard Card */}
-          <motion.div 
-            className="scoreboard-card rounded-2xl p-6 col-span-1 md:col-span-2"
-            whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
-          >
+          <motion.div className="scoreboard-card rounded-2xl p-6 col-span-1 md:col-span-2" whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}>
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
                   <span>⚽</span> Siigo Points
                 </p>
                 <motion.p 
-                  className="text-4xl font-black font-scoreboard text-gradient-green tracking-tight"
+                  className="text-4xl font-black font-scoreboard text-neon-green tracking-tight"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
@@ -151,12 +171,8 @@ const Dashboard = () => {
                   <span className="text-lg font-bold text-primary ml-2">SP</span>
                 </motion.p>
               </div>
-              <motion.span 
-                className="inline-flex items-center gap-1.5 bg-accent/10 text-accent rounded-full px-4 py-2 text-sm font-bold border border-accent/20"
-                variants={popIn}
-              >
-                <span>🏆</span>
-                {profile?.nivel}
+              <motion.span className="inline-flex items-center gap-1.5 glass-card text-accent rounded-full px-4 py-2 text-sm font-bold" variants={popIn}>
+                <span>🏆</span>{profile?.nivel}
               </motion.span>
             </div>
             <div className="space-y-2">
@@ -165,58 +181,35 @@ const Dashboard = () => {
                 {nivelSiguiente && <span>{nivelSiguiente.nombre} · {nivelSiguiente.min.toLocaleString()} SP</span>}
               </div>
               <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                <motion.div 
-                  className="h-full rounded-full progress-gradient"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progressPct}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.5 }}
-                />
+                <motion.div className="h-full rounded-full progress-gradient" initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 1.2, ease: 'easeOut', delay: 0.5 }} />
               </div>
             </div>
           </motion.div>
 
-          {/* Racha Card */}
           <motion.div className="scoreboard-card rounded-2xl p-6" variants={popIn}>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
-              <span>🔥</span> Racha Activa
-            </p>
-            {dataLoading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : racha && racha.semanas_consecutivas > 0 ? (
-              <motion.div 
-                className="text-center py-2"
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.2, 1] }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              >
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><span>🔥</span> Racha Activa</p>
+            {dataLoading ? <Skeleton className="h-16 w-full" /> : racha && racha.semanas_consecutivas > 0 ? (
+              <motion.div className="text-center py-2" initial={{ scale: 0 }} animate={{ scale: [0, 1.2, 1] }} transition={{ duration: 0.6 }}>
                 <p className="text-3xl font-black font-scoreboard text-gradient-trophy">🔥 ×{racha.multiplicador}</p>
                 <p className="text-sm font-bold text-foreground mt-2">{racha.nombre_racha}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{racha.semanas_consecutivas} semanas consecutivas</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{racha.semanas_consecutivas} semanas</p>
               </motion.div>
             ) : (
-              <div className="text-center text-muted-foreground py-4">
-                <span className="text-3xl mb-1 block">❄️</span>
-                <p className="text-sm font-medium">Sin racha activa</p>
-              </div>
+              <div className="text-center text-muted-foreground py-4"><span className="text-3xl mb-1 block">❄️</span><p className="text-sm font-medium">Sin racha activa</p></div>
             )}
           </motion.div>
         </motion.div>
 
-        {/* KPIs del mes — TV Scoreboard style */}
+        {/* KPIs — Broadcast scoreboard */}
         <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-            <span>📊</span>
-            Marcador del Mes
-          </h3>
+          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>📊</span> Marcador del Mes</h3>
           {dataLoading ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20" />)}
-            </div>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">{[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : kpis ? (
             <motion.div className="grid grid-cols-3 md:grid-cols-6 gap-3" variants={staggerContainer} initial="hidden" animate="show">
               <StatCard label="Ventas" value={`$${(kpis.ventas / 1_000_000).toFixed(0)}M`} emoji="💰" delay={0} />
               <StatCard label="Cumpl." value={`${kpis.pct_cumplimiento}%`} emoji="🎯" delay={0.05}
-                color={Number(kpis.pct_cumplimiento) >= 100 ? 'text-primary' : Number(kpis.pct_cumplimiento) >= 80 ? 'text-accent' : 'text-destructive'} />
+                color={Number(kpis.pct_cumplimiento) >= 100 ? 'text-neon-green' : Number(kpis.pct_cumplimiento) >= 80 ? 'text-neon-gold' : 'text-destructive'} />
               <StatCard label="Referidos" value={String(kpis.cant_recomendados || 0)} emoji="🤝" delay={0.1} />
               <StatCard label="Productividad" value={`$${((kpis.productividad_por_asesor || 0) / 1_000_000).toFixed(0)}M`} emoji="⚡" delay={0.15} />
               <StatCard label="Unidades" value={String(unidades)} emoji="📦" delay={0.2} />
@@ -227,61 +220,31 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Progreso de Retos — Match Progress */}
+        {/* Match progress */}
         <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <span>⚽</span>
-              Partidos de la Semana
-            </h3>
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><span>⚽</span> Partidos de la Semana</h3>
             <Link to="/retos" className="text-xs text-primary font-bold hover:underline">Ver todos →</Link>
           </div>
           {dataLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[1,2,3].map(i => <Skeleton key={i} className="h-20" />)}
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : (
             <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-3" variants={staggerContainer} initial="hidden" animate="show">
-              {RETOS_SEMANALES.map((reto, idx) => {
+              {RETOS_SEMANALES.map((reto) => {
                 const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                 const completed = pct >= 100;
                 return (
-                  <motion.div 
-                    key={reto.id} 
-                    className={cn(
-                      "match-card rounded-xl p-4 transition-all",
-                      completed ? "border-l-primary bg-primary/5" : "border-l-muted-foreground"
-                    )}
-                    variants={scoreboardSlide}
-                    whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
-                  >
+                  <motion.div key={reto.id} className={cn("glass-card rounded-xl p-4 border-l-4 transition-all", completed ? "border-l-primary" : "border-l-muted")} variants={scoreboardSlide} whileHover={{ scale: 1.03 }}>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-bold text-foreground">{reto.nombre}</p>
-                      <motion.span 
-                        className={cn("text-[10px] font-black font-scoreboard px-2 py-0.5 rounded-full",
-                          completed ? "bg-primary/20 text-primary" : "bg-accent/10 text-accent"
-                        )}
-                        animate={completed ? { scale: [1, 1.2, 1] } : {}}
-                        transition={{ duration: 0.5, repeat: completed ? 2 : 0 }}
-                      >
-                        {reto.sp} SP
-                      </motion.span>
+                      <span className={cn("text-[10px] font-black font-scoreboard px-2 py-0.5 rounded-full", completed ? "bg-primary/20 text-primary" : "bg-accent/10 text-accent")}>{reto.sp} SP</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5 font-medium">
                       <span>${(ventasSemana / 1_000_000).toFixed(0)}M / ${(reto.umbral / 1_000_000).toFixed(0)}M</span>
                       <span className="font-scoreboard">{Math.round(pct)}%</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />
-                    {completed && (
-                      <motion.p 
-                        className="text-center text-xs font-bold text-primary mt-2"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', delay: 0.3 }}
-                      >
-                        ⚽ ¡GOL! Completado
-                      </motion.p>
-                    )}
+                    {completed && <motion.p className="text-center text-xs font-bold text-neon-green mt-2" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>⚽ ¡GOL!</motion.p>}
                   </motion.div>
                 );
               })}
@@ -289,71 +252,49 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Bottom row: Trofeos + Feed */}
+        {/* Bottom: Trofeos + Feed */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={fadeUpItem}>
           <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
-            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-              <span>🏆</span>
-              Trofeos Recientes
-            </h3>
-            {dataLoading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
-            ) : medallas.length > 0 ? (
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><span>🏆</span> Trofeos Recientes</h3>
+            {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : medallas.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {medallas.map((m, i) => (
-                  <motion.div 
-                    key={i} 
-                    className="flex items-center gap-3 p-3 bg-accent/5 border border-accent/10 rounded-xl trophy-card"
-                    variants={fadeUpItem}
-                  >
-                    <motion.span 
-                      className="text-xl"
-                      animate={{ rotate: [0, -10, 10, 0] }}
-                      transition={{ duration: 0.5, delay: i * 0.2 + 0.5 }}
-                    >🏅</motion.span>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground">{m.medalla}</p>
-                      <p className="text-[11px] font-bold font-scoreboard text-primary">+{m.sp_otorgados} SP</p>
-                    </div>
+                  <motion.div key={i} className="flex items-center gap-3 p-3 glass-card rounded-xl trophy-card" variants={fadeUpItem}>
+                    <motion.span className="text-xl" animate={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 0.5, delay: i * 0.2 + 0.5 }}>🏅</motion.span>
+                    <div className="flex-1"><p className="text-sm font-semibold text-foreground">{m.medalla}</p><p className="text-[11px] font-bold font-scoreboard text-neon-green">+{m.sp_otorgados} SP</p></div>
                   </motion.div>
                 ))}
               </motion.div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Aún no tienes trofeos 🏆</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="text-5xl mb-3 opacity-30">🏟️</div>
+                <p className="text-sm">Aún no tienes trofeos</p>
+              </div>
             )}
           </motion.div>
 
           <motion.div className="scoreboard-card rounded-2xl p-6" variants={fadeUpItem}>
             <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-              <span>🎖️</span>
-              Reconocimientos Recientes
+              <span>🎖️</span> Reconocimientos
+              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> LIVE</span>
             </h3>
-            {dataLoading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
-            ) : feed.length > 0 ? (
+            {dataLoading ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div> : feed.length > 0 ? (
               <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {feed.map((r) => (
-                  <motion.div 
-                    key={r.id} 
-                    className="flex items-start gap-3 p-3 bg-secondary/5 border border-secondary/10 rounded-xl"
-                    variants={fadeUpItem}
-                    whileHover={{ x: 4, transition: { duration: 0.15 } }}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 text-sm">
-                      🤝
-                    </div>
+                  <motion.div key={r.id} className="flex items-start gap-3 p-3 glass-card rounded-xl" variants={fadeUpItem} whileHover={{ x: 4 }}>
+                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 text-sm">🤝</div>
                     <div className="min-w-0">
-                      <p className="text-xs text-foreground font-medium">
-                        <span className="font-bold">{r.de_nombre}</span>{' → '}<span className="font-bold">{r.para_nombre}</span>
-                      </p>
+                      <p className="text-xs text-foreground font-medium"><span className="font-bold">{r.de_nombre}</span>{' → '}<span className="font-bold">{r.para_nombre}</span></p>
                       <p className="text-[11px] text-secondary font-bold">{r.tipo?.replace(/_/g, ' ')}</p>
-                      {r.mensaje && <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate">"{r.mensaje}"</p>}
                     </div>
                   </motion.div>
                 ))}
               </motion.div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Sin reconocimientos aún</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="text-5xl mb-3 opacity-30">⚽</div>
+                <p className="text-sm">Sin reconocimientos aún</p>
+              </div>
             )}
           </motion.div>
         </motion.div>
@@ -364,7 +305,7 @@ const Dashboard = () => {
 
 const StatCard = ({ label, value, emoji, color, delay = 0 }: { label: string; value: string; emoji: string; color?: string; delay?: number }) => (
   <motion.div 
-    className="bg-muted/50 border border-border/50 rounded-xl p-4 text-center hover:border-primary/30 transition-colors"
+    className="glass-card rounded-xl p-4 text-center hover:border-primary/30 transition-colors"
     initial={{ opacity: 0, y: 15, scale: 0.95 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ duration: 0.35, delay: 0.4 + delay, ease: 'easeOut' }}
