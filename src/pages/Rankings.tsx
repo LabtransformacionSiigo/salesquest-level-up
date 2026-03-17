@@ -30,31 +30,40 @@ const PODIUM_COLORS = [
   'border-orange/40',
 ];
 
+type RankingTab = 'comerciales' | 'gerentes';
+
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [pais, setPais] = useState('TODOS');
+  const [tab, setTab] = useState<RankingTab>('comerciales');
 
   const isVC = profile?.canal === 'VC';
 
   const fetchRanking = async () => {
     if (!profile?.canal) return;
+    setDataLoading(true);
 
     if (isVC) {
-      // VC: rank by comercial (sales rep) using ACV Plus
-      const { data } = await supabase.from('ranking_vc_comerciales').select('*');
-      setRanking((data || []).map((r: any) => ({
-        id: r.nombre,
-        nombre: r.nombre,
-        gerente_nombre: r.gerente_nombre,
-        sp_totales: Math.round(Number(r.acv_total) || 0),
-        ventas_count: r.ventas_count,
-        posicion: r.posicion,
-        canal: 'VC',
-        pais: 'COL',
-        nivel: null,
-      })));
+      if (tab === 'comerciales') {
+        const { data } = await supabase.from('ranking_vc_comerciales' as any).select('*');
+        setRanking((data || []).map((r: any) => ({
+          id: r.nombre,
+          nombre: r.nombre,
+          gerente_nombre: r.gerente_nombre,
+          sp_totales: Math.round(Number(r.acv_total) || 0),
+          ventas_count: r.ventas_count,
+          posicion: r.posicion,
+          canal: 'VC',
+          pais: 'COL',
+          nivel: null,
+        })));
+      } else {
+        // Gerentes ranking for VC
+        const { data } = await supabase.from('ranking_general').select('*').eq('canal', 'VC');
+        setRanking(data || []);
+      }
     } else {
       let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
       if (pais !== 'TODOS') query = query.eq('pais', pais);
@@ -69,34 +78,66 @@ const Rankings = () => {
     fetchRanking();
     const channel = supabase.channel('ranking-live').on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking()).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isAuthenticated, profile?.canal, pais]);
+  }, [isAuthenticated, profile?.canal, pais, tab]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
+  const isComercialTab = isVC && tab === 'comerciales';
   const sorted = [...ranking].sort((a, b) => (b.sp_totales || 0) - (a.sp_totales || 0));
-  const metricLabel = isVC ? 'ACV' : 'SP';
-  const formatMetric = (val: number) => isVC ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
+  const metricLabel = isComercialTab ? 'ACV' : 'SP';
+  const formatMetric = (val: number) => isComercialTab ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
+  const entityLabel = isComercialTab ? 'Comercial' : 'Gerente';
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
   return (
     <Layout title={`🏆 Ranking · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
+        {/* VC Tabs */}
+        {isVC && (
+          <motion.div className="flex gap-2" variants={fadeUpItem}>
+            <button
+              onClick={() => setTab('comerciales')}
+              className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2",
+                tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}
+            >
+              👤 Comerciales (ACV)
+            </button>
+            <button
+              onClick={() => setTab('gerentes')}
+              className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2",
+                tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}
+            >
+              👥 Gerentes (SP)
+            </button>
+          </motion.div>
+        )}
+
         {/* Country filter */}
-        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
-          <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
-          {PAISES.map(p => (
-            <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
-              {p.label}
-            </motion.button>
-          ))}
-          <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
-          </span>
-        </motion.div>
+        {!isComercialTab && (
+          <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
+            <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
+            {PAISES.map(p => (
+              <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                  pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
+                {p.label}
+              </motion.button>
+            ))}
+            <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
+            </span>
+          </motion.div>
+        )}
+
+        {isComercialTab && (
+          <motion.div className="flex justify-end" variants={fadeUpItem}>
+            <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
+            </span>
+          </motion.div>
+        )}
 
         {dataLoading ? (
           <div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div>
@@ -129,8 +170,8 @@ const Rankings = () => {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}
                     >{formatMetric(g.sp_totales || 0)} {metricLabel}</motion.p>
-                    {!isVC && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
-                    {isVC && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
+                    {!isComercialTab && g.nivel && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
+                    {isComercialTab && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
                   </motion.div>
                 ))}
               </motion.div>
@@ -148,11 +189,11 @@ const Rankings = () => {
                   <thead>
                     <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                       <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">{isVC ? 'Comercial' : 'Gerente'}</th>
-                      {!isVC && <th className="text-left px-4 py-3">Canal</th>}
-                      {isVC && <th className="text-left px-4 py-3">Líder</th>}
+                      <th className="text-left px-4 py-3">{entityLabel}</th>
+                      {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
+                      {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
                       <th className="text-right px-4 py-3">{metricLabel}</th>
-                      {!isVC && <th className="text-left px-4 py-3">Nivel</th>}
+                      {!isComercialTab && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -165,15 +206,15 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{i + 4}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            {!isVC && <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>}
+                            {!isComercialTab && <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>}
                             <span className="text-sm text-foreground">{g.nombre}</span>
                             {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
-                        {!isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
-                        {isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
+                        {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
+                        {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMetric(g.sp_totales || 0)}</td>
-                        {!isVC && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
+                        {!isComercialTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
                   </tbody>
