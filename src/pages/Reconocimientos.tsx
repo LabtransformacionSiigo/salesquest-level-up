@@ -93,8 +93,8 @@ const Reconocimientos = () => {
   const handleSend = async () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
 
-    if (sentCount >= 2) {
-      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 2 reconocimientos por semana', variant: 'destructive' });
+    if (sentCount >= 6) {
+      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' });
       return;
     }
 
