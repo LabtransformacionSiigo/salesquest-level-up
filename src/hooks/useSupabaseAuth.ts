@@ -58,8 +58,10 @@ export const useSupabaseAuth = () => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
-      const userRole = roleRes.data?.role ?? 'gerente';
+      const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId);
+      const roles = (roleRes.data || []).map((r: any) => r.role);
+      // Prioritize: admin > gerente > asesor
+      const userRole = roles.includes('admin') ? 'admin' : roles.includes('gerente') ? 'gerente' : roles[0] ?? 'gerente';
 
       if (userRole === 'asesor') {
         // Fetch asesor profile

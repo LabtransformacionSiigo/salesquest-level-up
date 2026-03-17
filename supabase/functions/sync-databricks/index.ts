@@ -35,32 +35,38 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Verify admin
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: authUser }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !authUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", authUser.id)
-      .eq("role", "admin")
-      .maybeSingle();
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Allow service role key calls (for internal/automated sync)
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === serviceRoleKey;
+
+    if (!isServiceRole) {
+      // Verify admin via user auth
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: { user: authUser }, error: authErr } = await userClient.auth.getUser();
+      if (authErr || !authUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authUser.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Parse request body
@@ -247,27 +253,26 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
 
   for (const row of rows) {
     try {
-      // Adapt column names based on what the table actually has
-      const gerenteNombre = (row.Gerente || row.GERENTE || row.NOMBRE_GERENTE || "").toLowerCase().trim();
-      const gerenteEmail = (row.Email || row.EMAIL || row.CORREO || "").toLowerCase().trim();
-      const gerente = gerenteMap.get(gerenteEmail) || gerenteMap.get(gerenteNombre);
+      // Real Databricks columns: comercial = nombre del gerente
+      const gerenteNombre = (row.comercial || row.Gerente || "").toLowerCase().trim();
+      const gerente = gerenteMap.get(gerenteNombre);
 
       if (!gerente) {
-        errores.push(`Gerente no encontrado: ${gerenteNombre || gerenteEmail || JSON.stringify(row).slice(0, 100)}`);
+        errores.push(`Gerente no encontrado: ${gerenteNombre || JSON.stringify(row).slice(0, 100)}`);
         continue;
       }
 
       const ventaRow = {
         gerente_id: gerente.id,
-        fecha_facturacion: row.Fecha_Facturacion || row.FECHA_FACTURACION || row.fecha_facturacion || new Date().toISOString().split('T')[0],
+        fecha_facturacion: row.Fecha_Facturacion || new Date().toISOString().split('T')[0],
         canal: "VC",
-        anio: Number(row.Anio || row.ANIO || row.anio || 2026),
-        mes: String(row.Mes || row.MES || row.mes || ""),
-        producto: String(row.Producto || row.PRODUCTO || row.producto || ""),
-        bloque_venta: String(row.Bloque_Venta || row.BLOQUE_VENTA || row.bloque_venta || ""),
-        documento_factura: String(row.Documento_Factura || row.DOCUMENTO_FACTURA || row.documento_factura || ""),
-        valor_producto: Number(row.Valor_Producto || row.VALOR_PRODUCTO || row.valor_producto || 0),
-        acv_plus: Number(row.ACV_Plus || row.ACV_PLUS || row.acv_plus || 0),
+        anio: Number(row.Anio || 2026),
+        mes: String(row.mes || ""),
+        producto: String(row.Producto || ""),
+        bloque_venta: String(row.Bloque_Venta || ""),
+        documento_factura: String(row.Documento_Factura || ""),
+        valor_producto: Number(row.Valor_Producto || 0),
+        acv_plus: Number(row.ACV_PLUS || 0),
       };
 
       const { error } = await supabase.from("ventas").upsert(ventaRow, {
