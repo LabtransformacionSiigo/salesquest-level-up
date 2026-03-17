@@ -144,7 +144,7 @@ const Reconocimientos = () => {
         }),
       ]);
 
-      toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colega` });
+      toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu asesor` });
       setSentCount(prev => prev + 1);
       if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente('');
