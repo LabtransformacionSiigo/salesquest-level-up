@@ -137,13 +137,14 @@ const MiPerformance = () => {
             {/* ═══════════ VN ALIADOS ═══════════ */}
             {isAliados && (
               <>
-                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje en la gamificación. Se actualizan mensualmente." />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <KPICard
                     icon="inventory_2"
                     label="Unidades"
                     value={String(kpis?.sc_creados || 0)}
                     sub="Unidades vendidas este mes"
+                    tip="Cantidad total de productos o suscripciones vendidas durante el mes en curso."
                   />
                   <KPICard
                     icon="trending_up"
@@ -151,6 +152,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.acv_f)}
                     sub="Valor contractual anual"
                     color="text-secondary"
+                    tip="ACV (Annual Contract Value): Valor total anualizado de los contratos cerrados este mes."
                   />
                   <KPICard
                     icon="person_add"
@@ -158,10 +160,11 @@ const MiPerformance = () => {
                     value={String(kpis?.cant_recomendados || 0)}
                     sub="Referidos por canal aliados"
                     color="text-accent"
+                    tip="Referidos que llegan a través de contadores aliados que recomiendan Siigo a sus clientes."
                   />
                 </div>
 
-                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos que se evalúan cada semana. Completarlos otorga SP extra." />
                 <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                   <RetoCard
                     icon="handshake"
@@ -169,6 +172,7 @@ const MiPerformance = () => {
                     value={`${kpis?.efectividad_referidos_pct || 0}%`}
                     progress={Number(kpis?.efectividad_referidos_pct || 0)}
                     description="% de referidos que se convirtieron en venta"
+                    tip="Porcentaje de referidos del contador que terminaron comprando. Fórmula: (Ventas por referidos ÷ Total referidos) × 100."
                   />
                 </div>
 
