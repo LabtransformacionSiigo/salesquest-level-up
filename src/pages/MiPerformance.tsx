@@ -275,8 +275,9 @@ const KPICard = ({ icon, label, value, sub, color, tip }: { icon: string; label:
   </div>
 );
 
-const RetoCard = ({ icon, label, value, progress, description }: { icon: string; label: string; value: string; progress: number; description: string }) => (
-  <div className="bg-card border border-border rounded-2xl p-6">
+const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: string; label: string; value: string; progress: number; description: string; tip?: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6 relative">
+    {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <div className="flex items-center gap-3 mb-4">
       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
         <MI icon={icon} className="text-primary text-xl" />
