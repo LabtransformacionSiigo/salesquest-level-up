@@ -110,7 +110,7 @@ const MiPerformance = () => {
                   />
                 </div>
 
-                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos que se evalúan cada semana. Completarlos otorga SP extra." />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <RetoCard
                     icon="target"
@@ -118,6 +118,7 @@ const MiPerformance = () => {
                     value={`${kpis?.efectividad_sql_pct || 0}%`}
                     progress={Number(kpis?.efectividad_sql_pct || 0)}
                     description="% de SQL convertidos en venta"
+                    tip="Porcentaje de leads calificados (SQL) que se convirtieron en una venta efectiva. Fórmula: (Ventas SQL ÷ Total SQL) × 100."
                   />
                   <RetoCard
                     icon="speed"
@@ -125,6 +126,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.productividad_por_asesor)}
                     progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)}
                     description="Ventas / HC activo del equipo"
+                    tip="Mide cuánto vende en promedio cada asesor activo de tu equipo. Fórmula: Ventas totales del mes ÷ Headcount activo."
                   />
                 </div>
 
