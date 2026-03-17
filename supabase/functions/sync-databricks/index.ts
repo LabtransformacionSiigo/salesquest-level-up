@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const databricksUrl = `${DATABRICKS_HOST}/api/2.0/sql/statements`;
+    const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
 
     // Build SQL query
     const limitClause = mode === "preview" ? "LIMIT 10" : "";
