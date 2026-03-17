@@ -83,13 +83,14 @@ const MiPerformance = () => {
             {/* ═══════════ VN EMPRESARIOS ═══════════ */}
             {isEmpresarios && (
               <>
-                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje en la gamificación. Se actualizan mensualmente." />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <KPICard
                     icon="inventory_2"
                     label="Unidades"
                     value={String(kpis?.sc_creados || 0)}
                     sub="Unidades vendidas este mes"
+                    tip="Cantidad total de productos o suscripciones vendidas durante el mes en curso."
                   />
                   <KPICard
                     icon="trending_up"
@@ -97,6 +98,7 @@ const MiPerformance = () => {
                     value={formatMoney(kpis?.acv_f)}
                     sub="Valor contractual anual"
                     color="text-secondary"
+                    tip="ACV (Annual Contract Value): Valor total anualizado de los contratos cerrados este mes."
                   />
                   <KPICard
                     icon="group_add"
@@ -104,6 +106,7 @@ const MiPerformance = () => {
                     value={String(kpis?.cant_recomendados || 0)}
                     sub="Referidos generados"
                     color="text-accent"
+                    tip="Número de clientes potenciales que llegaron por recomendación de clientes actuales."
                   />
                 </div>
 
