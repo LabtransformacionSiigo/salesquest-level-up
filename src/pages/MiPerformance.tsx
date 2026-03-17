@@ -183,9 +183,12 @@ const MiPerformance = () => {
             {/* ═══════════ VENTA CRUZADA ═══════════ */}
             {isVC && (
               <>
-                <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
+                <SectionTitle icon="bar_chart" title="KPI de Gamificación" tip="Métrica principal de Venta Cruzada. El ACV+ suma el valor de productos adicionales vendidos a clientes existentes." />
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                  <div className="bg-card border border-border rounded-2xl p-8 text-center relative">
+                    <div className="absolute top-4 right-4">
+                      <InfoTip text="ACV+ (Annual Contract Value Plus): Valor anualizado de ventas cruzadas — productos adicionales vendidos a clientes que ya usan Siigo." />
+                    </div>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">ACV+ del Mes</p>
                     <p className="text-4xl font-bold text-primary">
