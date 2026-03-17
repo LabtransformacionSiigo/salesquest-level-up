@@ -20,123 +20,76 @@ const Login = () => {
     setError('');
     setIsLoading(true);
     const { error } = await signIn(email, password);
-    if (error) {
-      setError(error.message);
-    } else {
-      navigate('/dashboard');
-    }
+    if (error) setError(error.message);
+    else navigate('/dashboard');
     setIsLoading(false);
   };
 
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
-  }
+  if (isAuthenticated) { navigate('/dashboard'); return null; }
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Left panel — Stadium entrance */}
-      <div className="hidden lg:flex lg:w-[480px] bg-sidebar flex-col items-center justify-center relative overflow-hidden">
-        {/* Stadium lights effect */}
-        <div className="absolute inset-0">
-          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-primary/[0.08] blur-[80px]" />
-          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-primary/[0.03] to-transparent" />
-        </div>
-        
-        <div className="relative z-10 text-center px-12">
-          <img src={siigoLogoWhite} alt="Siigo" className="h-10 mx-auto mb-6" />
-          
-          <div className="text-6xl mb-6">⚽</div>
-          
-          <h1 className="text-3xl font-black text-white mb-2 tracking-tight">SalesQuest</h1>
-          <p className="text-lg font-bold text-primary mb-1">Mundial 2026 Edition</p>
-          <p className="text-sm text-white/40 max-w-xs mx-auto leading-relaxed">
-            Tu camino hacia la Copa del Mundo de las Ventas
-          </p>
-          
-          <div className="mt-10 grid grid-cols-3 gap-4 text-white/50 text-xs">
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">🏆</span>
-              <span className="font-semibold">Trofeos</span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">⚽</span>
-              <span className="font-semibold">Partidos</span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">🌟</span>
-              <span className="font-semibold">Balón de Oro</span>
-            </div>
+    <div className="min-h-screen flex relative overflow-hidden">
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1920&q=80')` }} />
+      <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/85 to-background/90" />
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/[0.06] blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-purple/[0.08] blur-[100px]" />
+      </div>
+      <div className="hidden lg:flex lg:w-[520px] flex-col items-center justify-center relative z-10">
+        <div className="text-center px-12">
+          <img src={siigoLogoWhite} alt="Siigo" className="h-10 mx-auto mb-8" />
+          <div className="text-7xl mb-6">⚽</div>
+          <h1 className="text-4xl font-black text-foreground mb-2">SalesQuest</h1>
+          <p className="text-xl font-bold text-neon-green mb-2">Mundial 2026 Edition</p>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto">Tu camino hacia la Copa del Mundo de las Ventas</p>
+          <div className="mt-10 grid grid-cols-3 gap-6 text-muted-foreground text-xs">
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🏆</div><span className="font-semibold">Trofeos</span></div>
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">⚽</div><span className="font-semibold">Partidos</span></div>
+            <div className="flex flex-col items-center gap-2"><div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-2xl">🌟</div><span className="font-semibold">Balón de Oro</span></div>
           </div>
-
-          <div className="mt-8 flex items-center justify-center gap-3 text-white/30 text-xs">
-            <span>🇨🇴</span>
-            <span>🇲🇽</span>
-            <span>🇪🇨</span>
-            <span>🇺🇸</span>
-            <span className="ml-1">FIFA 2026</span>
+          <div className="mt-8 flex items-center justify-center gap-3 text-muted-foreground/50 text-xs">
+            <span>🇨🇴</span><span>🇲🇽</span><span>🇪🇨</span><span>🇺🇸</span>
+            <span className="ml-1 font-scoreboard text-[10px] text-primary/60">FIFA 2026</span>
           </div>
         </div>
       </div>
-
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
             <span className="text-5xl block mb-3">⚽</span>
-            <p className="text-lg font-bold text-primary">SalesQuest · Mundial 2026</p>
+            <p className="text-lg font-bold text-neon-green">SalesQuest · Mundial 2026</p>
           </div>
-
-          <div className="space-y-8">
+          <div className="glass-card rounded-3xl p-8 space-y-6">
             <div>
               <h2 className="text-2xl font-black text-foreground mb-1">Entra al Estadio</h2>
               <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa</p>
             </div>
-
             {error && (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+                <AlertCircle className="w-4 h-4 flex-shrink-0" /><span>{error}</span>
               </div>
             )}
-
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Correo electrónico</label>
-                <Input type="email" placeholder="nombre@siigo.com" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
+                <Input type="email" placeholder="nombre@siigo.com" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl bg-muted/50 border-border/50 backdrop-blur" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Contraseña</label>
-                <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
+                <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted/50 border-border/50 backdrop-blur" />
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-12 text-base" size="lg">
                 {isLoading ? '⚽ Entrando...' : '⚽ Entrar al Estadio'}
               </Button>
             </form>
-
             <div className="relative">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-3 text-muted-foreground font-semibold">o</span></div>
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/30" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-card/50 backdrop-blur px-3 text-muted-foreground font-semibold">o</span></div>
             </div>
-
             <Button type="button" variant="outline" disabled={isLoading}
-              onClick={async () => {
-                setError('');
-                setIsLoading(true);
-                const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-                if (result?.error) {
-                  setError(result.error.message || 'Error al iniciar sesión con Google');
-                  setIsLoading(false);
-                }
-              }}
-              className="w-full h-12 text-base flex items-center justify-center gap-3"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-              </svg>
+              onClick={async () => { setError(''); setIsLoading(true); const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin }); if (result?.error) { setError(result.error.message || 'Error'); setIsLoading(false); } }}
+              className="w-full h-12 text-base flex items-center justify-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
               Continuar con Google
             </Button>
           </div>
