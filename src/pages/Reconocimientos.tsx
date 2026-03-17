@@ -54,8 +54,24 @@ const Reconocimientos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      const [asesoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
-        supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true),
+      // For VC gerentes, load comerciales from ventas; for others, load asesores
+      const isVC = profile.canal === 'VC';
+      let colaboradoresPromise;
+      if (isVC) {
+        colaboradoresPromise = supabase
+          .from('comerciales_por_gerente' as any)
+          .select('nombre, gerente_id')
+          .eq('gerente_id', profile.id);
+      } else {
+        colaboradoresPromise = supabase
+          .from('asesores')
+          .select('id, nombre, avatar_url')
+          .eq('gerente_id', profile.id)
+          .eq('activo', true);
+      }
+
+      const [colaboradoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
+        colaboradoresPromise,
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
           .eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
@@ -64,7 +80,12 @@ const Reconocimientos = () => {
           .gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
       ]);
 
-      setAsesores(asesoresRes.data || []);
+      // For VC, comerciales don't have IDs - use nombre as identifier
+      const colabs = (colaboradoresRes.data || []).map((c: any) => ({
+        id: c.id || c.nombre,
+        nombre: c.nombre,
+      }));
+      setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
       setCumbresTrimestre(cumbreRes.count || 0);
