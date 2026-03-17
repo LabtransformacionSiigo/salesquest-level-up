@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem, popIn } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>

@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem, popIn, cardHover } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>
@@ -126,23 +128,34 @@ const Dashboard = () => {
 
   return (
     <Layout title="Mi Arena">
-      <div className="space-y-5 max-w-[1200px]">
+      <motion.div className="space-y-5 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
         {/* Top row: SP + Racha */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={fadeUpItem}>
           {/* SP Card */}
-          <div className="bg-card rounded-2xl p-6 col-span-1 md:col-span-2 shadow-smooth-sm border border-border">
+          <motion.div 
+            className="bg-card rounded-2xl p-6 col-span-1 md:col-span-2 shadow-smooth-sm border border-border"
+            whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
+          >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Siigo Points</p>
-                <p className="text-4xl font-black text-foreground tracking-tight">
+                <motion.p 
+                  className="text-4xl font-black text-foreground tracking-tight"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+                >
                   {sp.toLocaleString()}
                   <span className="text-lg font-bold text-primary ml-1">SP</span>
-                </p>
+                </motion.p>
               </div>
-              <span className="inline-flex items-center gap-1.5 bg-primary/8 text-primary rounded-full px-4 py-2 text-sm font-bold border border-primary/15">
+              <motion.span 
+                className="inline-flex items-center gap-1.5 bg-primary/8 text-primary rounded-full px-4 py-2 text-sm font-bold border border-primary/15"
+                variants={popIn}
+              >
                 <MI icon="military_tech" className="text-base" />
                 {profile?.nivel}
-              </span>
+              </motion.span>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
@@ -150,33 +163,43 @@ const Dashboard = () => {
                 {nivelSiguiente && <span>{nivelSiguiente.nombre} · {nivelSiguiente.min.toLocaleString()} SP</span>}
               </div>
               <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full rounded-full progress-gradient transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
+                <motion.div 
+                  className="h-full rounded-full progress-gradient"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPct}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.5 }}
+                />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Racha Card */}
-          <div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border">
+          <motion.div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border" variants={popIn}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Racha Activa</p>
             {dataLoading ? (
               <Skeleton className="h-16 w-full" />
             ) : racha && racha.semanas_consecutivas > 0 ? (
-              <div className="text-center py-2">
+              <motion.div 
+                className="text-center py-2"
+                initial={{ scale: 0 }}
+                animate={{ scale: [0, 1.2, 1] }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              >
                 <p className="text-3xl font-black text-accent">🔥 ×{racha.multiplicador}</p>
                 <p className="text-sm font-bold text-foreground mt-2">{racha.nombre_racha}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{racha.semanas_consecutivas} semanas consecutivas</p>
-              </div>
+              </motion.div>
             ) : (
               <div className="text-center text-muted-foreground py-4">
                 <MI icon="ac_unit" className="text-3xl mb-1 block mx-auto" />
                 <p className="text-sm font-medium">Sin racha activa</p>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* KPIs del mes */}
-        <div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border">
+        <motion.div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border" variants={fadeUpItem}>
           <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
             <MI icon="insights" className="text-primary text-lg" />
             Rendimiento del Mes
@@ -186,22 +209,22 @@ const Dashboard = () => {
               {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20" />)}
             </div>
           ) : kpis ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              <StatCard label="Ventas" value={`$${(kpis.ventas / 1_000_000).toFixed(0)}M`} icon="payments" />
-              <StatCard label="Cumplimiento" value={`${kpis.pct_cumplimiento}%`} icon="speed"
+            <motion.div className="grid grid-cols-3 md:grid-cols-6 gap-3" variants={staggerContainer} initial="hidden" animate="show">
+              <StatCard label="Ventas" value={`$${(kpis.ventas / 1_000_000).toFixed(0)}M`} icon="payments" delay={0} />
+              <StatCard label="Cumplimiento" value={`${kpis.pct_cumplimiento}%`} icon="speed" delay={0.05}
                 color={Number(kpis.pct_cumplimiento) >= 100 ? 'text-secondary' : Number(kpis.pct_cumplimiento) >= 80 ? 'text-accent' : 'text-destructive'} />
-              <StatCard label="Referidos" value={String(kpis.cant_recomendados || 0)} icon="group_add" />
-              <StatCard label="Productividad" value={`$${((kpis.productividad_por_asesor || 0) / 1_000_000).toFixed(0)}M`} icon="person" />
-              <StatCard label="Unidades" value={String(unidades)} icon="shopping_cart" />
-              <StatCard label="ACV Mes" value={`$${(acvMes / 1_000_000).toFixed(1)}M`} icon="trending_up" />
-            </div>
+              <StatCard label="Referidos" value={String(kpis.cant_recomendados || 0)} icon="group_add" delay={0.1} />
+              <StatCard label="Productividad" value={`$${((kpis.productividad_por_asesor || 0) / 1_000_000).toFixed(0)}M`} icon="person" delay={0.15} />
+              <StatCard label="Unidades" value={String(unidades)} icon="shopping_cart" delay={0.2} />
+              <StatCard label="ACV Mes" value={`$${(acvMes / 1_000_000).toFixed(1)}M`} icon="trending_up" delay={0.25} />
+            </motion.div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">Sin datos de KPI para este mes</p>
           )}
-        </div>
+        </motion.div>
 
         {/* Progreso de Retos */}
-        <div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border">
+        <motion.div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border" variants={fadeUpItem}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <MI icon="flag" className="text-accent text-lg" />
@@ -214,38 +237,47 @@ const Dashboard = () => {
               {[1,2,3].map(i => <Skeleton key={i} className="h-20" />)}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {RETOS_SEMANALES.map(reto => {
+            <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-3" variants={staggerContainer} initial="hidden" animate="show">
+              {RETOS_SEMANALES.map((reto, idx) => {
                 const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                 const completed = pct >= 100;
                 return (
-                  <div key={reto.id} className={cn(
-                    "rounded-xl p-4 border transition-all",
-                    completed
-                      ? "bg-secondary/5 border-secondary/30"
-                      : "bg-muted/40 border-transparent"
-                  )}>
+                  <motion.div 
+                    key={reto.id} 
+                    className={cn(
+                      "rounded-xl p-4 border transition-all",
+                      completed ? "bg-secondary/5 border-secondary/30" : "bg-muted/40 border-transparent"
+                    )}
+                    variants={fadeUpItem}
+                    whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-bold text-foreground">{reto.nombre}</p>
-                      <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full",
-                        completed ? "bg-secondary/10 text-secondary" : "bg-accent/10 text-accent"
-                      )}>{reto.sp} SP</span>
+                      <motion.span 
+                        className={cn("text-[10px] font-black px-2 py-0.5 rounded-full",
+                          completed ? "bg-secondary/10 text-secondary" : "bg-accent/10 text-accent"
+                        )}
+                        animate={completed ? { scale: [1, 1.2, 1] } : {}}
+                        transition={{ duration: 0.5, repeat: completed ? 2 : 0 }}
+                      >
+                        {reto.sp} SP
+                      </motion.span>
                     </div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5 font-medium">
                       <span>${(ventasSemana / 1_000_000).toFixed(0)}M / ${(reto.umbral / 1_000_000).toFixed(0)}M</span>
                       <span>{Math.round(pct)}%</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
         {/* Bottom row: Medallas + Feed */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border">
+        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={fadeUpItem}>
+          <motion.div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border" variants={fadeUpItem}>
             <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <MI icon="emoji_events" className="text-accent text-lg" />
               Medallas Recientes
@@ -253,23 +285,32 @@ const Dashboard = () => {
             {dataLoading ? (
               <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
             ) : medallas.length > 0 ? (
-              <div className="space-y-2">
+              <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {medallas.map((m, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-                    <span className="text-xl">🏅</span>
+                  <motion.div 
+                    key={i} 
+                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl"
+                    variants={fadeUpItem}
+                    whileHover={{ x: 4, transition: { duration: 0.15 } }}
+                  >
+                    <motion.span 
+                      className="text-xl"
+                      animate={{ rotate: [0, -10, 10, 0] }}
+                      transition={{ duration: 0.5, delay: i * 0.2 + 0.5 }}
+                    >🏅</motion.span>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground">{m.medalla}</p>
                       <p className="text-[11px] text-primary font-bold">+{m.sp_otorgados} SP</p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">Aún no tienes medallas</p>
             )}
-          </div>
+          </motion.div>
 
-          <div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border">
+          <motion.div className="bg-card rounded-2xl p-6 shadow-smooth-sm border border-border" variants={fadeUpItem}>
             <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <MI icon="favorite" className="text-destructive text-lg" />
               Reconocimientos Recientes
@@ -277,9 +318,14 @@ const Dashboard = () => {
             {dataLoading ? (
               <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
             ) : feed.length > 0 ? (
-              <div className="space-y-2">
+              <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="show">
                 {feed.map((r) => (
-                  <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl">
+                  <motion.div 
+                    key={r.id} 
+                    className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl"
+                    variants={fadeUpItem}
+                    whileHover={{ x: 4, transition: { duration: 0.15 } }}
+                  >
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <MI icon="favorite" className="text-primary text-sm" />
                     </div>
@@ -290,25 +336,31 @@ const Dashboard = () => {
                       <p className="text-[11px] text-primary font-bold">{r.tipo?.replace(/_/g, ' ')}</p>
                       {r.mensaje && <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate">"{r.mensaje}"</p>}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">Sin reconocimientos aún</p>
             )}
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </Layout>
   );
 };
 
-const StatCard = ({ label, value, icon, color }: { label: string; value: string; icon: string; color?: string }) => (
-  <div className="bg-muted/50 rounded-xl p-4 text-center">
+const StatCard = ({ label, value, icon, color, delay = 0 }: { label: string; value: string; icon: string; color?: string; delay?: number }) => (
+  <motion.div 
+    className="bg-muted/50 rounded-xl p-4 text-center"
+    initial={{ opacity: 0, y: 15, scale: 0.95 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ duration: 0.35, delay: 0.4 + delay, ease: 'easeOut' }}
+    whileHover={{ scale: 1.05, transition: { duration: 0.15 } }}
+  >
     <MI icon={icon} className={cn("text-2xl mb-1", color || "text-primary")} />
     <p className={cn("text-lg font-black", color || "text-foreground")}>{value}</p>
     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</p>
-  </div>
+  </motion.div>
 );
 
 export default Dashboard;

@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem, popIn, celebratePulse } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
@@ -35,7 +37,6 @@ const Medallas = () => {
   const medallaNames = new Set(misMedallas.map(m => m.medalla));
   const obtenidas = catalogo.filter(m => medallaNames.has(m.nombre));
 
-  // Group by condicion_tipo
   const grupos: Record<string, any[]> = {};
   catalogo.forEach(m => {
     const key = m.condicion_tipo;
@@ -52,20 +53,25 @@ const Medallas = () => {
 
   return (
     <Layout title="Vitrina de Logros">
-      <div className="space-y-6">
+      <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Counter */}
-        <div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-between">
+        <motion.div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
           <div>
             <h2 className="text-lg font-bold text-foreground">Mis Medallas</h2>
             <p className="text-sm text-muted-foreground">
               Canal: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
             </p>
           </div>
-          <div className="text-center">
+          <motion.div 
+            className="text-center"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+          >
             <p className="text-3xl font-bold text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {dataLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -75,24 +81,38 @@ const Medallas = () => {
           Object.entries(grupos).map(([tipo, medallas]) => {
             const info = grupoLabels[tipo] || { label: tipo, icon: 'star' };
             return (
-              <div key={tipo}>
+              <motion.div key={tipo} variants={fadeUpItem}>
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <MI icon={info.icon} className="text-primary text-lg" />
                   {info.label}
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <motion.div 
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="show"
+                >
                   {medallas.map(medalla => {
                     const desbloqueada = medallaNames.has(medalla.nombre);
                     const dataMedalla = misMedallas.find(m => m.medalla === medalla.nombre);
 
                     return (
-                      <div key={medalla.id} className={cn(
-                        "bg-card border rounded-2xl p-5 text-center transition-all group relative",
-                        desbloqueada
-                          ? "border-accent/30 shadow-smooth-sm"
-                          : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
-                      )}>
-                        <p className="text-4xl mb-3">{desbloqueada ? medalla.emoji : '🔒'}</p>
+                      <motion.div 
+                        key={medalla.id} 
+                        className={cn(
+                          "bg-card border rounded-2xl p-5 text-center transition-all group relative",
+                          desbloqueada
+                            ? "border-accent/30 shadow-smooth-sm"
+                            : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
+                        )}
+                        variants={desbloqueada ? celebratePulse : fadeUpItem}
+                        whileHover={{ scale: 1.05, y: -4, transition: { duration: 0.2 } }}
+                      >
+                        <motion.p 
+                          className="text-4xl mb-3"
+                          animate={desbloqueada ? { rotate: [0, -10, 10, 0] } : {}}
+                          transition={{ duration: 0.5, delay: 0.3 }}
+                        >{desbloqueada ? medalla.emoji : '🔒'}</motion.p>
                         <p className="text-sm font-bold text-foreground mb-1">{medalla.nombre}</p>
                         {medalla.producto && (
                           <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1">
@@ -114,22 +134,22 @@ const Medallas = () => {
                             <p className="text-xs text-muted-foreground text-center">{medalla.descripcion}</p>
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     );
                   })}
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             );
           })
         )}
 
         {!dataLoading && catalogo.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
+          <motion.div className="text-center py-16 text-muted-foreground" variants={fadeUpItem}>
             <MI icon="emoji_events" className="text-5xl mb-3" />
             <p>No hay medallas configuradas para tu canal</p>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </Layout>
   );
 };
