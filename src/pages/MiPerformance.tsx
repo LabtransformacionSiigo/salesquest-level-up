@@ -294,7 +294,7 @@ const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: st
 
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>
-    <SectionTitle icon="donut_large" title="Cumplimiento de Meta" />
+    <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="Porcentaje de avance hacia la meta de ventas del mes. Se calcula como: (Ventas actuales ÷ Meta asignada) × 100." />
     <div className="bg-card border border-border rounded-2xl p-6">
       <div className="flex items-center gap-8">
         <div className="relative w-28 h-28 shrink-0">
