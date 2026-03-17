@@ -72,10 +72,12 @@ Deno.serve(async (req) => {
     const databricksUrl = `${DATABRICKS_HOST}/api/2.0/sql/statements`;
 
     // Build SQL query
+    const limitClause = mode === "preview" ? "LIMIT 10" : "";
     const sql = `
       SELECT * FROM db_comercial.tbl_slv_Productividad_Progresiva 
       WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612
         AND CANAL = 'VN_EMPRESARIOS'
+      ${limitClause}
     `;
 
     console.log("Querying Databricks:", sql.trim());
