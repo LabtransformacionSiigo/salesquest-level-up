@@ -173,11 +173,10 @@
 
 /* Match card — broadcast lower third */
 .match-card {
-  background: hsla(220, 20%, 10%, 0.8);
+  background: hsla(215, 25%, 11%, 0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-left: 4px solid hsl(var(--primary));
-  border: 1px solid hsla(145, 80%, 48%, 0.08);
+  border: 1px solid hsla(200, 100%, 50%, 0.06);
   border-left: 4px solid hsl(var(--primary));
 }
 
