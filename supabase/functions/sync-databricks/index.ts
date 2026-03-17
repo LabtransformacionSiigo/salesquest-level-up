@@ -6,6 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Table configurations
+const TABLE_CONFIGS: Record<string, { sql: (limit: string) => string; label: string }> = {
+  productividad: {
+    label: "Productividad Progresiva",
+    sql: (limit: string) => `SELECT * FROM db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
+  },
+  ventas_vc: {
+    label: "Ventas VC",
+    sql: (limit: string) => `SELECT * FROM db_comercial.tbl_gld_Ventas_VC WHERE Anio = 2026 ${limit}`,
+  },
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,18 +47,16 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = authUser.id;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
+      .eq("user_id", authUser.id)
       .eq("role", "admin")
       .maybeSingle();
 
     if (!roleData) {
-      console.log("User not admin:", userId);
       return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,7 +65,16 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body = await req.json().catch(() => ({}));
-    const mode = body.mode || "preview"; // "preview" | "sync"
+    const mode = body.mode || "preview";
+    const table = body.table || "productividad";
+
+    const tableConfig = TABLE_CONFIGS[table];
+    if (!tableConfig) {
+      return new Response(
+        JSON.stringify({ error: `Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Databricks config
     const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
@@ -64,26 +83,17 @@ Deno.serve(async (req) => {
 
     if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
       return new Response(
-        JSON.stringify({ error: "Faltan credenciales de Databricks. Configura DATABRICKS_HOST, DATABRICKS_TOKEN y DATABRICKS_WAREHOUSE_ID." }),
+        JSON.stringify({ error: "Faltan credenciales de Databricks." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
-
-    // Build SQL query
     const limitClause = mode === "preview" ? "LIMIT 10" : "";
-    const sql = `
-      SELECT * FROM db_comercial.tbl_slv_Productividad_Progresiva 
-      WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612
-      ${limitClause}
-    `;
+    const sql = tableConfig.sql(limitClause);
 
-    console.log("Querying Databricks:", sql.trim());
-    console.log("Databricks URL:", databricksUrl);
-    console.log("Warehouse ID:", DATABRICKS_WAREHOUSE_ID);
-    console.log("Token prefix:", DATABRICKS_TOKEN?.substring(0, 10) + "...");
-    // Execute query on Databricks
+    console.log(`[${table}] Querying Databricks:`, sql.trim());
+
     const dbResponse = await fetch(databricksUrl, {
       method: "POST",
       headers: {
@@ -112,7 +122,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Handle pending state
     if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
       return new Response(
         JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución. Reintenta en unos segundos." }),
@@ -125,7 +134,6 @@ Deno.serve(async (req) => {
     const columnNames = columns.map((c: any) => c.name);
     const dataChunks = dbData.result?.data_array || [];
 
-    // Convert to objects
     const rows = dataChunks.map((row: any[]) => {
       const obj: Record<string, any> = {};
       columnNames.forEach((col: string, i: number) => {
@@ -134,12 +142,13 @@ Deno.serve(async (req) => {
       return obj;
     });
 
-    console.log(`Databricks returned ${rows.length} rows with columns: ${columnNames.join(", ")}`);
+    console.log(`[${table}] Databricks returned ${rows.length} rows, columns: ${columnNames.join(", ")}`);
 
-    // Preview mode: return schema + sample data
+    // Preview mode
     if (mode === "preview") {
       return new Response(
         JSON.stringify({
+          table: tableConfig.label,
           columns: columnNames,
           total_rows: rows.length,
           sample: rows.slice(0, 5),
@@ -148,10 +157,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Sync mode: map and upsert data
-    // We'll need to map Databricks columns → Supabase tables
-    // For now, return the full data so we can see the mapping
-    const syncResult = await syncToSupabase(supabase, rows);
+    // Sync mode
+    let syncResult;
+    if (table === "ventas_vc") {
+      syncResult = await syncVentasVC(supabase, rows);
+    } else {
+      syncResult = await syncProductividad(supabase, rows);
+    }
 
     return new Response(JSON.stringify(syncResult), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -165,12 +177,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function syncToSupabase(supabase: any, rows: Record<string, any>[]) {
+// Sync Productividad Progresiva → kpis_mensuales
+async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   let insertedKpis = 0;
-  let insertedVentas = 0;
   const errores: string[] = [];
 
-  // First, get gerente mapping by email or name
   const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
   const gerenteMap = new Map<string, any>();
   (gerentes || []).forEach((g: any) => {
@@ -180,10 +191,8 @@ async function syncToSupabase(supabase: any, rows: Record<string, any>[]) {
 
   for (const row of rows) {
     try {
-      // Try to find the gerente - adapt column names based on actual Databricks schema
-      const gerenteNombre = (row.GERENTE || row.NOMBRE_GERENTE || row.nombre_gerente || "").toLowerCase().trim();
-      const gerenteEmail = (row.EMAIL || row.CORREO || row.email || "").toLowerCase().trim();
-
+      const gerenteNombre = (row.GERENTE || row.NOMBRE_GERENTE || "").toLowerCase().trim();
+      const gerenteEmail = (row.EMAIL || row.CORREO || "").toLowerCase().trim();
       const gerente = gerenteMap.get(gerenteEmail) || gerenteMap.get(gerenteNombre);
 
       if (!gerente) {
@@ -191,7 +200,6 @@ async function syncToSupabase(supabase: any, rows: Record<string, any>[]) {
         continue;
       }
 
-      // Map to kpis_mensuales
       const anioMes = String(row.ANIO_MES || row.anio_mes || "");
       if (anioMes) {
         const kpiRow = {
@@ -214,21 +222,64 @@ async function syncToSupabase(supabase: any, rows: Record<string, any>[]) {
           onConflict: "gerente_id,anio_mes",
         });
 
-        if (error) {
-          errores.push(`KPI ${gerente.nombre} ${anioMes}: ${error.message}`);
-        } else {
-          insertedKpis++;
-        }
+        if (error) errores.push(`KPI ${gerente.nombre} ${anioMes}: ${error.message}`);
+        else insertedKpis++;
       }
     } catch (err) {
       errores.push(`Row error: ${String(err)}`);
     }
   }
 
-  return {
-    total_rows: rows.length,
-    kpis_sincronizados: insertedKpis,
-    ventas_sincronizadas: insertedVentas,
-    errores: errores.slice(0, 20),
-  };
+  return { total_rows: rows.length, kpis_sincronizados: insertedKpis, errores: errores.slice(0, 20) };
+}
+
+// Sync Ventas VC → ventas table
+async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
+  let insertedVentas = 0;
+  const errores: string[] = [];
+
+  const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
+  const gerenteMap = new Map<string, any>();
+  (gerentes || []).forEach((g: any) => {
+    gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
+    gerenteMap.set(g.email?.toLowerCase()?.trim(), g);
+  });
+
+  for (const row of rows) {
+    try {
+      // Adapt column names based on what the table actually has
+      const gerenteNombre = (row.Gerente || row.GERENTE || row.NOMBRE_GERENTE || "").toLowerCase().trim();
+      const gerenteEmail = (row.Email || row.EMAIL || row.CORREO || "").toLowerCase().trim();
+      const gerente = gerenteMap.get(gerenteEmail) || gerenteMap.get(gerenteNombre);
+
+      if (!gerente) {
+        errores.push(`Gerente no encontrado: ${gerenteNombre || gerenteEmail || JSON.stringify(row).slice(0, 100)}`);
+        continue;
+      }
+
+      const ventaRow = {
+        gerente_id: gerente.id,
+        fecha_facturacion: row.Fecha_Facturacion || row.FECHA_FACTURACION || row.fecha_facturacion || new Date().toISOString().split('T')[0],
+        canal: "VC",
+        anio: Number(row.Anio || row.ANIO || row.anio || 2026),
+        mes: String(row.Mes || row.MES || row.mes || ""),
+        producto: String(row.Producto || row.PRODUCTO || row.producto || ""),
+        bloque_venta: String(row.Bloque_Venta || row.BLOQUE_VENTA || row.bloque_venta || ""),
+        documento_factura: String(row.Documento_Factura || row.DOCUMENTO_FACTURA || row.documento_factura || ""),
+        valor_producto: Number(row.Valor_Producto || row.VALOR_PRODUCTO || row.valor_producto || 0),
+        acv_plus: Number(row.ACV_Plus || row.ACV_PLUS || row.acv_plus || 0),
+      };
+
+      const { error } = await supabase.from("ventas").upsert(ventaRow, {
+        onConflict: "id",
+      });
+
+      if (error) errores.push(`Venta ${gerente.nombre}: ${error.message}`);
+      else insertedVentas++;
+    } catch (err) {
+      errores.push(`Row error: ${String(err)}`);
+    }
+  }
+
+  return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
 }
