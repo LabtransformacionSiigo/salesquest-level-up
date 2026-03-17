@@ -42,10 +42,18 @@ const Sidebar = () => {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border">
-      {/* Logo + World Cup badge */}
+    <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border turf-pattern net-texture relative">
+      {/* Subtle goal net overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23ffffff' stroke-width='0.3' fill='none' opacity='0.04'/%3E%3C/svg%3E")`,
+          backgroundSize: '30px 30px'
+        }}
+      />
+
+      {/* Logo */}
       <motion.div 
-        className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border"
+        className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border relative z-10"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
@@ -54,15 +62,15 @@ const Sidebar = () => {
         <span className="text-lg">⚽</span>
       </motion.div>
 
-      {/* Profile summary */}
+      {/* Profile */}
       <motion.div 
-        className="px-4 py-5 border-b border-sidebar-border"
+        className="px-4 py-5 border-b border-sidebar-border relative z-10"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-lg text-sidebar-foreground">
+          <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-lg text-sidebar-foreground shadow-glow-green">
             {profile?.avatar_url || '⚽'}
           </div>
           <div className="flex-1 min-w-0">
@@ -71,18 +79,18 @@ const Sidebar = () => {
           </div>
         </div>
         <motion.div 
-          className="mt-3 flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2"
+          className="mt-3 flex items-center gap-2 glass-card rounded-lg px-3 py-2"
           whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
         >
           <span className="text-accent text-base">🏆</span>
-          <span className="text-sm font-bold font-scoreboard text-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
+          <span className="text-sm font-bold font-scoreboard text-neon-green">{(profile?.sp_totales || 0).toLocaleString()}</span>
           <span className="text-xs text-sidebar-muted font-medium">SP</span>
         </motion.div>
       </motion.div>
 
       {/* Navigation */}
       <motion.nav 
-        className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto"
+        className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto relative z-10"
         variants={staggerContainer}
         initial="hidden"
         animate="show"
@@ -97,7 +105,7 @@ const Sidebar = () => {
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-colors duration-150",
               isActive(item.path)
-                ? "bg-primary/20 text-primary border border-primary/30 shadow-glow-green"
+                ? "glass-card text-primary border-primary/30 shadow-glow-green"
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             )}
           >
@@ -106,7 +114,6 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {/* Admin section */}
         {isAdmin && (
           <>
             <motion.div className="pt-4 pb-2 px-3" variants={slideInLeft}>
@@ -134,15 +141,15 @@ const Sidebar = () => {
         )}
       </motion.nav>
 
-      {/* FIFA 2026 badge */}
-      <div className="px-4 py-3 border-t border-sidebar-border">
+      {/* FIFA badge */}
+      <div className="px-4 py-3 border-t border-sidebar-border relative z-10">
         <div className="text-center text-[10px] text-sidebar-muted">
-          <span className="text-primary font-bold">SalesQuest</span> · Mundial 2026 🌎
+          <span className="text-neon-green font-bold">SalesQuest</span> · Mundial 2026 🌎
         </div>
       </div>
 
-      {/* Bottom logout */}
-      <div className="px-3 py-3 border-t border-sidebar-border">
+      {/* Logout */}
+      <div className="px-3 py-3 border-t border-sidebar-border relative z-10">
         <motion.button
           onClick={handleLogout}
           whileHover={{ x: 3 }}
