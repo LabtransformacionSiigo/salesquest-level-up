@@ -76,7 +76,6 @@ Deno.serve(async (req) => {
     const sql = `
       SELECT * FROM db_comercial.tbl_slv_Productividad_Progresiva 
       WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612
-        AND CANAL = 'VN_EMPRESARIOS'
       ${limitClause}
     `;
 
