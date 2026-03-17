@@ -25,7 +25,7 @@ const PAISES = [
 
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = [
-  'border-accent/50 shadow-glow-gold',
+  'border-yellow bg-siigo-yellow/5',
   'border-muted-foreground/30',
   'border-orange/40',
 ];
@@ -68,12 +68,12 @@ const Rankings = () => {
           {PAISES.map(p => (
             <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
               className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                pais === p.value ? "bg-primary text-primary-foreground border-primary" : "glass-card border-border/30 text-muted-foreground hover:text-foreground")}>
+                pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
               {p.label}
             </motion.button>
           ))}
-          <span className="ml-auto text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> EN VIVO
+          <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
           </span>
         </motion.div>
 
@@ -87,28 +87,28 @@ const Rankings = () => {
                 {top3.map((g, i) => (
                   <motion.div 
                     key={g.id} 
-                    className={cn("glass-card rounded-3xl border-2 p-6 text-center relative overflow-hidden", PODIUM_COLORS[i], g.user_id === profile?.user_id && "ring-2 ring-primary")}
+                    className={cn("bg-white rounded-3xl border-2 p-6 text-center relative overflow-hidden shadow-smooth-sm", PODIUM_COLORS[i], g.user_id === profile?.user_id && "ring-2 ring-primary")}
                     variants={podiumBounce}
                     whileHover={{ y: -6, transition: { duration: 0.2 } }}
                   >
-                    {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent to-transparent" />}
+                    {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-yellow to-transparent" />}
                     
                     <motion.p className="text-4xl mb-2" animate={{ rotate: [0, -8, 8, -4, 4, 0] }} transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}>{PODIUM_EMOJIS[i]}</motion.p>
                     
-                    <div className="w-16 h-16 rounded-full bg-primary/15 border-2 border-primary/30 mx-auto flex items-center justify-center text-3xl mb-2">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 mx-auto flex items-center justify-center text-3xl mb-2">
                       🏅
                     </div>
-                    <p className="font-bold text-foreground text-lg">{g.nombre}</p>
+                    <p className="font-bold font-heading text-secondary text-lg">{g.nombre}</p>
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
                       <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span> {g.canal?.replace(/_/g, ' ')}
                     </p>
                     <motion.p 
-                      className="text-2xl font-bold font-scoreboard text-neon-green mt-3"
+                      className="text-2xl font-bold font-scoreboard text-primary mt-3"
                       initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}
                     >{(g.sp_totales || 0).toLocaleString()} SP</motion.p>
-                    <span className="inline-block mt-2 text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{g.nivel}</span>
+                    <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>
                   </motion.div>
                 ))}
               </motion.div>
@@ -116,15 +116,15 @@ const Rankings = () => {
 
             {/* Table */}
             {rest.length > 0 && (
-              <motion.div className="scoreboard-card rounded-2xl overflow-hidden" variants={fadeUpItem}>
-                <div className="px-4 py-3 border-b border-border/30">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+              <motion.div className="bg-white border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
+                <div className="bg-primary px-4 py-3">
+                  <p className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2 font-heading">
                     📋 Tabla Completa
                   </p>
                 </div>
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border/30 text-[11px] text-muted-foreground uppercase tracking-wider">
+                    <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">Gerente</th>
                       <th className="text-left px-4 py-3">Canal</th>
@@ -136,7 +136,7 @@ const Rankings = () => {
                     {rest.map((g, i) => (
                       <motion.tr 
                         key={g.id}
-                        className={cn("border-b border-border/20 hover:bg-primary/5 transition-colors", g.user_id === profile?.user_id && "bg-primary/10 font-semibold")}
+                        className={cn("border-b border-border hover:bg-primary/5 transition-colors row-alt", g.user_id === profile?.user_id && "bg-primary/10 font-semibold")}
                         initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25, delay: i * 0.04 + 0.3 }}
                       >
                         <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{i + 4}</td>
@@ -144,12 +144,12 @@ const Rankings = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>
                             <span className="text-sm text-foreground">{g.nombre}</span>
-                            {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
+                            {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>
-                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-neon-green text-right">{(g.sp_totales || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{g.nivel}</span></td>
+                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{(g.sp_totales || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>
                       </motion.tr>
                     ))}
                   </tbody>

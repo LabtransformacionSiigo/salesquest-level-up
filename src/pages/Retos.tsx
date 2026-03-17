@@ -108,17 +108,17 @@ const Retos = () => {
     return (
       <motion.div
         key={reto.id}
-        className={cn("glass-card rounded-2xl p-5 transition-all relative overflow-hidden border-l-4", completed ? "border-l-primary" : "border-l-muted")}
+        className={cn("bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm", completed ? "border-l-accent" : "border-l-primary")}
         variants={scoreboardSlide}
         whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
       >
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
             {reto.tipo === 'diario' ? 'DIARIO' : reto.tipo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
           </span>
           {completed && (
             <motion.span 
-              className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full"
+              className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full"
               initial={{ scale: 0 }} animate={{ scale: 1 }}
             >✅ COMPLETADO</motion.span>
           )}
@@ -131,12 +131,12 @@ const Retos = () => {
             transition={{ duration: 0.6 }}
           >{completed ? '✅' : reto.emoji}</motion.span>
           <div className="flex-1">
-            <p className={cn("text-sm font-bold", completed ? "text-neon-green" : "text-foreground")}>{reto.nombre}</p>
+            <p className={cn("text-sm font-bold", completed ? "text-accent" : "text-foreground")}>{reto.nombre}</p>
             <p className="text-xs text-muted-foreground">{reto.desc}</p>
           </div>
           <div className="text-right">
             <motion.span 
-              className={cn("text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block", completed ? "bg-accent/20 text-neon-gold" : "bg-muted text-muted-foreground")}
+              className={cn("text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block", completed ? "bg-siigo-red text-white" : "bg-muted text-muted-foreground")}
               animate={completed ? { scale: [1, 1.15, 1] } : {}}
             >{completed ? `+${reto.sp}` : reto.sp} SP</motion.span>
           </div>
@@ -158,7 +158,7 @@ const Retos = () => {
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
-        <TabsList className="w-full glass-card border-border/30">
+        <TabsList className="w-full bg-white border border-border">
           <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
           <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
           <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>

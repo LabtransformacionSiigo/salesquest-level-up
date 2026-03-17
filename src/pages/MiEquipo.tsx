@@ -30,14 +30,14 @@ const MiEquipo = () => {
     <Layout title="👥 Mi Equipo">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Header */}
-        <motion.div className="scoreboard-card rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
+        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
           <div>
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><span>👥</span> Mi Equipo</h2>
+            <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2"><span>👥</span> Mi Equipo</h2>
             <p className="text-sm text-muted-foreground">Asesores a tu cargo</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <p className="text-3xl font-bold font-scoreboard text-neon-green">{activos.length}</p>
+              <p className="text-3xl font-bold font-scoreboard text-primary">{activos.length}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Activos</p>
             </div>
             <div className="text-center">
@@ -52,9 +52,9 @@ const MiEquipo = () => {
         ) : asesores.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
             {asesores.map(a => (
-              <motion.div key={a.id} className={cn("glass-card rounded-2xl p-6 transition-all hover:shadow-glow-green", !a.activo && "opacity-50")} variants={fadeUpItem}>
+              <motion.div key={a.id} className={cn("bg-white border border-border rounded-2xl p-6 transition-all hover:shadow-smooth-md shadow-smooth-sm", !a.activo && "opacity-50")} variants={fadeUpItem}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-xl">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl">
                     👤
                   </div>
                   <div>
@@ -63,9 +63,9 @@ const MiEquipo = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
+                  <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
                   <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{FLAG_MAP[a.pais] || '🌎'} {a.pais}</span>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive")}>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-accent text-white" : "bg-destructive/10 text-destructive")}>
                     {a.activo ? '✅ Activo' : '⏸️ Inactivo'}
                   </span>
                 </div>
