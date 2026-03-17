@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-outlined", className)}>{icon}</span>
+  <span className={cn("material-icons-round", className)}>{icon}</span>
 );
 
 const MiPerformance = () => {
@@ -34,123 +35,176 @@ const MiPerformance = () => {
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
     </div>;
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const isVC = profile?.canal === 'VC';
-  const isAliados = profile?.canal === 'VN_ALIADOS';
+  const canal = profile?.canal;
+  const isVC = canal === 'VC';
+  const isAliados = canal === 'VN_ALIADOS';
+  const isEmpresarios = canal === 'VN_EMPRESARIOS';
+
+  const canalLabel = isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
   return (
     <Layout title="Mis KPIs">
       <div className="space-y-6">
+        {/* Canal badge */}
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <MI icon={isVC ? 'swap_horiz' : isAliados ? 'handshake' : 'business'} className="text-sm" />
+            {canalLabel}
+          </span>
+        </div>
+
         {dataLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-32" />)}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-36 rounded-2xl" />)}
           </div>
         ) : (
           <>
-            {/* Vista VN (Empresarios/Aliados) */}
-            {!isVC && (
+            {/* ═══════════ VN EMPRESARIOS ═══════════ */}
+            {isEmpresarios && (
               <>
-                {/* Main KPI cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <KPICard icon="payments" label="Ventas del Mes" value={kpis ? `$${(kpis.ventas / 1_000_000).toFixed(0)}M` : '$0M'} />
-                  <KPICard icon="speed" label="% Cumplimiento"
-                    value={kpis ? `${kpis.pct_cumplimiento}%` : '0%'}
-                    color={kpis && Number(kpis.pct_cumplimiento) >= 100 ? 'text-secondary' : kpis && Number(kpis.pct_cumplimiento) >= 80 ? 'text-accent' : 'text-destructive'} />
-                  <KPICard icon="group_add" label="Referidos" value={String(kpis?.cant_recomendados || 0)} />
-                  <KPICard icon="person" label="Productividad/Asesor"
-                    value={kpis ? `$${((kpis.productividad_por_asesor || 0) / 1_000_000).toFixed(0)}M` : '$0M'} />
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <KPICard
+                    icon="inventory_2"
+                    label="Unidades"
+                    value={String(kpis?.sc_creados || 0)}
+                    sub="Unidades vendidas este mes"
+                  />
+                  <KPICard
+                    icon="trending_up"
+                    label="ACV"
+                    value={formatMoney(kpis?.acv_f)}
+                    sub="Valor contractual anual"
+                    color="text-secondary"
+                  />
+                  <KPICard
+                    icon="group_add"
+                    label="# de Referidos"
+                    value={String(kpis?.cant_recomendados || 0)}
+                    sub="Referidos generados"
+                    color="text-accent"
+                  />
                 </div>
 
-                {/* Cumplimiento gauge */}
-                <div className="bg-card border border-border rounded-2xl p-6">
-                  <h3 className="text-sm font-semibold text-foreground mb-4">Cumplimiento de Meta</h3>
-                  <div className="flex items-center gap-6">
-                    <div className="relative w-32 h-32">
-                      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                        <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                        <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10"
-                          strokeDasharray={`${Math.min(100, Number(kpis?.pct_cumplimiento || 0)) * 3.14} 314`}
-                          strokeLinecap="round" className="transition-all duration-1000" />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-bold text-foreground">{kpis?.pct_cumplimiento || 0}%</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="text-muted-foreground">Ventas:</span> <span className="font-semibold">${((kpis?.ventas || 0) / 1_000_000).toFixed(0)}M</span></p>
-                      <p><span className="text-muted-foreground">Meta:</span> <span className="font-semibold">${((kpis?.meta || 0) / 1_000_000).toFixed(0)}M</span></p>
-                      <p><span className="text-muted-foreground">HC Final:</span> <span className="font-semibold">{kpis?.hc_final || 0}</span></p>
-                      <p><span className="text-muted-foreground">Terminaciones:</span> <span className="font-semibold">{kpis?.terminaciones || 0}</span></p>
-                    </div>
-                  </div>
+                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <RetoCard
+                    icon="target"
+                    label="Efectividad SQL"
+                    value={`${kpis?.efectividad_sql_pct || 0}%`}
+                    progress={Number(kpis?.efectividad_sql_pct || 0)}
+                    description="% de SQL convertidos en venta"
+                  />
+                  <RetoCard
+                    icon="speed"
+                    label="Productividad"
+                    value={formatMoney(kpis?.productividad_por_asesor)}
+                    progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)}
+                    description="Ventas / HC activo del equipo"
+                  />
                 </div>
 
-                {/* Aliados extra: Efectividad Referidos */}
-                {isAliados && kpis && (
-                  <div className="bg-card border border-border rounded-2xl p-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                      <MI icon="handshake" className="text-primary text-lg" />
-                      Efectividad de Referidos
-                    </h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <KPICard icon="group_add" label="Referidos" value={String(kpis.cant_recomendados || 0)} small />
-                      <KPICard icon="payments" label="Ventas Referidos" value={`$${((kpis.ventas_recomendados || 0) / 1_000_000).toFixed(0)}M`} small />
-                      <KPICard icon="percent" label="Efectividad" value={`${kpis.efectividad_referidos_pct || 0}%`} small
-                        color={Number(kpis.efectividad_referidos_pct) >= 50 ? 'text-secondary' : 'text-accent'} />
-                    </div>
-                  </div>
-                )}
+                <CumplimientoSection kpis={kpis} />
               </>
             )}
 
-            {/* Vista VC (Venta Cruzada) */}
+            {/* ═══════════ VN ALIADOS ═══════════ */}
+            {isAliados && (
+              <>
+                <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <KPICard
+                    icon="inventory_2"
+                    label="Unidades"
+                    value={String(kpis?.sc_creados || 0)}
+                    sub="Unidades vendidas este mes"
+                  />
+                  <KPICard
+                    icon="trending_up"
+                    label="ACV"
+                    value={formatMoney(kpis?.acv_f)}
+                    sub="Valor contractual anual"
+                    color="text-secondary"
+                  />
+                  <KPICard
+                    icon="person_add"
+                    label="Referidos del Contador"
+                    value={String(kpis?.cant_recomendados || 0)}
+                    sub="Referidos por canal aliados"
+                    color="text-accent"
+                  />
+                </div>
+
+                <SectionTitle icon="emoji_events" title="Retos Semanales" />
+                <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+                  <RetoCard
+                    icon="handshake"
+                    label="Efectividad de los Referidos"
+                    value={`${kpis?.efectividad_referidos_pct || 0}%`}
+                    progress={Number(kpis?.efectividad_referidos_pct || 0)}
+                    description="% de referidos que se convirtieron en venta"
+                  />
+                </div>
+
+                <CumplimientoSection kpis={kpis} />
+              </>
+            )}
+
+            {/* ═══════════ VENTA CRUZADA ═══════════ */}
             {isVC && (
               <>
-                {/* ACV+ principal */}
-                <div className="bg-card border border-border rounded-2xl p-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">ACV+ del Mes Actual</p>
-                  <p className="text-5xl font-bold text-primary">
-                    ${acvData.length > 0 ? ((acvData[0]?.acv_plus_total || 0) / 1_000_000).toFixed(1) : '0'}M
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {acvData.length > 0 ? acvData[0]?.unidades || 0 : 0} unidades vendidas
-                  </p>
+                <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                    <MI icon="add_chart" className="text-4xl text-primary mb-2" />
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">ACV+ del Mes</p>
+                    <p className="text-4xl font-bold text-primary">
+                      {acvData.length > 0 ? `$${((acvData[0]?.acv_plus_total || 0) / 1_000_000).toFixed(1)}M` : '$0M'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {acvData.length > 0 ? acvData[0]?.unidades || 0 : 0} unidades vendidas
+                    </p>
+                  </div>
                 </div>
 
                 {/* Desglose por bloque */}
                 {acvData.length > 0 && (
-                  <div className="bg-card border border-border rounded-2xl p-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-4">Desglose por Bloque</h3>
-                    <div className="grid grid-cols-3 gap-4">
+                  <>
+                    <SectionTitle icon="pie_chart" title="Desglose por Bloque" />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <BloqueCard label="Nómina-e" value={acvData[0]?.acv_nomina || 0} color="bg-primary" />
                       <BloqueCard label="FE" value={acvData[0]?.acv_fe || 0} color="bg-secondary" />
                       <BloqueCard label="Conversiones" value={acvData[0]?.acv_conversiones || 0} color="bg-accent" />
                     </div>
-                  </div>
+                  </>
                 )}
 
                 {/* Histórico */}
                 {acvData.length > 1 && (
-                  <div className="bg-card border border-border rounded-2xl p-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-4">Histórico ACV+</h3>
-                    <div className="space-y-2">
-                      {acvData.map((d, i) => (
-                        <div key={i} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                          <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
-                          <span className="text-sm font-bold text-foreground">${((d.acv_plus_total || 0) / 1_000_000).toFixed(1)}M</span>
-                        </div>
-                      ))}
+                  <>
+                    <SectionTitle icon="history" title="Histórico ACV+" />
+                    <div className="bg-card border border-border rounded-2xl p-6">
+                      <div className="space-y-1">
+                        {acvData.map((d, i) => (
+                          <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0">
+                            <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
+                            <span className="text-sm font-bold text-foreground">${((d.acv_plus_total || 0) / 1_000_000).toFixed(1)}M</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </>
             )}
 
+            {/* Sin datos */}
             {!kpis && !isVC && (
               <div className="text-center py-16 text-muted-foreground">
                 <MI icon="analytics" className="text-5xl mb-3" />
@@ -164,19 +218,85 @@ const MiPerformance = () => {
   );
 };
 
-const KPICard = ({ icon, label, value, color, small }: { icon: string; label: string; value: string; color?: string; small?: boolean }) => (
-  <div className={cn("bg-muted/50 rounded-xl text-center", small ? "p-3" : "p-5")}>
-    <MI icon={icon} className={cn("mb-1", color || "text-primary", small ? "text-xl" : "text-2xl")} />
-    <p className={cn("font-bold", color || "text-foreground", small ? "text-lg" : "text-2xl")}>{value}</p>
-    <p className={cn("text-muted-foreground uppercase tracking-wider", small ? "text-[9px]" : "text-[10px]")}>{label}</p>
+/* ─── Helpers ─── */
+
+const formatMoney = (val: number | null | undefined) => {
+  const n = val || 0;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+};
+
+/* ─── Sub-components ─── */
+
+const SectionTitle = ({ icon, title }: { icon: string; title: string }) => (
+  <h3 className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider pt-2">
+    <MI icon={icon} className="text-primary text-lg" />
+    {title}
+  </h3>
+);
+
+const KPICard = ({ icon, label, value, sub, color }: { icon: string; label: string; value: string; sub: string; color?: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6 text-center hover:shadow-md transition-shadow">
+    <MI icon={icon} className={cn("text-3xl mb-2", color || "text-primary")} />
+    <p className={cn("text-3xl font-bold", color || "text-foreground")}>{value}</p>
+    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mt-1">{label}</p>
+    <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>
   </div>
 );
 
+const RetoCard = ({ icon, label, value, progress, description }: { icon: string; label: string; value: string; progress: number; description: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6">
+    <div className="flex items-center gap-3 mb-4">
+      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+        <MI icon={icon} className="text-primary text-xl" />
+      </div>
+      <div>
+        <p className="text-sm font-bold text-foreground">{label}</p>
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      </div>
+      <span className="ml-auto text-2xl font-bold text-primary">{value}</span>
+    </div>
+    <Progress value={Math.min(100, progress)} className="h-2" />
+  </div>
+);
+
+const CumplimientoSection = ({ kpis }: { kpis: any }) => (
+  <>
+    <SectionTitle icon="donut_large" title="Cumplimiento de Meta" />
+    <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="flex items-center gap-8">
+        <div className="relative w-28 h-28 shrink-0">
+          <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+            <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10"
+              strokeDasharray={`${Math.min(100, Number(kpis?.pct_cumplimiento || 0)) * 3.14} 314`}
+              strokeLinecap="round" className="transition-all duration-1000" />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xl font-bold text-foreground">{kpis?.pct_cumplimiento || 0}%</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+          <MetaRow label="Ventas" value={formatMoney(kpis?.ventas)} />
+          <MetaRow label="Meta" value={formatMoney(kpis?.meta)} />
+          <MetaRow label="HC Final" value={String(kpis?.hc_final || 0)} />
+          <MetaRow label="Terminaciones" value={String(kpis?.terminaciones || 0)} />
+        </div>
+      </div>
+    </div>
+  </>
+);
+
+const MetaRow = ({ label, value }: { label: string; value: string }) => (
+  <p><span className="text-muted-foreground">{label}:</span> <span className="font-semibold text-foreground">{value}</span></p>
+);
+
 const BloqueCard = ({ label, value, color }: { label: string; value: number; color: string }) => (
-  <div className="bg-muted/50 rounded-xl p-4 text-center">
-    <div className={cn("w-3 h-3 rounded-full mx-auto mb-2", color)} />
-    <p className="text-lg font-bold text-foreground">${(value / 1_000_000).toFixed(1)}M</p>
-    <p className="text-[10px] text-muted-foreground">{label}</p>
+  <div className="bg-card border border-border rounded-2xl p-5 text-center hover:shadow-md transition-shadow">
+    <div className={cn("w-3 h-3 rounded-full mx-auto mb-3", color)} />
+    <p className="text-xl font-bold text-foreground">${(value / 1_000_000).toFixed(1)}M</p>
+    <p className="text-xs text-muted-foreground font-medium">{label}</p>
   </div>
 );
 
