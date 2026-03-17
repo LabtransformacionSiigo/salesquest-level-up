@@ -72,7 +72,7 @@ export const cardHover = {
   rest: { scale: 1, boxShadow: '0 0 0 rgba(0,0,0,0)' },
   hover: { 
     scale: 1.02, 
-    boxShadow: '0 8px 30px -10px rgba(0, 170, 255, 0.15)',
+    boxShadow: '0 0 20px hsla(145, 72%, 45%, 0.15)',
     transition: { duration: 0.2 } 
   },
   tap: { scale: 0.98 },
@@ -83,5 +83,67 @@ export const glowPulse: Variants = {
   show: {
     opacity: [0.4, 1, 0.4],
     transition: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+  },
+};
+
+// ⚽ GOAL celebration effect
+export const goalExplosion: Variants = {
+  hidden: { opacity: 0, scale: 0 },
+  show: {
+    opacity: [0, 1, 1, 0],
+    scale: [0.5, 1.5, 1.2, 1.5],
+    transition: { duration: 1.2, ease: 'easeOut' },
+  },
+};
+
+// 🏆 Trophy wobble for medals
+export const trophyWobble: Variants = {
+  hidden: { opacity: 0, rotate: -15, scale: 0.7 },
+  show: {
+    opacity: 1,
+    rotate: [0, -5, 5, -3, 3, 0],
+    scale: 1,
+    transition: { duration: 0.8, ease: 'easeOut' },
+  },
+};
+
+// Football bounce for buttons
+export const ballBounce = {
+  hover: { 
+    y: [0, -4, 0, -2, 0],
+    transition: { duration: 0.4, ease: 'easeInOut' }
+  },
+  tap: { scale: 0.95 },
+};
+
+// Scoreboard slide-in
+export const scoreboardSlide: Variants = {
+  hidden: { opacity: 0, x: -40, scaleX: 0.8 },
+  show: { 
+    opacity: 1, x: 0, scaleX: 1,
+    transition: { type: 'spring', stiffness: 150, damping: 18 }
+  },
+};
+
+// Stadium wave for lists
+export const stadiumWave: Variants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.06,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+// Confetti particle
+export const confettiParticle: Variants = {
+  hidden: { opacity: 0, y: -20, x: 0 },
+  show: {
+    opacity: [1, 1, 0],
+    y: [0, 80, 120],
+    x: [0, 30, -20],
+    rotate: [0, 360, 720],
+    transition: { duration: 1.5, ease: 'easeOut' },
   },
 };

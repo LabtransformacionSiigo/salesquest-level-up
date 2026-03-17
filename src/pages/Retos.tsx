@@ -8,11 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem } from '@/lib/animations';
-
-const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-outlined", className)}>{icon}</span>
-);
+import { staggerContainer, fadeUpItem, scoreboardSlide } from '@/lib/animations';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
@@ -29,26 +25,27 @@ interface RetoConfig {
   desc: string;
   umbral?: number;
   tipo: 'diario' | 'semanal' | 'mensual';
+  emoji: string;
 }
 
 const RETOS_DIARIOS: RetoConfig[] = [
-  { id: 'primer_disparo', nombre: 'Primer Disparo', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario' },
-  { id: 'jornada_redonda', nombre: 'Jornada Redonda', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario' },
+  { id: 'primer_disparo', nombre: 'Primer Tiro', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario', emoji: '⚽' },
+  { id: 'jornada_redonda', nombre: 'Doblete', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario', emoji: '⚽⚽' },
 ];
 
 const RETOS_SEMANALES: RetoConfig[] = [
-  { id: 'semana_ejecutada', nombre: 'Semana Ejecutada', sp: 100, desc: '≥$50M COP en ventas esta semana', umbral: 50_000_000, tipo: 'semanal' },
-  { id: 'semana_en_fuego', nombre: 'Semana en Fuego', sp: 160, desc: '≥$80M COP en ventas esta semana', umbral: 80_000_000, tipo: 'semanal' },
-  { id: 'semana_elite', nombre: 'Semana Élite', sp: 250, desc: '≥$100M COP en ventas esta semana', umbral: 100_000_000, tipo: 'semanal' },
-  { id: 'sin_semana_roja', nombre: 'Sin Semana Roja', sp: 80, desc: 'Ningún día sin ventas esta semana', tipo: 'semanal' },
+  { id: 'semana_ejecutada', nombre: 'Fase de Grupos', sp: 100, desc: '≥$50M COP en ventas esta semana', umbral: 50_000_000, tipo: 'semanal', emoji: '🏟️' },
+  { id: 'semana_en_fuego', nombre: 'Cuartos de Final', sp: 160, desc: '≥$80M COP en ventas esta semana', umbral: 80_000_000, tipo: 'semanal', emoji: '🔥' },
+  { id: 'semana_elite', nombre: 'Semifinal', sp: 250, desc: '≥$100M COP en ventas esta semana', umbral: 100_000_000, tipo: 'semanal', emoji: '⭐' },
+  { id: 'sin_semana_roja', nombre: 'Invicto', sp: 80, desc: 'Ningún día sin ventas esta semana', tipo: 'semanal', emoji: '🛡️' },
 ];
 
 const RETOS_MENSUALES: RetoConfig[] = [
-  { id: 'meta_conquistada', nombre: 'Meta Conquistada', sp: 500, desc: '≥100% de cumplimiento mensual', umbral: 100, tipo: 'mensual' },
-  { id: 'mes_impacto', nombre: 'Mes Impacto', sp: 800, desc: '≥120% de cumplimiento mensual', umbral: 120, tipo: 'mensual' },
-  { id: 'mes_elite', nombre: 'Mes Élite', sp: 1200, desc: '≥150% de cumplimiento mensual', umbral: 150, tipo: 'mensual' },
-  { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 2000, desc: '≥200% de cumplimiento mensual', umbral: 200, tipo: 'mensual' },
-  { id: 'el_que_no_para', nombre: 'El Que No Para', sp: 600, desc: 'Sin semanas rojas en el mes', tipo: 'mensual' },
+  { id: 'meta_conquistada', nombre: 'La Final', sp: 500, desc: '≥100% de cumplimiento mensual', umbral: 100, tipo: 'mensual', emoji: '🏆' },
+  { id: 'mes_impacto', nombre: 'Tiempo Extra', sp: 800, desc: '≥120% de cumplimiento mensual', umbral: 120, tipo: 'mensual', emoji: '⚡' },
+  { id: 'mes_elite', nombre: 'Penales', sp: 1200, desc: '≥150% de cumplimiento mensual', umbral: 150, tipo: 'mensual', emoji: '🥅' },
+  { id: 'mes_legendario', nombre: 'Campeón del Mundo', sp: 2000, desc: '≥200% de cumplimiento mensual', umbral: 200, tipo: 'mensual', emoji: '🌟' },
+  { id: 'el_que_no_para', nombre: 'Imbatible', sp: 600, desc: 'Sin semanas rojas en el mes', tipo: 'mensual', emoji: '🛡️' },
 ];
 
 const Retos = () => {
@@ -149,27 +146,32 @@ const Retos = () => {
       <motion.div
         key={reto.id}
         className={cn(
-          "bg-card border rounded-2xl p-5 transition-all",
-          completed ? "border-secondary/50 bg-secondary/5" : "border-border"
+          "match-card rounded-2xl p-5 transition-all relative overflow-hidden",
+          completed ? "border-l-primary bg-primary/5" : "border-l-muted-foreground"
         )}
-        variants={fadeUpItem}
+        variants={scoreboardSlide}
         whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
       >
+        {completed && (
+          <div className="absolute top-0 right-0 bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+            ⚽ ¡GOL!
+          </div>
+        )}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <motion.span 
               className="text-xl"
               animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : progress.pct >= 50 ? { scale: [1, 1.1, 1] } : {}}
               transition={{ duration: 0.6, repeat: completed ? 0 : progress.pct >= 50 ? Infinity : 0, repeatDelay: 2 }}
-            >{completed ? '✅' : progress.pct >= 50 ? '🔥' : '🔒'}</motion.span>
+            >{completed ? '✅' : reto.emoji}</motion.span>
             <div>
-              <p className={cn("text-sm font-bold", completed ? "text-secondary" : "text-foreground")}>{reto.nombre}</p>
+              <p className={cn("text-sm font-bold", completed ? "text-primary" : "text-foreground")}>{reto.nombre}</p>
               <p className="text-xs text-muted-foreground">{reto.desc}</p>
             </div>
           </div>
           <motion.span 
             className={cn(
-              "text-xs font-bold px-2.5 py-1 rounded-full",
+              "text-xs font-bold font-scoreboard px-2.5 py-1 rounded-full",
               completed ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
             )}
             animate={completed ? { scale: [1, 1.15, 1] } : {}}
@@ -183,26 +185,26 @@ const Retos = () => {
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>{formatValue(reto, progress.current)} / {formatValue(reto, progress.target)}</span>
-              <span>{Math.round(progress.pct)}%</span>
+              <span className="font-scoreboard">{Math.round(progress.pct)}%</span>
             </div>
             <Progress value={progress.pct} className="h-2" />
           </div>
         )}
 
         {!completed && !reto.umbral && (
-          <div className="opacity-50 text-xs text-muted-foreground italic">En progreso...</div>
+          <div className="opacity-50 text-xs text-muted-foreground italic">En cancha...</div>
         )}
       </motion.div>
     );
   };
 
   return (
-    <Layout title="Retos">
+    <Layout title="⚽ Partidos y Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
-        <TabsList className="w-full">
-          <TabsTrigger value="diarios" className="flex-1">🎯 Diarios</TabsTrigger>
-          <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
-          <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
+        <TabsList className="w-full bg-card border border-border">
+          <TabsTrigger value="diarios" className="flex-1">⚽ Entrenamiento</TabsTrigger>
+          <TabsTrigger value="semanales" className="flex-1">🏟️ Partidos</TabsTrigger>
+          <TabsTrigger value="mensuales" className="flex-1">🏆 Torneo</TabsTrigger>
         </TabsList>
 
         {dataLoading ? (

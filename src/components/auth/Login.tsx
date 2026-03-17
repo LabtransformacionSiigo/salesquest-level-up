@@ -5,7 +5,6 @@ import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
-import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 
 const Login = () => {
@@ -36,28 +35,46 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Left panel — Siigo navy */}
+      {/* Left panel — Stadium entrance */}
       <div className="hidden lg:flex lg:w-[480px] bg-sidebar flex-col items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+        {/* Stadium lights effect */}
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-primary/[0.08] blur-[80px]" />
+          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-primary/[0.03] to-transparent" />
+        </div>
+        
         <div className="relative z-10 text-center px-12">
-          <img src={siigoLogoWhite} alt="Siigo" className="h-12 mx-auto mb-10" />
-          <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Siigo Arena</h1>
-          <p className="text-base text-white/50 max-w-xs mx-auto leading-relaxed">
-            Plataforma de Gamificación Comercial
+          <img src={siigoLogoWhite} alt="Siigo" className="h-10 mx-auto mb-6" />
+          
+          <div className="text-6xl mb-6">⚽</div>
+          
+          <h1 className="text-3xl font-black text-white mb-2 tracking-tight">SalesQuest</h1>
+          <p className="text-lg font-bold text-primary mb-1">Mundial 2026 Edition</p>
+          <p className="text-sm text-white/40 max-w-xs mx-auto leading-relaxed">
+            Tu camino hacia la Copa del Mundo de las Ventas
           </p>
-          <div className="mt-12 grid grid-cols-3 gap-4 text-white/40 text-xs">
+          
+          <div className="mt-10 grid grid-cols-3 gap-4 text-white/50 text-xs">
             <div className="flex flex-col items-center gap-2">
-              <span className="material-icons-round text-2xl text-primary">leaderboard</span>
-              <span className="font-semibold">Rankings</span>
+              <span className="text-2xl">🏆</span>
+              <span className="font-semibold">Trofeos</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <span className="material-icons-round text-2xl text-accent">emoji_events</span>
-              <span className="font-semibold">Medallas</span>
+              <span className="text-2xl">⚽</span>
+              <span className="font-semibold">Partidos</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <span className="material-icons-round text-2xl text-destructive">favorite</span>
-              <span className="font-semibold">Reconocer</span>
+              <span className="text-2xl">🌟</span>
+              <span className="font-semibold">Balón de Oro</span>
             </div>
+          </div>
+
+          <div className="mt-8 flex items-center justify-center gap-3 text-white/30 text-xs">
+            <span>🇨🇴</span>
+            <span>🇲🇽</span>
+            <span>🇪🇨</span>
+            <span>🇺🇸</span>
+            <span className="ml-1">FIFA 2026</span>
           </div>
         </div>
       </div>
@@ -66,18 +83,18 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
-            <img src={siigoLogoBlue} alt="Siigo" className="h-9 mx-auto mb-3" />
-            <p className="text-sm font-bold text-primary">Siigo Arena</p>
+            <span className="text-5xl block mb-3">⚽</span>
+            <p className="text-lg font-bold text-primary">SalesQuest · Mundial 2026</p>
           </div>
 
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl font-black text-foreground mb-1">Iniciar Sesión</h2>
+              <h2 className="text-2xl font-black text-foreground mb-1">Entra al Estadio</h2>
               <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa</p>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/8 border border-destructive/15 rounded-xl text-destructive text-sm">
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -86,14 +103,14 @@ const Login = () => {
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Correo electrónico</label>
-                <Input type="email" placeholder="nombre@siigo.com" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl bg-muted/50 border-border" />
+                <Input type="email" placeholder="nombre@siigo.com" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Contraseña</label>
-                <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted/50 border-border" />
+                <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-12 text-base" size="lg">
-                {isLoading ? 'Ingresando...' : 'Ingresar'}
+                {isLoading ? '⚽ Entrando...' : '⚽ Entrar al Estadio'}
               </Button>
             </form>
 
