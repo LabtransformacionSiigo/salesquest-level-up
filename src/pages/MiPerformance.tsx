@@ -241,6 +241,7 @@ const MiPerformance = () => {
           </>
         )}
       </div>
+      </TooltipProvider>
     </Layout>
   );
 };
