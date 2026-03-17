@@ -10,12 +10,18 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
 );
 
+const TABLE_OPTIONS = [
+  { value: "productividad", label: "Productividad Progresiva", desc: "KPIs mensuales (VN_EMPRESARIOS / VN_ALIADOS)", icon: "trending_up" },
+  { value: "ventas_vc", label: "Ventas VC", desc: "Ventas de Venta Cruzada 2026", icon: "storefront" },
+];
+
 const AdminDatabricks = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [executing, setExecuting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [preview, setPreview] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [selectedTable, setSelectedTable] = useState("productividad");
 
   const handlePreview = async () => {
     setExecuting(true);
@@ -23,7 +29,7 @@ const AdminDatabricks = () => {
     setSyncResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('sync-databricks', {
-        body: { mode: 'preview' },
+        body: { mode: 'preview', table: selectedTable },
       });
       if (error) setPreview({ error: error.message });
       else setPreview(data);
@@ -38,7 +44,7 @@ const AdminDatabricks = () => {
     setSyncResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('sync-databricks', {
-        body: { mode: 'sync' },
+        body: { mode: 'sync', table: selectedTable },
       });
       if (error) setSyncResult({ error: error.message });
       else setSyncResult(data);
@@ -63,8 +69,30 @@ const AdminDatabricks = () => {
               Sincronización Databricks
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Conecta a <code className="bg-muted px-1.5 py-0.5 rounded text-xs">db_comercial.tbl_slv_Productividad_Progresiva</code> y sincroniza ventas + KPIs del año 2026.
+              Conecta a Databricks y sincroniza datos del año 2026.
             </p>
+          </div>
+
+          {/* Table selector */}
+          <div className="grid grid-cols-2 gap-3">
+            {TABLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => { setSelectedTable(opt.value); setPreview(null); setSyncResult(null); }}
+                className={cn(
+                  "flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all",
+                  selectedTable === opt.value
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-muted-foreground/30"
+                )}
+              >
+                <MI icon={opt.icon} className={cn("text-2xl mt-0.5", selectedTable === opt.value ? "text-primary" : "text-muted-foreground")} />
+                <div>
+                  <p className={cn("font-semibold text-sm", selectedTable === opt.value ? "text-primary" : "text-foreground")}>{opt.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                </div>
+              </button>
+            ))}
           </div>
 
           <div className="flex gap-3">
@@ -108,7 +136,7 @@ const AdminDatabricks = () => {
               {preview.error ? (
                 <><MI icon="error_outline" className="text-destructive" /> Error</>
               ) : (
-                <><MI icon="table_chart" className="text-primary" /> Preview de Databricks</>
+                <><MI icon="table_chart" className="text-primary" /> Preview: {preview.table || selectedTable}</>
               )}
             </h3>
 
@@ -127,7 +155,6 @@ const AdminDatabricks = () => {
                   </span>
                 </div>
 
-                {/* Column list */}
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-2">Columnas detectadas:</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -139,7 +166,6 @@ const AdminDatabricks = () => {
                   </div>
                 </div>
 
-                {/* Sample rows */}
                 {preview.sample?.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-foreground mb-2">Primeras {preview.sample.length} filas:</p>
@@ -195,14 +221,18 @@ const AdminDatabricks = () => {
                     <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
                     <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
                   </div>
-                  <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
-                    <p className="text-[10px] text-primary uppercase font-semibold">KPIs Sync</p>
-                    <p className="text-xl font-bold text-primary">{syncResult.kpis_sincronizados}</p>
-                  </div>
-                  <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
-                    <p className="text-[10px] text-secondary uppercase font-semibold">Ventas Sync</p>
-                    <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
-                  </div>
+                  {syncResult.kpis_sincronizados !== undefined && (
+                    <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-primary uppercase font-semibold">KPIs Sync</p>
+                      <p className="text-xl font-bold text-primary">{syncResult.kpis_sincronizados}</p>
+                    </div>
+                  )}
+                  {syncResult.ventas_sincronizadas !== undefined && (
+                    <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-secondary uppercase font-semibold">Ventas Sync</p>
+                      <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
+                    </div>
+                  )}
                 </div>
 
                 {syncResult.errores?.length > 0 && (
