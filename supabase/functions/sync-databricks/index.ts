@@ -244,21 +244,54 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   let insertedVentas = 0;
   const errores: string[] = [];
 
+  // Load existing gerentes
   const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
   const gerenteMap = new Map<string, any>();
   (gerentes || []).forEach((g: any) => {
     gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
-    gerenteMap.set(g.email?.toLowerCase()?.trim(), g);
   });
+
+  // Auto-create gerentes from lider column if they don't exist
+  const liderNames = new Set<string>();
+  for (const row of rows) {
+    const lider = (row.lider || "").trim();
+    if (lider) liderNames.add(lider);
+  }
+
+  for (const liderName of liderNames) {
+    if (!gerenteMap.get(liderName.toLowerCase())) {
+      const email = liderName.toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "@siigo.com";
+      const { data: newG, error: insErr } = await supabase.from("gerentes").insert({
+        nombre: liderName,
+        email,
+        canal: "VC",
+        pais: "COL",
+        activo: true,
+      }).select("id, nombre, email, canal").single();
+
+      if (insErr) {
+        // Maybe already exists by email, try to find
+        const { data: existing } = await supabase.from("gerentes").select("id, nombre, email, canal").eq("email", email).maybeSingle();
+        if (existing) {
+          gerenteMap.set(liderName.toLowerCase(), existing);
+        } else {
+          errores.push(`No se pudo crear gerente: ${liderName}: ${insErr.message}`);
+        }
+      } else if (newG) {
+        gerenteMap.set(liderName.toLowerCase(), newG);
+        console.log(`Auto-created gerente: ${liderName}`);
+      }
+    }
+  }
 
   for (const row of rows) {
     try {
-      // Real Databricks columns: comercial = nombre del gerente
-      const gerenteNombre = (row.comercial || row.Gerente || "").toLowerCase().trim();
-      const gerente = gerenteMap.get(gerenteNombre);
+      // lider = gerente, comercial = asesor/vendedor
+      const liderName = (row.lider || "").toLowerCase().trim();
+      const gerente = gerenteMap.get(liderName);
 
       if (!gerente) {
-        errores.push(`Gerente no encontrado: ${gerenteNombre || JSON.stringify(row).slice(0, 100)}`);
+        errores.push(`Gerente no encontrado: ${row.lider || JSON.stringify(row).slice(0, 100)}`);
         continue;
       }
 
@@ -273,10 +306,13 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
         documento_factura: String(row.Documento_Factura || ""),
         valor_producto: Number(row.Valor_Producto || 0),
         acv_plus: Number(row.ACV_PLUS || 0),
+        comercial: String(row.comercial || ""),
+        lider: String(row.lider || ""),
+        categoria_producto_venta: String(row.categoria_producto_Venta || ""),
       };
 
       const { error } = await supabase.from("ventas").upsert(ventaRow, {
-        onConflict: "id",
+        onConflict: "documento_factura,producto,fecha_facturacion",
       });
 
       if (error) errores.push(`Venta ${gerente.nombre}: ${error.message}`);
