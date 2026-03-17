@@ -165,14 +165,15 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{i + 4}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>
+                            {!isVC && <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>}
                             <span className="text-sm text-foreground">{g.nombre}</span>
                             {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>
-                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{(g.sp_totales || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>
+                        {!isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
+                        {isVC && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
+                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMetric(g.sp_totales || 0)}</td>
+                        {!isVC && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
                   </tbody>
