@@ -33,7 +33,6 @@ const MiEquipo = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const activos = asesores.filter(a => a.activo);
-  const inactivos = asesores.filter(a => !a.activo);
   const displayed = showAll ? asesores : activos;
 
   const formatFechaIngreso = (createdAt: string | null) => {
@@ -43,21 +42,23 @@ const MiEquipo = () => {
   };
 
   return (
-    <Layout title="Mi Equipo">
+    <Layout title="👕 Mi Plantilla">
       <div className="space-y-6">
-        <div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-between">
+        <div className="scoreboard-card rounded-2xl p-6 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Mis Asesores</h2>
-            <p className="text-sm text-muted-foreground">Equipo comercial a tu cargo</p>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <span>👕</span> Mi Plantilla
+            </h2>
+            <p className="text-sm text-muted-foreground">Tu equipo en la cancha</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <p className="text-3xl font-bold text-secondary">{activos.length}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Activos</p>
+              <p className="text-3xl font-bold font-scoreboard text-primary">{activos.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Titulares</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-muted-foreground">{asesores.length}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+              <p className="text-3xl font-bold font-scoreboard text-muted-foreground">{asesores.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Convocados</p>
             </div>
           </div>
         </div>
@@ -68,19 +69,19 @@ const MiEquipo = () => {
             onClick={() => setShowAll(false)}
             className={cn(
               "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
-              !showAll ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              !showAll ? "bg-primary text-primary-foreground shadow-glow-green" : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            Activos ({activos.length})
+            ⚽ Titulares ({activos.length})
           </button>
           <button
             onClick={() => setShowAll(true)}
             className={cn(
               "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
-              showAll ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              showAll ? "bg-primary text-primary-foreground shadow-glow-green" : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            Todos ({asesores.length})
+            📋 Todos ({asesores.length})
           </button>
         </div>
 
@@ -91,10 +92,13 @@ const MiEquipo = () => {
         ) : displayed.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayed.map(a => (
-              <div key={a.id} className={cn("bg-card border rounded-2xl p-6", a.activo ? "border-border" : "border-border opacity-60")}>
+              <div key={a.id} className={cn(
+                "scoreboard-card rounded-2xl p-6 transition-all hover:shadow-glow-green",
+                !a.activo && "opacity-60"
+              )}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-xl">
-                    {a.avatar_url || '👤'}
+                  <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-xl">
+                    {a.avatar_url || '⚽'}
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground">{a.nombre}</p>
@@ -102,26 +106,26 @@ const MiEquipo = () => {
                   </div>
                 </div>
 
-                {/* Fecha ingreso */}
-                 {a.created_at && (
-                   <p className="text-[10px] text-muted-foreground mb-3">
-                     📅 En el equipo desde: {formatFechaIngreso(a.created_at)}
+                {a.created_at && (
+                  <p className="text-[10px] text-muted-foreground mb-3">
+                    📅 En la plantilla desde: {formatFechaIngreso(a.created_at)}
                   </p>
                 )}
 
-                {/* CRM Placeholder */}
-                <div className="bg-accent/10 border border-accent/30 rounded-lg px-3 py-2 mb-3">
-                  <p className="text-[10px] text-accent font-medium flex items-center gap-1">
-                    <MI icon="info" className="text-xs" />
-                    Datos disponibles al conectar con fuente CRM
+                <div className="bg-secondary/5 border border-secondary/20 rounded-lg px-3 py-2 mb-3">
+                  <p className="text-[10px] text-secondary font-medium flex items-center gap-1">
+                    <span>📊</span>
+                    Estadísticas disponibles al conectar fuente CRM
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
-                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{a.pais}</span>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
-                    {a.activo ? 'Activo' : 'Inactivo'}
+                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    {a.pais === 'COL' ? '🇨🇴' : a.pais === 'MEX' ? '🇲🇽' : a.pais === 'ECU' ? '🇪🇨' : ''} {a.pais}
+                  </span>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive")}>
+                    {a.activo ? '⚽ Titular' : '🔄 Banca'}
                   </span>
                 </div>
               </div>
@@ -129,8 +133,8 @@ const MiEquipo = () => {
           </div>
         ) : (
           <div className="text-center py-16 text-muted-foreground">
-            <MI icon="groups" className="text-5xl mb-3" />
-            <p>No tienes asesores asignados</p>
+            <span className="text-5xl mb-3 block">🏟️</span>
+            <p>No tienes jugadores en tu plantilla</p>
           </div>
         )}
       </div>

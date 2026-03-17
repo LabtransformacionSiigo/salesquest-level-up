@@ -6,11 +6,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem, popIn, celebratePulse } from '@/lib/animations';
+import { staggerContainer, fadeUpItem, popIn, trophyWobble } from '@/lib/animations';
 
-const MI = ({ icon, className }: { icon: string; className?: string }) => (
-  <span className={cn("material-icons-outlined", className)}>{icon}</span>
-);
+const TROPHY_MAP: Record<string, string> = {
+  primera_venta: '⚽',
+  cantidad: '🥾',       // Golden Boot
+  monto: '🏆',          // World Cup Trophy
+  cumplimiento: '🌟',   // Golden Ball
+};
+
+const TROPHY_LABELS: Record<string, { label: string; emoji: string }> = {
+  primera_venta: { label: 'Primer Gol', emoji: '⚽' },
+  cantidad: { label: 'Bota de Oro', emoji: '🥾' },
+  monto: { label: 'Copa del Mundo', emoji: '🏆' },
+  cumplimiento: { label: 'Balón de Oro', emoji: '🌟' },
+};
 
 const Medallas = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
@@ -44,22 +54,17 @@ const Medallas = () => {
     grupos[key].push(m);
   });
 
-  const grupoLabels: Record<string, { label: string; icon: string }> = {
-    primera_venta: { label: 'Primera Venta', icon: 'celebration' },
-    cantidad: { label: 'Cantidad Acumulada', icon: 'trending_up' },
-    monto: { label: 'Monto Acumulado', icon: 'payments' },
-    cumplimiento: { label: 'Cumplimiento', icon: 'verified' },
-  };
-
   return (
-    <Layout title="Vitrina de Logros">
+    <Layout title="🏆 Vitrina de Trofeos">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Counter */}
-        <motion.div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
+        <motion.div className="scoreboard-card rounded-2xl p-6 flex items-center justify-between" variants={fadeUpItem}>
           <div>
-            <h2 className="text-lg font-bold text-foreground">Mis Medallas</h2>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <span>🏆</span> Mis Trofeos
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Canal: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
+              Selección: <span className="text-primary font-semibold">{profile?.canal?.replace(/_/g, ' ')}</span>
             </p>
           </div>
           <motion.div 
@@ -68,8 +73,8 @@ const Medallas = () => {
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
           >
-            <p className="text-3xl font-bold text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
+            <p className="text-3xl font-bold font-scoreboard text-gradient-trophy">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Conquistados</p>
           </motion.div>
         </motion.div>
 
@@ -79,11 +84,11 @@ const Medallas = () => {
           </div>
         ) : (
           Object.entries(grupos).map(([tipo, medallas]) => {
-            const info = grupoLabels[tipo] || { label: tipo, icon: 'star' };
+            const info = TROPHY_LABELS[tipo] || { label: tipo, emoji: '🏅' };
             return (
               <motion.div key={tipo} variants={fadeUpItem}>
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <MI icon={info.icon} className="text-primary text-lg" />
+                  <span className="text-lg">{info.emoji}</span>
                   {info.label}
                 </h3>
                 <motion.div 
@@ -100,31 +105,36 @@ const Medallas = () => {
                       <motion.div 
                         key={medalla.id} 
                         className={cn(
-                          "bg-card border rounded-2xl p-5 text-center transition-all group relative",
+                          "bg-card border rounded-2xl p-5 text-center transition-all group relative overflow-hidden",
                           desbloqueada
-                            ? "border-accent/30 shadow-smooth-sm"
+                            ? "border-accent/30 shadow-glow-gold trophy-card"
                             : "border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0"
                         )}
-                        variants={desbloqueada ? celebratePulse : fadeUpItem}
+                        variants={desbloqueada ? trophyWobble : fadeUpItem}
                         whileHover={{ scale: 1.05, y: -4, transition: { duration: 0.2 } }}
                       >
+                        {/* Golden shimmer overlay for unlocked */}
+                        {desbloqueada && (
+                          <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
+                        )}
+                        
                         <motion.p 
-                          className="text-4xl mb-3"
-                          animate={desbloqueada ? { rotate: [0, -10, 10, 0] } : {}}
-                          transition={{ duration: 0.5, delay: 0.3 }}
-                        >{desbloqueada ? medalla.emoji : '🔒'}</motion.p>
-                        <p className="text-sm font-bold text-foreground mb-1">{medalla.nombre}</p>
+                          className="text-4xl mb-3 relative z-10"
+                          animate={desbloqueada ? { rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.8, delay: 0.3 }}
+                        >{desbloqueada ? (TROPHY_MAP[medalla.condicion_tipo] || medalla.emoji) : '🔒'}</motion.p>
+                        <p className="text-sm font-bold text-foreground mb-1 relative z-10">{medalla.nombre}</p>
                         {medalla.producto && (
-                          <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1">
+                          <span className="inline-block text-[9px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full mb-1 relative z-10">
                             {medalla.producto}
                           </span>
                         )}
-                        <span className="inline-block text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2">
+                        <span className="inline-block text-[10px] font-semibold font-scoreboard bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2 relative z-10">
                           +{medalla.sp} SP
                         </span>
 
                         {desbloqueada && dataMedalla && (
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground relative z-10">
                             {new Date(dataMedalla.fecha_desbloqueo).toLocaleDateString('es')}
                           </p>
                         )}
@@ -145,8 +155,8 @@ const Medallas = () => {
 
         {!dataLoading && catalogo.length === 0 && (
           <motion.div className="text-center py-16 text-muted-foreground" variants={fadeUpItem}>
-            <MI icon="emoji_events" className="text-5xl mb-3" />
-            <p>No hay medallas configuradas para tu canal</p>
+            <span className="text-5xl mb-3 block">🏟️</span>
+            <p>No hay trofeos configurados para tu selección</p>
           </motion.div>
         )}
       </motion.div>
