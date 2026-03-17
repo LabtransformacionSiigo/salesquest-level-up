@@ -64,6 +64,7 @@ const MiPerformance = () => {
 
   return (
     <Layout title="Mis KPIs">
+      <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
         {/* Canal badge */}
         <div className="flex items-center gap-2">
