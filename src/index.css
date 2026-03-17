@@ -8,78 +8,77 @@
 
 @layer base {
   :root {
-    /* ═══ FIFA World Cup 2026 — BROADCAST EDITION ═══ */
-    --background: 220 25% 6%;
-    --foreground: 0 0% 96%;
+    /* ═══ SIIGO REFINADO — DARK MODE ═══ */
+    --background: 215 30% 7%;
+    --foreground: 210 20% 92%;
 
-    /* Cards: Glassmorphism dark */
-    --card: 220 20% 10%;
-    --card-foreground: 0 0% 96%;
+    /* Cards: Glassmorphism dark with blue tint */
+    --card: 215 25% 11%;
+    --card-foreground: 210 20% 92%;
 
-    --popover: 220 20% 10%;
-    --popover-foreground: 0 0% 96%;
+    --popover: 215 25% 11%;
+    --popover-foreground: 210 20% 92%;
 
-    /* Primary: Neon grass green */
-    --primary: 145 80% 48%;
+    /* Primary: Siigo Blue #00AAFF */
+    --primary: 200 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Electric blue */
-    --secondary: 210 100% 55%;
+    /* Secondary: Siigo lighter blue */
+    --secondary: 210 80% 60%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Accent: Gold / Trophy */
-    --accent: 43 100% 55%;
-    --accent-foreground: 220 25% 6%;
+    /* Accent: Siigo Success Green #7AC23A */
+    --accent: 95 55% 49%;
+    --accent-foreground: 0 0% 100%;
 
     /* Muted */
-    --muted: 220 15% 14%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 215 20% 15%;
+    --muted-foreground: 215 15% 50%;
 
-    /* Destructive: Red card */
-    --destructive: 0 85% 55%;
+    /* Destructive */
+    --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Orange */
-    --orange: 30 100% 55%;
+    /* Orange (warnings) */
+    --orange: 30 90% 55%;
     --orange-foreground: 0 0% 100%;
 
-    /* Purple: FIFA 2026 brand */
-    --purple: 270 60% 50%;
+    /* Purple (admin) */
+    --purple: 260 50% 55%;
     --purple-foreground: 0 0% 100%;
 
-    --border: 220 15% 16%;
-    --input: 220 15% 16%;
-    --ring: 145 80% 48%;
+    --border: 215 20% 16%;
+    --input: 215 20% 16%;
+    --ring: 200 100% 50%;
 
     --radius: 0.75rem;
 
     /* Shadows */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.7);
-    --shadow-glow-green: 0 0 20px hsla(145, 80%, 48%, 0.2), 0 0 40px hsla(145, 80%, 48%, 0.08);
-    --shadow-glow-gold: 0 0 20px hsla(43, 100%, 55%, 0.2), 0 0 40px hsla(43, 100%, 55%, 0.08);
-    --shadow-glow-blue: 0 0 20px hsla(210, 100%, 55%, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --shadow-glow-blue: 0 0 20px hsla(200, 100%, 50%, 0.15), 0 0 40px hsla(200, 100%, 50%, 0.06);
+    --shadow-glow-green: 0 0 20px hsla(95, 55%, 49%, 0.15), 0 0 40px hsla(95, 55%, 49%, 0.06);
+    --shadow-glow-gold: 0 0 20px hsla(43, 100%, 55%, 0.15), 0 0 40px hsla(43, 100%, 55%, 0.06);
 
-    /* Sidebar */
-    --sidebar-background: 220 30% 5%;
-    --sidebar-foreground: 0 0% 96%;
-    --sidebar-primary: 145 80% 48%;
+    /* Sidebar: Deep Siigo Navy */
+    --sidebar-background: 210 60% 10%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 200 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 12%;
-    --sidebar-accent-foreground: 0 0% 96%;
-    --sidebar-border: 220 20% 10%;
-    --sidebar-ring: 145 80% 48%;
-    --sidebar-muted: 220 10% 40%;
+    --sidebar-accent: 210 30% 16%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 210 30% 14%;
+    --sidebar-ring: 200 100% 50%;
+    --sidebar-muted: 215 15% 45%;
 
     /* Gradients */
-    --gradient-pitch: linear-gradient(135deg, hsl(220 25% 6%) 0%, hsl(220 30% 4%) 50%, hsl(225 20% 8%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(145 80% 48%), hsl(160 70% 40%));
+    --gradient-primary: linear-gradient(135deg, hsl(200 100% 50%), hsl(210 80% 45%));
     --gradient-trophy: linear-gradient(135deg, hsl(43 100% 55%), hsl(35 100% 45%));
-    --gradient-scoreboard: linear-gradient(180deg, hsla(220, 20%, 12%, 0.85) 0%, hsla(220, 20%, 8%, 0.9) 100%);
-    --gradient-purple: linear-gradient(135deg, hsl(270 60% 50%), hsl(280 50% 40%));
-    --gradient-broadcast: linear-gradient(135deg, hsla(220, 25%, 8%, 0.92) 0%, hsla(220, 30%, 6%, 0.95) 100%);
+    --gradient-scoreboard: linear-gradient(180deg, hsla(215, 25%, 12%, 0.9) 0%, hsla(215, 25%, 8%, 0.95) 100%);
+    --gradient-purple: linear-gradient(135deg, hsl(260 50% 55%), hsl(270 45% 45%));
+    --gradient-pitch: linear-gradient(135deg, hsl(215 30% 7%) 0%, hsl(215 35% 5%) 50%, hsl(220 25% 9%) 100%);
 
     --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
