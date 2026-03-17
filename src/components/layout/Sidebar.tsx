@@ -83,7 +83,7 @@ const Sidebar = () => {
           whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
         >
           <span className="text-accent text-base">🏆</span>
-          <span className="text-sm font-bold font-scoreboard text-neon-green">{(profile?.sp_totales || 0).toLocaleString()}</span>
+          <span className="text-sm font-bold font-scoreboard text-neon-blue">{(profile?.sp_totales || 0).toLocaleString()}</span>
           <span className="text-xs text-sidebar-muted font-medium">SP</span>
         </motion.div>
       </motion.div>
