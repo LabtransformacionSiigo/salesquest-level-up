@@ -253,27 +253,26 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
 
   for (const row of rows) {
     try {
-      // Adapt column names based on what the table actually has
-      const gerenteNombre = (row.Gerente || row.GERENTE || row.NOMBRE_GERENTE || "").toLowerCase().trim();
-      const gerenteEmail = (row.Email || row.EMAIL || row.CORREO || "").toLowerCase().trim();
-      const gerente = gerenteMap.get(gerenteEmail) || gerenteMap.get(gerenteNombre);
+      // Real Databricks columns: comercial = nombre del gerente
+      const gerenteNombre = (row.comercial || row.Gerente || "").toLowerCase().trim();
+      const gerente = gerenteMap.get(gerenteNombre);
 
       if (!gerente) {
-        errores.push(`Gerente no encontrado: ${gerenteNombre || gerenteEmail || JSON.stringify(row).slice(0, 100)}`);
+        errores.push(`Gerente no encontrado: ${gerenteNombre || JSON.stringify(row).slice(0, 100)}`);
         continue;
       }
 
       const ventaRow = {
         gerente_id: gerente.id,
-        fecha_facturacion: row.Fecha_Facturacion || row.FECHA_FACTURACION || row.fecha_facturacion || new Date().toISOString().split('T')[0],
+        fecha_facturacion: row.Fecha_Facturacion || new Date().toISOString().split('T')[0],
         canal: "VC",
-        anio: Number(row.Anio || row.ANIO || row.anio || 2026),
-        mes: String(row.Mes || row.MES || row.mes || ""),
-        producto: String(row.Producto || row.PRODUCTO || row.producto || ""),
-        bloque_venta: String(row.Bloque_Venta || row.BLOQUE_VENTA || row.bloque_venta || ""),
-        documento_factura: String(row.Documento_Factura || row.DOCUMENTO_FACTURA || row.documento_factura || ""),
-        valor_producto: Number(row.Valor_Producto || row.VALOR_PRODUCTO || row.valor_producto || 0),
-        acv_plus: Number(row.ACV_Plus || row.ACV_PLUS || row.acv_plus || 0),
+        anio: Number(row.Anio || 2026),
+        mes: String(row.mes || ""),
+        producto: String(row.Producto || ""),
+        bloque_venta: String(row.Bloque_Venta || ""),
+        documento_factura: String(row.Documento_Factura || ""),
+        valor_producto: Number(row.Valor_Producto || 0),
+        acv_plus: Number(row.ACV_PLUS || 0),
       };
 
       const { error } = await supabase.from("ventas").upsert(ventaRow, {
