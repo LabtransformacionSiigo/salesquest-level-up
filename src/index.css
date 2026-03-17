@@ -364,9 +364,9 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, 
-    hsla(220, 25%, 6%, 0.85) 0%,
-    hsla(220, 25%, 6%, 0.7) 40%,
-    hsla(220, 25%, 6%, 0.9) 100%
+    hsla(215, 30%, 7%, 0.88) 0%,
+    hsla(215, 30%, 7%, 0.72) 40%,
+    hsla(215, 30%, 7%, 0.92) 100%
   );
   z-index: 1;
 }
