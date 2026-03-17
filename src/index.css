@@ -330,17 +330,17 @@
 /* Jumbotron style */
 .jumbotron {
   background: linear-gradient(135deg, 
-    hsla(220, 25%, 8%, 0.9) 0%, 
-    hsla(145, 30%, 10%, 0.85) 50%,
-    hsla(220, 25%, 8%, 0.9) 100%
+    hsla(215, 30%, 9%, 0.92) 0%, 
+    hsla(200, 30%, 12%, 0.88) 50%,
+    hsla(215, 30%, 9%, 0.92) 100%
   );
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 2px solid hsla(145, 80%, 48%, 0.15);
+  border: 1px solid hsla(200, 100%, 50%, 0.12);
   box-shadow: 
-    0 8px 40px rgba(0, 0, 0, 0.6),
-    var(--shadow-glow-green),
-    inset 0 0 80px hsla(145, 80%, 48%, 0.03);
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    var(--shadow-glow-blue),
+    inset 0 0 80px hsla(200, 100%, 50%, 0.02);
   position: relative;
   overflow: hidden;
 }
@@ -351,7 +351,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, hsl(145 80% 48%), transparent);
+  background: linear-gradient(90deg, transparent, hsl(200 100% 50%), transparent);
   animation: broadcast-scan 3s linear infinite;
 }
 
