@@ -265,8 +265,9 @@ const SectionTitle = ({ icon, title, tip }: { icon: string; title: string; tip?:
   </h3>
 );
 
-const KPICard = ({ icon, label, value, sub, color }: { icon: string; label: string; value: string; sub: string; color?: string }) => (
-  <div className="bg-card border border-border rounded-2xl p-6 text-center hover:shadow-md transition-shadow">
+const KPICard = ({ icon, label, value, sub, color, tip }: { icon: string; label: string; value: string; sub: string; color?: string; tip?: string }) => (
+  <div className="bg-card border border-border rounded-2xl p-6 text-center hover:shadow-md transition-shadow relative">
+    {tip && <div className="absolute top-3 right-3"><InfoTip text={tip} /></div>}
     <MI icon={icon} className={cn("text-3xl mb-2", color || "text-primary")} />
     <p className={cn("text-3xl font-bold", color || "text-foreground")}>{value}</p>
     <p className="text-xs font-semibold text-foreground uppercase tracking-wider mt-1">{label}</p>
