@@ -679,11 +679,14 @@ export type Database = {
           anio: number | null
           bloque_venta: string | null
           canal: string | null
+          categoria_producto_venta: string | null
+          comercial: string | null
           created_at: string | null
           documento_factura: string | null
           fecha_facturacion: string
           gerente_id: string | null
           id: string
+          lider: string | null
           mes: string | null
           producto: string | null
           valor_producto: number | null
@@ -693,11 +696,14 @@ export type Database = {
           anio?: number | null
           bloque_venta?: string | null
           canal?: string | null
+          categoria_producto_venta?: string | null
+          comercial?: string | null
           created_at?: string | null
           documento_factura?: string | null
           fecha_facturacion: string
           gerente_id?: string | null
           id?: string
+          lider?: string | null
           mes?: string | null
           producto?: string | null
           valor_producto?: number | null
@@ -707,11 +713,14 @@ export type Database = {
           anio?: number | null
           bloque_venta?: string | null
           canal?: string | null
+          categoria_producto_venta?: string | null
+          comercial?: string | null
           created_at?: string | null
           documento_factura?: string | null
           fecha_facturacion?: string
           gerente_id?: string | null
           id?: string
+          lider?: string | null
           mes?: string | null
           producto?: string | null
           valor_producto?: number | null

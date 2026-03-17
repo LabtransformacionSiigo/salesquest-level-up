@@ -239,7 +239,7 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   return { total_rows: rows.length, kpis_sincronizados: insertedKpis, errores: errores.slice(0, 20) };
 }
 
-// Sync Ventas VC → ventas table
+// Sync Ventas VC → ventas table (batch optimized)
 async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   let insertedVentas = 0;
   const errores: string[] = [];
@@ -248,42 +248,56 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   const gerenteMap = new Map<string, any>();
   (gerentes || []).forEach((g: any) => {
     gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
-    gerenteMap.set(g.email?.toLowerCase()?.trim(), g);
   });
 
+  // Auto-create gerentes from lider column
+  const liderNames = new Set<string>();
   for (const row of rows) {
-    try {
-      // Real Databricks columns: comercial = nombre del gerente
-      const gerenteNombre = (row.comercial || row.Gerente || "").toLowerCase().trim();
-      const gerente = gerenteMap.get(gerenteNombre);
+    const lider = (row.lider || "").trim();
+    if (lider && !gerenteMap.get(lider.toLowerCase())) liderNames.add(lider);
+  }
 
-      if (!gerente) {
-        errores.push(`Gerente no encontrado: ${gerenteNombre || JSON.stringify(row).slice(0, 100)}`);
-        continue;
-      }
+  if (liderNames.size > 0) {
+    const newGerentes = [...liderNames].map(name => ({
+      nombre: name,
+      email: name.toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "@siigo.com",
+      canal: "VC", pais: "COL", activo: true,
+    }));
+    const { data: created, error: batchErr } = await supabase.from("gerentes").upsert(newGerentes, { onConflict: "email" }).select("id, nombre, email, canal");
+    if (batchErr) errores.push(`Error creando gerentes: ${batchErr.message}`);
+    (created || []).forEach((g: any) => gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g));
+  }
 
-      const ventaRow = {
-        gerente_id: gerente.id,
-        fecha_facturacion: row.Fecha_Facturacion || new Date().toISOString().split('T')[0],
-        canal: "VC",
-        anio: Number(row.Anio || 2026),
-        mes: String(row.mes || ""),
-        producto: String(row.Producto || ""),
-        bloque_venta: String(row.Bloque_Venta || ""),
-        documento_factura: String(row.Documento_Factura || ""),
-        valor_producto: Number(row.Valor_Producto || 0),
-        acv_plus: Number(row.ACV_PLUS || 0),
-      };
-
-      const { error } = await supabase.from("ventas").upsert(ventaRow, {
-        onConflict: "id",
-      });
-
-      if (error) errores.push(`Venta ${gerente.nombre}: ${error.message}`);
-      else insertedVentas++;
-    } catch (err) {
-      errores.push(`Row error: ${String(err)}`);
+  // Build all venta rows
+  const ventaRows: any[] = [];
+  for (const row of rows) {
+    const liderName = (row.lider || "").toLowerCase().trim();
+    const gerente = gerenteMap.get(liderName);
+    if (!gerente) {
+      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.lider || "?"}`);
+      continue;
     }
+    ventaRows.push({
+      gerente_id: gerente.id,
+      fecha_facturacion: row.Fecha_Facturacion || new Date().toISOString().split('T')[0],
+      canal: "VC", anio: Number(row.Anio || 2026), mes: String(row.mes || ""),
+      producto: String(row.Producto || ""), bloque_venta: String(row.Bloque_Venta || ""),
+      documento_factura: String(row.Documento_Factura || ""),
+      valor_producto: Number(row.Valor_Producto || 0), acv_plus: Number(row.ACV_PLUS || 0),
+      comercial: String(row.comercial || ""), lider: String(row.lider || ""),
+      categoria_producto_venta: String(row.categoria_producto_Venta || ""),
+    });
+  }
+
+  // Batch upsert in chunks of 500
+  const BATCH = 500;
+  for (let i = 0; i < ventaRows.length; i += BATCH) {
+    const chunk = ventaRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("ventas").upsert(chunk, {
+      onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
+    });
+    if (error) errores.push(`Batch ${i}-${i+chunk.length}: ${error.message}`);
+    else insertedVentas += (count || chunk.length);
   }
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
