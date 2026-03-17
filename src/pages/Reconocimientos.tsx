@@ -197,9 +197,9 @@ const Reconocimientos = () => {
                     onChange={e => setSelectedGerente(e.target.value)}
                     className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
                   >
-                    <option value="">Seleccionar gerente...</option>
-                    {gerentes.map(g => (
-                      <option key={g.id} value={g.id}>{g.nombre}</option>
+                    <option value="">Seleccionar asesor...</option>
+                    {asesores.map(a => (
+                      <option key={a.id} value={a.id}>{a.nombre}</option>
                     ))}
                   </select>
                 </div>
