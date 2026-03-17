@@ -10,13 +10,13 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const menuItems = [
-  { path: '/dashboard', icon: 'stadium', label: 'Estadio' },
-  { path: '/ranking', icon: 'emoji_events', label: 'Tabla' },
-  { path: '/mi-performance', icon: 'scoreboard', label: 'KPIs' },
-  { path: '/medallas', icon: 'military_tech', label: 'Trofeos' },
-  { path: '/retos', icon: 'sports_soccer', label: 'Partidos' },
-  { path: '/reconocimientos', icon: 'workspace_premium', label: 'Premios' },
-  { path: '/mi-equipo', icon: 'sports', label: 'Plantilla' },
+  { path: '/dashboard', icon: 'dashboard', label: 'Inicio' },
+  { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
+  { path: '/mi-performance', icon: 'insights', label: 'Mi Performance' },
+  { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
+  { path: '/retos', icon: 'flag', label: 'Retos' },
+  { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
+  { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
 
 const adminItems = [
@@ -42,15 +42,7 @@ const Sidebar = () => {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border turf-pattern net-texture relative">
-      {/* Subtle goal net overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-30"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23ffffff' stroke-width='0.3' fill='none' opacity='0.04'/%3E%3C/svg%3E")`,
-          backgroundSize: '30px 30px'
-        }}
-      />
-
+    <aside className="w-[220px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
       {/* Logo */}
       <motion.div 
         className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border relative z-10"
@@ -59,7 +51,7 @@ const Sidebar = () => {
         transition={{ duration: 0.4 }}
       >
         <img src={siigoLogo} alt="Siigo" className="h-8" />
-        <span className="text-lg">⚽</span>
+        <span className="text-[10px] font-bold text-primary/60 tracking-wide">ARENA</span>
       </motion.div>
 
       {/* Profile */}
@@ -70,19 +62,19 @@ const Sidebar = () => {
         transition={{ duration: 0.4, delay: 0.1 }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-lg text-sidebar-foreground shadow-glow-green">
-            {profile?.avatar_url || '⚽'}
+          <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-lg text-sidebar-foreground">
+            <MI icon="person" className="text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Jugador'}</p>
-            <p className="text-xs text-primary font-semibold">{profile?.nivel || 'Debutante'}</p>
+            <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
+            <p className="text-xs text-primary font-semibold">{profile?.nivel || 'Nivel 1'}</p>
           </div>
         </div>
         <motion.div 
           className="mt-3 flex items-center gap-2 glass-card rounded-lg px-3 py-2"
           whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
         >
-          <span className="text-accent text-base">🏆</span>
+          <MI icon="bolt" className="text-accent text-base" />
           <span className="text-sm font-bold font-scoreboard text-neon-blue">{(profile?.sp_totales || 0).toLocaleString()}</span>
           <span className="text-xs text-sidebar-muted font-medium">SP</span>
         </motion.div>
@@ -105,7 +97,7 @@ const Sidebar = () => {
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left transition-colors duration-150",
               isActive(item.path)
-                ? "glass-card text-primary border-primary/30 shadow-glow-green"
+                ? "glass-card text-primary border-primary/30"
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             )}
           >
@@ -141,10 +133,10 @@ const Sidebar = () => {
         )}
       </motion.nav>
 
-      {/* FIFA badge */}
+      {/* Footer */}
       <div className="px-4 py-3 border-t border-sidebar-border relative z-10">
         <div className="text-center text-[10px] text-sidebar-muted">
-          <span className="text-neon-blue font-bold">SalesQuest</span> · Siigo 🚀
+          <span className="text-neon-blue font-bold">Siigo Arena</span> · Gamificación
         </div>
       </div>
 

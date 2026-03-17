@@ -28,7 +28,7 @@ const Header = ({ title }: HeaderProps) => {
   return (
     <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-3">
-        <span className="text-lg">⚽</span>
+        <MI icon="bolt" className="text-lg text-primary" />
         <h1 className="text-base font-bold text-foreground">{title}</h1>
       </div>
 
@@ -42,10 +42,10 @@ const Header = ({ title }: HeaderProps) => {
           </div>
         )}
 
-        {/* World Cup 2026 badge */}
-        <div className="hidden md:flex items-center gap-1.5 bg-purple/10 border border-purple/20 rounded-full px-3 py-1.5">
-          <span className="text-sm">🌎</span>
-          <span className="text-[10px] font-bold text-purple">FIFA 2026</span>
+        {/* Siigo Arena badge */}
+        <div className="hidden md:flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5">
+          <MI icon="emoji_events" className="text-sm text-primary" />
+          <span className="text-[10px] font-bold text-primary">Siigo Arena</span>
         </div>
 
         {/* Notifications */}

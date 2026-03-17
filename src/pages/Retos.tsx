@@ -20,27 +20,26 @@ const getISOWeek = (d: Date) => {
 
 interface RetoConfig {
   id: string; nombre: string; sp: number; desc: string; umbral?: number; tipo: 'diario' | 'semanal' | 'mensual'; emoji: string;
-  sede?: string;
 }
 
 const RETOS_DIARIOS: RetoConfig[] = [
-  { id: 'primer_disparo', nombre: 'Primer Tiro', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario', emoji: '⚽', sede: 'Entrenamiento' },
-  { id: 'jornada_redonda', nombre: 'Doblete', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario', emoji: '⚽⚽', sede: 'Entrenamiento' },
+  { id: 'primer_disparo', nombre: 'Primera Venta', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario', emoji: '🎯' },
+  { id: 'jornada_redonda', nombre: 'Doble Impacto', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario', emoji: '⚡' },
 ];
 
 const RETOS_SEMANALES: RetoConfig[] = [
-  { id: 'semana_ejecutada', nombre: 'Fase de Grupos', sp: 100, desc: '≥$50M COP en ventas', umbral: 50_000_000, tipo: 'semanal', emoji: '🏟️', sede: 'MetLife Stadium' },
-  { id: 'semana_en_fuego', nombre: 'Cuartos de Final', sp: 160, desc: '≥$80M COP en ventas', umbral: 80_000_000, tipo: 'semanal', emoji: '🔥', sede: 'Estadio Azteca' },
-  { id: 'semana_elite', nombre: 'Semifinal', sp: 250, desc: '≥$100M COP en ventas', umbral: 100_000_000, tipo: 'semanal', emoji: '⭐', sede: 'AT&T Stadium' },
-  { id: 'sin_semana_roja', nombre: 'Invicto', sp: 80, desc: 'Sin días sin ventas', tipo: 'semanal', emoji: '🛡️', sede: 'SoFi Stadium' },
+  { id: 'semana_ejecutada', nombre: 'Reto Básico', sp: 100, desc: '≥$50M COP en ventas', umbral: 50_000_000, tipo: 'semanal', emoji: '🎯' },
+  { id: 'semana_en_fuego', nombre: 'Reto Intermedio', sp: 160, desc: '≥$80M COP en ventas', umbral: 80_000_000, tipo: 'semanal', emoji: '🔥' },
+  { id: 'semana_elite', nombre: 'Reto Avanzado', sp: 250, desc: '≥$100M COP en ventas', umbral: 100_000_000, tipo: 'semanal', emoji: '💎' },
+  { id: 'sin_semana_roja', nombre: 'Consistencia', sp: 80, desc: 'Sin días sin ventas', tipo: 'semanal', emoji: '🛡️' },
 ];
 
 const RETOS_MENSUALES: RetoConfig[] = [
-  { id: 'meta_conquistada', nombre: 'La Final', sp: 500, desc: '≥100% cumplimiento', umbral: 100, tipo: 'mensual', emoji: '🏆', sede: 'MetLife Stadium' },
-  { id: 'mes_impacto', nombre: 'Tiempo Extra', sp: 800, desc: '≥120% cumplimiento', umbral: 120, tipo: 'mensual', emoji: '⚡', sede: 'Rose Bowl' },
-  { id: 'mes_elite', nombre: 'Penales', sp: 1200, desc: '≥150% cumplimiento', umbral: 150, tipo: 'mensual', emoji: '🥅', sede: 'Hard Rock Stadium' },
-  { id: 'mes_legendario', nombre: 'Campeón del Mundo', sp: 2000, desc: '≥200% cumplimiento', umbral: 200, tipo: 'mensual', emoji: '🌟', sede: 'MetLife Stadium' },
-  { id: 'el_que_no_para', nombre: 'Imbatible', sp: 600, desc: 'Sin semanas rojas', tipo: 'mensual', emoji: '🛡️', sede: 'Lumen Field' },
+  { id: 'meta_conquistada', nombre: 'Meta Cumplida', sp: 500, desc: '≥100% cumplimiento', umbral: 100, tipo: 'mensual', emoji: '✅' },
+  { id: 'mes_impacto', nombre: 'Sobre Meta', sp: 800, desc: '≥120% cumplimiento', umbral: 120, tipo: 'mensual', emoji: '⚡' },
+  { id: 'mes_elite', nombre: 'Élite', sp: 1200, desc: '≥150% cumplimiento', umbral: 150, tipo: 'mensual', emoji: '💎' },
+  { id: 'mes_legendario', nombre: 'Leyenda', sp: 2000, desc: '≥200% cumplimiento', umbral: 200, tipo: 'mensual', emoji: '🌟' },
+  { id: 'el_que_no_para', nombre: 'Imbatible', sp: 600, desc: 'Sin semanas rojas', tipo: 'mensual', emoji: '🛡️' },
 ];
 
 const Retos = () => {
@@ -102,35 +101,30 @@ const Retos = () => {
     return String(value);
   };
 
-  const renderTicket = (reto: RetoConfig, periodo: string, idx: number) => {
+  const renderCard = (reto: RetoConfig, periodo: string) => {
     const completed = isCompleted(reto.id, periodo);
     const progress = getProgress(reto);
 
     return (
       <motion.div
         key={reto.id}
-        className={cn("ticket-card rounded-2xl p-5 transition-all relative overflow-hidden", completed && "border-primary/30")}
+        className={cn("glass-card rounded-2xl p-5 transition-all relative overflow-hidden border-l-4", completed ? "border-l-primary" : "border-l-muted")}
         variants={scoreboardSlide}
         whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
       >
-        {/* Ticket header — like a real match ticket */}
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-scoreboard">
-            FIFA 2026 · {reto.tipo === 'diario' ? 'TRAINING' : reto.tipo === 'semanal' ? 'MATCH DAY' : 'TOURNAMENT'}
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+            {reto.tipo === 'diario' ? 'DIARIO' : reto.tipo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
           </span>
           {completed && (
             <motion.span 
               className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full"
               initial={{ scale: 0 }} animate={{ scale: 1 }}
-            >⚽ COMPLETADO</motion.span>
+            >✅ COMPLETADO</motion.span>
           )}
         </div>
 
-        {/* Sede */}
-        {reto.sede && <p className="text-[9px] text-muted-foreground/60 mb-3">📍 {reto.sede}</p>}
-
-        {/* Match info */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3 mt-2">
           <motion.span 
             className="text-3xl"
             animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : {}}
@@ -148,10 +142,6 @@ const Retos = () => {
           </div>
         </div>
 
-        {/* Dashed separator line */}
-        <div className="border-t border-dashed border-border/30 my-3" />
-
-        {/* Progress */}
         {!completed && reto.umbral && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -161,20 +151,17 @@ const Retos = () => {
             <Progress value={progress.pct} className="h-2" />
           </div>
         )}
-        {completed && (
-          <p className="text-center text-xs text-muted-foreground font-scoreboard">RESULTADO FINAL: ⚽ ¡GOL!</p>
-        )}
       </motion.div>
     );
   };
 
   return (
-    <Layout title="⚽ Partidos y Retos">
+    <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
         <TabsList className="w-full glass-card border-border/30">
-          <TabsTrigger value="diarios" className="flex-1">⚽ Entrenamiento</TabsTrigger>
-          <TabsTrigger value="semanales" className="flex-1">🏟️ Partidos</TabsTrigger>
-          <TabsTrigger value="mensuales" className="flex-1">🏆 Torneo</TabsTrigger>
+          <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
+          <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
+          <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
         </TabsList>
 
         {dataLoading ? (
@@ -183,17 +170,17 @@ const Retos = () => {
           <>
             <TabsContent value="diarios">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_DIARIOS.map((r, i) => renderTicket(r, periodoHoy, i))}
+                {RETOS_DIARIOS.map((r) => renderCard(r, periodoHoy))}
               </motion.div>
             </TabsContent>
             <TabsContent value="semanales">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_SEMANALES.map((r, i) => renderTicket(r, periodoSemana, i))}
+                {RETOS_SEMANALES.map((r) => renderCard(r, periodoSemana))}
               </motion.div>
             </TabsContent>
             <TabsContent value="mensuales">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_MENSUALES.map((r, i) => renderTicket(r, periodoMes, i))}
+                {RETOS_MENSUALES.map((r) => renderCard(r, periodoMes))}
               </motion.div>
             </TabsContent>
           </>

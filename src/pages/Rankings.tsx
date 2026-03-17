@@ -11,9 +11,9 @@ import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨', USA: '🇺🇸' };
 
 const CANALES_LABEL: Record<string, string> = {
-  VN_EMPRESARIOS: 'Grupo A — Empresarios',
-  VN_ALIADOS: 'Grupo B — Aliados',
-  VC: 'Grupo C — Venta Cruzada',
+  VN_EMPRESARIOS: 'Empresarios',
+  VN_ALIADOS: 'Aliados',
+  VC: 'Venta Cruzada',
 };
 
 const PAISES = [
@@ -60,15 +60,15 @@ const Rankings = () => {
   const rest = sorted.slice(3);
 
   return (
-    <Layout title={`🏆 ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
+    <Layout title={`🏆 Ranking · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Country filter */}
         <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
-          <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 Selección:</span>
+          <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
           {PAISES.map(p => (
             <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
               className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                pais === p.value ? "bg-primary text-primary-foreground border-primary shadow-glow-green" : "glass-card border-border/30 text-muted-foreground hover:text-foreground")}>
+                pais === p.value ? "bg-primary text-primary-foreground border-primary" : "glass-card border-border/30 text-muted-foreground hover:text-foreground")}>
               {p.label}
             </motion.button>
           ))}
@@ -91,13 +91,12 @@ const Rankings = () => {
                     variants={podiumBounce}
                     whileHover={{ y: -6, transition: { duration: 0.2 } }}
                   >
-                    {/* Neon glow top border */}
                     {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent to-transparent" />}
                     
                     <motion.p className="text-4xl mb-2" animate={{ rotate: [0, -8, 8, -4, 4, 0] }} transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}>{PODIUM_EMOJIS[i]}</motion.p>
                     
-                    <div className="w-16 h-16 rounded-full bg-primary/15 border-2 border-primary/30 mx-auto flex items-center justify-center text-3xl mb-2 shadow-glow-green">
-                      {g.avatar_url || '⚽'}
+                    <div className="w-16 h-16 rounded-full bg-primary/15 border-2 border-primary/30 mx-auto flex items-center justify-center text-3xl mb-2">
+                      🏅
                     </div>
                     <p className="font-bold text-foreground text-lg">{g.nombre}</p>
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
@@ -115,20 +114,20 @@ const Rankings = () => {
               </motion.div>
             )}
 
-            {/* Group stage table */}
+            {/* Table */}
             {rest.length > 0 && (
               <motion.div className="scoreboard-card rounded-2xl overflow-hidden" variants={fadeUpItem}>
                 <div className="px-4 py-3 border-b border-border/30">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                    📋 Fase de Grupos · Tabla Completa
+                    📋 Tabla Completa
                   </p>
                 </div>
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/30 text-[11px] text-muted-foreground uppercase tracking-wider">
                       <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">DT</th>
-                      <th className="text-left px-4 py-3">Selección</th>
+                      <th className="text-left px-4 py-3">Gerente</th>
+                      <th className="text-left px-4 py-3">Canal</th>
                       <th className="text-right px-4 py-3">SP</th>
                       <th className="text-left px-4 py-3">Nivel</th>
                     </tr>
@@ -144,7 +143,6 @@ const Rankings = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>
-                            <span className="text-lg">{g.avatar_url || '⚽'}</span>
                             <span className="text-sm text-foreground">{g.nombre}</span>
                             {g.user_id === profile?.user_id && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
@@ -160,9 +158,9 @@ const Rankings = () => {
             )}
             {sorted.length === 0 && (
               <motion.div className="text-center py-16" variants={fadeUpItem}>
-                <div className="text-7xl mb-4 opacity-30">🏟️</div>
-                <p className="text-lg font-bold text-muted-foreground">El estadio está vacío</p>
-                <p className="text-sm text-muted-foreground/60 mt-1">Los datos del ranking aparecerán aquí</p>
+                <div className="text-7xl mb-4 opacity-30">📊</div>
+                <p className="text-lg font-bold text-muted-foreground">Sin datos de ranking</p>
+                <p className="text-sm text-muted-foreground/60 mt-1">Los datos aparecerán cuando se sincronicen las ventas</p>
               </motion.div>
             )}
           </>

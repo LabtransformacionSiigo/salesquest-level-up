@@ -57,13 +57,13 @@ const MiPerformance = () => {
   const canalLabel = isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
   return (
-    <Layout title="📊 Mis KPIs">
+    <Layout title="📊 Mi Performance">
       <TooltipProvider delayDuration={200}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-        {/* Player card header */}
+        {/* Profile header */}
         <motion.div className="jumbotron rounded-2xl p-6 flex items-center gap-4" variants={fadeUpItem}>
-          <div className="w-14 h-14 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-2xl shadow-glow-green">
-            {profile?.avatar_url || '⚽'}
+          <div className="w-14 h-14 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center text-2xl">
+            <MI icon="person" className="text-primary" />
           </div>
           <div>
             <p className="text-lg font-bold text-foreground">{profile?.nombre}</p>
@@ -104,7 +104,7 @@ const MiPerformance = () => {
                 <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                   <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
                   <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-secondary" />
-                  <KPICard icon="person_add" label="Referidos Contador" value={String(kpis?.cant_recomendados || 0)} sub="Referidos aliados" color="text-accent" />
+                  <KPICard icon="person_add" label="Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos aliados" color="text-accent" />
                 </motion.div>
                 <SectionTitle icon="emoji_events" title="Retos Semanales" />
                 <motion.div className="grid grid-cols-1 gap-4" variants={staggerContainer} initial="hidden" animate="show">
@@ -185,6 +185,8 @@ const KPICard = ({ icon, label, value, sub, color, tip }: { icon: string; label:
     <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>
   </motion.div>
 );
+
+const MI2 = MI;
 
 const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: string; label: string; value: string; progress: number; description: string; tip?: string }) => (
   <motion.div className="glass-card rounded-2xl p-6 relative" variants={fadeUpItem}>
