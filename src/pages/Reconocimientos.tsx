@@ -32,7 +32,7 @@ const getISOWeek = (d: Date) => {
 const Reconocimientos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
-  const [gerentes, setGerentes] = useState<any[]>([]);
+  const [asesores, setAsesores] = useState<any[]>([]);
   const [feed, setFeed] = useState<any[]>([]);
   const [sentCount, setSentCount] = useState(0);
   const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
@@ -56,10 +56,9 @@ const Reconocimientos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      const gerenteQuery = supabase.from('gerentes').select('id, nombre, avatar_url').neq('id', profile.id).eq('activo', true);
-      if (profile.canal) gerenteQuery.eq('canal', profile.canal);
-      const [gerentesRes, feedRes, countRes, cumbreRes] = await Promise.all([
-        gerenteQuery,
+      const asesoresQuery = supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true);
+      const [asesoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
+        asesoresQuery,
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' })
           .eq('de_gerente_id', profile.id)
@@ -72,7 +71,7 @@ const Reconocimientos = () => {
           .lt('created_at', trimestreEnd),
       ]);
 
-      setGerentes(gerentesRes.data || []);
+      setAsesores(asesoresRes.data || []);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
       setCumbresTrimestre(cumbreRes.count || 0);
@@ -145,7 +144,7 @@ const Reconocimientos = () => {
         }),
       ]);
 
-      toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colega` });
+      toast({ title: '¡Reconocimiento enviado! 🎉', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu asesor` });
       setSentCount(prev => prev + 1);
       if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente('');
@@ -198,9 +197,9 @@ const Reconocimientos = () => {
                     onChange={e => setSelectedGerente(e.target.value)}
                     className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
                   >
-                    <option value="">Seleccionar gerente...</option>
-                    {gerentes.map(g => (
-                      <option key={g.id} value={g.id}>{g.nombre}</option>
+                    <option value="">Seleccionar asesor...</option>
+                    {asesores.map(a => (
+                      <option key={a.id} value={a.id}>{a.nombre}</option>
                     ))}
                   </select>
                 </div>
