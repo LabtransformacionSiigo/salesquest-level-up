@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
@@ -70,7 +72,6 @@ const Retos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      // Get completed challenges
       const { data: retosData } = await supabase
         .from('retos_completados')
         .select('reto, periodo')
@@ -79,7 +80,6 @@ const Retos = () => {
       const completadosSet = new Set((retosData || []).map(r => `${r.reto}::${r.periodo}`));
       setCompletados(completadosSet);
 
-      // Ventas hoy
       const { data: ventasHoyData } = await supabase
         .from('ventas')
         .select('id', { count: 'exact' })
@@ -87,7 +87,6 @@ const Retos = () => {
         .eq('fecha_facturacion', todayStr);
       setVentasHoy(ventasHoyData?.length || 0);
 
-      // Ventas semana (sum valor_producto)
       const weekStart = getISOWeekStartDate(semanaISO, anio);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
@@ -102,7 +101,6 @@ const Retos = () => {
       const totalSemana = (ventasSemanaData || []).reduce((sum, v) => sum + (Number(v.valor_producto) || 0), 0);
       setVentasSemana(totalSemana);
 
-      // KPI mes actual
       const { data: kpiData } = await supabase
         .from('kpis_mes_actual')
         .select('pct_cumplimiento')
@@ -143,32 +141,42 @@ const Retos = () => {
     return String(value);
   };
 
-  const renderReto = (reto: RetoConfig, periodo: string) => {
+  const renderReto = (reto: RetoConfig, periodo: string, idx: number) => {
     const completed = isCompleted(reto.id, periodo);
     const progress = getProgress(reto);
 
     return (
-      <div
+      <motion.div
         key={reto.id}
         className={cn(
           "bg-card border rounded-2xl p-5 transition-all",
           completed ? "border-secondary/50 bg-secondary/5" : "border-border"
         )}
+        variants={fadeUpItem}
+        whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">{completed ? '✅' : progress.pct >= 50 ? '🔥' : '🔒'}</span>
+            <motion.span 
+              className="text-xl"
+              animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : progress.pct >= 50 ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ duration: 0.6, repeat: completed ? 0 : progress.pct >= 50 ? Infinity : 0, repeatDelay: 2 }}
+            >{completed ? '✅' : progress.pct >= 50 ? '🔥' : '🔒'}</motion.span>
             <div>
               <p className={cn("text-sm font-bold", completed ? "text-secondary" : "text-foreground")}>{reto.nombre}</p>
               <p className="text-xs text-muted-foreground">{reto.desc}</p>
             </div>
           </div>
-          <span className={cn(
-            "text-xs font-bold px-2.5 py-1 rounded-full",
-            completed ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
-          )}>
+          <motion.span 
+            className={cn(
+              "text-xs font-bold px-2.5 py-1 rounded-full",
+              completed ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
+            )}
+            animate={completed ? { scale: [1, 1.15, 1] } : {}}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
             {completed ? `+${reto.sp}` : reto.sp} SP
-          </span>
+          </motion.span>
         </div>
 
         {!completed && reto.umbral && (
@@ -184,7 +192,7 @@ const Retos = () => {
         {!completed && !reto.umbral && (
           <div className="opacity-50 text-xs text-muted-foreground italic">En progreso...</div>
         )}
-      </div>
+      </motion.div>
     );
   };
 
@@ -204,19 +212,19 @@ const Retos = () => {
         ) : (
           <>
             <TabsContent value="diarios">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {RETOS_DIARIOS.map(r => renderReto(r, periodoHoy))}
-              </div>
+              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                {RETOS_DIARIOS.map((r, i) => renderReto(r, periodoHoy, i))}
+              </motion.div>
             </TabsContent>
             <TabsContent value="semanales">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {RETOS_SEMANALES.map(r => renderReto(r, periodoSemana))}
-              </div>
+              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                {RETOS_SEMANALES.map((r, i) => renderReto(r, periodoSemana, i))}
+              </motion.div>
             </TabsContent>
             <TabsContent value="mensuales">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {RETOS_MENSUALES.map(r => renderReto(r, periodoMes))}
-              </div>
+              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                {RETOS_MENSUALES.map((r, i) => renderReto(r, periodoMes, i))}
+              </motion.div>
             </TabsContent>
           </>
         )}

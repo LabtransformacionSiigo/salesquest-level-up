@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { pageTransition } from '@/lib/animations';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,9 +16,16 @@ const Layout = ({ children, title }: LayoutProps) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
         <main className="flex-1 overflow-y-auto">
-          <div className="px-6 py-6">
+          <motion.div
+            className="px-6 py-6"
+            variants={pageTransition}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            key={title}
+          >
             {children}
-          </div>
+          </motion.div>
         </main>
       </div>
     </div>

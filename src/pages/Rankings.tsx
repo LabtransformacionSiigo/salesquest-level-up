@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
@@ -63,17 +65,21 @@ const Rankings = () => {
 
   return (
     <Layout title={`Ranking · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
+      <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
+        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
           <span className="text-xs font-semibold text-muted-foreground mr-2">Filtrar por país:</span>
           {PAISES.map(p => (
-            <button key={p.value} onClick={() => setPais(p.value)}
+            <motion.button 
+              key={p.value} 
+              onClick={() => setPais(p.value)}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
               className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
                 pais === p.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
               {p.label}
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {dataLoading ? (
           <div className="space-y-4">
@@ -82,22 +88,36 @@ const Rankings = () => {
         ) : (
           <>
             {top3.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                 {top3.map((g, i) => (
-                  <div key={g.id} className={cn("rounded-2xl border p-6 text-center", podiumColors[i],
-                    g.user_id === profile?.user_id && "ring-2 ring-primary")}>
-                    <p className="text-3xl mb-2">{podiumIcons[i]}</p>
+                  <motion.div 
+                    key={g.id} 
+                    className={cn("rounded-2xl border p-6 text-center", podiumColors[i],
+                      g.user_id === profile?.user_id && "ring-2 ring-primary")}
+                    variants={podiumBounce}
+                    whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                  >
+                    <motion.p 
+                      className="text-3xl mb-2"
+                      animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
+                      transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}
+                    >{podiumIcons[i]}</motion.p>
                     <div className="w-14 h-14 rounded-full bg-muted mx-auto flex items-center justify-center text-2xl mb-2">{g.avatar_url || '👤'}</div>
                     <p className="font-bold text-foreground">{g.nombre}</p>
                     <p className="text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')} · {g.pais}</p>
-                    <p className="text-2xl font-bold text-primary mt-2">{(g.sp_totales || 0).toLocaleString()} SP</p>
+                    <motion.p 
+                      className="text-2xl font-bold text-primary mt-2"
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}
+                    >{(g.sp_totales || 0).toLocaleString()} SP</motion.p>
                     <span className="inline-block mt-1 text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{g.nivel}</span>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
             {rest.length > 0 && (
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <motion.div className="bg-card border border-border rounded-2xl overflow-hidden" variants={fadeUpItem}>
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border text-[11px] text-muted-foreground uppercase tracking-wider">
@@ -110,8 +130,14 @@ const Rankings = () => {
                   </thead>
                   <tbody>
                     {rest.map((g, i) => (
-                      <tr key={g.id} className={cn("border-b border-border/50 hover:bg-muted/30",
-                        g.user_id === profile?.user_id && "bg-primary/5 font-semibold")}>
+                      <motion.tr 
+                        key={g.id} 
+                        className={cn("border-b border-border/50 hover:bg-muted/30",
+                          g.user_id === profile?.user_id && "bg-primary/5 font-semibold")}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.25, delay: i * 0.04 + 0.3 }}
+                      >
                         <td className="px-4 py-3 text-sm text-muted-foreground">{i + 4}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -123,21 +149,21 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>
                         <td className="px-4 py-3 text-sm font-bold text-foreground text-right">{(g.sp_totales || 0).toLocaleString()}</td>
                         <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{g.nivel}</span></td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </motion.div>
             )}
             {sorted.length === 0 && (
-              <div className="text-center py-16 text-muted-foreground">
+              <motion.div className="text-center py-16 text-muted-foreground" variants={fadeUpItem}>
                 <MI icon="leaderboard" className="text-5xl mb-3" />
                 <p>No hay datos de ranking aún</p>
-              </div>
+              </motion.div>
             )}
           </>
         )}
-      </div>
+      </motion.div>
     </Layout>
   );
 };
