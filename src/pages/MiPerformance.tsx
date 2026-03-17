@@ -257,10 +257,11 @@ const formatMoney = (val: number | null | undefined) => {
 
 /* ─── Sub-components ─── */
 
-const SectionTitle = ({ icon, title }: { icon: string; title: string }) => (
+const SectionTitle = ({ icon, title, tip }: { icon: string; title: string; tip?: string }) => (
   <h3 className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider pt-2">
     <MI icon={icon} className="text-primary text-lg" />
     {title}
+    {tip && <InfoTip text={tip} />}
   </h3>
 );
 
