@@ -28,24 +28,25 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
+    const { data: { user: authUser }, error: authErr } = await userClient.auth.getUser();
+    if (authErr || !authUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const userId = authUser.id;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
+      .eq("role", "admin")
       .maybeSingle();
 
-    if (roleData?.role !== "admin") {
+    if (!roleData) {
+      console.log("User not admin:", userId);
       return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
