@@ -295,8 +295,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsla(145, 80%, 48%, 0.3); }
-  50% { box-shadow: 0 0 0 8px hsla(145, 80%, 48%, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 hsla(200, 100%, 50%, 0.25); }
+  50% { box-shadow: 0 0 0 8px hsla(200, 100%, 50%, 0); }
 }
 
 @keyframes stadium-lights {
