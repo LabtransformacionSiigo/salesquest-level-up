@@ -42,9 +42,11 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
+      .eq("role", "admin")
       .maybeSingle();
 
-    if (roleData?.role !== "admin") {
+    if (!roleData) {
+      console.log("User not admin:", userId);
       return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
