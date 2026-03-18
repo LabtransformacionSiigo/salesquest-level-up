@@ -110,8 +110,8 @@ const Sidebar = () => {
 
         {isAdmin && (
           <>
-            <motion.div className="pt-4 pb-2 px-3" variants={slideInLeft}>
-              <p className="text-[10px] font-bold text-sidebar-muted uppercase tracking-widest">⚙️ Admin</p>
+            <motion.div className="pb-2 px-3" variants={slideInLeft}>
+              <p className="text-[10px] font-bold text-sidebar-muted uppercase tracking-widest">⚙️ Panel de Administración</p>
             </motion.div>
             {adminItems.map((item) => (
               <motion.button
