@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Gerente {
   id: string;
   user_id: string;
+  gerente_id?: string | null;
   nombre: string;
   email: string;
   canal: string | null;
@@ -22,6 +23,29 @@ export interface AuthUser extends Gerente {
   sp_siguiente_nivel: number | null;
   role: string | null;
 }
+
+const NIVELES = [
+  { nombre: 'Prospecto', min: 0, max: 499 },
+  { nombre: 'Ejecutor', min: 500, max: 1499 },
+  { nombre: 'Impulsor', min: 1500, max: 3499 },
+  { nombre: 'Estratega Comercial', min: 3500, max: 6999 },
+  { nombre: 'Dominador', min: 7000, max: 12999 },
+  { nombre: 'Vanguardia', min: 13000, max: 21999 },
+  { nombre: 'Élite Siigo', min: 22000, max: 34999 },
+  { nombre: 'Cima Ejecutiva', min: 35000, max: 54999 },
+  { nombre: 'Leyenda Siigo', min: 55000, max: Number.MAX_SAFE_INTEGER },
+];
+
+const getNivelData = (spTotales: number) => {
+  const nivelActual = NIVELES.find((nivel) => spTotales >= nivel.min && spTotales <= nivel.max) || NIVELES[0];
+  const siguienteNivel = NIVELES[NIVELES.indexOf(nivelActual) + 1] ?? null;
+
+  return {
+    nivel: nivelActual.nombre,
+    sp_nivel_actual: Math.max(0, spTotales - nivelActual.min),
+    sp_siguiente_nivel: siguienteNivel?.min ?? null,
+  };
+};
 
 export const useSupabaseAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -60,11 +84,9 @@ export const useSupabaseAuth = () => {
     try {
       const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId);
       const roles = (roleRes.data || []).map((r: any) => r.role);
-      // Prioritize: admin > gerente > asesor
       const userRole = roles.includes('admin') ? 'admin' : roles.includes('gerente') ? 'gerente' : roles[0] ?? 'gerente';
 
       if (userRole === 'asesor') {
-        // Fetch asesor profile
         const asesorRes = await supabase
           .from('asesores')
           .select('*')
@@ -74,29 +96,39 @@ export const useSupabaseAuth = () => {
         if (asesorRes.error) throw asesorRes.error;
 
         if (asesorRes.data) {
-          const a = asesorRes.data;
+          const asesor = asesorRes.data;
+          const spRes = await supabase
+            .from('sp_acumulados')
+            .select('sp')
+            .eq('gerente_id', asesor.id);
+
+          if (spRes.error) throw spRes.error;
+
+          const spTotales = (spRes.data || []).reduce((total: number, row: any) => total + (Number(row.sp) || 0), 0);
+          const nivelData = getNivelData(spTotales);
+
           setProfile({
-            id: a.id,
-            user_id: a.user_id ?? userId,
-            nombre: a.nombre,
-            email: a.email,
-            canal: a.canal,
-            pais: a.pais,
+            id: asesor.id,
+            user_id: asesor.user_id ?? userId,
+            gerente_id: asesor.gerente_id,
+            nombre: asesor.nombre,
+            email: asesor.email,
+            canal: asesor.canal,
+            pais: asesor.pais,
             lider: null,
-            activo: a.activo ?? true,
-            avatar_url: a.avatar_url,
-            created_at: a.created_at ?? '',
-            sp_totales: 0,
-            nivel: 'Prospecto',
-            sp_nivel_actual: 0,
-            sp_siguiente_nivel: null,
+            activo: asesor.activo ?? true,
+            avatar_url: asesor.avatar_url,
+            created_at: asesor.created_at ?? '',
+            sp_totales: spTotales,
+            nivel: nivelData.nivel,
+            sp_nivel_actual: nivelData.sp_nivel_actual,
+            sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
           });
         } else {
           setProfile(null);
         }
       } else {
-        // Fetch gerente profile
         const profileRes = await supabase
           .from('sp_totales_gerente')
           .select('*')
@@ -110,6 +142,7 @@ export const useSupabaseAuth = () => {
           setProfile({
             id: data.id,
             user_id: data.user_id ?? userId,
+            gerente_id: null,
             nombre: data.nombre,
             email: '',
             canal: data.canal,
