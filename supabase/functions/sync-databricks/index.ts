@@ -171,7 +171,25 @@ Deno.serve(async (req) => {
       syncResult = await syncProductividad(supabase, rows);
     }
 
-    return new Response(JSON.stringify(syncResult), {
+    // Auto-trigger SP calculation after successful sync
+    let spResult = null;
+    try {
+      const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
+      const spResponse = await fetch(spUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authHeader,
+        },
+      });
+      spResult = await spResponse.json();
+      console.log("[sync-databricks] SP recalculation triggered:", JSON.stringify(spResult));
+    } catch (spErr) {
+      console.error("[sync-databricks] SP recalculation error:", spErr);
+      spResult = { error: String(spErr) };
+    }
+
+    return new Response(JSON.stringify({ ...syncResult, sp_recalculo: spResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
