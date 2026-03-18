@@ -452,6 +452,7 @@ export type Database = {
           id: string
           mensaje: string | null
           para_gerente_id: string | null
+          para_nombre: string | null
           semana_iso: number | null
           sp_de: number | null
           sp_para: number | null
@@ -464,6 +465,7 @@ export type Database = {
           id?: string
           mensaje?: string | null
           para_gerente_id?: string | null
+          para_nombre?: string | null
           semana_iso?: number | null
           sp_de?: number | null
           sp_para?: number | null
@@ -476,6 +478,7 @@ export type Database = {
           id?: string
           mensaje?: string | null
           para_gerente_id?: string | null
+          para_nombre?: string | null
           semana_iso?: number | null
           sp_de?: number | null
           sp_para?: number | null
