@@ -87,6 +87,36 @@ export const useSupabaseAuth = () => {
       const roles = (roleRes.data || []).map((r: any) => r.role);
       const userRole = roles.includes('admin') ? 'admin' : roles.includes('gerente') ? 'gerente' : roles[0] ?? 'gerente';
 
+      // Admins don't compete — simplified profile
+      if (userRole === 'admin') {
+        const { data: gerenteData } = await supabase
+          .from('gerentes')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        setProfile({
+          id: gerenteData?.id || userId,
+          user_id: userId,
+          gerente_id: null,
+          nombre: gerenteData?.nombre || 'Administrador',
+          email: gerenteData?.email || '',
+          canal: gerenteData?.canal || null,
+          pais: gerenteData?.pais || null,
+          lider: null,
+          activo: true,
+          avatar_url: gerenteData?.avatar_url || null,
+          created_at: gerenteData?.created_at || '',
+          sp_totales: 0,
+          nivel: 'Admin',
+          sp_nivel_actual: 0,
+          sp_siguiente_nivel: null,
+          role: 'admin',
+        });
+        setLoading(false);
+        return;
+      }
+
       if (userRole === 'asesor') {
         const asesorRes = await supabase
           .from('asesores')

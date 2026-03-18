@@ -144,6 +144,7 @@ const Dashboard = () => {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
 
   const sp = profile?.sp_totales || 0;
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
