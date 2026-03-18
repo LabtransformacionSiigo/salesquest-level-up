@@ -44,7 +44,7 @@ const MiEquipo = () => {
         <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
           <div>
             <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2"><span>👥</span> Mi Equipo</h2>
-            <p className="text-sm text-muted-foreground">Asesores a tu cargo</p>
+            <p className="text-sm text-muted-foreground">{profile?.canal === 'VC' ? 'Comerciales a tu cargo' : 'Asesores a tu cargo'}</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-center">
