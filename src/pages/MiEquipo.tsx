@@ -17,9 +17,20 @@ const MiEquipo = () => {
 
   useEffect(() => {
     if (!profile?.id) return;
-    supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')
-      .then(({ data }) => { setAsesores(data || []); setDataLoading(false); });
-  }, [profile?.id]);
+    const isVC = profile.canal === 'VC';
+
+    if (isVC) {
+      supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
+        .then(({ data }) => {
+          const mapped = (data || []).map((c: any) => ({ id: c.nombre, nombre: c.nombre, activo: true, canal: 'VC', pais: profile.pais, email: '' }));
+          setAsesores(mapped);
+          setDataLoading(false);
+        });
+    } else {
+      supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')
+        .then(({ data }) => { setAsesores(data || []); setDataLoading(false); });
+    }
+  }, [profile?.id, profile?.canal]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -33,7 +44,7 @@ const MiEquipo = () => {
         <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
           <div>
             <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2"><span>👥</span> Mi Equipo</h2>
-            <p className="text-sm text-muted-foreground">Asesores a tu cargo</p>
+            <p className="text-sm text-muted-foreground">{profile?.canal === 'VC' ? 'Comerciales a tu cargo' : 'Asesores a tu cargo'}</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-center">
