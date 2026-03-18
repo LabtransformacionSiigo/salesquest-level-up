@@ -24,6 +24,12 @@ export const normalizePersonName = (value?: string | null) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const normalizeProductText = (value?: string | null) =>
+  normalizePersonName(value)
+    .replace(/[^a-z0-9+ ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export const filterVcAdvisorSales = <T extends VcAdvisorSaleLike>(sales: T[], advisorName?: string | null, gerenteId?: string | null) => {
   const normalizedAdvisor = normalizePersonName(advisorName);
   return (sales || []).filter((sale) => {
@@ -42,6 +48,39 @@ export const calculateSpFromRevenue = (ingresosCop: number) => {
   if (ingresosCop >= 50000000) return 5;
   if (ingresosCop >= 10000000) return 1;
   return 0;
+};
+
+type VcProductBucket = 'fe' | 'nomina' | 'conversiones' | 'otros';
+
+export const inferVcProductBucket = (product?: string | null): VcProductBucket => {
+  const normalized = normalizeProductText(product);
+  if (!normalized) return 'otros';
+  if (normalized.includes('conversion')) return 'conversiones';
+  if (normalized.includes('nomina') || normalized.includes('rrhh')) return 'nomina';
+  if (
+    normalized === 'fe' ||
+    normalized.startsWith('fe ') ||
+    normalized.includes(' fe ') ||
+    normalized.includes('factura electronica') ||
+    normalized.includes('documentos electronicos') ||
+    normalized.includes('certificado digital')
+  ) {
+    return 'fe';
+  }
+  return 'otros';
+};
+
+const doesVcSaleMatchMedalProduct = (saleProduct?: string | null, medalProduct?: string | null) => {
+  if (!medalProduct) return false;
+
+  const medalBucket = inferVcProductBucket(medalProduct);
+  if (medalBucket !== 'otros') {
+    return inferVcProductBucket(saleProduct) === medalBucket;
+  }
+
+  const saleText = normalizeProductText(saleProduct);
+  const medalText = normalizeProductText(medalProduct);
+  return !!saleText && !!medalText && (saleText.includes(medalText) || medalText.includes(saleText));
 };
 
 const getISOWeekKey = (dateValue: string) => {
@@ -140,27 +179,52 @@ export const getVcAdvisorDerivedMetrics = (sales: VcAdvisorSaleLike[]) => {
     currentMonthUnits,
     todaySalesCount,
     monthlyHistory,
-    totalAcv: sales.reduce((sum, sale) => sum + (Number(sale.acv_plus) || 0), 0),
+    totalAcv: (sales || []).reduce((sum, sale) => sum + (Number(sale.acv_plus) || 0), 0),
   };
 };
 
-export const getUnlockedVcAdvisorMedals = (catalog: MedalLike[], sales: VcAdvisorSaleLike[]) => {
-  const totalAcv = sales.reduce((sum, sale) => sum + (Number(sale.acv_plus) || 0), 0);
-  const productCounts = new Map<string, number>();
+export const getVcAdvisorBlockTotals = (sales: VcAdvisorSaleLike[]) => {
+  return (sales || []).reduce(
+    (totals, sale) => {
+      const acv = Number(sale.acv_plus) || 0;
+      const bucket = inferVcProductBucket(sale.producto);
 
-  for (const sale of sales) {
-    const product = normalizePersonName(sale.producto);
-    if (!product) continue;
-    productCounts.set(product, (productCounts.get(product) || 0) + 1);
+      if (bucket === 'fe') totals.acv_fe += acv;
+      if (bucket === 'nomina') totals.acv_nomina += acv;
+      if (bucket === 'conversiones') totals.acv_conversiones += acv;
+
+      return totals;
+    },
+    { acv_fe: 0, acv_nomina: 0, acv_conversiones: 0 }
+  );
+};
+
+export const hasVcAdvisorSalesEveryDaySoFar = (sales: VcAdvisorSaleLike[]) => {
+  const { start } = getCurrentWeekRange();
+  const todayKey = new Date().toISOString().split('T')[0];
+  const saleDates = new Set((sales || []).map((sale) => sale.fecha_facturacion));
+
+  const cursor = new Date(`${start}T00:00:00Z`);
+  while (cursor.toISOString().split('T')[0] <= todayKey) {
+    if (!saleDates.has(cursor.toISOString().split('T')[0])) {
+      return false;
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
+
+  return true;
+};
+
+export const getUnlockedVcAdvisorMedals = (catalog: MedalLike[], sales: VcAdvisorSaleLike[]) => {
+  const totalAcv = (sales || []).reduce((sum, sale) => sum + (Number(sale.acv_plus) || 0), 0);
 
   return (catalog || []).filter((medal) => {
     const required = Number(medal.cantidad_requerida) || 0;
-    const productKey = normalizePersonName(medal.producto);
+    const matchedSalesCount = (sales || []).filter((sale) => doesVcSaleMatchMedalProduct(sale.producto, medal.producto)).length;
 
     if (medal.condicion_tipo === 'monto') return totalAcv >= required;
-    if (medal.condicion_tipo === 'primera_venta') return (productCounts.get(productKey) || 0) >= 1;
-    if (medal.condicion_tipo === 'cantidad') return (productCounts.get(productKey) || 0) >= Math.max(required, 1);
+    if (medal.condicion_tipo === 'primera_venta') return matchedSalesCount >= 1;
+    if (medal.condicion_tipo === 'cantidad') return matchedSalesCount >= Math.max(required, 1);
     return false;
   });
 };
