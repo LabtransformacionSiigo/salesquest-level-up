@@ -141,16 +141,19 @@ const Reconocimientos = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      await Promise.all([
-        supabase.from('sp_acumulados').insert({
-          gerente_id: selectedGerente, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
-        }),
+      const spInserts = [
         supabase.from('sp_acumulados').insert({
           gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de,
           periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado`,
         }),
-      ]);
+      ];
+      if (paraId) {
+        spInserts.push(supabase.from('sp_acumulados').insert({
+          gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
+        }));
+      }
+      await Promise.all(spInserts);
 
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
