@@ -82,7 +82,7 @@ const Reconocimientos = () => {
 
       // For VC, comerciales don't have IDs - use nombre as identifier
       const colabs = (colaboradoresRes.data || []).map((c: any) => ({
-        id: c.id || c.nombre,
+        id: c.id || null,
         nombre: c.nombre,
       }));
       setAsesores(colabs);
