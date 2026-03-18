@@ -17,9 +17,20 @@ const MiEquipo = () => {
 
   useEffect(() => {
     if (!profile?.id) return;
-    supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')
-      .then(({ data }) => { setAsesores(data || []); setDataLoading(false); });
-  }, [profile?.id]);
+    const isVC = profile.canal === 'VC';
+
+    if (isVC) {
+      supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
+        .then(({ data }) => {
+          const mapped = (data || []).map((c: any) => ({ id: c.nombre, nombre: c.nombre, activo: true, canal: 'VC', pais: profile.pais, email: '' }));
+          setAsesores(mapped);
+          setDataLoading(false);
+        });
+    } else {
+      supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')
+        .then(({ data }) => { setAsesores(data || []); setDataLoading(false); });
+    }
+  }, [profile?.id, profile?.canal]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
