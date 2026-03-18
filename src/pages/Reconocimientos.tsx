@@ -122,16 +122,21 @@ const Reconocimientos = () => {
 
     setSending(true);
 
+    const isNameOnly = selectedGerente.startsWith('name::');
+    const paraName = isNameOnly ? selectedGerente.replace('name::', '') : null;
+    const paraId = isNameOnly ? null : selectedGerente;
+
     const { error } = await supabase.from('reconocimientos').insert({
       de_gerente_id: profile.id,
-      para_gerente_id: selectedGerente,
+      para_gerente_id: paraId,
+      para_nombre: paraName,
       tipo: selectedTipo,
       sp_para: tipo.sp_para,
       sp_de: tipo.sp_de,
       semana_iso: currentWeek,
       anio: currentYear,
       mensaje: mensaje || null,
-    });
+    } as any);
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
