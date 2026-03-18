@@ -89,7 +89,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {menuItems.map((item) => (
+        {!isAdmin && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
