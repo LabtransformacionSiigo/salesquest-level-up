@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, scoreboardSlide } from '@/lib/animations';
+import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import { hasVcAdvisorSalesEveryDaySoFar } from '@/lib/vc-advisor-metrics';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
@@ -19,7 +21,13 @@ const getISOWeek = (d: Date) => {
 };
 
 interface RetoConfig {
-  id: string; nombre: string; sp: number; desc: string; umbral?: number; tipo: 'diario' | 'semanal' | 'mensual'; emoji: string;
+  id: string;
+  nombre: string;
+  sp: number;
+  desc: string;
+  umbral?: number;
+  tipo: 'diario' | 'semanal' | 'mensual';
+  emoji: string;
 }
 
 const RETOS_DIARIOS: RetoConfig[] = [
@@ -45,10 +53,12 @@ const RETOS_MENSUALES: RetoConfig[] = [
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
+  const [autoCompletados, setAutoCompletados] = useState<Set<string>>(new Set());
   const [ventasHoy, setVentasHoy] = useState(0);
   const [ventasSemana, setVentasSemana] = useState(0);
   const [pctCumplimiento, setPctCumplimiento] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
+  const isVcAdvisor = isVcAdvisorProfile(profile);
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -61,29 +71,72 @@ const Retos = () => {
 
   useEffect(() => {
     if (!profile?.id) return;
+
+    let cancelled = false;
+
     const fetchData = async () => {
+      setDataLoading(true);
+
+      if (isVcAdvisor) {
+        const [{ data: retosData, error: retosError }, snapshot] = await Promise.all([
+          supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+          getVcAdvisorSnapshot(profile),
+        ]);
+
+        if (retosError) throw retosError;
+        if (cancelled) return;
+
+        const metrics = snapshot?.metrics;
+        const auto = new Set<string>();
+
+        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`primer_disparo::${periodoHoy}`);
+        if ((metrics?.todaySalesCount || 0) >= 2) auto.add(`jornada_redonda::${periodoHoy}`);
+        if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
+        if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
+        if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
+        if (snapshot?.sales && hasVcAdvisorSalesEveryDaySoFar(snapshot.sales)) auto.add(`sin_semana_roja::${periodoSemana}`);
+
+        setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+        setAutoCompletados(auto);
+        setVentasHoy(metrics?.todaySalesCount || 0);
+        setVentasSemana(metrics?.currentWeekRevenue || 0);
+        setPctCumplimiento(0);
+        setDataLoading(false);
+        return;
+      }
+
       const { data: retosData } = await supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id);
-      setCompletados(new Set((retosData || []).map(r => `${r.reto}::${r.periodo}`)));
+      if (cancelled) return;
+      setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+      setAutoCompletados(new Set());
 
       const { data: ventasHoyData } = await supabase.from('ventas').select('id', { count: 'exact' }).eq('gerente_id', profile.id).eq('fecha_facturacion', todayStr);
+      if (cancelled) return;
       setVentasHoy(ventasHoyData?.length || 0);
 
       const weekStart = getISOWeekStartDate(semanaISO, anio);
-      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
       const { data: ventasSemanaData } = await supabase.from('ventas').select('valor_producto').eq('gerente_id', profile.id).gte('fecha_facturacion', weekStart.toISOString().split('T')[0]).lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]);
+      if (cancelled) return;
       setVentasSemana((ventasSemanaData || []).reduce((sum, v) => sum + (Number(v.valor_producto) || 0), 0));
 
       const { data: kpiData } = await supabase.from('kpis_mes_actual').select('pct_cumplimiento').eq('gerente_id', profile.id).maybeSingle();
+      if (cancelled) return;
       setPctCumplimiento(Number(kpiData?.pct_cumplimiento) || 0);
       setDataLoading(false);
     };
+
     fetchData();
-  }, [profile?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const isCompleted = (retoId: string, periodo: string) => completados.has(`${retoId}::${periodo}`);
+  const isCompleted = (retoId: string, periodo: string) => completados.has(`${retoId}::${periodo}`) || autoCompletados.has(`${retoId}::${periodo}`);
 
   const getProgress = (reto: RetoConfig): { current: number; target: number; pct: number } => {
     if (reto.tipo === 'diario') {
@@ -108,7 +161,7 @@ const Retos = () => {
     return (
       <motion.div
         key={reto.id}
-        className={cn("bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm", completed ? "border-l-accent" : "border-l-primary")}
+        className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
         variants={scoreboardSlide}
         whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
       >
@@ -117,7 +170,7 @@ const Retos = () => {
             {reto.tipo === 'diario' ? 'DIARIO' : reto.tipo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
           </span>
           {completed && (
-            <motion.span 
+            <motion.span
               className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full"
               initial={{ scale: 0 }} animate={{ scale: 1 }}
             >✅ COMPLETADO</motion.span>
@@ -125,18 +178,18 @@ const Retos = () => {
         </div>
 
         <div className="flex items-center gap-3 mb-3 mt-2">
-          <motion.span 
+          <motion.span
             className="text-3xl"
             animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : {}}
             transition={{ duration: 0.6 }}
           >{completed ? '✅' : reto.emoji}</motion.span>
           <div className="flex-1">
-            <p className={cn("text-sm font-bold", completed ? "text-accent" : "text-foreground")}>{reto.nombre}</p>
+            <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
             <p className="text-xs text-muted-foreground">{reto.desc}</p>
           </div>
           <div className="text-right">
-            <motion.span 
-              className={cn("text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block", completed ? "bg-siigo-red text-white" : "bg-muted text-muted-foreground")}
+            <motion.span
+              className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}
               animate={completed ? { scale: [1, 1.15, 1] } : {}}
             >{completed ? `+${reto.sp}` : reto.sp} SP</motion.span>
           </div>
@@ -165,7 +218,7 @@ const Retos = () => {
         </TabsList>
 
         {dataLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-40" />)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : (
           <>
             <TabsContent value="diarios">
