@@ -82,7 +82,7 @@ const Reconocimientos = () => {
 
       // For VC, comerciales don't have IDs - use nombre as identifier
       const colabs = (colaboradoresRes.data || []).map((c: any) => ({
-        id: c.id || c.nombre,
+        id: c.id || null,
         nombre: c.nombre,
       }));
       setAsesores(colabs);
@@ -122,30 +122,38 @@ const Reconocimientos = () => {
 
     setSending(true);
 
+    const isNameOnly = selectedGerente.startsWith('name::');
+    const paraName = isNameOnly ? selectedGerente.replace('name::', '') : null;
+    const paraId = isNameOnly ? null : selectedGerente;
+
     const { error } = await supabase.from('reconocimientos').insert({
       de_gerente_id: profile.id,
-      para_gerente_id: selectedGerente,
+      para_gerente_id: paraId,
+      para_nombre: paraName,
       tipo: selectedTipo,
       sp_para: tipo.sp_para,
       sp_de: tipo.sp_de,
       semana_iso: currentWeek,
       anio: currentYear,
       mensaje: mensaje || null,
-    });
+    } as any);
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      await Promise.all([
-        supabase.from('sp_acumulados').insert({
-          gerente_id: selectedGerente, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
-        }),
+      const spInserts = [
         supabase.from('sp_acumulados').insert({
           gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de,
           periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado`,
         }),
-      ]);
+      ];
+      if (paraId) {
+        spInserts.push(supabase.from('sp_acumulados').insert({
+          gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
+          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
+        }));
+      }
+      await Promise.all(spInserts);
 
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
@@ -189,7 +197,7 @@ const Reconocimientos = () => {
                   <select value={selectedGerente} onChange={e => setSelectedGerente(e.target.value)}
                     className="w-full h-10 rounded-lg border border-border bg-muted px-3 text-sm text-foreground">
                     <option value="">Seleccionar colaborador...</option>
-                    {asesores.map(a => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
+                    {asesores.map(a => (<option key={a.id || a.nombre} value={a.id || `name::${a.nombre}`}>{a.nombre}</option>))}
                   </select>
                 </div>
 
