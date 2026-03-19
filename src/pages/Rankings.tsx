@@ -261,7 +261,8 @@ const Rankings = () => {
                         {isComercialTab ? (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{g.ventas_count || 0}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.sp_totales || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
                           </>
                         ) : (
                           <>
