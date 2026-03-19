@@ -176,12 +176,17 @@ const Rankings = () => {
                             </motion.p>
                             <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                           </div>
+                          <div className="w-px h-8 bg-border" />
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{(g.sp_totales || 0).toLocaleString()}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                          </div>
                           {(g.ventas_count > 0) && (
                             <>
                               <div className="w-px h-8 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-accent">{g.ventas_count}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Uds</p>
                               </div>
                             </>
                           )}
