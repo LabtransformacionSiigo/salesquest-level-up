@@ -8,18 +8,34 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
+import colombiaFlag from '@/assets/flags/colombia.svg';
+import mexicoFlag from '@/assets/flags/mexico.svg';
+import ecuadorFlag from '@/assets/flags/ecuador.svg';
 
-const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨', USA: '🇺🇸' };
+const FLAG_IMG: Record<string, string> = { COL: colombiaFlag, CO: colombiaFlag, MEX: mexicoFlag, MX: mexicoFlag, ECU: ecuadorFlag, EC: ecuadorFlag };
 const CANALES_LABEL: Record<string, string> = { VN_EMPRESARIOS: 'Empresarios', VN_ALIADOS: 'Aliados', VC: 'Venta Cruzada' };
+const KPI_LABEL: Record<string, string> = { VC: 'ACV+', VN_EMPRESARIOS: 'ACV+', VN_ALIADOS: 'ACV+' };
 const PAISES = [
   { value: 'TODOS', label: '🌎 Todos' },
   { value: 'COL', label: '🇨🇴 Colombia' },
   { value: 'MEX', label: '🇲🇽 México' },
-  { value: 'ECU', label: '🇪🇨 ECU' },
+  { value: 'ECU', label: '🇪🇨 Ecuador' },
 ];
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = ['border-yellow bg-siigo-yellow/5', 'border-muted-foreground/30', 'border-orange/40'];
 type RankingTab = 'comerciales' | 'gerentes';
+
+const FlagIcon = ({ pais }: { pais?: string | null }) => {
+  const src = FLAG_IMG[pais?.trim().toUpperCase() || ''];
+  return src ? <img src={src} alt={pais || ''} className="h-4 w-4 rounded-full object-cover" /> : <span className="text-base">🌎</span>;
+};
+
+const formatMoney = (val: number | null | undefined) => {
+  const n = Number(val) || 0;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+};
 
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
@@ -41,7 +57,8 @@ const Rankings = () => {
           id: `${r.nombre}-${r.gerente_nombre}`,
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
-          sp_totales: Math.round(Number(r.acv_total) || 0),
+          kpi_value: Math.round(Number(r.acv_total) || 0),
+          sp_totales: null,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
@@ -50,14 +67,39 @@ const Rankings = () => {
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         })));
       } else {
-        const { data } = await supabase.from('ranking_general').select('*').eq('canal', 'VC');
-        setRanking(data || []);
+        // Gerentes VC: fetch ranking + ACV data
+        const [rankRes, acvRes] = await Promise.all([
+          supabase.from('ranking_general').select('*').eq('canal', 'VC'),
+          supabase.from('acv_vc_mensual').select('gerente_id, acv_plus_total').order('anio', { ascending: false }),
+        ]);
+        const acvMap = new Map<string, number>();
+        (acvRes.data || []).forEach((a: any) => {
+          if (a.gerente_id && !acvMap.has(a.gerente_id)) {
+            acvMap.set(a.gerente_id, Number(a.acv_plus_total) || 0);
+          }
+        });
+        setRanking((rankRes.data || []).map((r: any) => ({
+          ...r,
+          kpi_value: acvMap.get(r.id) || 0,
+        })));
       }
     } else {
+      // VN channels: fetch ranking + KPIs
       let query = supabase.from('ranking_general').select('*').eq('canal', profile.canal);
       if (pais !== 'TODOS') query = query.eq('pais', pais);
-      const { data } = await query;
-      setRanking(data || []);
+      const [rankRes, kpiRes] = await Promise.all([
+        query,
+        supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', profile.canal),
+      ]);
+      const kpiMap = new Map<string, { acv: number; units: number }>();
+      (kpiRes.data || []).forEach((k: any) => {
+        if (k.gerente_id) kpiMap.set(k.gerente_id, { acv: Number(k.acv_f) || 0, units: Number(k.sc_creados) || 0 });
+      });
+      setRanking((rankRes.data || []).map((r: any) => ({
+        ...r,
+        kpi_value: kpiMap.get(r.id)?.acv || 0,
+        units: kpiMap.get(r.id)?.units || 0,
+      })));
     }
     setDataLoading(false);
   };
@@ -73,9 +115,11 @@ const Rankings = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const isComercialTab = isVC && tab === 'comerciales';
-  const sorted = [...ranking].sort((a, b) => (b.sp_totales || 0) - (a.sp_totales || 0));
-  const metricLabel = isComercialTab ? 'ACV+' : 'SP';
-  const formatMetric = (val: number) => isComercialTab ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
+  const sorted = [...ranking].sort((a, b) => {
+    if (isComercialTab) return (b.kpi_value || 0) - (a.kpi_value || 0);
+    return (b.sp_totales || 0) - (a.sp_totales || 0);
+  });
+  const kpiLabel = KPI_LABEL[profile?.canal || ''] || 'ACV+';
   const entityLabel = isComercialTab ? 'Comercial' : 'Gerente';
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
@@ -118,8 +162,37 @@ const Rankings = () => {
                     <motion.p className="text-4xl mb-2" animate={{ rotate: [0, -8, 8, -4, 4, 0] }} transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}>{PODIUM_EMOJIS[i]}</motion.p>
                     <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 mx-auto flex items-center justify-center text-3xl mb-2">🏅</div>
                     <p className="font-bold font-heading text-secondary text-lg">{g.nombre}</p>
-                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1"><span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span> {g.canal?.replace(/_/g, ' ')}</p>
-                    <motion.p className="text-2xl font-bold font-scoreboard text-primary mt-3" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>{formatMetric(g.sp_totales || 0)} {metricLabel}</motion.p>
+                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
+                      <FlagIcon pais={g.pais} /> {g.canal?.replace(/_/g, ' ')}
+                    </p>
+
+                    {/* KPI + SP metrics */}
+                    <div className="flex items-center justify-center gap-3 mt-3">
+                      {isComercialTab ? (
+                        <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
+                          {formatMoney(g.kpi_value)} <span className="text-xs font-heading">ACV+</span>
+                        </motion.p>
+                      ) : (
+                        <>
+                          <div>
+                            <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
+                              {(g.sp_totales || 0).toLocaleString()}
+                            </motion.p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                          </div>
+                          {(g.kpi_value > 0) && (
+                            <>
+                              <div className="w-px h-8 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{kpiLabel}</p>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+
                     {!isComercialTab && g.nivel && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
                     {isComercialTab && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
                     {(g.isCurrent || g.user_id === profile?.user_id) && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">Tú</span>}
@@ -138,7 +211,14 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
                       {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
-                      <th className="text-right px-4 py-3">{metricLabel}</th>
+                      {isComercialTab ? (
+                        <th className="text-right px-4 py-3">ACV+</th>
+                      ) : (
+                        <>
+                          <th className="text-right px-4 py-3">SP</th>
+                          <th className="text-right px-4 py-3">{kpiLabel}</th>
+                        </>
+                      )}
                       {!isComercialTab && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
@@ -146,10 +226,23 @@ const Rankings = () => {
                     {rest.map((g, i) => (
                       <motion.tr key={g.id} className={cn("border-b border-border hover:bg-primary/5 transition-colors row-alt", (g.isCurrent || g.user_id === profile?.user_id) && "bg-primary/10 font-semibold")} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25, delay: i * 0.04 + 0.3 }}>
                         <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{g.posicion || i + 4}</td>
-                        <td className="px-4 py-3"><div className="flex items-center gap-2">{!isComercialTab && <span className="text-base">{FLAG_MAP[g.pais] || '🌎'}</span>}<span className="text-sm text-foreground">{g.nombre}</span>{(g.isCurrent || g.user_id === profile?.user_id) && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}</div></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {!isComercialTab && <FlagIcon pais={g.pais} />}
+                            <span className="text-sm text-foreground">{g.nombre}</span>
+                            {(g.isCurrent || g.user_id === profile?.user_id) && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
+                          </div>
+                        </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
                         {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
-                        <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMetric(g.sp_totales || 0)}</td>
+                        {isComercialTab ? (
+                          <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{(g.sp_totales || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
+                          </>
+                        )}
                         {!isComercialTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
