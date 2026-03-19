@@ -169,9 +169,23 @@ const Rankings = () => {
                     {/* KPI + SP metrics */}
                     <div className="flex items-center justify-center gap-3 mt-3">
                       {isComercialTab ? (
-                        <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                          {formatMoney(g.kpi_value)} <span className="text-xs font-heading">ACV+</span>
-                        </motion.p>
+                        <>
+                          <div>
+                            <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
+                              {formatMoney(g.kpi_value)}
+                            </motion.p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                          </div>
+                          {(g.ventas_count > 0) && (
+                            <>
+                              <div className="w-px h-8 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-accent">{g.ventas_count}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
+                              </div>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <>
                           <div>
@@ -212,7 +226,10 @@ const Rankings = () => {
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
                       {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
                       {isComercialTab ? (
-                        <th className="text-right px-4 py-3">ACV+</th>
+                        <>
+                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">Unidades</th>
+                        </>
                       ) : (
                         <>
                           <th className="text-right px-4 py-3">SP</th>
@@ -236,7 +253,10 @@ const Rankings = () => {
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
                         {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         {isComercialTab ? (
-                          <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
+                          <>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{g.ventas_count || 0}</td>
+                          </>
                         ) : (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{(g.sp_totales || 0).toLocaleString()}</td>
