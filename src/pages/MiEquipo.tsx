@@ -75,7 +75,7 @@ const MiEquipo = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
-                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{FLAG_MAP[a.pais] || '🌎'} {a.pais}</span>
+                  <span className="text-sm">{FLAG_MAP[a.pais] || '🌎'}</span>
                   <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-accent text-white" : "bg-destructive/10 text-destructive")}>
                     {a.activo ? '✅ Activo' : '⏸️ Inactivo'}
                   </span>
