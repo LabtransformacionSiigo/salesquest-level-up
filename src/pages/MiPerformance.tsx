@@ -121,7 +121,7 @@ const MiPerformance = () => {
             <>
               {isEmpresarios && (
                 <>
-                  <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje." />
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" tip="Métricas principales que alimentan tu puntaje." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" tip="Cantidad total de productos vendidas." />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
@@ -138,7 +138,7 @@ const MiPerformance = () => {
 
               {isAliados && (
                 <>
-                  <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
@@ -154,7 +154,7 @@ const MiPerformance = () => {
 
               {isVC && (
                 <>
-                  <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
+                  <SectionTitle icon="bar_chart" title="ACV+" />
                   <motion.div className="bg-white border border-border rounded-2xl p-8 text-center shadow-smooth-sm" variants={fadeUpItem}>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-heading">
