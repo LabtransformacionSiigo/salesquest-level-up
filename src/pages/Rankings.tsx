@@ -68,8 +68,10 @@ const Rankings = () => {
         })));
       } else {
         // Gerentes VC: fetch ranking + ACV data
+        let rankQuery = supabase.from('ranking_general').select('*').eq('canal', 'VC');
+        if (pais !== 'TODOS') rankQuery = rankQuery.eq('pais', pais);
         const [rankRes, acvRes] = await Promise.all([
-          supabase.from('ranking_general').select('*').eq('canal', 'VC'),
+          rankQuery,
           supabase.from('acv_vc_mensual').select('gerente_id, acv_plus_total').order('anio', { ascending: false }),
         ]);
         const acvMap = new Map<string, number>();
