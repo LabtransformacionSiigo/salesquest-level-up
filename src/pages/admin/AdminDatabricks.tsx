@@ -233,6 +233,12 @@ const AdminDatabricks = () => {
                       <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
                     </div>
                   )}
+                  {syncResult.sp_recalculo && !syncResult.sp_recalculo.error && (
+                    <div className="bg-accent/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-accent-foreground uppercase font-semibold">SP Otorgados</p>
+                      <p className="text-xl font-bold text-accent-foreground">{syncResult.sp_recalculo.sp_otorgados ?? 0}</p>
+                    </div>
+                  )}
                 </div>
 
                 {syncResult.errores?.length > 0 && (
