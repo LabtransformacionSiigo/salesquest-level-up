@@ -199,7 +199,7 @@ const AdminAsesores = () => {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{a.email}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{a.gerentes?.nombre || '—'}</td>
                     <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === a.canal)?.label || a.canal}</span></td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.pais}</td>
+                    <td className="px-4 py-3 text-sm">{({'COL':'🇨🇴','MEX':'🇲🇽','ECU':'🇪🇨'})[a.pais] || '🌎'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
                         {a.activo ? 'Activo' : 'Inactivo'}
