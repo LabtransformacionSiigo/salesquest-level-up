@@ -91,7 +91,7 @@ const MiPerformance = () => {
   const vcHistory = isVcAdvisor ? (vcMetrics?.monthlyHistory || []) : acvData;
   const vcHeadlineValue = isVcAdvisor ? vcMetrics?.totalAcv || 0 : acvData[0]?.acv_plus_total || 0;
   const vcUnitsLabel = isVcAdvisor
-    ? `${vcMetrics?.currentMonthUnits || 0} unidades este mes · ${formatMoney(vcMetrics?.currentMonthAcv || 0)} ACV del mes`
+    ? `${vcMetrics?.currentMonthUnits || 0} unidades este mes · ${formatMoney(vcMetrics?.currentMonthAcv || 0)} ACV+ del mes`
     : `${acvData[0]?.unidades || 0} unidades`;
 
   return (
@@ -124,7 +124,7 @@ const MiPerformance = () => {
                   <SectionTitle icon="bar_chart" title="KPIs de Gamificación" tip="Métricas principales que alimentan tu puntaje." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" tip="Cantidad total de productos vendidas." />
-                    <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
+                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
                     <KPICard icon="group_add" label="# de Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos semanales para SP extra." />
@@ -141,7 +141,7 @@ const MiPerformance = () => {
                   <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
-                    <KPICard icon="trending_up" label="ACV" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
+                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
                     <KPICard icon="person_add" label="Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos aliados" color="text-accent" />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" />
