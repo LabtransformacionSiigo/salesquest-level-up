@@ -13,8 +13,8 @@ const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU
 const CANALES_LABEL: Record<string, string> = { VN_EMPRESARIOS: 'Empresarios', VN_ALIADOS: 'Aliados', VC: 'Venta Cruzada' };
 const PAISES = [
   { value: 'TODOS', label: '🌎 Todos' },
-  { value: 'COL', label: '🇨🇴 COL' },
-  { value: 'MEX', label: '🇲🇽 MEX' },
+  { value: 'COL', label: '🇨🇴 Colombia' },
+  { value: 'MEX', label: '🇲🇽 México' },
   { value: 'ECU', label: '🇪🇨 ECU' },
 ];
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
