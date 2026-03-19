@@ -74,7 +74,7 @@ const Rankings = () => {
 
   const isComercialTab = isVC && tab === 'comerciales';
   const sorted = [...ranking].sort((a, b) => (b.sp_totales || 0) - (a.sp_totales || 0));
-  const metricLabel = isComercialTab ? 'ACV' : 'SP';
+  const metricLabel = isComercialTab ? 'ACV+' : 'SP';
   const formatMetric = (val: number) => isComercialTab ? `$${(val / 1000000).toFixed(1)}M` : val.toLocaleString();
   const entityLabel = isComercialTab ? 'Comercial' : 'Gerente';
   const top3 = sorted.slice(0, 3);
