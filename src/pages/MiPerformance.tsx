@@ -154,7 +154,7 @@ const MiPerformance = () => {
 
               {isVC && (
                 <>
-                  <SectionTitle icon="bar_chart" title="KPI de Gamificación" />
+                  <SectionTitle icon="bar_chart" title="ACV+" />
                   <motion.div className="bg-white border border-border rounded-2xl p-8 text-center shadow-smooth-sm" variants={fadeUpItem}>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-heading">
