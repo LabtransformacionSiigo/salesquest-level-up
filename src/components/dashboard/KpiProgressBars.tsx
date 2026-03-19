@@ -14,12 +14,12 @@ interface KpiProgressBarsProps {
 const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading }: KpiProgressBarsProps) => {
   if (loading) {
     return (
-      <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-        <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
+      <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
+        <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
           <span className="text-primary">📊</span> Resumen KPIs del Mes
         </h3>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10" />)}
+        <div className="space-y-5">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}
         </div>
       </motion.div>
     );
@@ -42,27 +42,27 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading }: K
   const fmt = (v: number) => `$${(v / 1_000_000).toFixed(0)}M`;
 
   return (
-    <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-      <h3 className="text-sm font-bold font-heading text-secondary mb-5 flex items-center gap-2">
+    <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
+      <h3 className="text-base font-bold font-heading text-secondary mb-6 flex items-center gap-2">
         <span className="text-primary">📊</span> Resumen KPIs del Mes
       </h3>
       {bars.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {bars.map((bar, i) => {
             const pct = Math.min(100, bar.meta > 0 ? (bar.value / bar.meta) * 100 : 0);
             return (
               <div key={i}>
-                <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                <div className="flex justify-between text-sm font-semibold text-muted-foreground mb-2">
                   <span>{bar.label}</span>
                   <span>{fmt(bar.value)} / {fmt(bar.meta)}</span>
                 </div>
-                <Progress value={pct} className="h-2.5" />
+                <Progress value={pct} className="h-3" />
               </div>
             );
           })}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">Sin datos de KPI para este mes</p>
+        <p className="text-base text-muted-foreground text-center py-6">Sin datos de KPI para este mes</p>
       )}
     </motion.div>
   );

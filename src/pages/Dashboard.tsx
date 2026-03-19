@@ -127,7 +127,7 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
 
@@ -137,51 +137,51 @@ const Dashboard = () => {
 
   return (
     <Layout title="Panel General">
-      <motion.div className="space-y-5 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
+      <motion.div className="space-y-6 max-w-[1400px]" variants={staggerContainer} initial="hidden" animate="show">
 
-        {/* KPIs del Mes — barras de progreso */}
+        {/* KPIs del Mes */}
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} />
 
         {/* Fila: SP Donut | Racha | Top Pointers */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={fadeUpItem}>
+        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-5" variants={fadeUpItem}>
           {/* SP Donut */}
-          <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
-            <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2 self-start">
+          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
+            <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2 self-start">
               <span className="text-primary">⚡</span> Siigo Points gerente
             </h3>
-            {dataLoading ? <Skeleton className="h-28 w-28 rounded-full" /> : (
+            {dataLoading ? <Skeleton className="h-36 w-36 rounded-full" /> : (
               <DonutChart
                 value={sp}
                 max={nivelSiguiente?.min || sp}
-                size={140}
-                strokeWidth={12}
+                size={180}
+                strokeWidth={14}
                 color="hsl(var(--orange))"
                 bgColor="hsl(var(--muted))"
               >
-                <span className="text-xs text-muted-foreground font-semibold">{nivelActual.nombre}</span>
-                <span className="text-lg font-black font-scoreboard text-primary">
+                <span className="text-sm text-muted-foreground font-semibold">{nivelActual.nombre}</span>
+                <span className="text-xl font-black font-scoreboard text-primary">
                   {sp.toLocaleString()}/{(nivelSiguiente?.min || sp).toLocaleString()}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase">sp</span>
+                <span className="text-xs text-muted-foreground font-bold uppercase">sp</span>
               </DonutChart>
             )}
           </motion.div>
 
           {/* Racha */}
-          <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={popIn}>
-            <h3 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
+          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={popIn}>
+            <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
               <span className="text-primary">🔥</span> Racha activa
             </h3>
-            {dataLoading ? <Skeleton className="h-24 w-full" /> : racha && racha.semanas_consecutivas > 0 ? (
-              <div className="text-center py-4">
-                <p className="text-3xl font-black font-scoreboard text-orange">🔥 ×{racha.multiplicador}</p>
-                <p className="text-sm font-bold text-foreground mt-2">{racha.nombre_racha}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{racha.semanas_consecutivas} semanas</p>
+            {dataLoading ? <Skeleton className="h-28 w-full" /> : racha && racha.semanas_consecutivas > 0 ? (
+              <div className="text-center py-6">
+                <p className="text-4xl font-black font-scoreboard text-orange">🔥 ×{racha.multiplicador}</p>
+                <p className="text-base font-bold text-foreground mt-3">{racha.nombre_racha}</p>
+                <p className="text-sm text-muted-foreground mt-1">{racha.semanas_consecutivas} semanas</p>
               </div>
             ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <span className="text-5xl mb-2 block">❄️</span>
-                <p className="text-sm font-medium">Sin racha activa</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <span className="text-6xl mb-3 block">❄️</span>
+                <p className="text-base font-medium">Sin racha activa</p>
               </div>
             )}
           </motion.div>
@@ -191,42 +191,42 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}
-        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-4" variants={fadeUpItem}>
-          {/* Retos de la Semana — 2 columnas */}
-          <motion.div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold font-heading text-secondary flex items-center gap-2">
+        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-5" variants={fadeUpItem}>
+          {/* Retos de la Semana */}
+          <motion.div className="lg:col-span-2 bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-bold font-heading text-secondary flex items-center gap-2">
                 <span className="text-primary">🎯</span> Retos de la Semana
               </h3>
-              <Link to="/retos" className="text-xs text-primary font-bold hover:underline">Ver todos →</Link>
+              <Link to="/retos" className="text-sm text-primary font-bold hover:underline">Ver todos →</Link>
             </div>
             {dataLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-44" />)}</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {RETOS_SEMANALES.map((reto) => {
                   const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                   const completed = pct >= 100;
                   return (
-                    <div key={reto.id} className="flex flex-col items-center text-center p-4 border border-border rounded-xl">
-                      <p className="text-xs font-bold text-foreground mb-1">{reto.nombre}</p>
-                      <p className="text-[10px] text-muted-foreground mb-3">
+                    <div key={reto.id} className="flex flex-col items-center text-center p-5 border border-border rounded-xl">
+                      <p className="text-sm font-bold text-foreground mb-1">{reto.nombre}</p>
+                      <p className="text-xs text-muted-foreground mb-4">
                         <span className="text-primary font-scoreboard font-bold">⚡ {reto.sp} SP</span>
                       </p>
                       <DonutChart
                         value={ventasSemana}
                         max={reto.umbral}
-                        size={100}
-                        strokeWidth={8}
+                        size={120}
+                        strokeWidth={10}
                         color={completed ? 'hsl(var(--accent))' : 'hsl(var(--orange))'}
                         bgColor="hsl(var(--muted))"
                       >
-                        <span className="text-[10px] text-muted-foreground">ventas</span>
-                        <span className={cn('text-xs font-black font-scoreboard', completed ? 'text-accent' : 'text-primary')}>
+                        <span className="text-xs text-muted-foreground">ventas</span>
+                        <span className={cn('text-sm font-black font-scoreboard', completed ? 'text-accent' : 'text-primary')}>
                           {(ventasSemana / 1_000_000).toFixed(0)}/{(reto.umbral / 1_000_000).toFixed(0)}
                         </span>
                       </DonutChart>
-                      {completed && <p className="text-xs font-bold text-accent mt-2">✅ ¡Completado!</p>}
+                      {completed && <p className="text-sm font-bold text-accent mt-3">✅ ¡Completado!</p>}
                     </div>
                   );
                 })}
@@ -235,55 +235,55 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Medallas + Reconocimientos stacked */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Medallas Recientes */}
             <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-              <h3 className="text-sm font-bold font-heading text-secondary mb-3 flex items-center gap-2">
+              <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
                 <span className="text-primary">🏅</span> Medallas Recientes
               </h3>
-              {dataLoading ? <Skeleton className="h-16" /> : medallas.length > 0 ? (
-                <div className="space-y-2">
+              {dataLoading ? <Skeleton className="h-20" /> : medallas.length > 0 ? (
+                <div className="space-y-3">
                   {medallas.slice(0, 3).map((m, i) => (
-                    <div key={`${m.medalla}-${i}`} className="flex items-center gap-3 p-2 bg-muted/50 border border-border rounded-xl">
-                      <span className="text-lg">🏅</span>
+                    <div key={`${m.medalla}-${i}`} className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl">
+                      <span className="text-2xl">🏅</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">{m.medalla}</p>
-                        <p className="text-[10px] font-bold font-scoreboard text-accent">+{m.sp_otorgados} SP</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{m.medalla}</p>
+                        <p className="text-xs font-bold font-scoreboard text-accent">+{m.sp_otorgados} SP</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <span className="text-3xl mb-1 block opacity-30">🏅</span>
-                  <p className="text-xs">Aún no tienes medallas</p>
+                <div className="text-center py-6 text-muted-foreground">
+                  <span className="text-4xl mb-2 block opacity-30">🏅</span>
+                  <p className="text-sm">Aún no tienes medallas</p>
                 </div>
               )}
             </motion.div>
 
             {/* Reconocimientos */}
             <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-              <h3 className="text-sm font-bold font-heading text-secondary mb-3 flex items-center gap-2">
+              <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
                 <span className="text-primary">🎖️</span> Reconocimientos
               </h3>
-              {dataLoading ? <Skeleton className="h-16" /> : feed.length > 0 ? (
-                <div className="space-y-2">
+              {dataLoading ? <Skeleton className="h-20" /> : feed.length > 0 ? (
+                <div className="space-y-3">
                   {feed.slice(0, 3).map((r) => (
-                    <div key={r.id} className="flex items-start gap-3 p-2">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-sm">🏆</div>
+                    <div key={r.id} className="flex items-start gap-3 p-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">🏆</div>
                       <div className="min-w-0">
-                        <p className="text-xs text-foreground">
+                        <p className="text-sm text-foreground">
                           <span className="font-bold">{r.de_nombre}</span> — <span className="font-bold">{r.para_nombre}</span>
                         </p>
-                        <p className="text-[10px] text-primary font-bold uppercase">{r.tipo?.replace(/_/g, ' ')}</p>
+                        <p className="text-xs text-primary font-bold uppercase mt-0.5">{r.tipo?.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <span className="text-3xl mb-1 block opacity-30">🤝</span>
-                  <p className="text-xs">Sin reconocimientos aún</p>
+                <div className="text-center py-6 text-muted-foreground">
+                  <span className="text-4xl mb-2 block opacity-30">🤝</span>
+                  <p className="text-sm">Sin reconocimientos aún</p>
                 </div>
               )}
             </motion.div>
