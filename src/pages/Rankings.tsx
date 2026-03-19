@@ -169,9 +169,23 @@ const Rankings = () => {
                     {/* KPI + SP metrics */}
                     <div className="flex items-center justify-center gap-3 mt-3">
                       {isComercialTab ? (
-                        <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                          {formatMoney(g.kpi_value)} <span className="text-xs font-heading">ACV+</span>
-                        </motion.p>
+                        <>
+                          <div>
+                            <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
+                              {formatMoney(g.kpi_value)}
+                            </motion.p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                          </div>
+                          {(g.ventas_count > 0) && (
+                            <>
+                              <div className="w-px h-8 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-accent">{g.ventas_count}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
+                              </div>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <>
                           <div>
