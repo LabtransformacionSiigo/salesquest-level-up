@@ -58,7 +58,7 @@ const Rankings = () => {
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
-          sp_totales: null,
+          sp_totales: calculateSpFromRevenue(Math.round(Number(r.acv_total) || 0)),
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
