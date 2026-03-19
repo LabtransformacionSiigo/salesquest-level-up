@@ -148,19 +148,15 @@ const Rankings = () => {
           </motion.div>
         )}
 
-        {!isComercialTab && (
-          <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
-            <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
-            {PAISES.map(p => (
-              <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border", pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
-                {p.label}
-              </motion.button>
-            ))}
-            <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span>
-          </motion.div>
-        )}
-
-        {isComercialTab && <motion.div className="flex justify-end" variants={fadeUpItem}><span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span></motion.div>}
+        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
+          <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
+          {PAISES.map(p => (
+            <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border", pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
+              {p.label}
+            </motion.button>
+          ))}
+          <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span>
+        </motion.div>
 
         {dataLoading ? <div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div> : (
           <>
