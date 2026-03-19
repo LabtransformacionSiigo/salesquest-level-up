@@ -51,9 +51,16 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const { data } = await supabase.from('ranking_vc_comerciales' as any).select('*');
+        const [comRes, gerentesRes] = await Promise.all([
+          supabase.from('ranking_vc_comerciales' as any).select('*'),
+          supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
+        ]);
+        const gerentePaisMap = new Map<string, string>();
+        (gerentesRes.data || []).forEach((g: any) => {
+          if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
+        });
         const currentName = normalizePersonName(profile?.nombre);
-        setRanking((data || []).map((r: any) => ({
+        const mapped = (comRes.data || []).map((r: any) => ({
           id: `${r.nombre}-${r.gerente_nombre}`,
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
@@ -62,10 +69,11 @@ const Rankings = () => {
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
-          pais: 'COL',
+          pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
           nivel: null,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
-        })));
+        }));
+        setRanking(pais !== 'TODOS' ? mapped.filter(r => r.pais === pais) : mapped);
       } else {
         // Gerentes VC: fetch ranking + ACV data
         let rankQuery = supabase.from('ranking_general').select('*').eq('canal', 'VC');
