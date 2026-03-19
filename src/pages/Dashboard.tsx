@@ -242,8 +242,8 @@ const Dashboard = () => {
               <StatCard label="Ventas Mes" value={`$${((kpis?.ventas || 0) / 1_000_000).toFixed(1)}M`} emoji="💰" delay={0} />
               <StatCard label="Semana" value={`$${(ventasSemana / 1_000_000).toFixed(1)}M`} emoji="🔥" delay={0.05} />
               <StatCard label="Unidades" value={String(unidades)} emoji="📦" delay={0.1} />
-              <StatCard label="ACV Mes" value={`$${((kpis?.acv_f || 0) / 1_000_000).toFixed(1)}M`} emoji="🗓️" delay={0.15} />
-              <StatCard label="ACV Total" value={`$${(acvMes / 1_000_000).toFixed(1)}M`} emoji="📈" delay={0.2} />
+              <StatCard label="ACV+ Mes" value={`$${((kpis?.acv_f || 0) / 1_000_000).toFixed(1)}M`} emoji="🗓️" delay={0.15} />
+              <StatCard label="ACV+ Total" value={`$${(acvMes / 1_000_000).toFixed(1)}M`} emoji="📈" delay={0.2} />
               <StatCard label="Medallas" value={String(medallas.length)} emoji="🏅" delay={0.25} />
             </motion.div>
           ) : kpis ? (
