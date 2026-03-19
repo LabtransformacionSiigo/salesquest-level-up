@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
-import { normalizePersonName } from '@/lib/vc-advisor-metrics';
+import { normalizePersonName, calculateSpFromRevenue } from '@/lib/vc-advisor-metrics';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -58,7 +58,7 @@ const Rankings = () => {
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
-          sp_totales: null,
+          sp_totales: calculateSpFromRevenue(Math.round(Number(r.acv_total) || 0)),
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
@@ -176,12 +176,17 @@ const Rankings = () => {
                             </motion.p>
                             <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                           </div>
+                          <div className="w-px h-8 bg-border" />
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{(g.sp_totales || 0).toLocaleString()}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                          </div>
                           {(g.ventas_count > 0) && (
                             <>
                               <div className="w-px h-8 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-accent">{g.ventas_count}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Uds</p>
                               </div>
                             </>
                           )}
@@ -228,7 +233,8 @@ const Rankings = () => {
                       {isComercialTab ? (
                         <>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">SP</th>
+                          <th className="text-right px-4 py-3">Uds</th>
                         </>
                       ) : (
                         <>
@@ -255,7 +261,8 @@ const Rankings = () => {
                         {isComercialTab ? (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{g.ventas_count || 0}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.sp_totales || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
                           </>
                         ) : (
                           <>
