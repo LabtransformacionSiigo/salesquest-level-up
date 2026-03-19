@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: authHeader,
+          Authorization: `Bearer ${serviceRoleKey}`,
         },
       });
       spResult = await spResponse.json();
