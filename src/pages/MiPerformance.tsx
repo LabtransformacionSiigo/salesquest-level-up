@@ -138,7 +138,7 @@ const MiPerformance = () => {
 
               {isAliados && (
                 <>
-                  <SectionTitle icon="bar_chart" title="KPIs de Gamificación" />
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
