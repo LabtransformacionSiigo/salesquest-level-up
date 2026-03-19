@@ -26,31 +26,31 @@ const Header = ({ title }: HeaderProps) => {
   }, [profile?.id]);
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 flex-shrink-0">
+    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
       <div className="flex items-center gap-3">
-        <MI icon="bolt" className="text-lg text-primary" />
-        <h1 className="text-base font-bold font-heading text-secondary">{title}</h1>
+        <MI icon="bolt" className="text-xl text-primary" />
+        <h1 className="text-lg font-bold font-heading text-secondary">{title}</h1>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         {/* Racha */}
         {racha && racha.semanas_consecutivas > 0 && (
-          <div className="flex items-center gap-1.5 bg-siigo-orange rounded-full px-3 py-1.5">
-            <span className="text-sm">🔥</span>
-            <span className="text-xs font-bold font-scoreboard text-white">×{racha.multiplicador}</span>
-            <span className="text-[11px] text-white/80 hidden md:inline">{racha.nombre_racha}</span>
+          <div className="flex items-center gap-2 bg-orange rounded-full px-4 py-2">
+            <span className="text-base">🔥</span>
+            <span className="text-sm font-bold font-scoreboard text-orange-foreground">×{racha.multiplicador}</span>
+            <span className="text-xs text-orange-foreground/80 hidden md:inline font-medium">{racha.nombre_racha}</span>
           </div>
         )}
 
         {/* Siigo Arena badge */}
-        <div className="hidden md:flex items-center gap-1.5 bg-primary rounded-full px-3 py-1.5">
-          <MI icon="emoji_events" className="text-sm text-white" />
-          <span className="text-[10px] font-bold text-white font-heading">Siigo Arena</span>
+        <div className="hidden md:flex items-center gap-2 bg-primary rounded-full px-4 py-2">
+          <MI icon="emoji_events" className="text-base text-primary-foreground" />
+          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Arena</span>
         </div>
 
         {/* Notifications */}
-        <button className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-          <MI icon="notifications_none" className="text-xl" />
+        <button className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+          <MI icon="notifications_none" className="text-2xl" />
         </button>
       </div>
     </header>

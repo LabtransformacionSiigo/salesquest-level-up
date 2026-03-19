@@ -17,7 +17,7 @@ const Layout = ({ children, title }: LayoutProps) => {
         <Header title={title} />
         <main className="flex-1 overflow-y-auto relative bg-muted/30">
           <motion.div
-            className="px-6 py-6 relative z-10"
+            className="px-8 py-8 relative z-10"
             variants={pageTransition}
             initial="hidden"
             animate="show"
