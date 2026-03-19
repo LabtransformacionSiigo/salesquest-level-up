@@ -51,9 +51,16 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const { data } = await supabase.from('ranking_vc_comerciales' as any).select('*');
+        const [comRes, gerentesRes] = await Promise.all([
+          supabase.from('ranking_vc_comerciales' as any).select('*'),
+          supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
+        ]);
+        const gerentePaisMap = new Map<string, string>();
+        (gerentesRes.data || []).forEach((g: any) => {
+          if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
+        });
         const currentName = normalizePersonName(profile?.nombre);
-        setRanking((data || []).map((r: any) => ({
+        const mapped = (comRes.data || []).map((r: any) => ({
           id: `${r.nombre}-${r.gerente_nombre}`,
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
@@ -62,14 +69,17 @@ const Rankings = () => {
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
-          pais: 'COL',
+          pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
           nivel: null,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
-        })));
+        }));
+        setRanking(pais !== 'TODOS' ? mapped.filter(r => r.pais === pais) : mapped);
       } else {
         // Gerentes VC: fetch ranking + ACV data
+        let rankQuery = supabase.from('ranking_general').select('*').eq('canal', 'VC');
+        if (pais !== 'TODOS') rankQuery = rankQuery.eq('pais', pais);
         const [rankRes, acvRes] = await Promise.all([
-          supabase.from('ranking_general').select('*').eq('canal', 'VC'),
+          rankQuery,
           supabase.from('acv_vc_mensual').select('gerente_id, acv_plus_total').order('anio', { ascending: false }),
         ]);
         const acvMap = new Map<string, number>();
@@ -138,19 +148,15 @@ const Rankings = () => {
           </motion.div>
         )}
 
-        {!isComercialTab && (
-          <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
-            <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
-            {PAISES.map(p => (
-              <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border", pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
-                {p.label}
-              </motion.button>
-            ))}
-            <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span>
-          </motion.div>
-        )}
-
-        {isComercialTab && <motion.div className="flex justify-end" variants={fadeUpItem}><span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span></motion.div>}
+        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeUpItem}>
+          <span className="text-xs font-semibold text-muted-foreground mr-2">🌎 País:</span>
+          {PAISES.map(p => (
+            <motion.button key={p.value} onClick={() => setPais(p.value)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all border", pais === p.value ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:text-foreground")}>
+              {p.label}
+            </motion.button>
+          ))}
+          <span className="ml-auto text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO</span>
+        </motion.div>
 
         {dataLoading ? <div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div> : (
           <>
