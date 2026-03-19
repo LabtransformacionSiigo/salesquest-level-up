@@ -7,8 +7,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
+import colombiaFlag from '@/assets/flags/colombia.svg';
+import mexicoFlag from '@/assets/flags/mexico.svg';
+import ecuadorFlag from '@/assets/flags/ecuador.svg';
+import usaFlag from '@/assets/flags/united-states.svg';
 
-const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨', USA: '🇺🇸' };
+const FLAG_MAP: Record<string, string> = {
+  COL: colombiaFlag,
+  CO: colombiaFlag,
+  MEX: mexicoFlag,
+  MX: mexicoFlag,
+  ECU: ecuadorFlag,
+  EC: ecuadorFlag,
+  USA: usaFlag,
+  US: usaFlag,
+};
+
+const normalizeCountryCode = (pais?: string | null) => pais?.trim().toUpperCase() || '';
 
 const MiEquipo = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
@@ -62,26 +77,34 @@ const MiEquipo = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-40" />)}</div>
         ) : asesores.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-            {asesores.map(a => (
-              <motion.div key={a.id} className={cn("bg-white border border-border rounded-2xl p-6 transition-all hover:shadow-smooth-md shadow-smooth-sm", !a.activo && "opacity-50")} variants={fadeUpItem}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl">
-                    👤
+            {asesores.map(a => {
+              const countryFlag = FLAG_MAP[normalizeCountryCode(a.pais)];
+
+              return (
+                <motion.div key={a.id} className={cn("bg-white border border-border rounded-2xl p-6 transition-all hover:shadow-smooth-md shadow-smooth-sm", !a.activo && "opacity-50")} variants={fadeUpItem}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl">
+                      👤
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{a.nombre}</p>
+                      <p className="text-xs text-muted-foreground">{a.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{a.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{a.email}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
+                    {countryFlag ? (
+                      <img src={countryFlag} alt={`Bandera de ${a.pais}`} className="h-4 w-4 rounded-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="text-sm">🌎</span>
+                    )}
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-accent text-white" : "bg-destructive/10 text-destructive")}>
+                      {a.activo ? '✅ Activo' : '⏸️ Inactivo'}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">{a.canal?.replace(/_/g, ' ')}</span>
-                  <span className="text-sm">{FLAG_MAP[a.pais] || '🌎'}</span>
-                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", a.activo ? "bg-accent text-white" : "bg-destructive/10 text-destructive")}>
-                    {a.activo ? '✅ Activo' : '⏸️ Inactivo'}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </motion.div>
         ) : (
           <motion.div className="text-center py-16" variants={fadeUpItem}>
