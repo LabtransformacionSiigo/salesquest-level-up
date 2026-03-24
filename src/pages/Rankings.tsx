@@ -274,7 +274,7 @@ const Rankings = () => {
                         {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         {isComercialTab ? (
                           <>
-                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
                           </>
