@@ -186,9 +186,9 @@ const Rankings = () => {
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : formatMoney(g.kpi_value)}
+                              {g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}
                             </motion.p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">{g.pct_cumplimiento ? '% Cumpl.' : 'ACV+'}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">% Cumpl.</p>
                           </div>
                           <div className="w-px h-8 bg-border" />
                           <div>
@@ -274,7 +274,7 @@ const Rankings = () => {
                         {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         {isComercialTab ? (
                           <>
-                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
                           </>
