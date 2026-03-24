@@ -186,14 +186,14 @@ const Rankings = () => {
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {formatMoney(g.kpi_value)}
+                              {g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : formatMoney(g.kpi_value)}
                             </motion.p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">{g.pct_cumplimiento ? '% Cumpl.' : 'ACV+'}</p>
                           </div>
                           <div className="w-px h-8 bg-border" />
                           <div>
-                            <p className="text-sm font-bold font-scoreboard text-accent">{(g.sp_totales || 0).toLocaleString()}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                           </div>
                           {(g.ventas_count > 0) && (
                             <>
