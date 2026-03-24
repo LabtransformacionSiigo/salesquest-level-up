@@ -27,17 +27,18 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
     );
   }
 
+  const pct = pctCumplimiento ?? (kpis?.pct_cumplimiento ? Number(kpis.pct_cumplimiento) : 0);
   const bars = isVcAdvisor
     ? [
-        { label: 'Ventas Mes', value: kpis?.ventas || 0, meta: (kpis?.ventas || 0) * 2 || 50_000_000 },
-        { label: 'ACV+ Mes', value: kpis?.acv_f || 0, meta: (kpis?.acv_f || 0) * 2 || 50_000_000 },
-        { label: 'Ventas Semana', value: ventasSemana, meta: ventasSemana * 2 || 50_000_000 },
+        { label: 'Ventas Mes', value: kpis?.ventas || 0, meta: (kpis?.ventas || 0) * 2 || 50_000_000, isMoney: true },
+        { label: 'ACV+ Mes', value: kpis?.acv_f || 0, meta: (kpis?.acv_f || 0) * 2 || 50_000_000, isMoney: true },
+        { label: '% Cumplimiento Meta', value: pct, meta: 100, isMoney: false },
       ]
     : kpis
     ? [
-        { label: 'Ventas', value: kpis.ventas || 0, meta: kpis.meta || 1 },
-        { label: 'ACV+ Mes', value: acvMes, meta: acvMes * 2 || 50_000_000 },
-        { label: 'Productividad', value: kpis.productividad_por_asesor || 0, meta: (kpis.productividad_por_asesor || 0) * 2 || 50_000_000 },
+        { label: 'Ventas', value: kpis.ventas || 0, meta: kpis.meta || 1, isMoney: true },
+        { label: 'ACV+ Mes', value: acvMes, meta: acvMes * 2 || 50_000_000, isMoney: true },
+        { label: '% Cumplimiento Meta', value: pct, meta: 100, isMoney: false },
       ]
     : [];
 
