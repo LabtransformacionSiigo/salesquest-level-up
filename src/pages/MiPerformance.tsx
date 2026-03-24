@@ -32,6 +32,7 @@ const MiPerformance = () => {
   const [kpis, setKpis] = useState<any>(null);
   const [acvData, setAcvData] = useState<any[]>([]);
   const [vcSnapshot, setVcSnapshot] = useState<any>(null);
+  const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
