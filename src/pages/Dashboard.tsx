@@ -118,8 +118,15 @@ const Dashboard = () => {
         const { data: acvData } = await supabase.from('acv_vc_mensual').select('acv_plus_total').eq('gerente_id', profile.id).maybeSingle();
         if (cancelled) return;
         setAcvMes(Number(acvData?.acv_plus_total) || 0);
+        // Calculate cumplimiento from ventas meta
+        const { data: ventasMeta } = await supabase.from('ventas').select('acv_plus, meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear());
+        if (cancelled) return;
+        const totalAcv = (ventasMeta || []).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+        const totalMeta = (ventasMeta || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
+        setPctCumplimiento(totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0);
       } else {
         setAcvMes(Number(kpisRes.data?.acv_f) || 0);
+        setPctCumplimiento(Number(kpisRes.data?.pct_cumplimiento) || 0);
       }
       setDataLoading(false);
     };
