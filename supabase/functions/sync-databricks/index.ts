@@ -6,6 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SPANISH_MONTHS: Record<string, string> = {
+  "Enero": "01", "Febrero": "02", "Marzo": "03", "Abril": "04",
+  "Mayo": "05", "Junio": "06", "Julio": "07", "Agosto": "08",
+  "Septiembre": "09", "Octubre": "10", "Noviembre": "11", "Diciembre": "12",
+};
+
 // Table configurations
 const TABLE_CONFIGS: Record<string, { sql: (limit: string) => string; label: string }> = {
   productividad: {
@@ -13,8 +19,37 @@ const TABLE_CONFIGS: Record<string, { sql: (limit: string) => string; label: str
     sql: (limit: string) => `SELECT * FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
   ventas_vc: {
-    label: "Ventas VC",
-    sql: (limit: string) => `SELECT * FROM analyticdl.db_comercial.tbl_gld_Ventas_VC WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador','Uruguay') ${limit}`,
+    label: "Ventas VC (Mensual con Metas)",
+    sql: (limit: string) => `
+WITH ventas_mensuales AS (
+    SELECT 
+        comercial, lider, Anio, mes,
+        SUM(CAST(ACV_PLUS AS BIGINT)) AS total_logrado_mes
+    FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
+    WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')
+    GROUP BY comercial, lider, Anio, mes
+),
+metas_mensuales AS (
+    SELECT 
+        Comercial, Lider AS Lider_Meta, \`Año_Meta\`, Mes_meta,
+        SUM(meta_todo) AS meta_del_mes
+    FROM analyticdl.db_servicios.tbl_slv_metas_venta_cruzada
+    WHERE \`Año_Meta\` = 2026
+    GROUP BY Comercial, Lider, \`Año_Meta\`, Mes_meta
+)
+SELECT 
+    m.Comercial AS Asesor,
+    m.Lider_Meta AS Lider,
+    m.\`Año_Meta\` AS Anio,
+    m.Mes_meta AS Mes,
+    m.meta_del_mes AS Meta_Objetivo,
+    COALESCE(v.total_logrado_mes, 0) AS Saldo_ACV_Actual
+FROM metas_mensuales m
+LEFT JOIN ventas_mensuales v 
+    ON LOWER(m.Comercial) = LOWER(v.comercial) 
+    AND m.Mes_meta = v.mes
+${limit}
+`,
   },
 };
 
@@ -37,12 +72,10 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Allow service role key calls (for internal/automated sync)
     const token = authHeader.replace("Bearer ", "");
     const isServiceRole = token === serviceRoleKey;
 
     if (!isServiceRole) {
-      // Verify admin via user auth
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -69,7 +102,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Parse request body
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || "preview";
     const table = body.table || "productividad";
@@ -82,7 +114,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Databricks config
     const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
     const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
     const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
@@ -130,12 +161,11 @@ Deno.serve(async (req) => {
 
     if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
       return new Response(
-        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución. Reintenta en unos segundos." }),
+        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Extract columns and data
     const columns = dbData.manifest?.schema?.columns || [];
     const columnNames = columns.map((c: any) => c.name);
     const dataChunks = dbData.result?.data_array || [];
@@ -150,7 +180,6 @@ Deno.serve(async (req) => {
 
     console.log(`[${table}] Databricks returned ${rows.length} rows, columns: ${columnNames.join(", ")}`);
 
-    // Preview mode
     if (mode === "preview") {
       return new Response(
         JSON.stringify({
@@ -163,7 +192,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Sync mode
     let syncResult;
     if (table === "ventas_vc") {
       syncResult = await syncVentasVC(supabase, rows);
@@ -171,7 +199,7 @@ Deno.serve(async (req) => {
       syncResult = await syncProductividad(supabase, rows);
     }
 
-    // Auto-trigger SP calculation after successful sync
+    // Auto-trigger SP calculation
     let spResult = null;
     try {
       const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
@@ -257,7 +285,7 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   return { total_rows: rows.length, kpis_sincronizados: insertedKpis, errores: errores.slice(0, 20) };
 }
 
-// Sync Ventas VC → ventas table (batch optimized)
+// Sync Ventas VC → ventas table (monthly summaries with metas)
 async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   let insertedVentas = 0;
   const errores: string[] = [];
@@ -271,7 +299,7 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   // Auto-create gerentes from lider column
   const liderNames = new Set<string>();
   for (const row of rows) {
-    const lider = (row.lider || "").trim();
+    const lider = (row.Lider || "").trim();
     if (lider && !gerenteMap.get(lider.toLowerCase())) liderNames.add(lider);
   }
 
@@ -286,24 +314,35 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
     (created || []).forEach((g: any) => gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g));
   }
 
-  // Build all venta rows
+  // Build venta rows from monthly summary data
   const ventaRows: any[] = [];
   for (const row of rows) {
-    const liderName = (row.lider || "").toLowerCase().trim();
+    const liderName = (row.Lider || "").toLowerCase().trim();
     const gerente = gerenteMap.get(liderName);
     if (!gerente) {
-      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.lider || "?"}`);
+      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`);
       continue;
     }
+
+    const monthNum = SPANISH_MONTHS[row.Mes] || "01";
+    const anio = Number(row.Anio) || 2026;
+    const asesor = String(row.Asesor || row.comercial || "");
+
     ventaRows.push({
       gerente_id: gerente.id,
-      fecha_facturacion: row.Fecha_Facturacion || new Date().toISOString().split('T')[0],
-      canal: "VC", anio: Number(row.Anio || 2026), mes: String(row.mes || ""),
-      producto: String(row.Producto || ""), bloque_venta: String(row.Bloque_Venta || ""),
-      documento_factura: String(row.Documento_Factura || ""),
-      valor_producto: Number(row.Valor_Producto || 0), acv_plus: Number(row.ACV_PLUS || 0),
-      comercial: String(row.comercial || ""), lider: String(row.lider || ""),
-      categoria_producto_venta: String(row.categoria_producto_Venta || ""),
+      fecha_facturacion: `${anio}-${monthNum}-01`,
+      canal: "VC",
+      anio,
+      mes: String(row.Mes || ""),
+      producto: "Resumen Mensual VC",
+      bloque_venta: "",
+      documento_factura: `SUM-${anio}-${row.Mes}-${asesor}`,
+      valor_producto: Number(row.Saldo_ACV_Actual || 0),
+      acv_plus: Number(row.Saldo_ACV_Actual || 0),
+      meta: Number(row.Meta_Objetivo || 0),
+      comercial: asesor,
+      lider: String(row.Lider || ""),
+      categoria_producto_venta: "",
     });
   }
 
@@ -314,7 +353,7 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
     const { error, count } = await supabase.from("ventas").upsert(chunk, {
       onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
     });
-    if (error) errores.push(`Batch ${i}-${i+chunk.length}: ${error.message}`);
+    if (error) errores.push(`Batch ${i}-${i + chunk.length}: ${error.message}`);
     else insertedVentas += (count || chunk.length);
   }
 
