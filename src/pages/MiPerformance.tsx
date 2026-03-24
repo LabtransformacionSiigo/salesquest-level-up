@@ -65,9 +65,10 @@ const MiPerformance = () => {
         return;
       }
 
-      const [kpisRes, acvRes] = await Promise.all([
+      const [kpisRes, acvRes, ventasMetaRes] = await Promise.all([
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
+        isVC ? supabase.from('ventas').select('acv_plus, meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
@@ -75,6 +76,12 @@ const MiPerformance = () => {
       setVcSnapshot(null);
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
+
+      if (isVC && ventasMetaRes.data) {
+        const totalAcv = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.acv_plus) || 0), 0);
+        const totalMeta = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.meta) || 0), 0);
+        setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
+      }
       setDataLoading(false);
     };
 
