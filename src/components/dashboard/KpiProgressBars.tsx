@@ -13,7 +13,7 @@ interface KpiProgressBarsProps {
   metaTotal?: number;
 }
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, metaTotal }: KpiProgressBarsProps) => {
   if (loading) {
     return (
       <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
