@@ -6,6 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SPANISH_MONTHS: Record<number, string> = {
+  1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+  5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+  9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,15 +28,11 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Allow service role key calls (from sync-databricks auto-trigger)
     const token = authHeader.replace("Bearer ", "");
     const isServiceRole = token === serviceRoleKey;
-
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     if (!isServiceRole) {
-      // Verify admin via user auth
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Calculate ISO week and year
+    // Current period info
     const now = new Date();
     const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -64,14 +66,10 @@ Deno.serve(async (req) => {
     const semanaActual = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
     const anioActual = d.getUTCFullYear();
     const mesActual = `${anioActual}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonthName = SPANISH_MONTHS[now.getMonth() + 1] || "Enero";
+    const periodoSemana = `${anioActual}-W${String(semanaActual).padStart(2, "0")}`;
 
-    const weekStartDate = getISOWeekStartDate(semanaActual, anioActual);
-    const weekEndDate = new Date(weekStartDate);
-    weekEndDate.setDate(weekEndDate.getDate() + 7);
-    const weekStartStr = weekStartDate.toISOString().split("T")[0];
-    const weekEndStr = weekEndDate.toISOString().split("T")[0];
-
-    // Get ALL active gerentes (all channels, all countries)
+    // Get ALL active gerentes
     const { data: gerentes } = await supabase
       .from("gerentes")
       .select("id, canal, nombre")
@@ -84,7 +82,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Load config_rachas (thresholds per channel)
+    // Load config_rachas
     const { data: configRachas } = await supabase
       .from("config_rachas")
       .select("canal, umbral_verde")
@@ -96,7 +94,7 @@ Deno.serve(async (req) => {
       umbralMap[cr.canal] = Number(cr.umbral_verde) || 0;
     });
 
-    // Load medal catalog (grouped by channel)
+    // Load medal catalog
     const { data: medalCatalog } = await supabase
       .from("catalogo_medallas")
       .select("*")
@@ -118,10 +116,63 @@ Deno.serve(async (req) => {
       if (!resumenCanal[canal]) resumenCanal[canal] = { procesados: 0, sp: 0 };
 
       try {
-        // 1. Sum ventas for this week (date range filter)
+        let spFinal = 0;
+
+        if (canal === "VC") {
+          // VC: SP = % cumplimiento de meta mensual
+          // Get all monthly summary rows for this gerente in current month
+          const { data: ventasMes } = await supabase
+            .from("ventas")
+            .select("acv_plus, meta")
+            .eq("gerente_id", gerente.id)
+            .eq("canal", "VC")
+            .eq("mes", currentMonthName);
+
+          // Sum ACV and average meta across all asesores of this gerente
+          const totalAcv = (ventasMes || []).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+          const totalMeta = (ventasMes || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
+
+          if (totalMeta > 0) {
+            spFinal = Math.round((totalAcv / totalMeta) * 100);
+          }
+        } else {
+          // Other channels: SP = % cumplimiento from kpis_mensuales
+          const { data: kpi } = await supabase
+            .from("kpis_mensuales")
+            .select("ventas, meta")
+            .eq("gerente_id", gerente.id)
+            .eq("anio_mes", mesActual)
+            .maybeSingle();
+
+          if (kpi && Number(kpi.meta) > 0) {
+            spFinal = Math.round((Number(kpi.ventas) / Number(kpi.meta)) * 100);
+          }
+        }
+
+        if (spFinal > 0) {
+          // Upsert so SP reflects latest % without accumulating
+          await supabase.from("sp_acumulados").upsert({
+            gerente_id: gerente.id,
+            fuente: "CUMPLIMIENTO_META",
+            sp: spFinal,
+            periodo: periodoSemana,
+            detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal}`,
+          }, { onConflict: "gerente_id,fuente,periodo" });
+
+          totalSpOtorgados += spFinal;
+          resumenCanal[canal].sp += spFinal;
+        }
+
+        // Update racha state (use week-based ventas for streaks)
+        const weekStartDate = getISOWeekStartDate(semanaActual, anioActual);
+        const weekEndDate = new Date(weekStartDate);
+        weekEndDate.setDate(weekEndDate.getDate() + 7);
+        const weekStartStr = weekStartDate.toISOString().split("T")[0];
+        const weekEndStr = weekEndDate.toISOString().split("T")[0];
+
         const { data: ventasRows } = await supabase
           .from("ventas")
-          .select("valor_producto, producto, acv_plus")
+          .select("valor_producto")
           .eq("gerente_id", gerente.id)
           .gte("fecha_facturacion", weekStartStr)
           .lt("fecha_facturacion", weekEndStr);
@@ -130,13 +181,6 @@ Deno.serve(async (req) => {
           (sum, v) => sum + (Number(v.valor_producto) || 0), 0
         );
 
-        // 2. Calculate SP base from COP conversion
-        const { data: spBaseData } = await supabase.rpc("calcular_sp_cop", {
-          ingresos_cop: totalVentas,
-        });
-        const spBase = Number(spBaseData) || 0;
-
-        // 3. Get previous racha for multiplicador
         const { data: lastRacha } = await supabase
           .from("rachas")
           .select("semanas_consecutivas")
@@ -147,28 +191,6 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         const semanasConsecutivasPrev = lastRacha?.semanas_consecutivas || 0;
-
-        const { data: multData } = await supabase.rpc("calcular_multiplicador", {
-          semanas_consecutivas: semanasConsecutivasPrev,
-        });
-        const multiplicador = Number(multData) || 1;
-
-        // 4. Final SP = base × multiplicador
-        const spFinal = Math.round(spBase * multiplicador);
-
-        if (spFinal > 0) {
-          await supabase.from("sp_acumulados").insert({
-            gerente_id: gerente.id,
-            fuente: "CONVERSION_COP",
-            sp: spFinal,
-            periodo: `${anioActual}-W${String(semanaActual).padStart(2, "0")}`,
-            detalle: `SP semana ${semanaActual} · ${canal} · ×${multiplicador}`,
-          });
-          totalSpOtorgados += spFinal;
-          resumenCanal[canal].sp += spFinal;
-        }
-
-        // 5. Update racha state
         const umbral = umbralMap[canal] || 50000000;
         let estado: string;
         let nuevasConsecutivas: number;
@@ -201,7 +223,7 @@ Deno.serve(async (req) => {
           { onConflict: "gerente_id,semana_iso,anio" }
         );
 
-        // 6. Evaluate ALL medals from catalog for this gerente's channel
+        // Evaluate medals
         await evaluateMedals(supabase, gerente, canal, medalsByCanal[canal] || [], mesActual);
 
         procesados++;
@@ -211,15 +233,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    const resultado = {
+    return new Response(JSON.stringify({
       procesados,
       sp_otorgados: totalSpOtorgados,
-      semana: `${anioActual}-W${String(semanaActual).padStart(2, "0")}`,
+      semana: periodoSemana,
       por_canal: resumenCanal,
       errores,
-    };
-
-    return new Response(JSON.stringify(resultado), {
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
@@ -230,7 +250,7 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Medal evaluation per channel ──
+// ── Medal evaluation ──
 async function evaluateMedals(
   supabase: any,
   gerente: { id: string; nombre: string },
@@ -244,7 +264,6 @@ async function evaluateMedals(
     try {
       switch (medal.condicion_tipo) {
         case "primera_venta": {
-          // Check if gerente has at least 1 sale of the specified product
           const { count } = await supabase
             .from("ventas")
             .select("id", { count: "exact", head: true })
@@ -260,9 +279,7 @@ async function evaluateMedals(
           }
           break;
         }
-
         case "cantidad": {
-          // Check if gerente has >= cantidad_requerida sales of the product
           if (medal.producto) {
             const { count } = await supabase
               .from("ventas")
@@ -278,7 +295,6 @@ async function evaluateMedals(
               });
             }
           } else if (medal.nombre.includes("Referido")) {
-            // For VN_ALIADOS: check cant_recomendados from KPIs
             const { data: kpi } = await supabase
               .from("kpis_mes_actual")
               .select("cant_recomendados")
@@ -295,9 +311,7 @@ async function evaluateMedals(
           }
           break;
         }
-
         case "monto": {
-          // Check if gerente's ACV+ total >= cantidad_requerida
           const { data: acvData } = await supabase
             .from("ventas")
             .select("acv_plus")
@@ -316,9 +330,7 @@ async function evaluateMedals(
           }
           break;
         }
-
         case "cumplimiento": {
-          // Check KPI cumplimiento >= 100%
           const { data: kpiData } = await supabase
             .from("kpis_mes_actual")
             .select("pct_cumplimiento")
@@ -336,7 +348,7 @@ async function evaluateMedals(
         }
       }
     } catch (_err) {
-      // Silent fail per medal, don't block others
+      // Silent fail per medal
     }
   }
 }

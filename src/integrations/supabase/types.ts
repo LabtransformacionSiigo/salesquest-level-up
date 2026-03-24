@@ -747,6 +747,7 @@ export type Database = {
           id: string
           lider: string | null
           mes: string | null
+          meta: number | null
           producto: string | null
           valor_producto: number | null
         }
@@ -764,6 +765,7 @@ export type Database = {
           id?: string
           lider?: string | null
           mes?: string | null
+          meta?: number | null
           producto?: string | null
           valor_producto?: number | null
         }
@@ -781,6 +783,7 @@ export type Database = {
           id?: string
           lider?: string | null
           mes?: string | null
+          meta?: number | null
           producto?: string | null
           valor_producto?: number | null
         }
@@ -968,6 +971,7 @@ export type Database = {
           acv_total: number | null
           gerente_nombre: string | null
           nombre: string | null
+          pct_cumplimiento: number | null
           posicion: number | null
           ventas_count: number | null
         }
