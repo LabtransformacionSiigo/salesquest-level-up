@@ -32,6 +32,7 @@ const MiPerformance = () => {
   const [kpis, setKpis] = useState<any>(null);
   const [acvData, setAcvData] = useState<any[]>([]);
   const [vcSnapshot, setVcSnapshot] = useState<any>(null);
+  const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
@@ -64,9 +65,10 @@ const MiPerformance = () => {
         return;
       }
 
-      const [kpisRes, acvRes] = await Promise.all([
+      const [kpisRes, acvRes, ventasMetaRes] = await Promise.all([
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
+        isVC ? supabase.from('ventas').select('acv_plus, meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
@@ -74,6 +76,12 @@ const MiPerformance = () => {
       setVcSnapshot(null);
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
+
+      if (isVC && ventasMetaRes.data) {
+        const totalAcv = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.acv_plus) || 0), 0);
+        const totalMeta = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.meta) || 0), 0);
+        setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
+      }
       setDataLoading(false);
     };
 
@@ -185,6 +193,30 @@ const MiPerformance = () => {
                             <span className="text-sm font-bold font-scoreboard text-primary">{formatMoney(d.acv_plus_total || 0)}</span>
                           </div>
                         ))}
+                      </motion.div>
+                    </>
+                   )}
+
+                  {/* Cumplimiento de Meta VC */}
+                  {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
+                    <>
+                      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta asignada) × 100." />
+                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+                        <div className="flex items-center gap-8">
+                          <div className="relative w-28 h-28 shrink-0">
+                            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, vcCumplimiento?.pct || 0) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xl font-bold font-scoreboard text-primary">{vcCumplimiento?.pct || 0}%</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                            <MetaRow label="ACV+ Logrado" value={formatMoney(vcCumplimiento?.acv)} />
+                            <MetaRow label="Meta" value={formatMoney(vcCumplimiento?.meta)} />
+                          </div>
+                        </div>
                       </motion.div>
                     </>
                   )}

@@ -66,6 +66,7 @@ const Rankings = () => {
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
           sp_totales: calculateSpFromRevenue(Math.round(Number(r.acv_total) || 0)),
+          pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: 'VC',
@@ -126,7 +127,7 @@ const Rankings = () => {
 
   const isComercialTab = isVC && tab === 'comerciales';
   const sorted = [...ranking].sort((a, b) => {
-    if (isComercialTab) return (b.kpi_value || 0) - (a.kpi_value || 0);
+    if (isComercialTab) return (b.pct_cumplimiento || b.kpi_value || 0) - (a.pct_cumplimiento || a.kpi_value || 0);
     return (b.sp_totales || 0) - (a.sp_totales || 0);
   });
   const kpiLabel = KPI_LABEL[profile?.canal || ''] || 'ACV+';
@@ -185,14 +186,14 @@ const Rankings = () => {
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {formatMoney(g.kpi_value)}
+                              {g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : formatMoney(g.kpi_value)}
                             </motion.p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">{g.pct_cumplimiento ? '% Cumpl.' : 'ACV+'}</p>
                           </div>
                           <div className="w-px h-8 bg-border" />
                           <div>
-                            <p className="text-sm font-bold font-scoreboard text-accent">{(g.sp_totales || 0).toLocaleString()}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                           </div>
                           {(g.ventas_count > 0) && (
                             <>
@@ -245,8 +246,8 @@ const Rankings = () => {
                       {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
                       {isComercialTab ? (
                         <>
+                          <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">SP</th>
                           <th className="text-right px-4 py-3">Uds</th>
                         </>
                       ) : (
@@ -273,8 +274,8 @@ const Rankings = () => {
                         {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         {isComercialTab ? (
                           <>
-                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.sp_totales || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento ? `${g.pct_cumplimiento}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
                           </>
                         ) : (
