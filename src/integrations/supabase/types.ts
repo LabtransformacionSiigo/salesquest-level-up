@@ -970,6 +970,7 @@ export type Database = {
         Row: {
           acv_total: number | null
           gerente_nombre: string | null
+          meta_total: number | null
           nombre: string | null
           pct_cumplimiento: number | null
           posicion: number | null
