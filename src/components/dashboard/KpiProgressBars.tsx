@@ -9,6 +9,8 @@ interface KpiProgressBarsProps {
   ventasSemana: number;
   isVcAdvisor: boolean;
   loading: boolean;
+  pctCumplimiento?: number;
+  metaTotal?: number;
 }
 
 const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading }: KpiProgressBarsProps) => {
