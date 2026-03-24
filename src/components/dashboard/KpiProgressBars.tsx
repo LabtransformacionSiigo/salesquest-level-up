@@ -57,7 +57,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               <div key={i}>
                 <div className="flex justify-between text-sm font-semibold text-muted-foreground mb-2">
                   <span>{bar.label}</span>
-                  <span>{fmt(bar.value)} / {fmt(bar.meta)}</span>
+                  <span>{bar.isMoney ? `${fmt(bar.value)} / ${fmt(bar.meta)}` : `${Math.round(bar.value)}%`}</span>
                 </div>
                 <Progress value={pct} className="h-3" />
               </div>
