@@ -221,6 +221,7 @@ const MiPerformance = () => {
                     </>
                   )}
                 </>
+              )}
 
               {!kpis && !isVC && (
                 <motion.div className="text-center py-16" variants={fadeUpItem}>
