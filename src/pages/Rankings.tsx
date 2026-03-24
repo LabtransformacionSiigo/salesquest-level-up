@@ -246,8 +246,8 @@ const Rankings = () => {
                       {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
                       {isComercialTab ? (
                         <>
+                          <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">SP</th>
                           <th className="text-right px-4 py-3">Uds</th>
                         </>
                       ) : (
