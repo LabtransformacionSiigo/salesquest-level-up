@@ -127,7 +127,13 @@ const Rankings = () => {
 
   const isComercialTab = isVC && tab === 'comerciales';
   const sorted = [...ranking].sort((a, b) => {
-    if (isComercialTab) return (b.pct_cumplimiento || b.kpi_value || 0) - (a.pct_cumplimiento || a.kpi_value || 0);
+    if (isComercialTab) {
+      // Sort by cumplimiento first, then ACV+ as tiebreaker
+      const aPct = a.pct_cumplimiento ?? 0;
+      const bPct = b.pct_cumplimiento ?? 0;
+      if (bPct !== aPct) return bPct - aPct;
+      return (b.kpi_value || 0) - (a.kpi_value || 0);
+    }
     return (b.sp_totales || 0) - (a.sp_totales || 0);
   });
   const kpiLabel = KPI_LABEL[profile?.canal || ''] || 'ACV+';
