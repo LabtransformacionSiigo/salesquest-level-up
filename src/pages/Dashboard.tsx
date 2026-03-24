@@ -56,6 +56,7 @@ const Dashboard = () => {
   const [unidades, setUnidades] = useState(0);
   const [acvMes, setAcvMes] = useState(0);
   const [ventasSemana, setVentasSemana] = useState(0);
+  const [pctCumplimiento, setPctCumplimiento] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const isVcAdvisor = isVcAdvisorProfile(profile);
 
