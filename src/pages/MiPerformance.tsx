@@ -195,9 +195,32 @@ const MiPerformance = () => {
                         ))}
                       </motion.div>
                     </>
+                   )}
+
+                  {/* Cumplimiento de Meta VC */}
+                  {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
+                    <>
+                      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta asignada) × 100." />
+                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+                        <div className="flex items-center gap-8">
+                          <div className="relative w-28 h-28 shrink-0">
+                            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, vcCumplimiento?.pct || 0) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xl font-bold font-scoreboard text-primary">{vcCumplimiento?.pct || 0}%</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                            <MetaRow label="ACV+ Logrado" value={formatMoney(vcCumplimiento?.acv)} />
+                            <MetaRow label="Meta" value={formatMoney(vcCumplimiento?.meta)} />
+                          </div>
+                        </div>
+                      </motion.div>
+                    </>
                   )}
                 </>
-              )}
 
               {!kpis && !isVC && (
                 <motion.div className="text-center py-16" variants={fadeUpItem}>
