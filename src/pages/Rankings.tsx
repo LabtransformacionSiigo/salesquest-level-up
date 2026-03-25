@@ -162,7 +162,7 @@ const Rankings = () => {
               👤 Comerciales (ACV+)
             </button>
             <button onClick={() => setTab('gerentes')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
-              👥 Gerentes (SP)
+              👥 Gerentes (% Cumpl.)
             </button>
           </motion.div>
         )}
