@@ -371,6 +371,36 @@ export type Database = {
           },
         ]
       }
+      notificaciones: {
+        Row: {
+          created_at: string | null
+          gerente_id: string
+          id: string
+          leida: boolean | null
+          mensaje: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string | null
+          gerente_id: string
+          id?: string
+          leida?: boolean | null
+          mensaje?: string | null
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string | null
+          gerente_id?: string
+          id?: string
+          leida?: boolean | null
+          mensaje?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       rachas: {
         Row: {
           anio: number
