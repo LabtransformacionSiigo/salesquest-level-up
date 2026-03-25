@@ -155,7 +155,7 @@ const Dashboard = () => {
           {/* SP Donut */}
           <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
             <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2 self-start">
-              <span className="text-primary">⚡</span> Siigo Points gerente
+              <span className="text-primary">⚡</span> {isVcAdvisor ? 'Siigo Points asesor' : 'Siigo Points gerente'}
             </h3>
             {dataLoading ? <Skeleton className="h-36 w-36 rounded-full" /> : (
               <DonutChart
@@ -195,7 +195,7 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Top Siigo Pointers */}
-          <TopSiigoPointers canal={profile?.canal} loading={dataLoading} />
+          <TopSiigoPointers canal={profile?.canal} loading={dataLoading} isVC={profile?.canal === 'VC'} />
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}

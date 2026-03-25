@@ -205,7 +205,7 @@ const Rankings = () => {
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}
+                              {g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}
                             </motion.p>
                             <p className="text-[10px] text-muted-foreground font-heading uppercase">% Cumpl.</p>
                           </div>
@@ -295,7 +295,7 @@ const Rankings = () => {
                         {!isComercialTab && !isGerentesVCTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
                         {(isComercialTab || isGerentesVCTab) ? (
                           <>
-                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.sp_totales || 0).toLocaleString()}</td>

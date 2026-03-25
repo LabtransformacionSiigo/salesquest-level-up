@@ -27,12 +27,21 @@ const InfoTip = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
+interface MonthlyCumplimiento {
+  mes: string;
+  acv: number;
+  meta: number;
+  pct: number;
+}
+
 const MiPerformance = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [kpis, setKpis] = useState<any>(null);
   const [acvData, setAcvData] = useState<any[]>([]);
   const [vcSnapshot, setVcSnapshot] = useState<any>(null);
   const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
+  const [vcMonthlyCumplimiento, setVcMonthlyCumplimiento] = useState<MonthlyCumplimiento[]>([]);
+  const [upgradesCount, setUpgradesCount] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
@@ -51,7 +60,11 @@ const MiPerformance = () => {
       setDataLoading(true);
 
       if (isVcAdvisor) {
-        const snapshot = await getVcAdvisorSnapshot(profile);
+        const [snapshot, ventasMetaRes, upgradesRes] = await Promise.all([
+          getVcAdvisorSnapshot(profile),
+          supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.gerente_id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%').eq('comercial', profile.nombre),
+          supabase.from('ventas').select('id', { count: 'exact', head: true }).eq('gerente_id', profile.gerente_id).eq('canal', 'VC').eq('comercial', profile.nombre).eq('categoria_producto_venta', 'Upgrade').eq('anio', new Date().getFullYear()),
+        ]);
         if (cancelled) return;
 
         setVcSnapshot(snapshot);
@@ -61,14 +74,38 @@ const MiPerformance = () => {
           sc_creados: snapshot?.metrics.currentMonthUnits || 0,
         });
         setAcvData([]);
+        setUpgradesCount(upgradesRes.count || 0);
+
+        // Build monthly cumplimiento from SUM- records
+        const monthlyMap = new Map<string, { acv: number; meta: number }>();
+        (ventasMetaRes.data || []).forEach((v: any) => {
+          const mes = v.mes || 'Unknown';
+          const entry = monthlyMap.get(mes) || { acv: 0, meta: 0 };
+          entry.acv += Number(v.acv_plus) || 0;
+          entry.meta += Number(v.meta) || 0;
+          monthlyMap.set(mes, entry);
+        });
+        const monthlyCumpl = [...monthlyMap.entries()].map(([mes, { acv, meta }]) => ({
+          mes,
+          acv,
+          meta,
+          pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
+        }));
+        setVcMonthlyCumplimiento(monthlyCumpl);
+
+        const totalAcv = monthlyCumpl.reduce((s, m) => s + m.acv, 0);
+        const totalMeta = monthlyCumpl.reduce((s, m) => s + m.meta, 0);
+        setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
+
         setDataLoading(false);
         return;
       }
 
-      const [kpisRes, acvRes, ventasMetaRes] = await Promise.all([
+      const [kpisRes, acvRes, ventasMetaRes, upgradesRes] = await Promise.all([
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
-        isVC ? supabase.from('ventas').select('acv_plus, meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
+        isVC ? supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%') : Promise.resolve({ data: null }),
+        isVC ? supabase.from('ventas').select('id', { count: 'exact', head: true }).eq('gerente_id', profile.id).eq('canal', 'VC').eq('categoria_producto_venta', 'Upgrade').eq('anio', new Date().getFullYear()) : Promise.resolve({ count: 0 }),
       ]);
 
       if (cancelled) return;
@@ -76,10 +113,28 @@ const MiPerformance = () => {
       setVcSnapshot(null);
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
+      setUpgradesCount((upgradesRes as any).count || 0);
 
       if (isVC && ventasMetaRes.data) {
-        const totalAcv = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.acv_plus) || 0), 0);
-        const totalMeta = (ventasMetaRes.data || []).reduce((s: number, v: any) => s + (Number(v.meta) || 0), 0);
+        // Build monthly cumplimiento
+        const monthlyMap = new Map<string, { acv: number; meta: number }>();
+        (ventasMetaRes.data || []).forEach((v: any) => {
+          const mes = v.mes || 'Unknown';
+          const entry = monthlyMap.get(mes) || { acv: 0, meta: 0 };
+          entry.acv += Number(v.acv_plus) || 0;
+          entry.meta += Number(v.meta) || 0;
+          monthlyMap.set(mes, entry);
+        });
+        const monthlyCumpl = [...monthlyMap.entries()].map(([mes, { acv, meta }]) => ({
+          mes,
+          acv,
+          meta,
+          pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
+        }));
+        setVcMonthlyCumplimiento(monthlyCumpl);
+
+        const totalAcv = monthlyCumpl.reduce((s, m) => s + m.acv, 0);
+        const totalMeta = monthlyCumpl.reduce((s, m) => s + m.meta, 0);
         setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
       }
       setDataLoading(false);
@@ -175,10 +230,11 @@ const MiPerformance = () => {
                   {(isVcAdvisor || acvData.length > 0) && (
                     <>
                       <SectionTitle icon="pie_chart" title="Desglose por Bloque" />
-                      <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                      <motion.div className="grid grid-cols-1 sm:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                         <BloqueCard label="Nómina-e" value={isVcAdvisor ? vcBlocks?.acv_nomina || 0 : acvData[0]?.acv_nomina || 0} color="bg-primary" />
                         <BloqueCard label="FE" value={isVcAdvisor ? vcBlocks?.acv_fe || 0 : acvData[0]?.acv_fe || 0} color="bg-accent" />
                         <BloqueCard label="Conversiones" value={isVcAdvisor ? vcBlocks?.acv_conversiones || 0 : acvData[0]?.acv_conversiones || 0} color="bg-orange" />
+                        <BloqueCardCount label="Upgrades" count={upgradesCount} color="bg-secondary" />
                       </motion.div>
                     </>
                   )}
@@ -187,7 +243,7 @@ const MiPerformance = () => {
                     <>
                       <SectionTitle icon="history" title="Histórico ACV+" />
                       <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                        {vcHistory.map((d, i) => (
+                        {vcHistory.map((d: any, i: number) => (
                           <div key={d.period || `${d.anio}-${d.mes}-${i}`} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                             <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
                             <span className="text-sm font-bold font-scoreboard text-primary">{formatMoney(d.acv_plus_total || 0)}</span>
@@ -197,7 +253,7 @@ const MiPerformance = () => {
                     </>
                    )}
 
-                  {/* Cumplimiento de Meta VC */}
+                  {/* Cumplimiento de Meta VC - Global */}
                   {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
                     <>
                       <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta asignada) × 100." />
@@ -218,6 +274,31 @@ const MiPerformance = () => {
                           </div>
                         </div>
                       </motion.div>
+
+                      {/* Monthly breakdown */}
+                      {vcMonthlyCumplimiento.length > 0 && (
+                        <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+                          <h4 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
+                            <MI icon="calendar_month" className="text-primary text-lg" /> Cumplimiento por Mes
+                          </h4>
+                          <div className="space-y-4">
+                            {vcMonthlyCumplimiento.map((m) => (
+                              <div key={m.mes}>
+                                <div className="flex justify-between text-sm mb-1.5">
+                                  <span className="font-semibold text-foreground">{m.mes}</span>
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-xs text-muted-foreground">{formatMoney(m.acv)} / {formatMoney(m.meta)}</span>
+                                    <span className={cn("font-bold font-scoreboard", m.pct >= 100 ? "text-accent" : "text-primary")}>{m.pct}%</span>
+                                  </div>
+                                </div>
+                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                                  <div className={cn("h-full rounded-full transition-all duration-700", m.pct >= 100 ? "bg-accent" : "bg-primary")} style={{ width: `${Math.min(100, m.pct)}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
                     </>
                   )}
                 </>
@@ -305,6 +386,14 @@ const BloqueCard = ({ label, value, color }: { label: string; value: number; col
   <motion.div className="bg-white border border-border rounded-2xl p-5 text-center hover:shadow-smooth-md transition-shadow shadow-smooth-sm" variants={fadeUpItem}>
     <div className={cn('w-3 h-3 rounded-full mx-auto mb-3', color)} />
     <p className="text-xl font-bold font-scoreboard text-foreground">{formatMoney(value)}</p>
+    <p className="text-xs text-muted-foreground font-medium">{label}</p>
+  </motion.div>
+);
+
+const BloqueCardCount = ({ label, count, color }: { label: string; count: number; color: string }) => (
+  <motion.div className="bg-white border border-border rounded-2xl p-5 text-center hover:shadow-smooth-md transition-shadow shadow-smooth-sm" variants={fadeUpItem}>
+    <div className={cn('w-3 h-3 rounded-full mx-auto mb-3', color)} />
+    <p className="text-xl font-bold font-scoreboard text-foreground">{count.toLocaleString()}</p>
     <p className="text-xs text-muted-foreground font-medium">{label}</p>
   </motion.div>
 );
