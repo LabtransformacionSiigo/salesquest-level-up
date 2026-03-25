@@ -978,6 +978,62 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_vc_gerentes: {
+        Row: {
+          acv_total: number | null
+          gerente_id: string | null
+          mes: string | null
+          meta_total: number | null
+          nombre: string | null
+          pais: string | null
+          pct_cumplimiento: number | null
+          posicion: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sp_totales_gerente: {
         Row: {
           activo: boolean | null
