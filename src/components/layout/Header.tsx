@@ -2,6 +2,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   title: string;
