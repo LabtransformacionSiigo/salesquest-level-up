@@ -76,23 +76,35 @@ const Rankings = () => {
         }));
         setRanking(pais !== 'TODOS' ? mapped.filter(r => r.pais === pais) : mapped);
       } else {
-        // Gerentes VC: fetch ranking + ACV data
-        let rankQuery = supabase.from('ranking_general').select('*').eq('canal', 'VC');
-        if (pais !== 'TODOS') rankQuery = rankQuery.eq('pais', pais);
-        const [rankRes, acvRes] = await Promise.all([
-          rankQuery,
-          supabase.from('acv_vc_mensual').select('gerente_id, acv_plus_total').order('anio', { ascending: false }),
+        // Gerentes VC: fetch from ranking_vc_gerentes view with meta & % cumplimiento
+        let vcGerentesQuery = supabase.from('ranking_vc_gerentes' as any).select('*');
+        if (pais !== 'TODOS') vcGerentesQuery = vcGerentesQuery.eq('pais', pais);
+        const [vcGerentesRes, spRes] = await Promise.all([
+          vcGerentesQuery,
+          supabase.from('ranking_general').select('id, sp_totales, nivel, user_id, avatar_url').eq('canal', 'VC'),
         ]);
-        const acvMap = new Map<string, number>();
-        (acvRes.data || []).forEach((a: any) => {
-          if (a.gerente_id && !acvMap.has(a.gerente_id)) {
-            acvMap.set(a.gerente_id, Number(a.acv_plus_total) || 0);
-          }
+        const spMap = new Map<string, any>();
+        (spRes.data || []).forEach((s: any) => {
+          if (s.id) spMap.set(s.id, s);
         });
-        setRanking((rankRes.data || []).map((r: any) => ({
-          ...r,
-          kpi_value: acvMap.get(r.id) || 0,
-        })));
+        const mapped = (vcGerentesRes.data || []).map((r: any) => {
+          const sp = spMap.get(r.gerente_id);
+          return {
+            id: r.gerente_id,
+            nombre: r.nombre,
+            pais: r.pais,
+            canal: 'VC',
+            kpi_value: Math.round(Number(r.acv_total) || 0),
+            meta_total: Math.round(Number(r.meta_total) || 0),
+            pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
+            sp_totales: sp?.sp_totales || 0,
+            nivel: sp?.nivel || null,
+            user_id: sp?.user_id || null,
+            avatar_url: sp?.avatar_url || null,
+            posicion: r.posicion,
+          };
+        });
+        setRanking(mapped);
       }
     } else {
       // VN channels: fetch ranking + KPIs
@@ -126,9 +138,9 @@ const Rankings = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const isComercialTab = isVC && tab === 'comerciales';
+  const isGerentesVCTab = isVC && tab === 'gerentes';
   const sorted = [...ranking].sort((a, b) => {
-    if (isComercialTab) {
-      // Sort by cumplimiento first, then ACV+ as tiebreaker
+    if (isComercialTab || isGerentesVCTab) {
       const aPct = a.pct_cumplimiento ?? 0;
       const bPct = b.pct_cumplimiento ?? 0;
       if (bPct !== aPct) return bPct - aPct;
@@ -150,7 +162,7 @@ const Rankings = () => {
               👤 Comerciales (ACV+)
             </button>
             <button onClick={() => setTab('gerentes')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
-              👥 Gerentes (SP)
+              👥 Gerentes (% Cumpl.)
             </button>
           </motion.div>
         )}
@@ -211,6 +223,25 @@ const Rankings = () => {
                             </>
                           )}
                         </>
+                      ) : isGerentesVCTab ? (
+                        <>
+                          <div>
+                            <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
+                              {g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}
+                            </motion.p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">% Cumpl.</p>
+                          </div>
+                          <div className="w-px h-8 bg-border" />
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                          </div>
+                          <div className="w-px h-8 bg-border" />
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{(g.sp_totales || 0).toLocaleString()}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">SP</p>
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div>
@@ -249,12 +280,12 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
-                      {isComercialTab ? (
+                      {!isComercialTab && !isGerentesVCTab && <th className="text-left px-4 py-3">Canal</th>}
+                      {(isComercialTab || isGerentesVCTab) ? (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">Uds</th>
+                          <th className="text-right px-4 py-3">{isGerentesVCTab ? 'SP' : 'Meta'}</th>
                         </>
                       ) : (
                         <>
@@ -262,7 +293,7 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">{kpiLabel}</th>
                         </>
                       )}
-                      {!isComercialTab && <th className="text-left px-4 py-3">Nivel</th>}
+                      {!isComercialTab && !isGerentesVCTab && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -277,12 +308,12 @@ const Rankings = () => {
                           </div>
                         </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
-                        {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
-                        {isComercialTab ? (
+                        {!isComercialTab && !isGerentesVCTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
+                        {(isComercialTab || isGerentesVCTab) ? (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{isGerentesVCTab ? (g.sp_totales || 0).toLocaleString() : formatMoney(g.meta_total)}</td>
                           </>
                         ) : (
                           <>
@@ -290,7 +321,7 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                           </>
                         )}
-                        {!isComercialTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
+                        {!isComercialTab && !isGerentesVCTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
                   </tbody>
