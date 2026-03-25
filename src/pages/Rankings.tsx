@@ -65,6 +65,7 @@ const Rankings = () => {
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
+          meta_total: Math.round(Number(r.meta_total) || 0),
           sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
           pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
@@ -200,7 +201,7 @@ const Rankings = () => {
 
                     {/* KPI + SP metrics */}
                     <div className="flex items-center justify-center gap-3 mt-3">
-                      {isComercialTab ? (
+                      {(isComercialTab || isGerentesVCTab) ? (
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
@@ -213,28 +214,10 @@ const Rankings = () => {
                             <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
                             <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                           </div>
-                          {(g.ventas_count > 0) && (
-                            <>
-                              <div className="w-px h-8 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-accent">{g.ventas_count}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Uds</p>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : isGerentesVCTab ? (
-                        <>
-                          <div>
-                            <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}
-                            </motion.p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">% Cumpl.</p>
-                          </div>
                           <div className="w-px h-8 bg-border" />
                           <div>
-                            <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                            <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_total)}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
                           </div>
                           <div className="w-px h-8 bg-border" />
                           <div>
@@ -285,7 +268,8 @@ const Rankings = () => {
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">{isGerentesVCTab ? 'SP' : 'Meta'}</th>
+                          <th className="text-right px-4 py-3">Meta</th>
+                          <th className="text-right px-4 py-3">SP</th>
                         </>
                       ) : (
                         <>
@@ -313,7 +297,8 @@ const Rankings = () => {
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{isGerentesVCTab ? (g.sp_totales || 0).toLocaleString() : formatMoney(g.meta_total)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.sp_totales || 0).toLocaleString()}</td>
                           </>
                         ) : (
                           <>
