@@ -7,23 +7,49 @@ import { supabase } from '@/integrations/supabase/client';
 interface TopSiigoPointersProps {
   canal: string | null;
   loading: boolean;
+  isVC?: boolean;
 }
 
 const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
 
-const TopSiigoPointers = ({ canal, loading }: TopSiigoPointersProps) => {
+const formatMoney = (val: number) => {
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
+  return `$${val}`;
+};
+
+const TopSiigoPointers = ({ canal, loading, isVC }: TopSiigoPointersProps) => {
   const [top3, setTop3] = useState<any[]>([]);
 
   useEffect(() => {
     if (!canal) return;
-    supabase
-      .from('ranking_general')
-      .select('*')
-      .eq('canal', canal)
-      .order('sp_totales', { ascending: false })
-      .limit(3)
-      .then(({ data }) => setTop3(data || []));
-  }, [canal]);
+
+    if (isVC) {
+      // For VC, show top gerentes by % cumplimiento
+      supabase
+        .from('ranking_vc_gerentes' as any)
+        .select('*')
+        .order('pct_cumplimiento', { ascending: false })
+        .limit(3)
+        .then(({ data }) => {
+          setTop3((data || []).map((r: any) => ({
+            id: r.gerente_id,
+            nombre: r.nombre,
+            sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
+            pct_cumplimiento: Math.round(Number(r.pct_cumplimiento) || 0),
+            acv_total: Number(r.acv_total) || 0,
+          })));
+        });
+    } else {
+      supabase
+        .from('ranking_general')
+        .select('*')
+        .eq('canal', canal)
+        .order('sp_totales', { ascending: false })
+        .limit(3)
+        .then(({ data }) => setTop3(data || []));
+    }
+  }, [canal, isVC]);
 
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
@@ -40,9 +66,16 @@ const TopSiigoPointers = ({ canal, loading }: TopSiigoPointersProps) => {
                 #{i + 1}
               </span>
               <span className="flex-1 text-sm font-semibold text-foreground truncate">{user.nombre}</span>
-              <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary">
-                🏆 {(user.sp_totales || 0).toLocaleString()} SP
-              </span>
+              {isVC ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold font-scoreboard text-primary">{user.pct_cumplimiento}%</span>
+                  <span className="text-xs text-muted-foreground">{formatMoney(user.acv_total)}</span>
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary">
+                  🏆 {(user.sp_totales || 0).toLocaleString()} SP
+                </span>
+              )}
             </div>
           ))}
         </div>
