@@ -76,23 +76,35 @@ const Rankings = () => {
         }));
         setRanking(pais !== 'TODOS' ? mapped.filter(r => r.pais === pais) : mapped);
       } else {
-        // Gerentes VC: fetch ranking + ACV data
-        let rankQuery = supabase.from('ranking_general').select('*').eq('canal', 'VC');
-        if (pais !== 'TODOS') rankQuery = rankQuery.eq('pais', pais);
-        const [rankRes, acvRes] = await Promise.all([
-          rankQuery,
-          supabase.from('acv_vc_mensual').select('gerente_id, acv_plus_total').order('anio', { ascending: false }),
+        // Gerentes VC: fetch from ranking_vc_gerentes view with meta & % cumplimiento
+        let vcGerentesQuery = supabase.from('ranking_vc_gerentes' as any).select('*');
+        if (pais !== 'TODOS') vcGerentesQuery = vcGerentesQuery.eq('pais', pais);
+        const [vcGerentesRes, spRes] = await Promise.all([
+          vcGerentesQuery,
+          supabase.from('ranking_general').select('id, sp_totales, nivel, user_id, avatar_url').eq('canal', 'VC'),
         ]);
-        const acvMap = new Map<string, number>();
-        (acvRes.data || []).forEach((a: any) => {
-          if (a.gerente_id && !acvMap.has(a.gerente_id)) {
-            acvMap.set(a.gerente_id, Number(a.acv_plus_total) || 0);
-          }
+        const spMap = new Map<string, any>();
+        (spRes.data || []).forEach((s: any) => {
+          if (s.id) spMap.set(s.id, s);
         });
-        setRanking((rankRes.data || []).map((r: any) => ({
-          ...r,
-          kpi_value: acvMap.get(r.id) || 0,
-        })));
+        const mapped = (vcGerentesRes.data || []).map((r: any) => {
+          const sp = spMap.get(r.gerente_id);
+          return {
+            id: r.gerente_id,
+            nombre: r.nombre,
+            pais: r.pais,
+            canal: 'VC',
+            kpi_value: Math.round(Number(r.acv_total) || 0),
+            meta_total: Math.round(Number(r.meta_total) || 0),
+            pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
+            sp_totales: sp?.sp_totales || 0,
+            nivel: sp?.nivel || null,
+            user_id: sp?.user_id || null,
+            avatar_url: sp?.avatar_url || null,
+            posicion: r.posicion,
+          };
+        });
+        setRanking(mapped);
       }
     } else {
       // VN channels: fetch ranking + KPIs
