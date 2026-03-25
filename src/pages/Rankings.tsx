@@ -205,7 +205,7 @@ const Rankings = () => {
                         <>
                           <div>
                             <motion.p className="text-2xl font-bold font-scoreboard text-primary" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: i * 0.1 + 0.5 }}>
-                              {g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}
+                              {g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}
                             </motion.p>
                             <p className="text-[10px] text-muted-foreground font-heading uppercase">% Cumpl.</p>
                           </div>
