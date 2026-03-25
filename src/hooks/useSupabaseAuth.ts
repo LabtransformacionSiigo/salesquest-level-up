@@ -188,7 +188,7 @@ export const useSupabaseAuth = () => {
             avatar_url: data.avatar_url,
             created_at: '',
             sp_totales: data.sp_totales ?? 0,
-            nivel: data.nivel ?? 'Prospecto',
+            nivel: data.nivel ?? 'Cuarzo',
             sp_nivel_actual: data.sp_nivel_actual ?? 0,
             sp_siguiente_nivel: data.sp_siguiente_nivel,
             role: userRole,
