@@ -280,12 +280,12 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      {!isComercialTab && <th className="text-left px-4 py-3">Canal</th>}
-                      {isComercialTab ? (
+                      {!isComercialTab && !isGerentesVCTab && <th className="text-left px-4 py-3">Canal</th>}
+                      {(isComercialTab || isGerentesVCTab) ? (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">Uds</th>
+                          <th className="text-right px-4 py-3">{isGerentesVCTab ? 'SP' : 'Meta'}</th>
                         </>
                       ) : (
                         <>
@@ -293,7 +293,7 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">{kpiLabel}</th>
                         </>
                       )}
-                      {!isComercialTab && <th className="text-left px-4 py-3">Nivel</th>}
+                      {!isComercialTab && !isGerentesVCTab && <th className="text-left px-4 py-3">Nivel</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -308,12 +308,12 @@ const Rankings = () => {
                           </div>
                         </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
-                        {!isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
-                        {isComercialTab ? (
+                        {!isComercialTab && !isGerentesVCTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.canal?.replace(/_/g, ' ')}</td>}
+                        {(isComercialTab || isGerentesVCTab) ? (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{g.ventas_count || 0}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{isGerentesVCTab ? (g.sp_totales || 0).toLocaleString() : formatMoney(g.meta_total)}</td>
                           </>
                         ) : (
                           <>
@@ -321,7 +321,7 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
                           </>
                         )}
-                        {!isComercialTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
+                        {!isComercialTab && !isGerentesVCTab && <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>}
                       </motion.tr>
                     ))}
                   </tbody>
