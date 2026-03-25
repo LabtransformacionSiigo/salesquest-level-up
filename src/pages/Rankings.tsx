@@ -286,7 +286,8 @@ const Rankings = () => {
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">{isGerentesVCTab ? 'SP' : 'Meta'}</th>
+                          <th className="text-right px-4 py-3">Meta</th>
+                          <th className="text-right px-4 py-3">SP</th>
                         </>
                       ) : (
                         <>
