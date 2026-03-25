@@ -138,9 +138,9 @@ const Rankings = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const isComercialTab = isVC && tab === 'comerciales';
+  const isGerentesVCTab = isVC && tab === 'gerentes';
   const sorted = [...ranking].sort((a, b) => {
-    if (isComercialTab) {
-      // Sort by cumplimiento first, then ACV+ as tiebreaker
+    if (isComercialTab || isGerentesVCTab) {
       const aPct = a.pct_cumplimiento ?? 0;
       const bPct = b.pct_cumplimiento ?? 0;
       if (bPct !== aPct) return bPct - aPct;
