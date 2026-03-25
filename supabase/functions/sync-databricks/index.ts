@@ -13,20 +13,27 @@ const SPANISH_MONTHS: Record<string, string> = {
 };
 
 // Table configurations
-const TABLE_CONFIGS: Record<string, { sql: (limit: string) => string; label: string }> = {
+const TABLE_CONFIGS: Record<string, { sql: (limit: string, mesFilter?: string) => string; label: string }> = {
   productividad: {
     label: "Productividad Progresiva",
     sql: (limit: string) => `SELECT * FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
   ventas_vc: {
     label: "Ventas VC (Mensual con Metas)",
-    sql: (limit: string) => `
+    sql: (limit: string, mesFilter?: string) => {
+      const ventasWhere = mesFilter
+        ? `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay') AND mes = '${mesFilter}'`
+        : `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')`;
+      const metasWhere = mesFilter
+        ? `WHERE \`Año_Meta\` = 2026 AND Mes_meta = '${mesFilter}'`
+        : `WHERE \`Año_Meta\` = 2026`;
+      return `
 WITH ventas_mensuales AS (
     SELECT 
         comercial, lider, Anio, mes,
         SUM(CAST(ACV_PLUS AS BIGINT)) AS total_logrado_mes
     FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
-    WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')
+    ${ventasWhere}
     GROUP BY comercial, lider, Anio, mes
 ),
 metas_mensuales AS (
@@ -34,7 +41,7 @@ metas_mensuales AS (
         Comercial, Lider AS Lider_Meta, \`Año_Meta\`, Mes_meta,
         SUM(meta_todo) AS meta_del_mes
     FROM analyticdl.db_servicios.tbl_slv_metas_venta_cruzada
-    WHERE \`Año_Meta\` = 2026
+    ${metasWhere}
     GROUP BY Comercial, Lider, \`Año_Meta\`, Mes_meta
 )
 SELECT 
@@ -49,7 +56,8 @@ LEFT JOIN ventas_mensuales v
     ON LOWER(m.Comercial) = LOWER(v.comercial) 
     AND m.Mes_meta = v.mes
 ${limit}
-`,
+`;
+    },
   },
 };
 
