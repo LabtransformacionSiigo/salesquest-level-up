@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
-import { normalizePersonName, calculateSpFromRevenue } from '@/lib/vc-advisor-metrics';
+import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
