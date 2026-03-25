@@ -315,7 +315,8 @@ const Rankings = () => {
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{g.pct_cumplimiento != null ? `${g.pct_cumplimiento}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{isGerentesVCTab ? (g.sp_totales || 0).toLocaleString() : formatMoney(g.meta_total)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.sp_totales || 0).toLocaleString()}</td>
                           </>
                         ) : (
                           <>
