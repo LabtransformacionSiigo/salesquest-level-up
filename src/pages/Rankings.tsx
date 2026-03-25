@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
-import { normalizePersonName, calculateSpFromRevenue } from '@/lib/vc-advisor-metrics';
+import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -65,7 +65,7 @@ const Rankings = () => {
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
-          sp_totales: calculateSpFromRevenue(Math.round(Number(r.acv_total) || 0)),
+          sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
           pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
@@ -97,7 +97,7 @@ const Rankings = () => {
             kpi_value: Math.round(Number(r.acv_total) || 0),
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
-            sp_totales: sp?.sp_totales || 0,
+            sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
             nivel: sp?.nivel || null,
             user_id: sp?.user_id || null,
             avatar_url: sp?.avatar_url || null,
