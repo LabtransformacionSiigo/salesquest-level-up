@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || "preview";
     const table = body.table || "productividad";
+    const mesFilter = body.mes || undefined;
 
     const tableConfig = TABLE_CONFIGS[table];
     if (!tableConfig) {
@@ -135,7 +136,7 @@ Deno.serve(async (req) => {
 
     const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
     const limitClause = mode === "preview" ? "LIMIT 10" : "";
-    const sql = tableConfig.sql(limitClause);
+    const sql = tableConfig.sql(limitClause, mesFilter);
 
     console.log(`[${table}] Querying Databricks:`, sql.trim());
 
