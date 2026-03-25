@@ -2,6 +2,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   title: string;
@@ -49,9 +50,7 @@ const Header = ({ title }: HeaderProps) => {
         </div>
 
         {/* Notifications */}
-        <button className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-          <MI icon="notifications_none" className="text-2xl" />
-        </button>
+        <NotificationBell />
       </div>
     </header>
   );
