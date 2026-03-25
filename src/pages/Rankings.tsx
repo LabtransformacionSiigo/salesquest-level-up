@@ -97,7 +97,7 @@ const Rankings = () => {
             kpi_value: Math.round(Number(r.acv_total) || 0),
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
-            sp_totales: sp?.sp_totales || 0,
+            sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
             nivel: sp?.nivel || null,
             user_id: sp?.user_id || null,
             avatar_url: sp?.avatar_url || null,
