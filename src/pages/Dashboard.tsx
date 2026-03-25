@@ -13,15 +13,11 @@ import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
 
 const NIVELES = [
-  { nombre: 'Bronce', min: 0, max: 499 },
-  { nombre: 'Plata', min: 500, max: 1499 },
-  { nombre: 'Oro', min: 1500, max: 3499 },
-  { nombre: 'Platino', min: 3500, max: 6999 },
-  { nombre: 'Diamante', min: 7000, max: 12999 },
-  { nombre: 'Élite', min: 13000, max: 21999 },
-  { nombre: 'Master', min: 22000, max: 34999 },
-  { nombre: 'Leyenda', min: 35000, max: 54999 },
-  { nombre: 'GOAT', min: 55000, max: 999999 },
+  { nombre: 'Cuarzo', min: 0, max: 1500 },
+  { nombre: 'Rubí', min: 1501, max: 3000 },
+  { nombre: 'Zafiro', min: 3001, max: 4500 },
+  { nombre: 'Esmeralda', min: 4501, max: 6000 },
+  { nombre: 'Diamante', min: 6001, max: 999999 },
 ];
 
 const RETOS_SEMANALES = [

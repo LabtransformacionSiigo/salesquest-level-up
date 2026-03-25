@@ -26,15 +26,11 @@ export interface AuthUser extends Gerente {
 }
 
 const NIVELES = [
-  { nombre: 'Prospecto', min: 0, max: 499 },
-  { nombre: 'Ejecutor', min: 500, max: 1499 },
-  { nombre: 'Impulsor', min: 1500, max: 3499 },
-  { nombre: 'Estratega Comercial', min: 3500, max: 6999 },
-  { nombre: 'Dominador', min: 7000, max: 12999 },
-  { nombre: 'Vanguardia', min: 13000, max: 21999 },
-  { nombre: 'Élite Siigo', min: 22000, max: 34999 },
-  { nombre: 'Cima Ejecutiva', min: 35000, max: 54999 },
-  { nombre: 'Leyenda Siigo', min: 55000, max: Number.MAX_SAFE_INTEGER },
+  { nombre: 'Cuarzo', min: 0, max: 1500 },
+  { nombre: 'Rubí', min: 1501, max: 3000 },
+  { nombre: 'Zafiro', min: 3001, max: 4500 },
+  { nombre: 'Esmeralda', min: 4501, max: 6000 },
+  { nombre: 'Diamante', min: 6001, max: Number.MAX_SAFE_INTEGER },
 ];
 
 const getNivelData = (spTotales: number) => {
@@ -192,7 +188,7 @@ export const useSupabaseAuth = () => {
             avatar_url: data.avatar_url,
             created_at: '',
             sp_totales: data.sp_totales ?? 0,
-            nivel: data.nivel ?? 'Prospecto',
+            nivel: data.nivel ?? 'Cuarzo',
             sp_nivel_actual: data.sp_nivel_actual ?? 0,
             sp_siguiente_nivel: data.sp_siguiente_nivel,
             role: userRole,
