@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         warehouse_id: DATABRICKS_WAREHOUSE_ID,
         statement: sql,
-        wait_timeout: "50s",
+        wait_timeout: "120s",
         disposition: "INLINE",
         format: "JSON_ARRAY",
       }),
