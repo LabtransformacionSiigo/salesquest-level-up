@@ -239,19 +239,6 @@ const MiPerformance = () => {
                     </>
                   )}
 
-                  {vcHistory.length > 0 && (
-                    <>
-                      <SectionTitle icon="history" title="Histórico ACV+" />
-                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                        {vcHistory.map((d: any, i: number) => (
-                          <div key={d.period || `${d.anio}-${d.mes}-${i}`} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                            <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
-                            <span className="text-sm font-bold font-scoreboard text-primary">{formatMoney(d.acv_plus_total || 0)}</span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    </>
-                   )}
 
                   {/* Cumplimiento de Meta VC - Global */}
                   {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
