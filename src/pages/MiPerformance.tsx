@@ -229,7 +229,7 @@ const MiPerformance = () => {
 
                   {(isVcAdvisor || acvData.length > 0) && (
                     <>
-                      <SectionTitle icon="pie_chart" title="Desglose por Bloque" />
+                      <SectionTitle icon="pie_chart" title="Desglose por Producto" />
                       <motion.div className="grid grid-cols-1 sm:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                         <BloqueCard label="Nómina-e" value={isVcAdvisor ? vcBlocks?.acv_nomina || 0 : acvData[0]?.acv_nomina || 0} color="bg-primary" />
                         <BloqueCard label="FE" value={isVcAdvisor ? vcBlocks?.acv_fe || 0 : acvData[0]?.acv_fe || 0} color="bg-accent" />
@@ -239,19 +239,6 @@ const MiPerformance = () => {
                     </>
                   )}
 
-                  {vcHistory.length > 0 && (
-                    <>
-                      <SectionTitle icon="history" title="Histórico ACV+" />
-                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                        {vcHistory.map((d: any, i: number) => (
-                          <div key={d.period || `${d.anio}-${d.mes}-${i}`} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                            <span className="text-sm text-muted-foreground">{d.mes} {d.anio}</span>
-                            <span className="text-sm font-bold font-scoreboard text-primary">{formatMoney(d.acv_plus_total || 0)}</span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    </>
-                   )}
 
                   {/* Cumplimiento de Meta VC - Global */}
                   {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
