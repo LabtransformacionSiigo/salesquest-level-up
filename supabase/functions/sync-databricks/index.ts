@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
 
     if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
       return new Response(
-        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución." }),
+        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución tras 2 min de espera. Intente de nuevo." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
