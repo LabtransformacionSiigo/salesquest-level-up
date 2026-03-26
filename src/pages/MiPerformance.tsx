@@ -229,7 +229,7 @@ const MiPerformance = () => {
 
                   {(isVcAdvisor || acvData.length > 0) && (
                     <>
-                      <SectionTitle icon="pie_chart" title="Desglose por Bloque" />
+                      <SectionTitle icon="pie_chart" title="Desglose por Producto" />
                       <motion.div className="grid grid-cols-1 sm:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                         <BloqueCard label="Nómina-e" value={isVcAdvisor ? vcBlocks?.acv_nomina || 0 : acvData[0]?.acv_nomina || 0} color="bg-primary" />
                         <BloqueCard label="FE" value={isVcAdvisor ? vcBlocks?.acv_fe || 0 : acvData[0]?.acv_fe || 0} color="bg-accent" />
