@@ -42,6 +42,7 @@ const MiPerformance = () => {
   const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
   const [vcMonthlyCumplimiento, setVcMonthlyCumplimiento] = useState<MonthlyCumplimiento[]>([]);
   const [upgradesCount, setUpgradesCount] = useState(0);
+  const [productBreakdown, setProductBreakdown] = useState<{ label: string; value: number }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
