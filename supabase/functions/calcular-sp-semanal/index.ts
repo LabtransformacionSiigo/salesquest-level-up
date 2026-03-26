@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
         if (spFinal > 0) {
           // Upsert so SP reflects latest % without accumulating
-          await supabase.from("sp_acumulados").upsert({
+          const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
             gerente_id: gerente.id,
             fuente: "CUMPLIMIENTO_META",
             sp: spFinal,
@@ -159,8 +159,13 @@ Deno.serve(async (req) => {
             detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal}`,
           }, { onConflict: "gerente_id,fuente,periodo" });
 
-          totalSpOtorgados += spFinal;
-          resumenCanal[canal].sp += spFinal;
+          if (upsertErr) {
+            console.error(`SP upsert error for ${gerente.nombre}:`, upsertErr);
+            if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`);
+          } else {
+            totalSpOtorgados += spFinal;
+            resumenCanal[canal].sp += spFinal;
+          }
         }
 
         // Update racha state (use week-based ventas for streaks)
