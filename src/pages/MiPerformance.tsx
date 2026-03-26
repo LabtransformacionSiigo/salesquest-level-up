@@ -102,11 +102,11 @@ const MiPerformance = () => {
         return;
       }
 
-      const [kpisRes, acvRes, ventasMetaRes, upgradesRes] = await Promise.all([
+      const [kpisRes, acvRes, ventasMetaRes, productRes] = await Promise.all([
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
         isVC ? supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%') : Promise.resolve({ data: null }),
-        isVC ? supabase.from('ventas').select('id', { count: 'exact', head: true }).eq('gerente_id', profile.id).eq('canal', 'VC').eq('categoria_producto_venta', 'Upgrade').eq('anio', new Date().getFullYear()) : Promise.resolve({ count: 0 }),
+        isVC ? supabase.from('ventas').select('categoria_producto_venta, acv_plus').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).not('documento_factura', 'like', 'SUM-%') : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
@@ -114,7 +114,21 @@ const MiPerformance = () => {
       setVcSnapshot(null);
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
-      setUpgradesCount((upgradesRes as any).count || 0);
+
+      // Build product breakdown from individual ventas
+      if (isVC && productRes.data) {
+        const prodMap = new Map<string, number>();
+        (productRes.data as any[]).forEach((v: any) => {
+          const cat = v.categoria_producto_venta || 'Otros';
+          prodMap.set(cat, (prodMap.get(cat) || 0) + (Number(v.acv_plus) || 0));
+        });
+        const breakdown = [...prodMap.entries()]
+          .map(([label, value]) => ({ label, value }))
+          .filter(b => b.label && b.value > 0)
+          .sort((a, b) => b.value - a.value);
+        setProductBreakdown(breakdown);
+        setUpgradesCount(prodMap.get('Upgrade') ? (productRes.data as any[]).filter((v: any) => v.categoria_producto_venta === 'Upgrade').length : 0);
+      }
 
       if (isVC && ventasMetaRes.data) {
         // Build monthly cumplimiento
