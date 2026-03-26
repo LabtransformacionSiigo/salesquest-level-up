@@ -149,15 +149,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         warehouse_id: DATABRICKS_WAREHOUSE_ID,
         statement: sql,
-        wait_timeout: "120s",
+        wait_timeout: "50s",
         disposition: "INLINE",
         format: "JSON_ARRAY",
       }),
     });
 
-    const dbData = await dbResponse.json();
+    let dbData = await dbResponse.json();
 
-    if (!dbResponse.ok || dbData.status?.state === "FAILED") {
+    if (!dbResponse.ok && !dbData.statement_id) {
       console.error("Databricks error:", JSON.stringify(dbData));
       return new Response(
         JSON.stringify({
@@ -168,9 +168,37 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Poll if query is still running after initial wait
+    const statementId = dbData.statement_id;
+    let pollAttempts = 0;
+    const MAX_POLLS = 24; // 24 * 5s = 120s max
+    while (
+      (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") &&
+      pollAttempts < MAX_POLLS
+    ) {
+      pollAttempts++;
+      await new Promise((r) => setTimeout(r, 5000));
+      const pollResp = await fetch(`${databricksUrl}/${statementId}`, {
+        headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` },
+      });
+      dbData = await pollResp.json();
+      console.log(`[${table}] Poll #${pollAttempts}: state=${dbData.status?.state}`);
+    }
+
+    if (dbData.status?.state === "FAILED") {
+      console.error("Databricks query failed:", JSON.stringify(dbData));
+      return new Response(
+        JSON.stringify({
+          error: "Error al consultar Databricks",
+          detail: dbData.status?.error?.message || JSON.stringify(dbData),
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
       return new Response(
-        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución." }),
+        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución tras 2 min de espera. Intente de nuevo." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
