@@ -107,7 +107,7 @@ const MiPerformance = () => {
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
         isVC ? supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%') : Promise.resolve({ data: null }),
-        isVC ? supabase.from('ventas').select('categoria_producto_venta, acv_plus').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).not('documento_factura', 'like', 'SUM-%') : Promise.resolve({ data: null }),
+        isVC ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades').eq('gerente_id', profile.id).eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
@@ -116,19 +116,15 @@ const MiPerformance = () => {
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
 
-      // Build product breakdown from individual ventas
+      // Build product breakdown from view
       if (isVC && productRes.data) {
-        const prodMap = new Map<string, number>();
-        (productRes.data as any[]).forEach((v: any) => {
-          const cat = v.categoria_producto_venta || 'Otros';
-          prodMap.set(cat, (prodMap.get(cat) || 0) + (Number(v.acv_plus) || 0));
-        });
-        const breakdown = [...prodMap.entries()]
-          .map(([label, value]) => ({ label, value }))
-          .filter(b => b.label && b.value > 0)
+        const breakdown = (productRes.data as any[])
+          .map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
+          .filter(b => b.value > 0)
           .sort((a, b) => b.value - a.value);
         setProductBreakdown(breakdown);
-        setUpgradesCount(prodMap.get('Upgrade') ? (productRes.data as any[]).filter((v: any) => v.categoria_producto_venta === 'Upgrade').length : 0);
+        const upgradeRow = (productRes.data as any[]).find((r: any) => r.producto === 'Upgrade');
+        setUpgradesCount(upgradeRow ? Number(upgradeRow.unidades) || 0 : 0);
       }
 
       if (isVC && ventasMetaRes.data) {
