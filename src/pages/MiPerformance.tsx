@@ -11,6 +11,7 @@ import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
+const PRODUCT_COLORS = ['bg-primary', 'bg-accent', 'bg-orange', 'bg-secondary', 'bg-primary/70', 'bg-accent/70', 'bg-orange/70', 'bg-secondary/70', 'bg-primary/50', 'bg-accent/50', 'bg-orange/50'];
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-round', className)}>{icon}</span>
@@ -42,6 +43,7 @@ const MiPerformance = () => {
   const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
   const [vcMonthlyCumplimiento, setVcMonthlyCumplimiento] = useState<MonthlyCumplimiento[]>([]);
   const [upgradesCount, setUpgradesCount] = useState(0);
+  const [productBreakdown, setProductBreakdown] = useState<{ label: string; value: number }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
@@ -101,11 +103,11 @@ const MiPerformance = () => {
         return;
       }
 
-      const [kpisRes, acvRes, ventasMetaRes, upgradesRes] = await Promise.all([
+      const [kpisRes, acvRes, ventasMetaRes, productRes] = await Promise.all([
         supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
         supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
         isVC ? supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%') : Promise.resolve({ data: null }),
-        isVC ? supabase.from('ventas').select('id', { count: 'exact', head: true }).eq('gerente_id', profile.id).eq('canal', 'VC').eq('categoria_producto_venta', 'Upgrade').eq('anio', new Date().getFullYear()) : Promise.resolve({ count: 0 }),
+        isVC ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades').eq('gerente_id', profile.id).eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
@@ -113,7 +115,17 @@ const MiPerformance = () => {
       setVcSnapshot(null);
       setKpis(kpisRes.data);
       setAcvData(acvRes.data || []);
-      setUpgradesCount((upgradesRes as any).count || 0);
+
+      // Build product breakdown from view
+      if (isVC && productRes.data) {
+        const breakdown = (productRes.data as any[])
+          .map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
+          .filter(b => b.value > 0)
+          .sort((a, b) => b.value - a.value);
+        setProductBreakdown(breakdown);
+        const upgradeRow = (productRes.data as any[]).find((r: any) => r.producto === 'Upgrade');
+        setUpgradesCount(upgradeRow ? Number(upgradeRow.unidades) || 0 : 0);
+      }
 
       if (isVC && ventasMetaRes.data) {
         // Build monthly cumplimiento
@@ -227,14 +239,20 @@ const MiPerformance = () => {
                     <p className="text-sm text-muted-foreground mt-2">{vcUnitsLabel}</p>
                   </motion.div>
 
-                  {(isVcAdvisor || acvData.length > 0) && (
+                  {(isVcAdvisor || productBreakdown.length > 0 || acvData.length > 0) && (
                     <>
                       <SectionTitle icon="pie_chart" title="Desglose por Producto" />
-                      <motion.div className="grid grid-cols-1 sm:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                        <BloqueCard label="Nómina-e" value={isVcAdvisor ? vcBlocks?.acv_nomina || 0 : acvData[0]?.acv_nomina || 0} color="bg-primary" />
-                        <BloqueCard label="FE" value={isVcAdvisor ? vcBlocks?.acv_fe || 0 : acvData[0]?.acv_fe || 0} color="bg-accent" />
-                        <BloqueCard label="Conversiones" value={isVcAdvisor ? vcBlocks?.acv_conversiones || 0 : acvData[0]?.acv_conversiones || 0} color="bg-orange" />
-                        <BloqueCardCount label="Upgrades" count={upgradesCount} color="bg-secondary" />
+                      <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                        {(isVcAdvisor
+                          ? [
+                              { label: 'Nómina-e', value: vcBlocks?.acv_nomina || 0 },
+                              { label: 'FE', value: vcBlocks?.acv_fe || 0 },
+                              { label: 'Conversiones', value: vcBlocks?.acv_conversiones || 0 },
+                            ].filter(b => b.value > 0)
+                          : productBreakdown
+                        ).map((b, i) => (
+                          <BloqueCard key={b.label} label={b.label} value={b.value} color={PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
+                        ))}
                       </motion.div>
                     </>
                   )}
