@@ -242,14 +242,20 @@ const MiPerformance = () => {
                     <p className="text-sm text-muted-foreground mt-2">{vcUnitsLabel}</p>
                   </motion.div>
 
-                  {(isVcAdvisor || acvData.length > 0) && (
+                  {(isVcAdvisor || productBreakdown.length > 0 || acvData.length > 0) && (
                     <>
                       <SectionTitle icon="pie_chart" title="Desglose por Producto" />
-                      <motion.div className="grid grid-cols-1 sm:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                        <BloqueCard label="Nómina-e" value={isVcAdvisor ? vcBlocks?.acv_nomina || 0 : acvData[0]?.acv_nomina || 0} color="bg-primary" />
-                        <BloqueCard label="FE" value={isVcAdvisor ? vcBlocks?.acv_fe || 0 : acvData[0]?.acv_fe || 0} color="bg-accent" />
-                        <BloqueCard label="Conversiones" value={isVcAdvisor ? vcBlocks?.acv_conversiones || 0 : acvData[0]?.acv_conversiones || 0} color="bg-orange" />
-                        <BloqueCardCount label="Upgrades" count={upgradesCount} color="bg-secondary" />
+                      <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                        {(isVcAdvisor
+                          ? [
+                              { label: 'Nómina-e', value: vcBlocks?.acv_nomina || 0 },
+                              { label: 'FE', value: vcBlocks?.acv_fe || 0 },
+                              { label: 'Conversiones', value: vcBlocks?.acv_conversiones || 0 },
+                            ].filter(b => b.value > 0)
+                          : productBreakdown
+                        ).map((b, i) => (
+                          <BloqueCard key={b.label} label={b.label} value={b.value} color={PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
+                        ))}
                       </motion.div>
                     </>
                   )}
