@@ -11,6 +11,7 @@ import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
+const PRODUCT_COLORS = ['bg-primary', 'bg-accent', 'bg-orange', 'bg-secondary', 'bg-primary/70', 'bg-accent/70', 'bg-orange/70', 'bg-secondary/70', 'bg-primary/50', 'bg-accent/50', 'bg-orange/50'];
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-round', className)}>{icon}</span>
