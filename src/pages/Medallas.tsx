@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, trophyWobble } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import medallaImg from '@/assets/medalla.png';
+import candadoImg from '@/assets/candado.png';
 
 const TROPHY_LABELS: Record<string, { label: string; emoji: string }> = {
   primera_venta: { label: 'Primera Venta', emoji: '🎯' },
