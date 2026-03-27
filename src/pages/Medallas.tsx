@@ -136,11 +136,12 @@ const Medallas = () => {
                           <div className="absolute inset-0 bg-gradient-to-b from-yellow/10 to-transparent pointer-events-none" />
                         )}
 
-                        <motion.p
-                          className="text-4xl mb-3 relative z-10"
+                        <motion.div className="mb-3 relative z-10 flex justify-center"
                           animate={desbloqueada ? { rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] } : {}}
                           transition={{ duration: 0.8, delay: 0.3 }}
-                        >{desbloqueada ? (medalla.emoji || '🏅') : '🔒'}</motion.p>
+                        >
+                          <img src={desbloqueada ? medallaImg : candadoImg} alt={desbloqueada ? 'Medalla' : 'Bloqueada'} className="w-16 h-16 object-contain" />
+                        </motion.div>
                         <p className="text-sm font-bold text-foreground mb-1 relative z-10">{medalla.nombre}</p>
                         {medalla.producto && (
                           <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1 relative z-10">

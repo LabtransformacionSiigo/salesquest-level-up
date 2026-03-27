@@ -276,7 +276,7 @@ const Reconocimientos = () => {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <span className="text-5xl mb-3 block">🤝</span>
+                <img src={reconocimientoImg} alt="Reconocimientos" className="w-20 h-20 mx-auto mb-3 opacity-40" />
                 <p>Sé el primero en reconocer a un colaborador</p>
               </div>
             )}

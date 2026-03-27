@@ -144,6 +144,25 @@ const Dashboard = () => {
     <Layout title="Panel General">
       <motion.div className="space-y-6 max-w-[1400px]" variants={staggerContainer} initial="hidden" animate="show">
 
+        {/* Hero Banner */}
+        <motion.div
+          className="relative rounded-2xl overflow-hidden h-28"
+          variants={fadeUpItem}
+          style={{ backgroundImage: `url(${bannerPrincipal})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="absolute inset-0 bg-secondary/50" />
+          <div className="relative z-10 h-full flex items-center px-8">
+            <div>
+              <p className="text-white/70 text-sm font-medium">Bienvenido de nuevo,</p>
+              <h2 className="text-2xl font-black font-heading text-white">{profile?.nombre || 'Usuario'}</h2>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="text-3xl font-black font-scoreboard text-white">{sp.toLocaleString()}</p>
+              <p className="text-xs text-white/60 font-scoreboard uppercase">Siigo Points</p>
+            </div>
+          </div>
+        </motion.div>
+
         {/* KPIs del Mes */}
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} />
 
