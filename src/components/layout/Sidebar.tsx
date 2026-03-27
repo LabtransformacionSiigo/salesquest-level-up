@@ -51,8 +51,7 @@ const Sidebar = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <img src={siigoLogoWhite} alt="Siigo" className="h-9" />
-        <span className="text-xs font-bold text-sidebar-primary tracking-wide font-heading">ARENA</span>
+        <img src={logoIncentivos} alt="Siigo Incentivos" className="h-8" />
       </motion.div>
 
       {/* Profile */}
