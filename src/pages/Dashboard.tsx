@@ -11,6 +11,7 @@ import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data'
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
+import bannerPrincipal from '@/assets/banner-principal.png';
 
 const NIVELES = [
   { nombre: 'Cuarzo', min: 0, max: 1500 },
