@@ -873,6 +873,7 @@ export type Database = {
           anio: number | null
           gerente_id: string | null
           mes: string | null
+          meta_total: number | null
           nombre: string | null
           unidades: number | null
           valor_total: number | null
