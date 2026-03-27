@@ -118,7 +118,6 @@ const Dashboard = () => {
         const meta = Number(acvData?.meta_total) || 0;
         setAcvMes(acv);
         setPctCumplimiento(meta > 0 ? Math.round((acv / meta) * 100) : 0);
-      }
       } else {
         setAcvMes(Number(kpisRes.data?.acv_f) || 0);
         setPctCumplimiento(Number(kpisRes.data?.pct_cumplimiento) || 0);
