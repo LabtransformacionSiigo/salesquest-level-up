@@ -892,6 +892,7 @@ export type Database = {
           acv_total: number | null
           anio: number | null
           gerente_id: string | null
+          mes: string | null
           producto: string | null
           unidades: number | null
         }

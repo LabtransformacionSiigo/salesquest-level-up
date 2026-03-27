@@ -112,15 +112,18 @@ const Dashboard = () => {
       setVentasSemana((ventasSemanaRes.data || []).reduce((s, v) => s + (Number(v.valor_producto) || 0), 0));
 
       if (profile.canal === 'VC') {
-        const { data: acvData } = await supabase.from('acv_vc_mensual').select('acv_plus_total').eq('gerente_id', profile.id).maybeSingle();
+        const { data: acvData } = await supabase.from('acv_vc_mensual').select('acv_plus_total, mes').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(1).maybeSingle();
         if (cancelled) return;
         setAcvMes(Number(acvData?.acv_plus_total) || 0);
-        // Calculate cumplimiento from ventas meta
-        const { data: ventasMeta } = await supabase.from('ventas').select('acv_plus, meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear());
-        if (cancelled) return;
-        const totalAcv = (ventasMeta || []).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
-        const totalMeta = (ventasMeta || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
-        setPctCumplimiento(totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0);
+        // Get meta from SUM- records for the current month
+        const currentMes = acvData?.mes;
+        if (currentMes) {
+          const { data: ventasMeta } = await supabase.from('ventas').select('meta').eq('gerente_id', profile.id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).eq('mes', currentMes).like('documento_factura', 'SUM-%');
+          if (cancelled) return;
+          const totalMeta = (ventasMeta || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
+          const acv = Number(acvData?.acv_plus_total) || 0;
+          setPctCumplimiento(totalMeta > 0 ? Math.round((acv / totalMeta) * 100) : 0);
+        }
       } else {
         setAcvMes(Number(kpisRes.data?.acv_f) || 0);
         setPctCumplimiento(Number(kpisRes.data?.pct_cumplimiento) || 0);
