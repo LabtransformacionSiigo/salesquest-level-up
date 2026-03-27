@@ -55,7 +55,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
             <img src={siigoLogoBlue} alt="Siigo" className="h-8 mx-auto mb-3" />
-            <p className="text-lg font-bold text-primary font-heading">Siigo Arena</p>
+            <p className="text-lg font-bold text-primary font-heading">Siigo Incentivos</p>
           </div>
           <div className="bg-white border border-border rounded-3xl p-8 space-y-6 shadow-smooth-md">
             <div>

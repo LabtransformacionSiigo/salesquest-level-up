@@ -138,8 +138,8 @@ const Sidebar = () => {
       {/* Footer */}
       <div className="px-5 py-4 border-t border-sidebar-border">
         <div className="text-center">
-          <img src={siigoLogoWhite} alt="Siigo" className="h-6 mx-auto opacity-50" />
-          <p className="text-[10px] text-sidebar-muted mt-1">Siigo Arena · Gamificación</p>
+          <img src={logoIncentivos} alt="Siigo Incentivos" className="h-5 mx-auto opacity-50" />
+          <p className="text-[10px] text-sidebar-muted mt-1">Siigo · Incentivos</p>
         </div>
       </div>
 
