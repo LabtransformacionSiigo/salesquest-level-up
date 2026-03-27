@@ -174,8 +174,10 @@ const MiPerformance = () => {
     <Layout title="📊 Mi Performance">
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-          <motion.div className="jumbotron rounded-2xl p-6 flex items-center gap-4" variants={fadeUpItem}>
-            <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
+          <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
+            style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            <div className="absolute inset-0 bg-primary/30" />
+            <div className="relative z-10 w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
               <MI icon="person" className="text-white" />
             </div>
             <div>
