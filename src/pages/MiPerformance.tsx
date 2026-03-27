@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
 const PRODUCT_COLORS = ['bg-primary', 'bg-accent', 'bg-orange', 'bg-secondary', 'bg-primary/70', 'bg-accent/70', 'bg-orange/70', 'bg-secondary/70', 'bg-primary/50', 'bg-accent/50', 'bg-orange/50'];
@@ -173,8 +174,10 @@ const MiPerformance = () => {
     <Layout title="📊 Mi Performance">
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-          <motion.div className="jumbotron rounded-2xl p-6 flex items-center gap-4" variants={fadeUpItem}>
-            <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
+          <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
+            style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            <div className="absolute inset-0 bg-primary/30" />
+            <div className="relative z-10 w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
               <MI icon="person" className="text-white" />
             </div>
             <div>

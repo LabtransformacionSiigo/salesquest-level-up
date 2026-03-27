@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
+import logoIncentivos from '@/assets/logo-incentivos.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -50,8 +51,7 @@ const Sidebar = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <img src={siigoLogoWhite} alt="Siigo" className="h-9" />
-        <span className="text-xs font-bold text-sidebar-primary tracking-wide font-heading">ARENA</span>
+        <img src={logoIncentivos} alt="Siigo Incentivos" className="h-8" />
       </motion.div>
 
       {/* Profile */}
@@ -138,8 +138,8 @@ const Sidebar = () => {
       {/* Footer */}
       <div className="px-5 py-4 border-t border-sidebar-border">
         <div className="text-center">
-          <img src={siigoLogoWhite} alt="Siigo" className="h-6 mx-auto opacity-50" />
-          <p className="text-[10px] text-sidebar-muted mt-1">Siigo Arena · Gamificación</p>
+          <img src={logoIncentivos} alt="Siigo Incentivos" className="h-5 mx-auto opacity-50" />
+          <p className="text-[10px] text-sidebar-muted mt-1">Siigo · Incentivos</p>
         </div>
       </div>
 

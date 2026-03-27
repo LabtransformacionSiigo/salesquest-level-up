@@ -46,7 +46,7 @@ const Header = ({ title }: HeaderProps) => {
         {/* Siigo Arena badge */}
         <div className="hidden md:flex items-center gap-2 bg-primary rounded-full px-4 py-2">
           <MI icon="emoji_events" className="text-base text-primary-foreground" />
-          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Arena</span>
+          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Incentivos</span>
         </div>
 
         {/* Notifications */}

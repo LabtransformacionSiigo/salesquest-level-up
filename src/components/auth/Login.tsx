@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
+import logoIncentivos from '@/assets/logo-incentivos.png';
+import bannerPrincipal from '@/assets/banner-principal.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -31,10 +33,11 @@ const Login = () => {
   return (
     <div className="min-h-screen flex relative overflow-hidden">
       {/* Left panel — Siigo Blue hero */}
-      <div className="hidden lg:flex lg:w-[520px] flex-col items-center justify-center relative bg-primary">
-        <div className="text-center px-12">
-          <img src={siigoLogoWhite} alt="Siigo" className="h-10 mx-auto mb-8" />
-          <h1 className="text-4xl font-black font-heading text-white mb-2">Siigo Arena</h1>
+      <div className="hidden lg:flex lg:w-[520px] flex-col items-center justify-center relative" style={{ backgroundImage: `url(${bannerPrincipal})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-secondary/60" />
+        <div className="text-center px-12 relative z-10">
+          <img src={logoIncentivos} alt="Siigo Incentivos" className="h-10 mx-auto mb-8" />
+          <h1 className="text-4xl font-black font-heading text-white mb-2">Siigo Incentivos</h1>
           <p className="text-xl font-bold text-white/90 mb-2">Plataforma de Gamificación</p>
           <p className="text-sm text-white/70 max-w-xs mx-auto">Potencia tus resultados comerciales con Siigo Points</p>
           <div className="mt-10 grid grid-cols-3 gap-6 text-white/80 text-xs">
@@ -44,7 +47,7 @@ const Login = () => {
           </div>
         </div>
         {/* Logo bottom right */}
-        <img src={siigoLogoWhite} alt="Siigo" className="absolute bottom-6 right-6 h-6 opacity-40" />
+        <img src={logoIncentivos} alt="Siigo Incentivos" className="absolute bottom-6 right-6 h-6 opacity-40 z-10" />
       </div>
 
       {/* Right panel — White form */}
@@ -52,7 +55,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
             <img src={siigoLogoBlue} alt="Siigo" className="h-8 mx-auto mb-3" />
-            <p className="text-lg font-bold text-primary font-heading">Siigo Arena</p>
+            <p className="text-lg font-bold text-primary font-heading">Siigo Incentivos</p>
           </div>
           <div className="bg-white border border-border rounded-3xl p-8 space-y-6 shadow-smooth-md">
             <div>
