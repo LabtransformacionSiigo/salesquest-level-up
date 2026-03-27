@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
+import logoIncentivos from '@/assets/logo-incentivos.png';
+import bannerPrincipal from '@/assets/banner-principal.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
