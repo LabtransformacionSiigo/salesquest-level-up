@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
 const PRODUCT_COLORS = ['bg-primary', 'bg-accent', 'bg-orange', 'bg-secondary', 'bg-primary/70', 'bg-accent/70', 'bg-orange/70', 'bg-secondary/70', 'bg-primary/50', 'bg-accent/50', 'bg-orange/50'];
