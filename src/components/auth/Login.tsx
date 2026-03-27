@@ -47,7 +47,7 @@ const Login = () => {
           </div>
         </div>
         {/* Logo bottom right */}
-        <img src={siigoLogoWhite} alt="Siigo" className="absolute bottom-6 right-6 h-6 opacity-40" />
+        <img src={logoIncentivos} alt="Siigo Incentivos" className="absolute bottom-6 right-6 h-6 opacity-40 z-10" />
       </div>
 
       {/* Right panel — White form */}
