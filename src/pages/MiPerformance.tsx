@@ -121,7 +121,10 @@ const MiPerformance = () => {
 
       // Build product breakdown from view - filter by current month to match ACV headline
       if (isVC && productRes.data) {
-        const headlineMonth = (acvRes.data && acvRes.data.length > 0) ? (acvRes.data as any[])[0].mes : currentMonthName;
+        const acvRows = (acvRes.data as any[]) || [];
+        const headlineRow = acvRows.find((row: any) => row.mes === currentMonthName) || acvRows[0];
+        const headlineMonth = headlineRow?.mes || currentMonthName;
+        const headlineAcv = Number(headlineRow?.acv_plus_total) || 0;
         const filteredProducts = (productRes.data as any[]).filter((r: any) => r.mes === headlineMonth);
         const breakdown = aggregateProductBreakdown(
           filteredProducts.map((r: any) => ({
@@ -130,7 +133,14 @@ const MiPerformance = () => {
             units: Number(r.unidades) || 0,
           }))
         );
-        setProductBreakdown(breakdown);
+
+        const breakdownTotal = breakdown.reduce((sum, item) => sum + item.value, 0);
+        const missingAcv = Math.max(0, headlineAcv - breakdownTotal);
+        const completedBreakdown = missingAcv > 0.5
+          ? [...breakdown, { label: 'Sin desglose', value: missingAcv, units: 0 }].sort((a, b) => b.value - a.value)
+          : breakdown;
+
+        setProductBreakdown(completedBreakdown);
         const upgradeRow = breakdown.find((r) => r.label.toLowerCase() === 'upgrade');
         setUpgradesCount(upgradeRow ? Number(upgradeRow.units) || 0 : 0);
       }
