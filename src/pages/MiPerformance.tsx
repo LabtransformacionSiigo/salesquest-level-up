@@ -43,7 +43,7 @@ const MiPerformance = () => {
   const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
   const [vcMonthlyCumplimiento, setVcMonthlyCumplimiento] = useState<MonthlyCumplimiento[]>([]);
   const [upgradesCount, setUpgradesCount] = useState(0);
-  const [productBreakdown, setProductBreakdown] = useState<{ label: string; value: number }[]>([]);
+  const [productBreakdown, setProductBreakdown] = useState<{ label: string; value: number; units?: number }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const canal = profile?.canal;
@@ -262,7 +262,7 @@ const MiPerformance = () => {
                             ].filter(b => b.value > 0)
                           : productBreakdown
                         ).map((b) => (
-                          <BloqueCard key={b.label} label={b.label} value={b.value} units={'units' in b ? (b as any).units : undefined} />
+                          <BloqueCard key={b.label} label={b.label} value={b.value} units={(b as any).units} />
                         ))}
                       </motion.div>
                     </>
