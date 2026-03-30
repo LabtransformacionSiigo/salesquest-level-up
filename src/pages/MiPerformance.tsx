@@ -174,9 +174,8 @@ const MiPerformance = () => {
   const vcBlocks = vcSnapshot?.blockTotals;
   const vcHistory = isVcAdvisor ? (vcMetrics?.monthlyHistory || []) : acvData;
   const vcHeadlineValue = isVcAdvisor ? vcMetrics?.totalAcv || 0 : acvData[0]?.acv_plus_total || 0;
-  const vcUnitsLabel = isVcAdvisor
-    ? `${vcMetrics?.currentMonthUnits || 0} unidades este mes · ${formatMoney(vcMetrics?.currentMonthAcv || 0)} ACV+ del mes`
-    : `${acvData[0]?.unidades || 0} unidades`;
+  const vcUnitsTotal = isVcAdvisor ? Number(vcMetrics?.currentMonthUnits) || 0 : Number(acvData[0]?.unidades) || 0;
+  const vcUnitsLabel = `Sumatoria de unidades del mes: ${vcUnitsTotal} ${vcUnitsTotal === 1 ? 'unidad' : 'unidades'}`;
 
   return (
     <Layout title="📊 Mi Performance">
