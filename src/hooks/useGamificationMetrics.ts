@@ -202,7 +202,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         /* ============================================================ */
         /*  Gerente path (VC or VN)                                      */
         /* ============================================================ */
-        const queries: Promise<any>[] = [
+        const queries = [
           /* 0 */ supabase.from('racha_activa').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 1 */ supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 2 */ supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
