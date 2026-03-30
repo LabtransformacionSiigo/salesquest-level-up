@@ -17,12 +17,6 @@ const RETOS_SEMANALES = [
   { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
 ];
 
-const RETOS_SEMANALES = [
-  { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
-  { id: 'semana_en_fuego', nombre: '🔥 Reto Intermedio', sp: 160, umbral: 80_000_000 },
-  { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
-];
-
 const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const metrics = useGamificationMetrics(profile);
@@ -32,8 +26,6 @@ const Dashboard = () => {
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
 
   const sp = profile?.sp_totales || 0;
-  const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
-  const nivelSiguiente = NIVELES[NIVELES.indexOf(nivelActual) + 1];
 
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
 
