@@ -11,14 +11,6 @@ import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
 import bannerPrincipal from '@/assets/banner-principal.png';
 
-const NIVELES = [
-  { nombre: 'Cuarzo', min: 0, max: 1500 },
-  { nombre: 'Rubí', min: 1501, max: 3000 },
-  { nombre: 'Zafiro', min: 3001, max: 4500 },
-  { nombre: 'Esmeralda', min: 4501, max: 6000 },
-  { nombre: 'Diamante', min: 6001, max: 999999 },
-];
-
 const RETOS_SEMANALES = [
   { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
   { id: 'semana_en_fuego', nombre: '🔥 Reto Intermedio', sp: 160, umbral: 80_000_000 },
@@ -34,8 +26,6 @@ const Dashboard = () => {
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
 
   const sp = profile?.sp_totales || 0;
-  const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
-  const nivelSiguiente = NIVELES[NIVELES.indexOf(nivelActual) + 1];
 
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
 
@@ -65,31 +55,8 @@ const Dashboard = () => {
         {/* KPIs del Mes */}
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} />
 
-        {/* Fila: SP Donut | Racha | Top Pointers */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-5" variants={fadeUpItem}>
-          {/* SP Donut */}
-          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
-            <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2 self-start">
-              <span className="text-primary">⚡</span> {isVcAdvisor ? 'Siigo Points asesor' : 'Siigo Points gerente'}
-            </h3>
-            {dataLoading ? <Skeleton className="h-36 w-36 rounded-full" /> : (
-              <DonutChart
-                value={sp}
-                max={nivelSiguiente?.min || sp}
-                size={180}
-                strokeWidth={14}
-                color="hsl(var(--orange))"
-                bgColor="hsl(var(--muted))"
-              >
-                <span className="text-sm text-muted-foreground font-semibold">{nivelActual.nombre}</span>
-                <span className="text-xl font-black font-scoreboard text-primary">
-                  {sp.toLocaleString()}/{(nivelSiguiente?.min || sp).toLocaleString()}
-                </span>
-                <span className="text-xs text-muted-foreground font-bold uppercase">sp</span>
-              </DonutChart>
-            )}
-          </motion.div>
-
+        {/* Racha + Top Pointers */}
+        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
           {/* Racha */}
           <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={popIn}>
             <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">

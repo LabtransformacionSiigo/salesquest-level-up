@@ -163,7 +163,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <Progress value={ventasSemana > 0 ? Math.min(100, (ventasSemana / 50_000_000) * 100) : 0} className="h-2.5" />
           </div>
 
-          {/* Cumplimiento */}
+          {/* % Cumplimiento — same as donut but as bar for quick scan */}
           <div>
             <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
               <span>% Cumplimiento</span>
