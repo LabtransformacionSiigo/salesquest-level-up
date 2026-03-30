@@ -398,10 +398,13 @@ const MetaRow = ({ label, value }: { label: string; value: string }) => (
   <p><span className="text-muted-foreground">{label}:</span> <span className="font-semibold text-foreground">{value}</span></p>
 );
 
-const BloqueCard = ({ label, value }: { label: string; value: number }) => (
+const BloqueCard = ({ label, value, units }: { label: string; value: number; units?: number }) => (
   <motion.div className="bg-white border border-border rounded-2xl p-5 text-center hover:shadow-smooth-md transition-shadow shadow-smooth-sm" variants={fadeUpItem}>
     <p className="text-xl font-bold font-scoreboard text-foreground">{formatMoney(value)}</p>
     <p className="text-xs text-muted-foreground font-medium">{label}</p>
+    {units != null && units > 0 && (
+      <p className="text-[11px] text-muted-foreground mt-1">{units} {units === 1 ? 'unidad' : 'unidades'}</p>
+    )}
   </motion.div>
 );
 
