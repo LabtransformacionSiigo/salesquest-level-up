@@ -59,6 +59,29 @@ ${limit}
 `;
     },
   },
+  ventas_vc_producto: {
+    label: "Ventas VC Desglose por Producto",
+    sql: (limit: string, mesFilter?: string) => {
+      const ventasWhere = mesFilter
+        ? `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay') AND mes = '${mesFilter}'`
+        : `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')`;
+      return `
+SELECT 
+    comercial AS Asesor,
+    lider AS Lider,
+    Anio,
+    mes AS Mes,
+    categoria_producto_Venta AS Producto,
+    bloque_venta AS Bloque,
+    SUM(CAST(ACV_PLUS AS BIGINT)) AS ACV_Producto,
+    COUNT(*) AS Unidades
+FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
+${ventasWhere}
+GROUP BY comercial, lider, Anio, mes, categoria_producto_Venta, bloque_venta
+${limit}
+`;
+    },
+  },
 };
 
 Deno.serve(async (req) => {
@@ -232,6 +255,8 @@ Deno.serve(async (req) => {
     let syncResult;
     if (table === "ventas_vc") {
       syncResult = await syncVentasVC(supabase, rows);
+    } else if (table === "ventas_vc_producto") {
+      syncResult = await syncVentasVCProducto(supabase, rows);
     } else {
       syncResult = await syncProductividad(supabase, rows);
     }
@@ -395,4 +420,66 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   }
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
+}
+
+// Sync Ventas VC Product Breakdown → ventas table (product-level rows per advisor per month)
+async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) {
+  let insertedVentas = 0;
+  const errores: string[] = [];
+
+  const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
+  const gerenteMap = new Map<string, any>();
+  (gerentes || []).forEach((g: any) => {
+    gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
+  });
+
+  const ventaRows: any[] = [];
+  for (const row of rows) {
+    const liderName = (row.Lider || "").toLowerCase().trim();
+    const gerente = gerenteMap.get(liderName);
+    if (!gerente) {
+      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`);
+      continue;
+    }
+
+    const monthNum = SPANISH_MONTHS[row.Mes] || "01";
+    const anio = Number(row.Anio) || 2026;
+    const asesor = String(row.Asesor || "").trim();
+    const producto = String(row.Producto || "Sin categoría").trim();
+    const bloque = String(row.Bloque || "").trim();
+    const acv = Number(row.ACV_Producto || 0);
+    const unidades = Number(row.Unidades || 0);
+
+    if (acv === 0 && unidades === 0) continue;
+
+    ventaRows.push({
+      gerente_id: gerente.id,
+      fecha_facturacion: `${anio}-${monthNum}-01`,
+      canal: "VC",
+      anio,
+      mes: String(row.Mes || ""),
+      producto: producto,
+      bloque_venta: bloque,
+      documento_factura: `PROD-${anio}-${row.Mes}-${asesor}-${producto}`,
+      valor_producto: acv,
+      acv_plus: acv,
+      meta: 0,
+      comercial: asesor,
+      lider: String(row.Lider || ""),
+      categoria_producto_venta: producto,
+    });
+  }
+
+  // Batch upsert in chunks of 500
+  const BATCH = 500;
+  for (let i = 0; i < ventaRows.length; i += BATCH) {
+    const chunk = ventaRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("ventas").upsert(chunk, {
+      onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
+    });
+    if (error) errores.push(`Batch ${i}-${i + chunk.length}: ${error.message}`);
+    else insertedVentas += (count || chunk.length);
+  }
+
+  return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
 }
