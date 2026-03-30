@@ -134,13 +134,7 @@ const MiPerformance = () => {
           }))
         );
 
-        const breakdownTotal = breakdown.reduce((sum, item) => sum + item.value, 0);
-        const missingAcv = Math.max(0, headlineAcv - breakdownTotal);
-        const completedBreakdown = missingAcv > 0.5
-          ? [...breakdown, { label: 'Sin desglose', value: missingAcv, units: 0 }].sort((a, b) => b.value - a.value)
-          : breakdown;
-
-        setProductBreakdown(completedBreakdown);
+        setProductBreakdown(breakdown);
         const upgradeRow = breakdown.find((r) => r.label.toLowerCase() === 'upgrade');
         setUpgradesCount(upgradeRow ? Number(upgradeRow.units) || 0 : 0);
       }
