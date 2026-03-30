@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion';
 import { fadeUpItem } from '@/lib/animations';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface TopSiigoPointersProps {
   canal: string | null;
   loading: boolean;
   isVC?: boolean;
+  topRanking?: any[];
 }
 
 const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
@@ -18,39 +17,7 @@ const formatMoney = (val: number) => {
   return `$${val}`;
 };
 
-const TopSiigoPointers = ({ canal, loading, isVC }: TopSiigoPointersProps) => {
-  const [top3, setTop3] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!canal) return;
-
-    if (isVC) {
-      // For VC, show top gerentes by % cumplimiento
-      supabase
-        .from('ranking_vc_gerentes' as any)
-        .select('*')
-        .order('pct_cumplimiento', { ascending: false })
-        .limit(3)
-        .then(({ data }) => {
-          setTop3((data || []).map((r: any) => ({
-            id: r.gerente_id,
-            nombre: r.nombre,
-            sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
-            pct_cumplimiento: Math.round(Number(r.pct_cumplimiento) || 0),
-            acv_total: Number(r.acv_total) || 0,
-          })));
-        });
-    } else {
-      supabase
-        .from('ranking_general')
-        .select('*')
-        .eq('canal', canal)
-        .order('sp_totales', { ascending: false })
-        .limit(3)
-        .then(({ data }) => setTop3(data || []));
-    }
-  }, [canal, isVC]);
-
+const TopSiigoPointers = ({ canal, loading, isVC, topRanking = [] }: TopSiigoPointersProps) => {
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
       <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
@@ -58,9 +25,9 @@ const TopSiigoPointers = ({ canal, loading, isVC }: TopSiigoPointersProps) => {
       </h3>
       {loading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
-      ) : top3.length > 0 ? (
+      ) : topRanking.length > 0 ? (
         <div className="space-y-4">
-          {top3.map((user, i) => (
+          {topRanking.map((user, i) => (
             <div key={user.id || i} className="flex items-center gap-4">
               <span className={`w-10 h-10 rounded-lg ${BADGE_COLORS[i] || 'bg-muted'} text-primary-foreground flex items-center justify-center text-sm font-black font-heading`}>
                 #{i + 1}

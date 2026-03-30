@@ -1,15 +1,12 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
-import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
-import { aggregateProductBreakdown } from '@/lib/product-breakdown';
+import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
@@ -28,147 +25,19 @@ const InfoTip = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
-interface MonthlyCumplimiento {
-  mes: string;
-  acv: number;
-  meta: number;
-  pct: number;
-}
-
 const MiPerformance = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [kpis, setKpis] = useState<any>(null);
-  const [acvData, setAcvData] = useState<any[]>([]);
-  const [vcSnapshot, setVcSnapshot] = useState<any>(null);
-  const [vcCumplimiento, setVcCumplimiento] = useState<{ acv: number; meta: number; pct: number } | null>(null);
-  const [vcMonthlyCumplimiento, setVcMonthlyCumplimiento] = useState<MonthlyCumplimiento[]>([]);
-  const [upgradesCount, setUpgradesCount] = useState(0);
-  const [productBreakdown, setProductBreakdown] = useState<{ label: string; value: number; units?: number }[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const metrics = useGamificationMetrics(profile);
 
   const canal = profile?.canal;
-  const isVC = canal === 'VC';
   const isAliados = canal === 'VN_ALIADOS';
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
-  const isVcAdvisor = isVcAdvisorProfile(profile);
-  const canalLabel = isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
-
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    let cancelled = false;
-
-    const fetchData = async () => {
-      setDataLoading(true);
-
-      if (isVcAdvisor) {
-        const [snapshot, ventasMetaRes, upgradesRes] = await Promise.all([
-          getVcAdvisorSnapshot(profile),
-          supabase.from('ventas').select('acv_plus, meta, mes').eq('gerente_id', profile.gerente_id).eq('canal', 'VC').eq('anio', new Date().getFullYear()).like('documento_factura', 'SUM-%').eq('comercial', profile.nombre),
-          supabase.from('ventas').select('id', { count: 'exact', head: true }).eq('gerente_id', profile.gerente_id).eq('canal', 'VC').eq('comercial', profile.nombre).eq('categoria_producto_venta', 'Upgrade').eq('anio', new Date().getFullYear()),
-        ]);
-        if (cancelled) return;
-
-        setVcSnapshot(snapshot);
-        setKpis({
-          ventas: snapshot?.metrics.currentMonthRevenue || 0,
-          acv_f: snapshot?.metrics.currentMonthAcv || 0,
-          sc_creados: snapshot?.metrics.currentMonthUnits || 0,
-        });
-        setAcvData([]);
-        setUpgradesCount(upgradesRes.count || 0);
-
-        // Build monthly cumplimiento from SUM- records
-        const monthlyMap = new Map<string, { acv: number; meta: number }>();
-        (ventasMetaRes.data || []).forEach((v: any) => {
-          const mes = v.mes || 'Unknown';
-          const entry = monthlyMap.get(mes) || { acv: 0, meta: 0 };
-          entry.acv += Number(v.acv_plus) || 0;
-          entry.meta += Number(v.meta) || 0;
-          monthlyMap.set(mes, entry);
-        });
-        const monthlyCumpl = [...monthlyMap.entries()].map(([mes, { acv, meta }]) => ({
-          mes,
-          acv,
-          meta,
-          pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
-        }));
-        setVcMonthlyCumplimiento(monthlyCumpl);
-
-        const totalAcv = monthlyCumpl.reduce((s, m) => s + m.acv, 0);
-        const totalMeta = monthlyCumpl.reduce((s, m) => s + m.meta, 0);
-        setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
-
-        setDataLoading(false);
-        return;
-      }
-
-      // Get current month name in Spanish for filtering
-      const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      const currentMonthName = MONTH_NAMES_ES[new Date().getMonth()];
-
-      const [kpisRes, acvRes, productRes] = await Promise.all([
-        supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
-        supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6),
-        isVC ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', new Date().getFullYear()) : Promise.resolve({ data: null }),
-      ]);
-
-      if (cancelled) return;
-
-      setVcSnapshot(null);
-      setKpis(kpisRes.data);
-      setAcvData(acvRes.data || []);
-
-      // Build product breakdown from view - filter by current month to match ACV headline
-      if (isVC && productRes.data) {
-        const acvRows = (acvRes.data as any[]) || [];
-        const headlineRow = acvRows.find((row: any) => row.mes === currentMonthName) || acvRows[0];
-        const headlineMonth = headlineRow?.mes || currentMonthName;
-        const headlineAcv = Number(headlineRow?.acv_plus_total) || 0;
-        const filteredProducts = (productRes.data as any[]).filter((r: any) => r.mes === headlineMonth);
-        const breakdown = aggregateProductBreakdown(
-          filteredProducts.map((r: any) => ({
-            label: r.producto,
-            value: Number(r.acv_total) || 0,
-            units: Number(r.unidades) || 0,
-          }))
-        );
-
-        setProductBreakdown(breakdown);
-        const upgradeRow = breakdown.find((r) => r.label.toLowerCase() === 'upgrade');
-        setUpgradesCount(upgradeRow ? Number(upgradeRow.units) || 0 : 0);
-      }
-
-      if (isVC) {
-        // acv_vc_mensual now uses SUM- records with correct ACV and meta
-        const acvRows = acvRes.data || [];
-        const monthlyCumpl: MonthlyCumplimiento[] = (acvRows as any[]).map((row: any) => {
-          const acv = Number(row.acv_plus_total) || 0;
-          const meta = Number(row.meta_total) || 0;
-          return {
-            mes: row.mes || 'Unknown',
-            acv,
-            meta,
-            pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
-          };
-        });
-        setVcMonthlyCumplimiento(monthlyCumpl);
-
-        const totalAcv = monthlyCumpl.reduce((s, m) => s + m.acv, 0);
-        const totalMeta = monthlyCumpl.reduce((s, m) => s + m.meta, 0);
-        setVcCumplimiento({ acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 });
-      }
-      setDataLoading(false);
-    };
-
-    fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor]);
+  const canalLabel = metrics.isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  const { kpis, vcSnapshot, vcCumplimiento, vcMonthlyCumplimiento, acvData, productBreakdown, upgradesCount, loading: dataLoading, isVcAdvisor, isVC } = metrics;
 
   const vcMetrics = vcSnapshot?.metrics;
   const vcBlocks = vcSnapshot?.blockTotals;
@@ -266,7 +135,6 @@ const MiPerformance = () => {
                       </motion.div>
                     </>
                   )}
-
 
                   {/* Cumplimiento de Meta VC - Global */}
                   {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
