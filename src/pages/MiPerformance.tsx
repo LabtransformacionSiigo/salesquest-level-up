@@ -9,11 +9,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import { aggregateProductBreakdown } from '@/lib/product-breakdown';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
-const PRODUCT_COLORS = ['bg-primary', 'bg-accent', 'bg-orange', 'bg-secondary', 'bg-primary/70', 'bg-accent/70', 'bg-orange/70', 'bg-secondary/70', 'bg-primary/50', 'bg-accent/50', 'bg-orange/50'];
-
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-round', className)}>{icon}</span>
 );
@@ -124,13 +123,16 @@ const MiPerformance = () => {
       if (isVC && productRes.data) {
         const headlineMonth = (acvRes.data && acvRes.data.length > 0) ? (acvRes.data as any[])[0].mes : currentMonthName;
         const filteredProducts = (productRes.data as any[]).filter((r: any) => r.mes === headlineMonth);
-        const breakdown = filteredProducts
-          .map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
-          .filter(b => b.value > 0)
-          .sort((a, b) => b.value - a.value);
+        const breakdown = aggregateProductBreakdown(
+          filteredProducts.map((r: any) => ({
+            label: r.producto,
+            value: Number(r.acv_total) || 0,
+            units: Number(r.unidades) || 0,
+          }))
+        );
         setProductBreakdown(breakdown);
-        const upgradeRow = filteredProducts.find((r: any) => r.producto === 'Upgrade');
-        setUpgradesCount(upgradeRow ? Number(upgradeRow.unidades) || 0 : 0);
+        const upgradeRow = breakdown.find((r) => r.label.toLowerCase() === 'upgrade');
+        setUpgradesCount(upgradeRow ? Number(upgradeRow.units) || 0 : 0);
       }
 
       if (isVC) {
@@ -255,8 +257,8 @@ const MiPerformance = () => {
                               { label: 'Conversiones', value: vcBlocks?.acv_conversiones || 0 },
                             ].filter(b => b.value > 0)
                           : productBreakdown
-                        ).map((b, i) => (
-                          <BloqueCard key={b.label} label={b.label} value={b.value} color={PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
+                        ).map((b) => (
+                          <BloqueCard key={b.label} label={b.label} value={b.value} />
                         ))}
                       </motion.div>
                     </>
@@ -392,9 +394,8 @@ const MetaRow = ({ label, value }: { label: string; value: string }) => (
   <p><span className="text-muted-foreground">{label}:</span> <span className="font-semibold text-foreground">{value}</span></p>
 );
 
-const BloqueCard = ({ label, value, color }: { label: string; value: number; color: string }) => (
+const BloqueCard = ({ label, value }: { label: string; value: number }) => (
   <motion.div className="bg-white border border-border rounded-2xl p-5 text-center hover:shadow-smooth-md transition-shadow shadow-smooth-sm" variants={fadeUpItem}>
-    <div className={cn('w-3 h-3 rounded-full mx-auto mb-3', color)} />
     <p className="text-xl font-bold font-scoreboard text-foreground">{formatMoney(value)}</p>
     <p className="text-xs text-muted-foreground font-medium">{label}</p>
   </motion.div>
