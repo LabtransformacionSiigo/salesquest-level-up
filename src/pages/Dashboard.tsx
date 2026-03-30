@@ -1,13 +1,11 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, popIn } from '@/lib/animations';
-import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
@@ -27,107 +25,9 @@ const RETOS_SEMANALES = [
   { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
 ];
 
-const getISOWeek = (d: Date) => {
-  const date = new Date(d.getTime());
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-};
-
-function getISOWeekStartDate(week: number, year: number): Date {
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const dayOfWeek = jan4.getUTCDay() || 7;
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1);
-  monday.setUTCDate(monday.getUTCDate() + (week - 1) * 7);
-  return monday;
-}
-
 const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [racha, setRacha] = useState<any>(null);
-  const [kpis, setKpis] = useState<any>(null);
-  const [medallas, setMedallas] = useState<any[]>([]);
-  const [feed, setFeed] = useState<any[]>([]);
-  const [unidades, setUnidades] = useState(0);
-  const [acvMes, setAcvMes] = useState(0);
-  const [ventasSemana, setVentasSemana] = useState(0);
-  const [pctCumplimiento, setPctCumplimiento] = useState(0);
-  const [dataLoading, setDataLoading] = useState(true);
-  const isVcAdvisor = isVcAdvisorProfile(profile);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-    const now = new Date();
-    const anioActual = now.getFullYear();
-    const semanaISO = getISOWeek(now);
-    const weekStart = getISOWeekStartDate(semanaISO, anioActual);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    let cancelled = false;
-
-    const fetchData = async () => {
-      setDataLoading(true);
-
-      if (isVcAdvisor) {
-        const [feedRes, snapshot] = await Promise.all([
-          supabase.from('feed_reconocimientos').select('*').limit(5),
-          getVcAdvisorSnapshot(profile),
-        ]);
-        if (cancelled) return;
-        const metrics = snapshot?.metrics;
-        setRacha(null);
-        setKpis({ ventas: metrics?.currentMonthRevenue || 0, acv_f: metrics?.currentMonthAcv || 0 });
-        setMedallas(snapshot?.medals || []);
-        setFeed(feedRes.data || []);
-        setUnidades(metrics?.currentMonthUnits || 0);
-        setVentasSemana(metrics?.currentWeekRevenue || 0);
-        setAcvMes(metrics?.totalAcv || 0);
-        setDataLoading(false);
-        return;
-      }
-
-      const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes] = await Promise.all([
-        supabase.from('racha_activa').select('*').eq('gerente_id', profile.id).maybeSingle(),
-        supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
-        supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
-        supabase.from('feed_reconocimientos').select('*').limit(5),
-        supabase.from('ventas').select('id', { count: 'exact', head: true })
-          .eq('gerente_id', profile.id)
-          .gte('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
-          .lt('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 2).padStart(2, '0')}-01`),
-        supabase.from('ventas').select('valor_producto')
-          .eq('gerente_id', profile.id)
-          .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
-          .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
-      ]);
-
-      if (cancelled) return;
-      setRacha(rachaRes.data);
-      setKpis(kpisRes.data);
-      setMedallas(medallasRes.data || []);
-      setFeed(feedRes.data || []);
-      setUnidades(unidadesRes.count || 0);
-      setVentasSemana((ventasSemanaRes.data || []).reduce((s, v) => s + (Number(v.valor_producto) || 0), 0));
-
-      if (profile.canal === 'VC') {
-        const { data: acvData } = await supabase.from('acv_vc_mensual').select('acv_plus_total, meta_total, mes').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(1).maybeSingle();
-        if (cancelled) return;
-        const acv = Number(acvData?.acv_plus_total) || 0;
-        const meta = Number(acvData?.meta_total) || 0;
-        setAcvMes(acv);
-        setPctCumplimiento(meta > 0 ? Math.round((acv / meta) * 100) : 0);
-      } else {
-        setAcvMes(Number(kpisRes.data?.acv_f) || 0);
-        setPctCumplimiento(Number(kpisRes.data?.pct_cumplimiento) || 0);
-      }
-      setDataLoading(false);
-    };
-
-    fetchData();
-    return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor]);
+  const metrics = useGamificationMetrics(profile);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -136,6 +36,8 @@ const Dashboard = () => {
   const sp = profile?.sp_totales || 0;
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelSiguiente = NIVELES[NIVELES.indexOf(nivelActual) + 1];
+
+  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
 
   return (
     <Layout title="Panel General">
@@ -208,7 +110,7 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Top Siigo Pointers */}
-          <TopSiigoPointers canal={profile?.canal} loading={dataLoading} isVC={profile?.canal === 'VC'} />
+          <TopSiigoPointers canal={profile?.canal ?? null} loading={dataLoading} isVC={profile?.canal === 'VC'} topRanking={topRanking} />
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}

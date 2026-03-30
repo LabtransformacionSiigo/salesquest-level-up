@@ -1,56 +1,33 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
+import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
 import usaFlag from '@/assets/flags/united-states.svg';
 
 const FLAG_MAP: Record<string, string> = {
-  COL: colombiaFlag,
-  CO: colombiaFlag,
-  MEX: mexicoFlag,
-  MX: mexicoFlag,
-  ECU: ecuadorFlag,
-  EC: ecuadorFlag,
-  USA: usaFlag,
-  US: usaFlag,
+  COL: colombiaFlag, CO: colombiaFlag,
+  MEX: mexicoFlag, MX: mexicoFlag,
+  ECU: ecuadorFlag, EC: ecuadorFlag,
+  USA: usaFlag, US: usaFlag,
 };
 
 const normalizeCountryCode = (pais?: string | null) => pais?.trim().toUpperCase() || '';
 
 const MiEquipo = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [asesores, setAsesores] = useState<any[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-    const isVC = profile.canal === 'VC';
-
-    if (isVC) {
-      supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
-        .then(({ data }) => {
-          const mapped = (data || []).map((c: any) => ({ id: c.nombre, nombre: c.nombre, activo: true, canal: 'VC', pais: profile.pais, email: '' }));
-          setAsesores(mapped);
-          setDataLoading(false);
-        });
-    } else {
-      supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')
-        .then(({ data }) => { setAsesores(data || []); setDataLoading(false); });
-    }
-  }, [profile?.id, profile?.canal]);
+  const { team, loading: dataLoading } = useGamificationMetrics(profile);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const activos = asesores.filter(a => a.activo);
+  const activos = team.filter(a => a.activo);
 
   return (
     <Layout title="👥 Mi Equipo">
@@ -67,7 +44,7 @@ const MiEquipo = () => {
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Activos</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold font-scoreboard text-muted-foreground">{asesores.length}</p>
+              <p className="text-3xl font-bold font-scoreboard text-muted-foreground">{team.length}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
             </div>
           </div>
@@ -75,9 +52,9 @@ const MiEquipo = () => {
 
         {dataLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-40" />)}</div>
-        ) : asesores.length > 0 ? (
+        ) : team.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-            {asesores.map(a => {
+            {team.map(a => {
               const countryFlag = FLAG_MAP[normalizeCountryCode(a.pais)];
 
               return (
