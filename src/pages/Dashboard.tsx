@@ -65,31 +65,8 @@ const Dashboard = () => {
         {/* KPIs del Mes */}
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} />
 
-        {/* Fila: SP Donut | Racha | Top Pointers */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-5" variants={fadeUpItem}>
-          {/* SP Donut */}
-          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
-            <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2 self-start">
-              <span className="text-primary">⚡</span> {isVcAdvisor ? 'Siigo Points asesor' : 'Siigo Points gerente'}
-            </h3>
-            {dataLoading ? <Skeleton className="h-36 w-36 rounded-full" /> : (
-              <DonutChart
-                value={sp}
-                max={nivelSiguiente?.min || sp}
-                size={180}
-                strokeWidth={14}
-                color="hsl(var(--orange))"
-                bgColor="hsl(var(--muted))"
-              >
-                <span className="text-sm text-muted-foreground font-semibold">{nivelActual.nombre}</span>
-                <span className="text-xl font-black font-scoreboard text-primary">
-                  {sp.toLocaleString()}/{(nivelSiguiente?.min || sp).toLocaleString()}
-                </span>
-                <span className="text-xs text-muted-foreground font-bold uppercase">sp</span>
-              </DonutChart>
-            )}
-          </motion.div>
-
+        {/* Racha + Top Pointers */}
+        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
           {/* Racha */}
           <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={popIn}>
             <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
