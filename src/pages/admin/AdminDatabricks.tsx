@@ -12,7 +12,8 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const TABLE_OPTIONS = [
   { value: "productividad", label: "Productividad Progresiva", desc: "KPIs mensuales (VN_EMPRESARIOS / VN_ALIADOS)", icon: "trending_up" },
-  { value: "ventas_vc", label: "Ventas VC", desc: "Ventas de Venta Cruzada 2026", icon: "storefront" },
+  { value: "ventas_vc", label: "Ventas VC", desc: "Totales y metas mensuales por asesor", icon: "storefront" },
+  { value: "ventas_vc_producto", label: "VC Desglose Producto", desc: "Detalle por categoría de producto (Mi Performance)", icon: "category" },
 ];
 
 const AdminDatabricks = () => {
@@ -74,7 +75,7 @@ const AdminDatabricks = () => {
           </div>
 
           {/* Table selector */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {TABLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
