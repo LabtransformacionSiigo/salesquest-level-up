@@ -11,12 +11,10 @@ import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
 import bannerPrincipal from '@/assets/banner-principal.png';
 
-const NIVELES = [
-  { nombre: 'Cuarzo', min: 0, max: 1500 },
-  { nombre: 'Rubí', min: 1501, max: 3000 },
-  { nombre: 'Zafiro', min: 3001, max: 4500 },
-  { nombre: 'Esmeralda', min: 4501, max: 6000 },
-  { nombre: 'Diamante', min: 6001, max: 999999 },
+const RETOS_SEMANALES = [
+  { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
+  { id: 'semana_en_fuego', nombre: '🔥 Reto Intermedio', sp: 160, umbral: 80_000_000 },
+  { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
 ];
 
 const RETOS_SEMANALES = [
