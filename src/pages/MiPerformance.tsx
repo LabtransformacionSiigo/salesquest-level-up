@@ -262,7 +262,7 @@ const MiPerformance = () => {
                             ].filter(b => b.value > 0)
                           : productBreakdown
                         ).map((b) => (
-                          <BloqueCard key={b.label} label={b.label} value={b.value} />
+                          <BloqueCard key={b.label} label={b.label} value={b.value} units={'units' in b ? (b as any).units : undefined} />
                         ))}
                       </motion.div>
                     </>
