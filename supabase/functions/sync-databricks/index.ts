@@ -547,6 +547,7 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
 
     if (acv === 0 && unidades === 0) continue;
 
+    const docKey = `PROD-${anio}-${row.Mes}-${asesor}-${producto}-${bloque}`;
     ventaRows.push({
       gerente_id: gerente.id,
       fecha_facturacion: `${anio}-${monthNum}-01`,
@@ -555,7 +556,7 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
       mes: String(row.Mes || ""),
       producto: producto,
       bloque_venta: bloque,
-      documento_factura: `PROD-${anio}-${row.Mes}-${asesor}-${producto}`,
+      documento_factura: docKey,
       valor_producto: acv,
       acv_plus: acv,
       meta: 0,
@@ -564,6 +565,20 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
       categoria_producto_venta: producto,
     });
   }
+
+  // Deduplicate by documento_factura+producto+fecha to avoid "cannot affect row a second time"
+  const deduped = new Map<string, any>();
+  for (const row of ventaRows) {
+    const key = `${row.documento_factura}|${row.producto}|${row.fecha_facturacion}`;
+    if (deduped.has(key)) {
+      const existing = deduped.get(key);
+      existing.acv_plus += row.acv_plus;
+      existing.valor_producto += row.valor_producto;
+    } else {
+      deduped.set(key, { ...row });
+    }
+  }
+  const uniqueRows = [...deduped.values()];
 
   // Batch upsert in chunks of 500
   const BATCH = 500;
