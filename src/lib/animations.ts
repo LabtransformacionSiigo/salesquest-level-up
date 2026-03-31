@@ -44,7 +44,7 @@ export const fadeUpItem: Variants = {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.5, ease: 'easeOut' as const },
   },
 };
 
@@ -59,12 +59,12 @@ export const fadeDownItem: Variants = {
 
 export const slideInLeft: Variants = {
   hidden: { opacity: 0, x: -24 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
 };
 
 export const slideInRight: Variants = {
   hidden: { opacity: 0, x: 30 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
 };
 
 // ══════════════════════════════════════════════
@@ -85,7 +85,7 @@ export const scaleUp: Variants = {
   show: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] },
+    transition: { duration: 0.4, ease: 'backOut' as const },
   },
 };
 
@@ -99,7 +99,7 @@ export const pageTransition: Variants = {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.4, ease: 'easeOut' as const },
   },
   exit: {
     opacity: 0,
@@ -240,7 +240,7 @@ export const scrollReveal: Variants = {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.6, ease: 'easeOut' as const },
   },
 };
 
@@ -249,7 +249,7 @@ export const scrollRevealLeft: Variants = {
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.5, ease: 'easeOut' as const },
   },
 };
 
@@ -258,7 +258,7 @@ export const scrollRevealRight: Variants = {
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.5, ease: 'easeOut' as const },
   },
 };
 
@@ -294,7 +294,7 @@ export const progressFill = (target: number) => ({
   hidden: { width: '0%' },
   show: {
     width: `${Math.min(100, target)}%`,
-    transition: { duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.3 },
+    transition: { duration: 1.2, ease: 'easeOut' as const, delay: 0.3 },
   },
 });
 
