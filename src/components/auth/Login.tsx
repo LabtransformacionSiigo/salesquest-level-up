@@ -10,21 +10,23 @@ import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
 import logoIncentivos from '@/assets/logo-incentivos.png';
 import bannerPrincipal from '@/assets/banner-principal.png';
 
-const stagger = {
+import { Variants } from 'framer-motion';
+
+const stagger: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } },
 };
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
 };
-const scaleIn = {
+const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.8 },
-  show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 200, damping: 18, delay: 0.5 } },
+  show: { opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 200, damping: 18, delay: 0.5 } },
 };
-const slideRight = {
+const slideRight: Variants = {
   hidden: { opacity: 0, x: 60 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: 'easeOut' } },
 };
 
 const Login = () => {
