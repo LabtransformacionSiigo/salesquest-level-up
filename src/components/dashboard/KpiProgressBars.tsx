@@ -149,18 +149,9 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <div>
             <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
               <span>ACV+ del Mes</span>
-              <span className="text-foreground">{fmt(acvMes)}</span>
+              <span className="text-foreground font-scoreboard">{fmt(acvMes)}</span>
             </div>
             <Progress value={metaValue > 0 ? Math.min(100, (acvMes / metaValue) * 100) : (acvMes > 0 ? 50 : 0)} className="h-2.5" />
-          </div>
-
-          {/* Ventas Semana */}
-          <div>
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-              <span>Ventas esta Semana</span>
-              <span className="text-foreground">{fmt(ventasSemana)}</span>
-            </div>
-            <Progress value={ventasSemana > 0 ? Math.min(100, (ventasSemana / 50_000_000) * 100) : 0} className="h-2.5" />
           </div>
 
           {/* Unidades del mes */}
@@ -171,6 +162,17 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             </div>
             <Progress value={Math.min(100, ((kpis?.sc_creados || 0) / 20) * 100)} className="h-2.5" />
           </div>
+
+          {/* Referidos (VN only) */}
+          {!isVcAdvisor && kpis?.cant_recomendados != null && (
+            <div>
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                <span>Referidos</span>
+                <span className="text-foreground font-scoreboard">{kpis.cant_recomendados}</span>
+              </div>
+              <Progress value={Math.min(100, (kpis.cant_recomendados / 10) * 100)} className="h-2.5" />
+            </div>
+          )}
         </div>
 
         {/* Status indicator */}
