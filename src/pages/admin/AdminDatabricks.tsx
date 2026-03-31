@@ -216,11 +216,13 @@ const AdminDatabricks = () => {
               </pre>
             ) : (
               <div className="space-y-3">
-                <div className="flex gap-4">
-                  <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
-                    <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
-                  </div>
+                <div className="flex flex-wrap gap-4">
+                  {syncResult.total_rows !== undefined && (
+                    <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
+                      <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
+                    </div>
+                  )}
                   {syncResult.kpis_sincronizados !== undefined && (
                     <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-primary uppercase font-semibold">KPIs Sync</p>
@@ -233,7 +235,20 @@ const AdminDatabricks = () => {
                       <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
                     </div>
                   )}
-                  {syncResult.sp_recalculo && !syncResult.sp_recalculo.error && (
+                  {/* Combined VC results */}
+                  {syncResult.ventas_vc && (
+                    <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-primary uppercase font-semibold">VC Totales</p>
+                      <p className="text-xl font-bold text-primary">{syncResult.ventas_vc.ventas_sincronizadas ?? syncResult.ventas_vc.total_rows}</p>
+                    </div>
+                  )}
+                  {syncResult.ventas_vc_producto && (
+                    <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-secondary uppercase font-semibold">VC Productos</p>
+                      <p className="text-xl font-bold text-secondary">{syncResult.ventas_vc_producto.ventas_sincronizadas ?? syncResult.ventas_vc_producto.total_rows}</p>
+                    </div>
+                  )}
+                  {(syncResult.sp_recalculo && !syncResult.sp_recalculo.error) && (
                     <div className="bg-accent/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-accent-foreground uppercase font-semibold">SP Otorgados</p>
                       <p className="text-xl font-bold text-accent-foreground">{syncResult.sp_recalculo.sp_otorgados ?? 0}</p>
