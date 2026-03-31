@@ -389,57 +389,160 @@ Deno.serve(async (req) => {
 // Sync Productividad Progresiva → kpis_mensuales
 async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   let insertedKpis = 0;
+  let createdGerentes = 0;
   const errores: string[] = [];
 
-  const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
+  const normalizeText = (value: unknown) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9@.\s_-]/g, "")
+      .replace(/\s+/g, " ");
+
+  const buildEmailFromName = (name: string) => {
+    const slug = normalizeText(name)
+      .replace(/[@]/g, "")
+      .replace(/[._-]+/g, " ")
+      .trim()
+      .replace(/\s+/g, ".");
+    return `${slug || "sin.nombre"}@siigo.com`;
+  };
+
+  const inferCanal = (row: Record<string, any>) => {
+    const combined = normalizeText(`${row.AREA || ""} ${row.CELULA || ""} ${row.Director || row.DIRECTOR || ""}`);
+    if (combined.includes("aliados")) return "VN_ALIADOS";
+    if (combined.includes("empres")) return "VN_EMPRESARIOS";
+    return "VC";
+  };
+
+  const toNumber = (...values: any[]) => {
+    for (const value of values) {
+      if (value === null || value === undefined || value === "") continue;
+      const parsed = Number(String(value).replace(/,/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return 0;
+  };
+
   const gerenteMap = new Map<string, any>();
-  (gerentes || []).forEach((g: any) => {
-    gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
-    gerenteMap.set(g.email?.toLowerCase()?.trim(), g);
-  });
+  const registerGerente = (gerente: any) => {
+    const normalizedName = normalizeText(gerente?.nombre);
+    const normalizedEmail = normalizeText(gerente?.email);
+    if (normalizedName) gerenteMap.set(normalizedName, gerente);
+    if (normalizedEmail) gerenteMap.set(normalizedEmail, gerente);
+  };
 
+  const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal, pais, lider");
+  (gerentes || []).forEach(registerGerente);
+
+  const missingGerentes = new Map<string, any>();
   for (const row of rows) {
-    try {
-      const gerenteNombre = (row.GERENTE || row.NOMBRE_GERENTE || "").toLowerCase().trim();
-      const gerenteEmail = (row.EMAIL || row.CORREO || "").toLowerCase().trim();
-      const gerente = gerenteMap.get(gerenteEmail) || gerenteMap.get(gerenteNombre);
+    const asesorNombre = String(row.ASESOR || row.GERENTE || row.NOMBRE_GERENTE || "").trim();
+    const asesorEmail = String(row.EMAIL || row.CORREO || "").trim().toLowerCase();
+    const lookupKey = normalizeText(asesorEmail || asesorNombre);
 
-      if (!gerente) {
-        errores.push(`Gerente no encontrado: ${gerenteNombre || gerenteEmail || JSON.stringify(row).slice(0, 100)}`);
-        continue;
-      }
+    if (!lookupKey) {
+      if (errores.length < 20) errores.push(`Fila sin asesor identificable: ${JSON.stringify(row).slice(0, 120)}`);
+      continue;
+    }
 
-      const anioMes = String(row.ANIO_MES || row.anio_mes || "");
-      if (anioMes) {
-        const kpiRow = {
-          gerente_id: gerente.id,
-          anio_mes: anioMes,
-          canal: gerente.canal,
-          ventas: Number(row.VENTAS || row.ventas || row.VENTA_TOTAL || 0),
-          meta: Number(row.META || row.meta || 0),
-          acv_f: Number(row.ACV_F || row.acv_f || 0),
-          cant_recomendados: Number(row.CANT_RECOMENDADOS || row.cant_recomendados || 0),
-          ventas_recomendados: Number(row.VENTAS_RECOMENDADOS || row.ventas_recomendados || 0),
-          sc_creados: Number(row.SC_CREADOS || row.sc_creados || 0),
-          ventas_sql: Number(row.VENTAS_SQL || row.ventas_sql || 0),
-          hc_final: Number(row.HC_FINAL || row.hc_final || 0),
-          hc_inicial: Number(row.HC_INICIAL || row.hc_inicial || 0),
-          terminaciones: Number(row.TERMINACIONES || row.terminaciones || 0),
-        };
+    if (!gerenteMap.get(lookupKey)) {
+      const nombre = asesorNombre || asesorEmail.split("@")[0].replace(/\./g, " ").trim();
+      const email = asesorEmail || buildEmailFromName(nombre);
+      const key = normalizeText(email);
 
-        const { error } = await supabase.from("kpis_mensuales").upsert(kpiRow, {
-          onConflict: "gerente_id,anio_mes",
+      if (!missingGerentes.has(key)) {
+        missingGerentes.set(key, {
+          nombre,
+          email,
+          canal: inferCanal(row),
+          pais: String(row.PAIS || "COL").trim().toUpperCase() || "COL",
+          lider: String(row.Director || row.DIRECTOR || "").trim() || null,
+          activo: true,
         });
-
-        if (error) errores.push(`KPI ${gerente.nombre} ${anioMes}: ${error.message}`);
-        else insertedKpis++;
       }
-    } catch (err) {
-      errores.push(`Row error: ${String(err)}`);
     }
   }
 
-  return { total_rows: rows.length, kpis_sincronizados: insertedKpis, errores: errores.slice(0, 20) };
+  if (missingGerentes.size > 0) {
+    const { data: created, error: batchErr } = await supabase
+      .from("gerentes")
+      .upsert([...missingGerentes.values()], { onConflict: "email" })
+      .select("id, nombre, email, canal, pais, lider");
+
+    if (batchErr) {
+      errores.push(`Error creando participantes de productividad: ${batchErr.message}`);
+    } else {
+      createdGerentes = created?.length || 0;
+      (created || []).forEach(registerGerente);
+    }
+  }
+
+  const kpiRows = new Map<string, any>();
+
+  for (const row of rows) {
+    try {
+      const asesorNombre = String(row.ASESOR || row.GERENTE || row.NOMBRE_GERENTE || "").trim();
+      const asesorEmail = String(row.EMAIL || row.CORREO || "").trim().toLowerCase();
+      const gerente =
+        gerenteMap.get(normalizeText(asesorEmail)) ||
+        gerenteMap.get(normalizeText(asesorNombre)) ||
+        gerenteMap.get(normalizeText(buildEmailFromName(asesorNombre)));
+
+      if (!gerente) {
+        if (errores.length < 20) errores.push(`Gerente no encontrado: ${JSON.stringify(row).slice(0, 120)}`);
+        continue;
+      }
+
+      const anioMes = String(row.ANIO_MES || row.anio_mes || "").trim();
+      if (!anioMes) continue;
+
+      const kpiRow = {
+        gerente_id: gerente.id,
+        anio_mes: anioMes,
+        canal: gerente.canal || inferCanal(row),
+        moneda: "COP",
+        ventas: toNumber(row.VENTAS, row.ventas, row.VENTA_TOTAL),
+        meta: toNumber(row.META, row.meta),
+        acv_f: toNumber(row.ACV_F, row.acv_f),
+        cant_recomendados: toNumber(row.CANT_RECOMENDADOS, row.cant_recomendados),
+        ventas_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS, row.VENTAS_RECOMENDADOS, row.ventas_recomendados),
+        sa_creados: toNumber(row.SA_Creados_MM, row.SA_CREADOS, row.sa_creados),
+        sc_creados: toNumber(row.SC_Creados_MM, row.SC_CREADOS, row.sc_creados),
+        ventas_sql: toNumber(row.VENTAS_MM_SQL, row.VENTAS_SQL, row.ventas_sql),
+        hc_final: toNumber(row.HC_final, row.HC_FINAL, row.hc_final),
+        hc_inicial: toNumber(row.HC_inicial, row.HC_INICIAL, row.hc_inicial),
+        terminaciones: toNumber(row.terminaciones, row.TERMINACIONES),
+      };
+
+      kpiRows.set(`${gerente.id}|${anioMes}`, kpiRow);
+    } catch (err) {
+      if (errores.length < 20) errores.push(`Row error: ${String(err)}`);
+    }
+  }
+
+  const uniqueKpiRows = [...kpiRows.values()];
+  const BATCH = 500;
+  for (let i = 0; i < uniqueKpiRows.length; i += BATCH) {
+    const chunk = uniqueKpiRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("kpis_mensuales").upsert(chunk, {
+      onConflict: "gerente_id,anio_mes",
+      count: "exact",
+    });
+
+    if (error) errores.push(`KPI batch ${i}-${i + chunk.length}: ${error.message}`);
+    else insertedKpis += count || chunk.length;
+  }
+
+  return {
+    total_rows: rows.length,
+    participantes_creados: createdGerentes,
+    kpis_sincronizados: insertedKpis,
+    filas_unicas: uniqueKpiRows.length,
+    errores: errores.slice(0, 20),
+  };
 }
 
 // Sync Ventas VC → ventas table (monthly summaries with metas)
