@@ -138,10 +138,105 @@ Deno.serve(async (req) => {
     const table = body.table || "productividad";
     const mesFilter = body.mes || undefined;
 
+    // ── Combined VC mode: runs ventas_vc + ventas_vc_producto together ──
+    if (table === "ventas_vc_completo") {
+      const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
+      const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
+      const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
+
+      if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
+        return new Response(
+          JSON.stringify({ error: "Faltan credenciales de Databricks." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
+      const limitClause = mode === "preview" ? "LIMIT 10" : "";
+
+      // Helper to run a Databricks query with polling
+      const runQuery = async (queryName: string, sql: string) => {
+        console.log(`[${queryName}] Querying Databricks:`, sql.trim());
+        const resp = await fetch(databricksUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ warehouse_id: DATABRICKS_WAREHOUSE_ID, statement: sql, wait_timeout: "50s", disposition: "INLINE", format: "JSON_ARRAY" }),
+        });
+        let data = await resp.json();
+        if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
+
+        let polls = 0;
+        while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
+          polls++;
+          await new Promise((r) => setTimeout(r, 5000));
+          const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
+          data = await pr.json();
+          console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
+        }
+        if (data.status?.state === "FAILED") throw new Error(data.status?.error?.message || "Query failed");
+        if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
+
+        const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
+        return (data.result?.data_array || []).map((row: any[]) => {
+          const obj: Record<string, any> = {};
+          cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
+          return obj;
+        });
+      };
+
+      try {
+        // Run both queries in parallel
+        const [vcRows, prodRows] = await Promise.all([
+          runQuery("ventas_vc", TABLE_CONFIGS.ventas_vc.sql(limitClause, mesFilter)),
+          runQuery("ventas_vc_producto", TABLE_CONFIGS.ventas_vc_producto.sql(limitClause, mesFilter)),
+        ]);
+
+        if (mode === "preview") {
+          return new Response(JSON.stringify({
+            table: "Ventas VC Completo (Totales + Desglose)",
+            ventas_vc: { total_rows: vcRows.length, sample: vcRows.slice(0, 3) },
+            ventas_vc_producto: { total_rows: prodRows.length, sample: prodRows.slice(0, 3) },
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        // Sync both
+        const [vcResult, prodResult] = await Promise.all([
+          syncVentasVC(supabase, vcRows),
+          syncVentasVCProducto(supabase, prodRows),
+        ]);
+
+        // Auto-trigger SP calculation
+        let spResult = null;
+        try {
+          const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
+          const spResponse = await fetch(spUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+          });
+          spResult = await spResponse.json();
+          console.log("[ventas_vc_completo] SP recalculation triggered:", JSON.stringify(spResult));
+        } catch (spErr) {
+          console.error("[ventas_vc_completo] SP recalculation error:", spErr);
+          spResult = { error: String(spErr) };
+        }
+
+        return new Response(JSON.stringify({
+          ventas_vc: vcResult,
+          ventas_vc_producto: prodResult,
+          sp_recalculo: spResult,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: String(err) }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Single table mode (original flow) ──
     const tableConfig = TABLE_CONFIGS[table];
     if (!tableConfig) {
       return new Response(
-        JSON.stringify({ error: `Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}` }),
+        JSON.stringify({ error: `Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}, ventas_vc_completo` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
