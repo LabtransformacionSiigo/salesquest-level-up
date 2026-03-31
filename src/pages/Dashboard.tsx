@@ -76,6 +76,7 @@ const Dashboard = () => {
 
   return (
     <Layout title="Panel General">
+      <CelebrationOverlay show={celebration.show} type={celebration.type} title={celebration.title} subtitle={celebration.subtitle} onComplete={handleCelebrationComplete} />
       <motion.div className="space-y-6 max-w-[1400px]" variants={staggerContainer} initial="hidden" animate="show">
 
         {/* Hero Banner */}
