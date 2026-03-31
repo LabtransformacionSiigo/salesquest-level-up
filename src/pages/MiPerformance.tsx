@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -7,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
+import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
@@ -34,6 +36,24 @@ const MiPerformance = () => {
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
   const canalLabel = metrics.isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
+  // Celebration for meta cumplida
+  const [celebration, setCelebration] = useState<{ show: boolean; type: 'level_up' | 'meta_cumplida' }>({ show: false, type: 'meta_cumplida' });
+  const prevPctRef = useRef<number | null>(null);
+  const celebrationShown = useRef(false);
+
+  const pctValue = metrics.vcCumplimiento?.pct || metrics.kpis?.pct_cumplimiento || 0;
+  
+  useEffect(() => {
+    if (metrics.loading || celebrationShown.current) return;
+    if (prevPctRef.current !== null && prevPctRef.current < 100 && pctValue >= 100) {
+      setCelebration({ show: true, type: 'meta_cumplida' });
+      celebrationShown.current = true;
+    }
+    prevPctRef.current = pctValue;
+  }, [pctValue, metrics.loading]);
+
+  const handleCelebrationComplete = useCallback(() => setCelebration(p => ({ ...p, show: false })), []);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
@@ -48,6 +68,7 @@ const MiPerformance = () => {
 
   return (
     <Layout title="📊 Mi Performance">
+      <CelebrationOverlay show={celebration.show} type={celebration.type} onComplete={handleCelebrationComplete} />
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
           <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
