@@ -503,10 +503,24 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
     });
   }
 
-  // Batch upsert in chunks of 500
+  // Deduplicate
+  const deduped = new Map<string, any>();
+  for (const row of ventaRows) {
+    const key = `${row.documento_factura}|${row.producto}|${row.fecha_facturacion}`;
+    if (deduped.has(key)) {
+      const existing = deduped.get(key);
+      existing.acv_plus += row.acv_plus;
+      existing.valor_producto += row.valor_producto;
+      existing.meta = Math.max(existing.meta, row.meta);
+    } else {
+      deduped.set(key, { ...row });
+    }
+  }
+  const uniqueRows = [...deduped.values()];
+
   const BATCH = 500;
-  for (let i = 0; i < ventaRows.length; i += BATCH) {
-    const chunk = ventaRows.slice(i, i + BATCH);
+  for (let i = 0; i < uniqueRows.length; i += BATCH) {
+    const chunk = uniqueRows.slice(i, i + BATCH);
     const { error, count } = await supabase.from("ventas").upsert(chunk, {
       onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
     });
@@ -514,7 +528,7 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
     else insertedVentas += (count || chunk.length);
   }
 
-  return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
+  return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
 
 // Sync Ventas VC Product Breakdown → ventas table (product-level rows per advisor per month)
