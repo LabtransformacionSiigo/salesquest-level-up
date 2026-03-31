@@ -71,6 +71,10 @@ const AdminDatabricks = () => {
             <p className="text-sm text-muted-foreground mt-1">
               Conecta a Databricks y sincroniza datos del año 2026.
             </p>
+            <p className="text-xs text-primary font-semibold mt-2 flex items-center gap-1.5">
+              <MI icon="schedule" className="text-sm" />
+              Sincronización automática: 8:30 AM · 12:30 PM · 6:00 PM (hora Bogotá)
+            </p>
           </div>
 
           {/* Table selector */}
