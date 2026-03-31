@@ -466,7 +466,7 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
           nombre,
           email,
           canal: inferCanal(row),
-          pais: String(row.PAIS || "COL").trim().toUpperCase() || "COL",
+          pais: normalizeCountry(row.PAIS || "COL"),
           lider: String(row.Director || row.DIRECTOR || "").trim() || null,
           activo: true,
         });
