@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const isServiceRole = token === serviceRoleKey;
+    let authUserId: string | null = null;
 
     if (!isServiceRole) {
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -117,6 +118,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      authUserId = authUser.id;
 
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -137,6 +139,7 @@ Deno.serve(async (req) => {
     const mode = body.mode || "preview";
     const table = body.table || "productividad";
     const mesFilter = body.mes || undefined;
+    const jobId = body.jobId || undefined;
 
     // ── Combined VC mode: runs ventas_vc + ventas_vc_producto together ──
     if (table === "ventas_vc_completo") {
