@@ -744,6 +744,45 @@ export type Database = {
           },
         ]
       }
+      sync_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          mode: string
+          requested_by: string | null
+          result: Json | null
+          started_at: string | null
+          status: string
+          table_name: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          requested_by?: string | null
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          table_name: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          requested_by?: string | null
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
