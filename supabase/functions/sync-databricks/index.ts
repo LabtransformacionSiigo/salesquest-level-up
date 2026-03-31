@@ -141,243 +141,85 @@ Deno.serve(async (req) => {
     const mesFilter = body.mes || undefined;
     const jobId = body.jobId || undefined;
 
-    // ── Combined VC mode: runs ventas_vc + ventas_vc_producto together ──
+    if (mode === "sync" && !jobId) {
+      const { data: job, error: jobError } = await supabase
+        .from("sync_jobs")
+        .insert({
+          table_name: table,
+          mode,
+          status: "pending",
+          requested_by: authUserId,
+          started_at: new Date().toISOString(),
+        })
+        .select("id, table_name, status, created_at")
+        .single();
+
+      if (jobError || !job) {
+        return new Response(JSON.stringify({ error: jobError?.message || "No se pudo crear el trabajo" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      EdgeRuntime.waitUntil(processSyncJob({
+        supabaseUrl,
+        serviceRoleKey,
+        table,
+        mesFilter,
+        jobId: job.id,
+      }));
+
+      return new Response(JSON.stringify({
+        queued: true,
+        job,
+        message: "Sincronización iniciada en segundo plano",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (mode === "job_status") {
+      if (!jobId) {
+        return new Response(JSON.stringify({ error: "jobId es requerido" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: job, error: jobError } = await supabase
+        .from("sync_jobs")
+        .select("id, table_name, mode, status, requested_by, started_at, finished_at, result, error_message, created_at")
+        .eq("id", jobId)
+        .maybeSingle();
+
+      if (jobError) {
+        return new Response(JSON.stringify({ error: jobError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!job) {
+        return new Response(JSON.stringify({ error: "Trabajo no encontrado" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify(job), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (table === "ventas_vc_completo") {
-      const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
-      const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
-      const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
-
-      if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
-        return new Response(
-          JSON.stringify({ error: "Faltan credenciales de Databricks." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
-      const limitClause = mode === "preview" ? "LIMIT 10" : "";
-
-      // Helper to run a Databricks query with polling
-      const runQuery = async (queryName: string, sql: string) => {
-        console.log(`[${queryName}] Querying Databricks:`, sql.trim());
-        const resp = await fetch(databricksUrl, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ warehouse_id: DATABRICKS_WAREHOUSE_ID, statement: sql, wait_timeout: "50s", disposition: "INLINE", format: "JSON_ARRAY" }),
-        });
-        let data = await resp.json();
-        if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
-
-        let polls = 0;
-        while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
-          polls++;
-          await new Promise((r) => setTimeout(r, 5000));
-          const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
-          data = await pr.json();
-          console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
-        }
-        if (data.status?.state === "FAILED") throw new Error(data.status?.error?.message || "Query failed");
-        if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
-
-        const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
-        return (data.result?.data_array || []).map((row: any[]) => {
-          const obj: Record<string, any> = {};
-          cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
-          return obj;
-        });
-      };
-
-      try {
-        // Run both queries in parallel
-        const [vcRows, prodRows] = await Promise.all([
-          runQuery("ventas_vc", TABLE_CONFIGS.ventas_vc.sql(limitClause, mesFilter)),
-          runQuery("ventas_vc_producto", TABLE_CONFIGS.ventas_vc_producto.sql(limitClause, mesFilter)),
-        ]);
-
-        if (mode === "preview") {
-          return new Response(JSON.stringify({
-            table: "Ventas VC Completo (Totales + Desglose)",
-            ventas_vc: { total_rows: vcRows.length, sample: vcRows.slice(0, 3) },
-            ventas_vc_producto: { total_rows: prodRows.length, sample: prodRows.slice(0, 3) },
-          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
-        // Sync both
-        const [vcResult, prodResult] = await Promise.all([
-          syncVentasVC(supabase, vcRows),
-          syncVentasVCProducto(supabase, prodRows),
-        ]);
-
-        // Auto-trigger SP calculation
-        let spResult = null;
-        try {
-          const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
-          const spResponse = await fetch(spUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-          });
-          spResult = await spResponse.json();
-          console.log("[ventas_vc_completo] SP recalculation triggered:", JSON.stringify(spResult));
-        } catch (spErr) {
-          console.error("[ventas_vc_completo] SP recalculation error:", spErr);
-          spResult = { error: String(spErr) };
-        }
-
-        return new Response(JSON.stringify({
-          ventas_vc: vcResult,
-          ventas_vc_producto: prodResult,
-          sp_recalculo: spResult,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      } catch (err) {
-        return new Response(JSON.stringify({ error: String(err) }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // ── Single table mode (original flow) ──
-    const tableConfig = TABLE_CONFIGS[table];
-    if (!tableConfig) {
-      return new Response(
-        JSON.stringify({ error: `Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}, ventas_vc_completo` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
-    const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
-    const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
-
-    if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
-      return new Response(
-        JSON.stringify({ error: "Faltan credenciales de Databricks." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
-    const limitClause = mode === "preview" ? "LIMIT 10" : "";
-    const sql = tableConfig.sql(limitClause, mesFilter);
-
-    console.log(`[${table}] Querying Databricks:`, sql.trim());
-
-    const dbResponse = await fetch(databricksUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${DATABRICKS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        warehouse_id: DATABRICKS_WAREHOUSE_ID,
-        statement: sql,
-        wait_timeout: "50s",
-        disposition: "INLINE",
-        format: "JSON_ARRAY",
-      }),
-    });
-
-    let dbData = await dbResponse.json();
-
-    if (!dbResponse.ok && !dbData.statement_id) {
-      console.error("Databricks error:", JSON.stringify(dbData));
-      return new Response(
-        JSON.stringify({
-          error: "Error al consultar Databricks",
-          detail: dbData.status?.error?.message || dbData.message || JSON.stringify(dbData),
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Poll if query is still running after initial wait
-    const statementId = dbData.statement_id;
-    let pollAttempts = 0;
-    const MAX_POLLS = 24; // 24 * 5s = 120s max
-    while (
-      (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") &&
-      pollAttempts < MAX_POLLS
-    ) {
-      pollAttempts++;
-      await new Promise((r) => setTimeout(r, 5000));
-      const pollResp = await fetch(`${databricksUrl}/${statementId}`, {
-        headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` },
+      const result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode });
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-      dbData = await pollResp.json();
-      console.log(`[${table}] Poll #${pollAttempts}: state=${dbData.status?.state}`);
     }
 
-    if (dbData.status?.state === "FAILED") {
-      console.error("Databricks query failed:", JSON.stringify(dbData));
-      return new Response(
-        JSON.stringify({
-          error: "Error al consultar Databricks",
-          detail: dbData.status?.error?.message || JSON.stringify(dbData),
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
-      return new Response(
-        JSON.stringify({ status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución tras 2 min de espera. Intente de nuevo." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const columns = dbData.manifest?.schema?.columns || [];
-    const columnNames = columns.map((c: any) => c.name);
-    const dataChunks = dbData.result?.data_array || [];
-
-    const rows = dataChunks.map((row: any[]) => {
-      const obj: Record<string, any> = {};
-      columnNames.forEach((col: string, i: number) => {
-        obj[col] = row[i];
-      });
-      return obj;
-    });
-
-    console.log(`[${table}] Databricks returned ${rows.length} rows, columns: ${columnNames.join(", ")}`);
-
-    if (mode === "preview") {
-      return new Response(
-        JSON.stringify({
-          table: tableConfig.label,
-          columns: columnNames,
-          total_rows: rows.length,
-          sample: rows.slice(0, 5),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let syncResult;
-    if (table === "ventas_vc") {
-      syncResult = await syncVentasVC(supabase, rows);
-    } else if (table === "ventas_vc_producto") {
-      syncResult = await syncVentasVCProducto(supabase, rows);
-    } else {
-      syncResult = await syncProductividad(supabase, rows);
-    }
-
-    // Auto-trigger SP calculation
-    let spResult = null;
-    try {
-      const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
-      const spResponse = await fetch(spUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-      });
-      spResult = await spResponse.json();
-      console.log("[sync-databricks] SP recalculation triggered:", JSON.stringify(spResult));
-    } catch (spErr) {
-      console.error("[sync-databricks] SP recalculation error:", spErr);
-      spResult = { error: String(spErr) };
-    }
-
-    return new Response(JSON.stringify({ ...syncResult, sp_recalculo: spResult }), {
+    const result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode });
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
@@ -388,6 +230,261 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function processSyncJob({
+  supabaseUrl,
+  serviceRoleKey,
+  table,
+  mesFilter,
+  jobId,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  table: string;
+  mesFilter?: string;
+  jobId: string;
+}) {
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  try {
+    await supabase
+      .from("sync_jobs")
+      .update({ status: "running", started_at: new Date().toISOString(), error_message: null })
+      .eq("id", jobId);
+
+    const result = table === "ventas_vc_completo"
+      ? await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" })
+      : await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
+
+    await supabase
+      .from("sync_jobs")
+      .update({
+        status: "completed",
+        finished_at: new Date().toISOString(),
+        result,
+        error_message: null,
+      })
+      .eq("id", jobId);
+  } catch (error) {
+    console.error("processSyncJob error:", error);
+    await supabase
+      .from("sync_jobs")
+      .update({
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error_message: String(error),
+      })
+      .eq("id", jobId);
+  }
+}
+
+async function runVentasVcCompleto({
+  supabase,
+  supabaseUrl,
+  serviceRoleKey,
+  mesFilter,
+  mode,
+}: {
+  supabase: any;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  mesFilter?: string;
+  mode: string;
+}) {
+  const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
+  const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
+  const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
+
+  if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
+    throw new Error("Faltan credenciales de Databricks.");
+  }
+
+  const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
+  const limitClause = mode === "preview" ? "LIMIT 10" : "";
+
+  const runQuery = async (queryName: string, sql: string) => {
+    console.log(`[${queryName}] Querying Databricks:`, sql.trim());
+    const resp = await fetch(databricksUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ warehouse_id: DATABRICKS_WAREHOUSE_ID, statement: sql, wait_timeout: "50s", disposition: "INLINE", format: "JSON_ARRAY" }),
+    });
+    let data = await resp.json();
+    if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
+
+    let polls = 0;
+    while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
+      polls++;
+      await new Promise((r) => setTimeout(r, 5000));
+      const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
+      data = await pr.json();
+      console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
+    }
+    if (data.status?.state === "FAILED") throw new Error(data.status?.error?.message || "Query failed");
+    if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
+
+    const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
+    return (data.result?.data_array || []).map((row: any[]) => {
+      const obj: Record<string, any> = {};
+      cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
+      return obj;
+    });
+  };
+
+  const [vcRows, prodRows] = await Promise.all([
+    runQuery("ventas_vc", TABLE_CONFIGS.ventas_vc.sql(limitClause, mesFilter)),
+    runQuery("ventas_vc_producto", TABLE_CONFIGS.ventas_vc_producto.sql(limitClause, mesFilter)),
+  ]);
+
+  if (mode === "preview") {
+    return {
+      table: "Ventas VC Completo (Totales + Desglose)",
+      ventas_vc: { total_rows: vcRows.length, sample: vcRows.slice(0, 3) },
+      ventas_vc_producto: { total_rows: prodRows.length, sample: prodRows.slice(0, 3) },
+    };
+  }
+
+  const [vcResult, prodResult] = await Promise.all([
+    syncVentasVC(supabase, vcRows),
+    syncVentasVCProducto(supabase, prodRows),
+  ]);
+
+  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vc_completo");
+
+  return {
+    ventas_vc: vcResult,
+    ventas_vc_producto: prodResult,
+    sp_recalculo: spResult,
+  };
+}
+
+async function runSingleTableSync({
+  supabase,
+  supabaseUrl,
+  serviceRoleKey,
+  table,
+  mesFilter,
+  mode,
+}: {
+  supabase: any;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  table: string;
+  mesFilter?: string;
+  mode: string;
+}) {
+  const tableConfig = TABLE_CONFIGS[table];
+  if (!tableConfig) {
+    throw new Error(`Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}, ventas_vc_completo`);
+  }
+
+  const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
+  const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
+  const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
+
+  if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
+    throw new Error("Faltan credenciales de Databricks.");
+  }
+
+  const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
+  const limitClause = mode === "preview" ? "LIMIT 10" : "";
+  const sql = tableConfig.sql(limitClause, mesFilter);
+
+  console.log(`[${table}] Querying Databricks:`, sql.trim());
+
+  const dbResponse = await fetch(databricksUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DATABRICKS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      warehouse_id: DATABRICKS_WAREHOUSE_ID,
+      statement: sql,
+      wait_timeout: "50s",
+      disposition: "INLINE",
+      format: "JSON_ARRAY",
+    }),
+  });
+
+  let dbData = await dbResponse.json();
+
+  if (!dbResponse.ok && !dbData.statement_id) {
+    throw new Error(dbData.status?.error?.message || dbData.message || JSON.stringify(dbData));
+  }
+
+  const statementId = dbData.statement_id;
+  let pollAttempts = 0;
+  const MAX_POLLS = 24;
+  while ((dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") && pollAttempts < MAX_POLLS) {
+    pollAttempts++;
+    await new Promise((r) => setTimeout(r, 5000));
+    const pollResp = await fetch(`${databricksUrl}/${statementId}`, {
+      headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` },
+    });
+    dbData = await pollResp.json();
+    console.log(`[${table}] Poll #${pollAttempts}: state=${dbData.status?.state}`);
+  }
+
+  if (dbData.status?.state === "FAILED") {
+    throw new Error(dbData.status?.error?.message || JSON.stringify(dbData));
+  }
+
+  if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
+    return { status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución tras 2 min de espera. Intente de nuevo." };
+  }
+
+  const columns = dbData.manifest?.schema?.columns || [];
+  const columnNames = columns.map((c: any) => c.name);
+  const dataChunks = dbData.result?.data_array || [];
+  const rows = dataChunks.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    columnNames.forEach((col: string, i: number) => {
+      obj[col] = row[i];
+    });
+    return obj;
+  });
+
+  console.log(`[${table}] Databricks returned ${rows.length} rows, columns: ${columnNames.join(", ")}`);
+
+  if (mode === "preview") {
+    return {
+      table: tableConfig.label,
+      columns: columnNames,
+      total_rows: rows.length,
+      sample: rows.slice(0, 5),
+    };
+  }
+
+  const syncResult = table === "ventas_vc"
+    ? await syncVentasVC(supabase, rows)
+    : table === "ventas_vc_producto"
+      ? await syncVentasVCProducto(supabase, rows)
+      : await syncProductividad(supabase, rows);
+
+  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, table);
+
+  return { ...syncResult, sp_recalculo: spResult };
+}
+
+async function triggerSpRecalculation(supabaseUrl: string, serviceRoleKey: string, context: string) {
+  try {
+    const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
+    const spResponse = await fetch(spUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    });
+    const spResult = await spResponse.json();
+    console.log(`[${context}] SP recalculation triggered:`, JSON.stringify(spResult));
+    return spResult;
+  } catch (spErr) {
+    console.error(`[${context}] SP recalculation error:`, spErr);
+    return { error: String(spErr) };
+  }
+}
 
 // Sync Productividad Progresiva → kpis_mensuales
 async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
