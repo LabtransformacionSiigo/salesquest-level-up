@@ -102,7 +102,7 @@ const CelebrationOverlay = ({ show, type, title, subtitle, onComplete }: Celebra
           <motion.div
             className="relative bg-card border-2 border-primary/30 rounded-3xl px-10 py-8 shadow-2xl text-center max-w-sm pointer-events-auto"
             initial={{ scale: 0, rotate: -10, opacity: 0 }}
-            animate={{ scale: [0, 1.1, 1], rotate: [−10, 3, 0], opacity: 1 }}
+            animate={{ scale: [0, 1.1, 1], rotate: [-10, 3, 0], opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0, y: 30 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
           >
