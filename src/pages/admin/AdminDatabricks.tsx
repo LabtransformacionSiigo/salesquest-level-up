@@ -12,8 +12,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const TABLE_OPTIONS = [
   { value: "productividad", label: "Productividad Progresiva", desc: "KPIs mensuales (VN_EMPRESARIOS / VN_ALIADOS)", icon: "trending_up" },
-  { value: "ventas_vc", label: "Ventas VC", desc: "Totales y metas mensuales por asesor", icon: "storefront" },
-  { value: "ventas_vc_producto", label: "VC Desglose Producto", desc: "Detalle por categoría de producto (Mi Performance)", icon: "category" },
+  { value: "ventas_vc_completo", label: "Ventas VC Completo", desc: "Totales, metas y desglose por producto (todo junto)", icon: "storefront" },
 ];
 
 const AdminDatabricks = () => {
