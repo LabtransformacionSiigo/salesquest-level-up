@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -10,7 +11,16 @@ import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
+import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
+
+const NIVELES_THRESHOLDS = [0, 1501, 3001, 4501, 6001];
+const getNivelIndex = (sp: number) => {
+  for (let i = NIVELES_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (sp >= NIVELES_THRESHOLDS[i]) return i;
+  }
+  return 0;
+};
 
 const RETOS_SEMANALES = [
   { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
@@ -22,12 +32,47 @@ const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const metrics = useGamificationMetrics(profile);
 
+  const sp = profile?.sp_totales || 0;
+  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
+
+  // Celebration state
+  const [celebration, setCelebration] = useState<{ show: boolean; type: 'level_up' | 'meta_cumplida'; title?: string; subtitle?: string }>({ show: false, type: 'level_up' });
+  const prevSpRef = useRef<number | null>(null);
+  const prevPctRef = useRef<number | null>(null);
+  const celebrationShown = useRef(false);
+
+  useEffect(() => {
+    if (dataLoading || celebrationShown.current) return;
+
+    // Check level up
+    if (prevSpRef.current !== null && prevSpRef.current !== sp) {
+      const oldLevel = getNivelIndex(prevSpRef.current);
+      const newLevel = getNivelIndex(sp);
+      if (newLevel > oldLevel) {
+        const names = ['Cuarzo', 'Rubí', 'Zafiro', 'Esmeralda', 'Diamante'];
+        setCelebration({ show: true, type: 'level_up', title: `🚀 ¡Nivel ${names[newLevel]}!`, subtitle: '¡Has subido de nivel! Sigue escalando.' });
+        celebrationShown.current = true;
+      }
+    }
+
+    // Check meta cumplida (first time crossing 100%)
+    const pct = pctCumplimiento;
+    if (prevPctRef.current !== null && prevPctRef.current < 100 && pct >= 100 && !celebrationShown.current) {
+      setCelebration({ show: true, type: 'meta_cumplida' });
+      celebrationShown.current = true;
+    }
+
+    prevSpRef.current = sp;
+    prevPctRef.current = pct;
+  }, [sp, pctCumplimiento, dataLoading]);
+
+  const handleCelebrationComplete = useCallback(() => {
+    setCelebration(prev => ({ ...prev, show: false }));
+  }, []);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
-
-  const sp = profile?.sp_totales || 0;
-  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
 
   return (
     <Layout title="Panel General">
