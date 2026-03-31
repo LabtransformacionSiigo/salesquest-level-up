@@ -256,16 +256,24 @@ const AdminDatabricks = () => {
                   )}
                 </div>
 
-                {syncResult.errores?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-destructive mb-1">Errores ({syncResult.errores.length}):</p>
-                    <ul className="text-[10px] text-muted-foreground space-y-0.5 max-h-32 overflow-auto">
-                      {syncResult.errores.map((e: string, i: number) => (
-                        <li key={i} className="bg-muted px-2 py-1 rounded">⚠ {e}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* Show errors from single or combined results */}
+                {(() => {
+                  const allErrors = [
+                    ...(syncResult.errores || []),
+                    ...(syncResult.ventas_vc?.errores || []),
+                    ...(syncResult.ventas_vc_producto?.errores || []),
+                  ];
+                  return allErrors.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold text-destructive mb-1">Errores ({allErrors.length}):</p>
+                      <ul className="text-[10px] text-muted-foreground space-y-0.5 max-h-32 overflow-auto">
+                        {allErrors.map((e: string, i: number) => (
+                          <li key={i} className="bg-muted px-2 py-1 rounded">⚠ {e}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             )}
           </div>
