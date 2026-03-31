@@ -12,8 +12,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const TABLE_OPTIONS = [
   { value: "productividad", label: "Productividad Progresiva", desc: "KPIs mensuales (VN_EMPRESARIOS / VN_ALIADOS)", icon: "trending_up" },
-  { value: "ventas_vc", label: "Ventas VC", desc: "Totales y metas mensuales por asesor", icon: "storefront" },
-  { value: "ventas_vc_producto", label: "VC Desglose Producto", desc: "Detalle por categoría de producto (Mi Performance)", icon: "category" },
+  { value: "ventas_vc_completo", label: "Ventas VC Completo", desc: "Totales, metas y desglose por producto (todo junto)", icon: "storefront" },
 ];
 
 const AdminDatabricks = () => {
@@ -72,10 +71,14 @@ const AdminDatabricks = () => {
             <p className="text-sm text-muted-foreground mt-1">
               Conecta a Databricks y sincroniza datos del año 2026.
             </p>
+            <p className="text-xs text-primary font-semibold mt-2 flex items-center gap-1.5">
+              <MI icon="schedule" className="text-sm" />
+              Sincronización automática: 8:30 AM · 12:30 PM · 6:00 PM (hora Bogotá)
+            </p>
           </div>
 
           {/* Table selector */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {TABLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -217,11 +220,13 @@ const AdminDatabricks = () => {
               </pre>
             ) : (
               <div className="space-y-3">
-                <div className="flex gap-4">
-                  <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
-                    <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
-                  </div>
+                <div className="flex flex-wrap gap-4">
+                  {syncResult.total_rows !== undefined && (
+                    <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
+                      <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
+                    </div>
+                  )}
                   {syncResult.kpis_sincronizados !== undefined && (
                     <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-primary uppercase font-semibold">KPIs Sync</p>
@@ -234,7 +239,20 @@ const AdminDatabricks = () => {
                       <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
                     </div>
                   )}
-                  {syncResult.sp_recalculo && !syncResult.sp_recalculo.error && (
+                  {/* Combined VC results */}
+                  {syncResult.ventas_vc && (
+                    <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-primary uppercase font-semibold">VC Totales</p>
+                      <p className="text-xl font-bold text-primary">{syncResult.ventas_vc.ventas_sincronizadas ?? syncResult.ventas_vc.total_rows}</p>
+                    </div>
+                  )}
+                  {syncResult.ventas_vc_producto && (
+                    <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-[10px] text-secondary uppercase font-semibold">VC Productos</p>
+                      <p className="text-xl font-bold text-secondary">{syncResult.ventas_vc_producto.ventas_sincronizadas ?? syncResult.ventas_vc_producto.total_rows}</p>
+                    </div>
+                  )}
+                  {(syncResult.sp_recalculo && !syncResult.sp_recalculo.error) && (
                     <div className="bg-accent/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-accent-foreground uppercase font-semibold">SP Otorgados</p>
                       <p className="text-xl font-bold text-accent-foreground">{syncResult.sp_recalculo.sp_otorgados ?? 0}</p>
@@ -242,16 +260,24 @@ const AdminDatabricks = () => {
                   )}
                 </div>
 
-                {syncResult.errores?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-destructive mb-1">Errores ({syncResult.errores.length}):</p>
-                    <ul className="text-[10px] text-muted-foreground space-y-0.5 max-h-32 overflow-auto">
-                      {syncResult.errores.map((e: string, i: number) => (
-                        <li key={i} className="bg-muted px-2 py-1 rounded">⚠ {e}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* Show errors from single or combined results */}
+                {(() => {
+                  const allErrors = [
+                    ...(syncResult.errores || []),
+                    ...(syncResult.ventas_vc?.errores || []),
+                    ...(syncResult.ventas_vc_producto?.errores || []),
+                  ];
+                  return allErrors.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold text-destructive mb-1">Errores ({allErrors.length}):</p>
+                      <ul className="text-[10px] text-muted-foreground space-y-0.5 max-h-32 overflow-auto">
+                        {allErrors.map((e: string, i: number) => (
+                          <li key={i} className="bg-muted px-2 py-1 rounded">⚠ {e}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             )}
           </div>
