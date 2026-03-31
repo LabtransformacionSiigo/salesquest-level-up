@@ -417,12 +417,20 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
     return "VC";
   };
 
+  const normalizeCountry = (value: unknown) => {
+    const country = normalizeText(value).toUpperCase();
+    if (["COL", "CO", "COLOMBIA"].includes(country)) return "COL";
+    if (["MEX", "MX", "MEXICO", "MEXICO DF"].includes(country)) return "MEX";
+    if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
+    return "COL";
+  };
+
   const toNumber = (...values: any[]) => {
     for (const value of values) {
       if (value === null || value === undefined || value === "") continue;
       const parsed = Number(String(value).replace(/,/g, ""));
       if (Number.isFinite(parsed)) return parsed;
-    }
+      }
     return 0;
   };
 
