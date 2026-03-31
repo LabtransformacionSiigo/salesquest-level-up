@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -7,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
+import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
