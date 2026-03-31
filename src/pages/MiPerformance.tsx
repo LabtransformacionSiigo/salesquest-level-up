@@ -68,6 +68,7 @@ const MiPerformance = () => {
 
   return (
     <Layout title="📊 Mi Performance">
+      <CelebrationOverlay show={celebration.show} type={celebration.type} onComplete={handleCelebrationComplete} />
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
           <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
