@@ -163,13 +163,13 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <Progress value={ventasSemana > 0 ? Math.min(100, (ventasSemana / 50_000_000) * 100) : 0} className="h-2.5" />
           </div>
 
-          {/* % Cumplimiento — same as donut but as bar for quick scan */}
+          {/* Unidades del mes */}
           <div>
             <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-              <span>% Cumplimiento</span>
-              <span className={pct >= 100 ? 'text-accent font-bold' : 'text-foreground'}>{Math.round(pct)}%</span>
+              <span>Unidades Vendidas</span>
+              <span className="text-foreground font-scoreboard">{kpis?.sc_creados || 0}</span>
             </div>
-            <Progress value={Math.min(100, pct)} className="h-2.5" />
+            <Progress value={Math.min(100, ((kpis?.sc_creados || 0) / 20) * 100)} className="h-2.5" />
           </div>
         </div>
 
