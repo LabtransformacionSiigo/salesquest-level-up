@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
+import { staggerContainer, fadeUpItem, popIn } from '@/lib/animations';
 import reconocimientoImg from '@/assets/reconocimiento.png';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
@@ -38,7 +39,6 @@ const Reconocimientos = () => {
   const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [sending, setSending] = useState(false);
-
   const [selectedGerente, setSelectedGerente] = useState('');
   const [selectedTipo, setSelectedTipo] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -55,37 +55,20 @@ const Reconocimientos = () => {
     if (!profile?.id) return;
 
     const fetchData = async () => {
-      // For VC gerentes, load comerciales from ventas; for others, load asesores
       const isVC = profile.canal === 'VC';
       let colaboradoresPromise;
       if (isVC) {
-        colaboradoresPromise = supabase
-          .from('comerciales_por_gerente' as any)
-          .select('nombre, gerente_id')
-          .eq('gerente_id', profile.id);
+        colaboradoresPromise = supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id);
       } else {
-        colaboradoresPromise = supabase
-          .from('asesores')
-          .select('id, nombre, avatar_url')
-          .eq('gerente_id', profile.id)
-          .eq('activo', true);
+        colaboradoresPromise = supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true);
       }
-
       const [colaboradoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
         colaboradoresPromise,
         supabase.from('feed_reconocimientos').select('*').limit(20),
-        supabase.from('reconocimientos').select('id', { count: 'exact' })
-          .eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
-        supabase.from('reconocimientos').select('id', { count: 'exact' })
-          .eq('de_gerente_id', profile.id).eq('tipo', 'RECONOCIMIENTO_CUMBRE')
-          .gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
+        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
+        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('tipo', 'RECONOCIMIENTO_CUMBRE').gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
       ]);
-
-      // For VC, comerciales don't have IDs - use nombre as identifier
-      const colabs = (colaboradoresRes.data || []).map((c: any) => ({
-        id: c.id || null,
-        nombre: c.nombre,
-      }));
+      const colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
       setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
@@ -94,74 +77,37 @@ const Reconocimientos = () => {
     };
 
     fetchData();
-
-    const channel = supabase
-      .channel('reconocimientos-feed')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reconocimientos' }, () => {
-        supabase.from('feed_reconocimientos').select('*').limit(20).then(({ data }) => setFeed(data || []));
-      })
-      .subscribe();
-
+    const channel = supabase.channel('reconocimientos-feed').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reconocimientos' }, () => {
+      supabase.from('feed_reconocimientos').select('*').limit(20).then(({ data }) => setFeed(data || []));
+    }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.id]);
 
   const handleSend = async () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
-
-    if (sentCount >= 6) {
-      toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' });
-      return;
-    }
-
-    if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) {
-      toast({ title: 'No disponible', description: `Ya usaste tu reconocimiento Cumbre este trimestre.`, variant: 'destructive' });
-      return;
-    }
-
+    if (sentCount >= 6) { toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' }); return; }
+    if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) { toast({ title: 'No disponible', description: `Ya usaste tu reconocimiento Cumbre este trimestre.`, variant: 'destructive' }); return; }
     const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === selectedTipo);
     if (!tipo) return;
-
     setSending(true);
-
     const isNameOnly = selectedGerente.startsWith('name::');
     const paraName = isNameOnly ? selectedGerente.replace('name::', '') : null;
     const paraId = isNameOnly ? null : selectedGerente;
-
     const { error } = await supabase.from('reconocimientos').insert({
-      de_gerente_id: profile.id,
-      para_gerente_id: paraId,
-      para_nombre: paraName,
-      tipo: selectedTipo,
-      sp_para: tipo.sp_para,
-      sp_de: tipo.sp_de,
-      semana_iso: currentWeek,
-      anio: currentYear,
-      mensaje: mensaje || null,
+      de_gerente_id: profile.id, para_gerente_id: paraId, para_nombre: paraName,
+      tipo: selectedTipo, sp_para: tipo.sp_para, sp_de: tipo.sp_de,
+      semana_iso: currentWeek, anio: currentYear, mensaje: mensaje || null,
     } as any);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      const spInserts = [
-        supabase.from('sp_acumulados').insert({
-          gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado`,
-        }),
-      ];
-      if (paraId) {
-        spInserts.push(supabase.from('sp_acumulados').insert({
-          gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para,
-          periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}`,
-        }));
-      }
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
+    else {
+      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado` })];
+      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
       await Promise.all(spInserts);
-
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
       if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
-
     setSending(false);
   };
 
@@ -172,27 +118,38 @@ const Reconocimientos = () => {
 
   return (
     <Layout title="🎖️ Reconocimientos">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div className="lg:col-span-1 space-y-4" variants={fadeUpItem}>
           {!isGerente ? (
-            <div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 text-center shadow-smooth-sm">
-              <span className="text-4xl mb-2 block">🔒</span>
+            <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 text-center shadow-smooth-sm" variants={popIn}>
+              <motion.span className="text-4xl mb-2 block" animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 2, repeat: Infinity }}>🔒</motion.span>
               <p className="text-sm font-semibold text-foreground">Solo para Gerentes</p>
               <p className="text-xs text-muted-foreground mt-1">Los reconocimientos solo pueden ser entregados por gerentes.</p>
-            </div>
+            </motion.div>
           ) : (
             <>
-              <div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-5 text-center shadow-smooth-sm">
+              <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-5 text-center shadow-smooth-sm" variants={popIn}>
                 <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
-                <p className="text-3xl font-bold font-scoreboard text-primary mt-1">{6 - sentCount}<span className="text-lg text-muted-foreground">/6</span></p>
+                <motion.p
+                  className="text-3xl font-bold font-scoreboard text-primary mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+                >
+                  {6 - sentCount}<span className="text-lg text-muted-foreground">/6</span>
+                </motion.p>
                 <p className="text-[10px] text-muted-foreground">disponibles</p>
-              </div>
+              </motion.div>
 
-              <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-smooth-sm">
+              <motion.div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-smooth-sm" variants={fadeUpItem}>
                 <h3 className="text-sm font-semibold font-heading text-secondary flex items-center gap-2">
                   <span>🎖️</span> Enviar Reconocimiento
                 </h3>
-
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">¿A quién reconoces?</label>
                   <select value={selectedGerente} onChange={e => setSelectedGerente(e.target.value)}
@@ -201,60 +158,78 @@ const Reconocimientos = () => {
                     {asesores.map(a => (<option key={a.id || a.nombre} value={a.id || `name::${a.nombre}`}>{a.nombre}</option>))}
                   </select>
                 </div>
-
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <motion.div className="grid grid-cols-2 gap-2" variants={staggerContainer} initial="hidden" animate="show">
                     {TIPOS_RECONOCIMIENTO.map(tipo => {
                       const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
                       return (
-                        <button key={tipo.id} onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)} disabled={isCumbreUsed}
+                        <motion.button
+                          key={tipo.id}
+                          onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
+                          disabled={isCumbreUsed}
+                          variants={popIn}
+                          whileHover={!isCumbreUsed ? { scale: 1.05, y: -2 } : {}}
+                          whileTap={!isCumbreUsed ? { scale: 0.95 } : {}}
                           className={cn("p-3 rounded-xl border text-center transition-all text-xs relative",
                             isCumbreUsed ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
                               : selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-white text-muted-foreground hover:border-primary/50")}>
+                                : "border-border bg-white text-muted-foreground hover:border-primary/50")}
+                        >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
                           <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
                           {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive text-white px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
-                        </button>
+                        </motion.button>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 </div>
-
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Mensaje (opcional)</label>
                   <textarea value={mensaje} onChange={e => setMensaje(e.target.value)} placeholder="Escribe un mensaje..."
                     className="w-full h-20 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground resize-none" />
                 </div>
-
                 <Button onClick={handleSend} disabled={sending || !selectedGerente || !selectedTipo || sentCount >= 6} className="w-full">
                   {sending ? 'Enviando...' : '✅ Enviar Reconocimiento'}
                 </Button>
-              </div>
+              </motion.div>
             </>
           )}
-        </div>
+        </motion.div>
 
-        <div className="lg:col-span-2">
+        <motion.div className="lg:col-span-2" variants={fadeUpItem}>
           <div className="bg-card border border-border rounded-2xl p-5 shadow-smooth-sm">
             <h3 className="text-sm font-semibold font-heading text-secondary mb-4 flex items-center gap-2">
               <span>📢</span> Feed en Vivo
               <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-white"
+                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                /> EN VIVO
               </span>
             </h3>
 
             {dataLoading ? (
               <div className="space-y-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16" />)}</div>
             ) : feed.length > 0 ? (
-              <div className="space-y-3">
-                {feed.map(r => {
+              <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
+                {feed.map((r, idx) => {
                   const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === r.tipo);
                   return (
-                    <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border">
-                      <span className="text-2xl mt-0.5">{tipo?.emoji || '🎖️'}</span>
+                    <motion.div
+                      key={r.id}
+                      className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border"
+                      variants={fadeUpItem}
+                      whileHover={{ x: 4, backgroundColor: 'hsl(var(--muted) / 0.8)', transition: { duration: 0.15 } }}
+                    >
+                      <motion.span
+                        className="text-2xl mt-0.5"
+                        initial={{ scale: 0, rotate: -30 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.05 + 0.3 }}
+                      >{tipo?.emoji || '🎖️'}</motion.span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground">
                           <span className="font-semibold">{r.de_nombre}</span>
@@ -270,19 +245,25 @@ const Reconocimientos = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <img src={reconocimientoImg} alt="Reconocimientos" className="w-20 h-20 mx-auto mb-3 opacity-40" />
+              <motion.div className="text-center py-12 text-muted-foreground" variants={fadeUpItem}>
+                <motion.img
+                  src={reconocimientoImg}
+                  alt="Reconocimientos"
+                  className="w-20 h-20 mx-auto mb-3 opacity-40"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
                 <p>Sé el primero en reconocer a un colaborador</p>
-              </div>
+              </motion.div>
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </Layout>
   );
 };
