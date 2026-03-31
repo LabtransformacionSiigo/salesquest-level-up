@@ -1,7 +1,7 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,17 @@ const TABLE_OPTIONS = [
   { value: "ventas_vc_completo", label: "Ventas VC Completo", desc: "Totales, metas y desglose por producto (todo junto)", icon: "storefront" },
 ];
 
+const JOB_STATUS_META: Record<string, { icon: string; title: string; tone: string }> = {
+  pending: { icon: 'schedule', title: 'Trabajo en cola', tone: 'bg-primary/5 border-primary/30' },
+  running: { icon: 'sync', title: 'Sincronizando', tone: 'bg-primary/5 border-primary/30' },
+  completed: { icon: 'check_circle', title: 'Sincronización completada', tone: 'bg-secondary/5 border-secondary/30' },
+  failed: { icon: 'error_outline', title: 'Error en sincronización', tone: 'bg-destructive/5 border-destructive/30' },
+};
+
+const POLLABLE_STATUSES = new Set(['pending', 'running']);
+
+const getDisplayPayload = (syncResult: any) => syncResult?.result || syncResult;
+
 const AdminDatabricks = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [executing, setExecuting] = useState(false);
@@ -22,11 +33,51 @@ const AdminDatabricks = () => {
   const [preview, setPreview] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState("productividad");
+  const pollingRef = useRef<number | null>(null);
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      window.clearTimeout(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const fetchJobStatus = async (jobId: string) => {
+    const { data, error } = await supabase.functions.invoke('sync-databricks', {
+      body: { mode: 'job_status', jobId },
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  };
+
+  const pollJobStatus = async (jobId: string) => {
+    try {
+      const data = await fetchJobStatus(jobId);
+      setSyncResult(data);
+
+      if (POLLABLE_STATUSES.has(data?.status)) {
+        pollingRef.current = window.setTimeout(() => {
+          pollJobStatus(jobId);
+        }, 2500);
+      } else {
+        stopPolling();
+        setSyncing(false);
+      }
+    } catch (err) {
+      stopPolling();
+      setSyncing(false);
+      setSyncResult({ error: String(err) });
+    }
+  };
+
+  useEffect(() => () => stopPolling(), []);
 
   const handlePreview = async () => {
     setExecuting(true);
     setPreview(null);
     setSyncResult(null);
+    stopPolling();
     try {
       const { data, error } = await supabase.functions.invoke('sync-databricks', {
         body: { mode: 'preview', table: selectedTable },
@@ -42,15 +93,30 @@ const AdminDatabricks = () => {
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
+    stopPolling();
+
     try {
       const { data, error } = await supabase.functions.invoke('sync-databricks', {
         body: { mode: 'sync', table: selectedTable },
       });
-      if (error) setSyncResult({ error: error.message });
-      else setSyncResult(data);
+
+      if (error) {
+        setSyncResult({ error: error.message });
+        setSyncing(false);
+        return;
+      }
+
+      if (data?.queued && data?.job?.id) {
+        setSyncResult(data.job);
+        await pollJobStatus(data.job.id);
+        return;
+      }
+
+      setSyncResult(data);
     } catch (err) {
       setSyncResult({ error: String(err) });
     }
+
     setSyncing(false);
   };
 
@@ -58,10 +124,13 @@ const AdminDatabricks = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />;
 
+  const displayPayload = getDisplayPayload(syncResult);
+  const currentStatus = syncResult?.status;
+  const statusMeta = currentStatus ? JOB_STATUS_META[currentStatus] : null;
+
   return (
     <Layout title="Databricks Sync">
       <div className="space-y-6 max-w-4xl">
-        {/* Header */}
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -77,12 +146,11 @@ const AdminDatabricks = () => {
             </p>
           </div>
 
-          {/* Table selector */}
           <div className="grid grid-cols-2 gap-3">
             {TABLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => { setSelectedTable(opt.value); setPreview(null); setSyncResult(null); }}
+                onClick={() => { setSelectedTable(opt.value); setPreview(null); setSyncResult(null); stopPolling(); }}
                 className={cn(
                   "flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all",
                   selectedTable === opt.value
@@ -118,7 +186,7 @@ const AdminDatabricks = () => {
               {syncing ? (
                 <span className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
-                  Sincronizando...
+                  Ejecutando en segundo plano...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
@@ -130,7 +198,6 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
-        {/* Preview Result */}
         {preview && (
           <div className={cn(
             "border rounded-2xl p-6",
@@ -200,15 +267,16 @@ const AdminDatabricks = () => {
           </div>
         )}
 
-        {/* Sync Result */}
         {syncResult && (
           <div className={cn(
             "border rounded-2xl p-6",
-            syncResult.error ? "bg-destructive/5 border-destructive/30" : "bg-secondary/5 border-secondary/30"
+            syncResult.error ? "bg-destructive/5 border-destructive/30" : statusMeta?.tone || "bg-secondary/5 border-secondary/30"
           )}>
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
               {syncResult.error ? (
                 <><MI icon="error_outline" className="text-destructive" /> Error en sincronización</>
+              ) : currentStatus ? (
+                <><MI icon={statusMeta?.icon || 'sync'} className={currentStatus === 'failed' ? 'text-destructive' : currentStatus === 'completed' ? 'text-secondary' : 'text-primary'} /> {statusMeta?.title}</>
               ) : (
                 <><MI icon="check_circle" className="text-secondary" /> Sincronización completada</>
               )}
@@ -218,54 +286,66 @@ const AdminDatabricks = () => {
               <pre className="text-xs bg-muted rounded-lg p-4 overflow-auto text-foreground font-mono">
                 {JSON.stringify(syncResult, null, 2)}
               </pre>
+            ) : POLLABLE_STATUSES.has(currentStatus) ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">La sincronización sigue corriendo en el backend</p>
+                    <p className="text-xs text-muted-foreground">Job ID: {syncResult.id}</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
+                {syncResult.id && (
+                  <p className="text-xs text-muted-foreground">Job ID: <span className="font-mono text-foreground">{syncResult.id}</span></p>
+                )}
                 <div className="flex flex-wrap gap-4">
-                  {syncResult.total_rows !== undefined && (
+                  {displayPayload?.total_rows !== undefined && (
                     <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-muted-foreground uppercase font-semibold">Filas Databricks</p>
-                      <p className="text-xl font-bold text-foreground">{syncResult.total_rows}</p>
+                      <p className="text-xl font-bold text-foreground">{displayPayload.total_rows}</p>
                     </div>
                   )}
-                  {syncResult.kpis_sincronizados !== undefined && (
+                  {displayPayload?.kpis_sincronizados !== undefined && (
                     <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-primary uppercase font-semibold">KPIs Sync</p>
-                      <p className="text-xl font-bold text-primary">{syncResult.kpis_sincronizados}</p>
+                      <p className="text-xl font-bold text-primary">{displayPayload.kpis_sincronizados}</p>
                     </div>
                   )}
-                  {syncResult.ventas_sincronizadas !== undefined && (
+                  {displayPayload?.ventas_sincronizadas !== undefined && (
                     <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-secondary uppercase font-semibold">Ventas Sync</p>
-                      <p className="text-xl font-bold text-secondary">{syncResult.ventas_sincronizadas}</p>
+                      <p className="text-xl font-bold text-secondary">{displayPayload.ventas_sincronizadas}</p>
                     </div>
                   )}
-                  {/* Combined VC results */}
-                  {syncResult.ventas_vc && (
+                  {displayPayload?.ventas_vc && (
                     <div className="bg-primary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-primary uppercase font-semibold">VC Totales</p>
-                      <p className="text-xl font-bold text-primary">{syncResult.ventas_vc.ventas_sincronizadas ?? syncResult.ventas_vc.total_rows}</p>
+                      <p className="text-xl font-bold text-primary">{displayPayload.ventas_vc.ventas_sincronizadas ?? displayPayload.ventas_vc.total_rows}</p>
                     </div>
                   )}
-                  {syncResult.ventas_vc_producto && (
+                  {displayPayload?.ventas_vc_producto && (
                     <div className="bg-secondary/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-secondary uppercase font-semibold">VC Productos</p>
-                      <p className="text-xl font-bold text-secondary">{syncResult.ventas_vc_producto.ventas_sincronizadas ?? syncResult.ventas_vc_producto.total_rows}</p>
+                      <p className="text-xl font-bold text-secondary">{displayPayload.ventas_vc_producto.ventas_producto_sincronizadas ?? displayPayload.ventas_vc_producto.ventas_sincronizadas ?? displayPayload.ventas_vc_producto.total_rows}</p>
                     </div>
                   )}
-                  {(syncResult.sp_recalculo && !syncResult.sp_recalculo.error) && (
+                  {(displayPayload?.sp_recalculo && !displayPayload.sp_recalculo.error) && (
                     <div className="bg-accent/10 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-accent-foreground uppercase font-semibold">SP Otorgados</p>
-                      <p className="text-xl font-bold text-accent-foreground">{syncResult.sp_recalculo.sp_otorgados ?? 0}</p>
+                      <p className="text-xl font-bold text-accent-foreground">{displayPayload.sp_recalculo.sp_otorgados ?? 0}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Show errors from single or combined results */}
                 {(() => {
                   const allErrors = [
-                    ...(syncResult.errores || []),
-                    ...(syncResult.ventas_vc?.errores || []),
-                    ...(syncResult.ventas_vc_producto?.errores || []),
+                    ...(displayPayload?.errores || []),
+                    ...(displayPayload?.ventas_vc?.errores || []),
+                    ...(displayPayload?.ventas_vc_producto?.errores || []),
+                    ...(syncResult?.error_message ? [syncResult.error_message] : []),
                   ];
                   return allErrors.length > 0 ? (
                     <div>
