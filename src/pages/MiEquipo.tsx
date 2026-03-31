@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -33,20 +34,24 @@ const MiEquipo = () => {
     <Layout title="👥 Mi Equipo">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Header */}
-        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
+        <motion.div
+          className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm"
+          variants={fadeUpItem}
+          whileHover={{ y: -2, transition: { duration: 0.2 } }}
+        >
           <div>
             <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2"><span>👥</span> Mi Equipo</h2>
             <p className="text-sm text-muted-foreground">{profile?.canal === 'VC' ? 'Comerciales a tu cargo' : 'Asesores a tu cargo'}</p>
           </div>
           <div className="flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold font-scoreboard text-primary">{activos.length}</p>
+            <motion.div className="text-center" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}>
+              <AnimatedCounter value={activos.length} className="text-3xl font-bold font-scoreboard text-primary" />
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Activos</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold font-scoreboard text-muted-foreground">{team.length}</p>
+            </motion.div>
+            <motion.div className="text-center" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.4 }}>
+              <AnimatedCounter value={team.length} className="text-3xl font-bold font-scoreboard text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
 
@@ -54,15 +59,26 @@ const MiEquipo = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-40" />)}</div>
         ) : team.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-            {team.map(a => {
+            {team.map((a, idx) => {
               const countryFlag = FLAG_MAP[normalizeCountryCode(a.pais)];
 
               return (
-                <motion.div key={a.id} className={cn("bg-white border border-border rounded-2xl p-6 transition-all hover:shadow-smooth-md shadow-smooth-sm", !a.activo && "opacity-50")} variants={fadeUpItem}>
+                <motion.div
+                  key={a.id}
+                  className={cn("bg-white border border-border rounded-2xl p-6 transition-all shadow-smooth-sm", !a.activo && "opacity-50")}
+                  variants={fadeUpItem}
+                  whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+                  whileTap={{ scale: 0.98 }}
+                >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl">
+                    <motion.div
+                      className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.05 + 0.3 }}
+                    >
                       👤
-                    </div>
+                    </motion.div>
                     <div>
                       <p className="text-sm font-bold text-foreground">{a.nombre}</p>
                       <p className="text-xs text-muted-foreground">{a.email}</p>
@@ -85,7 +101,11 @@ const MiEquipo = () => {
           </motion.div>
         ) : (
           <motion.div className="text-center py-16" variants={fadeUpItem}>
-            <div className="text-7xl mb-4 opacity-30">👥</div>
+            <motion.div
+              className="text-7xl mb-4 opacity-30"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            >👥</motion.div>
             <p className="text-lg font-bold text-muted-foreground">No tienes asesores asignados</p>
             <p className="text-sm text-muted-foreground/60 mt-1">Los asesores aparecerán aquí cuando se configuren</p>
           </motion.div>

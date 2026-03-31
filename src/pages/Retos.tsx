@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem, scoreboardSlide } from '@/lib/animations';
+import { staggerContainer, fadeUpItem, scoreboardSlide, popIn, celebratePulse } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 import { hasVcAdvisorSalesEveryDaySoFar } from '@/lib/vc-advisor-metrics';
 
@@ -71,31 +71,25 @@ const Retos = () => {
 
   useEffect(() => {
     if (!profile?.id) return;
-
     let cancelled = false;
 
     const fetchData = async () => {
       setDataLoading(true);
-
       if (isVcAdvisor) {
         const [{ data: retosData, error: retosError }, snapshot] = await Promise.all([
           supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
           getVcAdvisorSnapshot(profile),
         ]);
-
         if (retosError) throw retosError;
         if (cancelled) return;
-
         const metrics = snapshot?.metrics;
         const auto = new Set<string>();
-
         if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`primer_disparo::${periodoHoy}`);
         if ((metrics?.todaySalesCount || 0) >= 2) auto.add(`jornada_redonda::${periodoHoy}`);
         if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
         if (snapshot?.sales && hasVcAdvisorSalesEveryDaySoFar(snapshot.sales)) auto.add(`sin_semana_roja::${periodoSemana}`);
-
         setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
         setAutoCompletados(auto);
         setVentasHoy(metrics?.todaySalesCount || 0);
@@ -128,9 +122,7 @@ const Retos = () => {
     };
 
     fetchData();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -154,7 +146,7 @@ const Retos = () => {
     return String(value);
   };
 
-  const renderCard = (reto: RetoConfig, periodo: string) => {
+  const renderCard = (reto: RetoConfig, periodo: string, idx: number) => {
     const completed = isCompleted(reto.id, periodo);
     const progress = getProgress(reto);
 
@@ -163,8 +155,19 @@ const Retos = () => {
         key={reto.id}
         className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
         variants={scoreboardSlide}
-        whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15 } }}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98 }}
       >
+        {/* Shimmer on completed */}
+        {completed && (
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/10 to-transparent pointer-events-none"
+            initial={{ x: '-100%' }}
+            animate={{ x: '200%' }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 4, ease: 'easeInOut' }}
+          />
+        )}
+
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
             {reto.tipo === 'diario' ? 'DIARIO' : reto.tipo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
@@ -172,7 +175,9 @@ const Retos = () => {
           {completed && (
             <motion.span
               className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full"
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              initial={{ scale: 0 }}
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 0.4 }}
             >✅ COMPLETADO</motion.span>
           )}
         </div>
@@ -180,7 +185,7 @@ const Retos = () => {
         <div className="flex items-center gap-3 mb-3 mt-2">
           <motion.span
             className="text-3xl"
-            animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : {}}
+            animate={completed ? { scale: [1, 1.3, 1], rotate: [0, 15, -15, 0] } : {}}
             transition={{ duration: 0.6 }}
           >{completed ? '✅' : reto.emoji}</motion.span>
           <div className="flex-1">
@@ -211,11 +216,13 @@ const Retos = () => {
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
-        <TabsList className="w-full bg-white border border-border">
-          <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
-          <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
-          <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
-        </TabsList>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <TabsList className="w-full bg-white border border-border">
+            <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
+            <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
+            <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
+          </TabsList>
+        </motion.div>
 
         {dataLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
@@ -223,17 +230,17 @@ const Retos = () => {
           <>
             <TabsContent value="diarios">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_DIARIOS.map((r) => renderCard(r, periodoHoy))}
+                {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
               </motion.div>
             </TabsContent>
             <TabsContent value="semanales">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_SEMANALES.map((r) => renderCard(r, periodoSemana))}
+                {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
               </motion.div>
             </TabsContent>
             <TabsContent value="mensuales">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_MENSUALES.map((r) => renderCard(r, periodoMes))}
+                {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
               </motion.div>
             </TabsContent>
           </>

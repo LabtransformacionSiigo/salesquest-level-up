@@ -6,8 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem, trophyWobble } from '@/lib/animations';
+import { staggerContainer, fadeUpItem, trophyWobble, popIn } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import medallaImg from '@/assets/medalla.png';
 import candadoImg from '@/assets/candado.png';
 
@@ -27,38 +28,30 @@ const Medallas = () => {
 
   useEffect(() => {
     if (!profile?.id || !profile?.canal) return;
-
     let cancelled = false;
 
     const fetchData = async () => {
       setDataLoading(true);
-
       if (isVcAdvisor) {
         const snapshot = await getVcAdvisorSnapshot(profile);
         if (cancelled) return;
-
         setMisMedallas(snapshot?.medals || []);
         setCatalogo(snapshot?.catalog || []);
         setDataLoading(false);
         return;
       }
-
       const [mRes, cRes] = await Promise.all([
         supabase.from('medallas').select('*').eq('gerente_id', profile.id),
         supabase.from('catalogo_medallas').select('*').eq('canal', profile.canal).eq('activo', true).order('condicion_tipo').order('nombre'),
       ]);
-
       if (cancelled) return;
-
       setMisMedallas(mRes.data || []);
       setCatalogo(cRes.data || []);
       setDataLoading(false);
     };
 
     fetchData();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -66,7 +59,6 @@ const Medallas = () => {
 
   const medallaNames = new Set(misMedallas.map((m) => m.medalla));
   const obtenidas = catalogo.filter((m) => medallaNames.has(m.nombre));
-
   const grupos: Record<string, any[]> = {};
   catalogo.forEach((m) => {
     const key = m.condicion_tipo;
@@ -77,7 +69,11 @@ const Medallas = () => {
   return (
     <Layout title="🏅 Medallas">
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-        <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm" variants={fadeUpItem}>
+        <motion.div
+          className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 flex items-center justify-between shadow-smooth-sm"
+          variants={fadeUpItem}
+          whileHover={{ y: -2, transition: { duration: 0.2 } }}
+        >
           <div>
             <h2 className="text-lg font-bold font-heading text-secondary flex items-center gap-2">
               <span>🏅</span> Mis Medallas
@@ -88,11 +84,14 @@ const Medallas = () => {
           </div>
           <motion.div
             className="text-center"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
           >
-            <p className="text-3xl font-bold font-scoreboard text-primary">{obtenidas.length}<span className="text-lg text-muted-foreground">/{catalogo.length}</span></p>
+            <div className="flex items-baseline gap-0.5">
+              <AnimatedCounter value={obtenidas.length} className="text-3xl font-bold font-scoreboard text-primary" />
+              <span className="text-lg text-muted-foreground font-scoreboard">/{catalogo.length}</span>
+            </div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Obtenidas</p>
           </motion.div>
         </motion.div>
@@ -116,7 +115,7 @@ const Medallas = () => {
                   initial="hidden"
                   animate="show"
                 >
-                  {medallas.map((medalla) => {
+                  {medallas.map((medalla, idx) => {
                     const desbloqueada = medallaNames.has(medalla.nombre);
                     const dataMedalla = misMedallas.find((m) => m.medalla === medalla.nombre);
 
@@ -129,16 +128,26 @@ const Medallas = () => {
                             ? 'border-yellow bg-siigo-yellow/5 trophy-card'
                             : 'border-border opacity-60 grayscale hover:opacity-80 hover:grayscale-0'
                         )}
-                        variants={desbloqueada ? trophyWobble : fadeUpItem}
-                        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+                        variants={desbloqueada ? trophyWobble : popIn}
+                        whileHover={{ scale: 1.04, y: -6, transition: { duration: 0.2 } }}
+                        whileTap={{ scale: 0.97 }}
                       >
                         {desbloqueada && (
-                          <div className="absolute inset-0 bg-gradient-to-b from-yellow/10 to-transparent pointer-events-none" />
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-b from-yellow/10 to-transparent pointer-events-none" />
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow/20 to-transparent pointer-events-none"
+                              initial={{ x: '-100%' }}
+                              animate={{ x: '200%' }}
+                              transition={{ duration: 2, repeat: Infinity, repeatDelay: 5, ease: 'easeInOut' }}
+                            />
+                          </>
                         )}
 
-                        <motion.div className="mb-3 relative z-10 flex justify-center"
-                          animate={desbloqueada ? { rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] } : {}}
-                          transition={{ duration: 0.8, delay: 0.3 }}
+                        <motion.div
+                          className="mb-3 relative z-10 flex justify-center"
+                          animate={desbloqueada ? { rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.8, delay: idx * 0.1 + 0.3 }}
                         >
                           <img src={desbloqueada ? medallaImg : candadoImg} alt={desbloqueada ? 'Medalla' : 'Bloqueada'} className="w-16 h-16 object-contain" />
                         </motion.div>
@@ -174,7 +183,11 @@ const Medallas = () => {
 
         {!dataLoading && catalogo.length === 0 && (
           <motion.div className="text-center py-16 text-muted-foreground" variants={fadeUpItem}>
-            <span className="text-5xl mb-3 block">🏅</span>
+            <motion.span
+              className="text-5xl mb-3 block"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            >🏅</motion.span>
             <p>No hay medallas configuradas para tu canal</p>
           </motion.div>
         )}

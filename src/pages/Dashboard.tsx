@@ -9,6 +9,7 @@ import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPrincipal from '@/assets/banner-principal.png';
 
 const RETOS_SEMANALES = [
@@ -26,7 +27,6 @@ const Dashboard = () => {
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
 
   const sp = profile?.sp_totales || 0;
-
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
 
   return (
@@ -40,15 +40,31 @@ const Dashboard = () => {
           style={{ backgroundImage: `url(${bannerPrincipal})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
           <div className="absolute inset-0 bg-secondary/50" />
+          {/* Shimmer overlay */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            initial={{ x: '-100%' }}
+            animate={{ x: '200%' }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 4, ease: 'easeInOut' }}
+          />
           <div className="relative z-10 h-full flex items-center px-8">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
               <p className="text-white/70 text-sm font-medium">Bienvenido de nuevo,</p>
               <h2 className="text-2xl font-black font-heading text-white">{profile?.nombre || 'Usuario'}</h2>
-            </div>
-            <div className="ml-auto text-right">
-              <p className="text-3xl font-black font-scoreboard text-white">{sp.toLocaleString()}</p>
+            </motion.div>
+            <motion.div
+              className="ml-auto text-right"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
               <p className="text-xs text-white/60 font-scoreboard uppercase">Siigo Points</p>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
 
@@ -58,19 +74,37 @@ const Dashboard = () => {
         {/* Racha + Top Pointers */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
           {/* Racha */}
-          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={popIn}>
+          <motion.div
+            className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm"
+            variants={popIn}
+            whileHover={{ y: -3, transition: { duration: 0.2 } }}
+          >
             <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
               <span className="text-primary">🔥</span> Racha activa
             </h3>
             {dataLoading ? <Skeleton className="h-28 w-full" /> : racha && racha.semanas_consecutivas > 0 ? (
               <div className="text-center py-6">
-                <p className="text-4xl font-black font-scoreboard text-orange">🔥 ×{racha.multiplicador}</p>
+                <motion.p
+                  className="text-4xl font-black font-scoreboard text-orange"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 12 }}
+                >
+                  <motion.span
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                  >🔥</motion.span> ×{racha.multiplicador}
+                </motion.p>
                 <p className="text-base font-bold text-foreground mt-3">{racha.nombre_racha}</p>
                 <p className="text-sm text-muted-foreground mt-1">{racha.semanas_consecutivas} semanas</p>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <span className="text-6xl mb-3 block">❄️</span>
+                <motion.span
+                  className="text-6xl mb-3 block"
+                  animate={{ rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                >❄️</motion.span>
                 <p className="text-base font-medium">Sin racha activa</p>
               </div>
             )}
@@ -93,12 +127,22 @@ const Dashboard = () => {
             {dataLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-44" />)}</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {RETOS_SEMANALES.map((reto) => {
+              <motion.div
+                className="grid grid-cols-1 md:grid-cols-3 gap-5"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+              >
+                {RETOS_SEMANALES.map((reto, idx) => {
                   const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                   const completed = pct >= 100;
                   return (
-                    <div key={reto.id} className="flex flex-col items-center text-center p-5 border border-border rounded-xl">
+                    <motion.div
+                      key={reto.id}
+                      className="flex flex-col items-center text-center p-5 border border-border rounded-xl"
+                      variants={popIn}
+                      whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+                    >
                       <p className="text-sm font-bold text-foreground mb-1">{reto.nombre}</p>
                       <p className="text-xs text-muted-foreground mb-4">
                         <span className="text-primary font-scoreboard font-bold">⚡ {reto.sp} SP</span>
@@ -116,33 +160,53 @@ const Dashboard = () => {
                           {(ventasSemana / 1_000_000).toFixed(0)}/{(reto.umbral / 1_000_000).toFixed(0)}
                         </span>
                       </DonutChart>
-                      {completed && <p className="text-sm font-bold text-accent mt-3">✅ ¡Completado!</p>}
-                    </div>
+                      {completed && (
+                        <motion.p
+                          className="text-sm font-bold text-accent mt-3"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 0.5 }}
+                        >✅ ¡Completado!</motion.p>
+                      )}
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             )}
           </motion.div>
 
           {/* Medallas + Reconocimientos stacked */}
           <div className="space-y-5">
             {/* Medallas Recientes */}
-            <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+            <motion.div
+              className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm"
+              variants={fadeUpItem}
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            >
               <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
                 <span className="text-primary">🏅</span> Medallas Recientes
               </h3>
               {dataLoading ? <Skeleton className="h-20" /> : medallas.length > 0 ? (
-                <div className="space-y-3">
+                <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
                   {medallas.slice(0, 3).map((m, i) => (
-                    <div key={`${m.medalla}-${i}`} className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl">
-                      <span className="text-2xl">🏅</span>
+                    <motion.div
+                      key={`${m.medalla}-${i}`}
+                      className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl"
+                      variants={fadeUpItem}
+                      whileHover={{ x: 4, transition: { duration: 0.15 } }}
+                    >
+                      <motion.span
+                        className="text-2xl"
+                        animate={{ rotate: [0, -10, 10, 0] }}
+                        transition={{ duration: 0.8, delay: i * 0.2 + 0.5 }}
+                      >🏅</motion.span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{m.medalla}</p>
                         <p className="text-xs font-bold font-scoreboard text-accent">+{m.sp_otorgados} SP</p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               ) : (
                 <div className="text-center py-6 text-muted-foreground">
                   <span className="text-4xl mb-2 block opacity-30">🏅</span>
@@ -152,14 +216,23 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Reconocimientos */}
-            <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+            <motion.div
+              className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm"
+              variants={fadeUpItem}
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            >
               <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
                 <span className="text-primary">🎖️</span> Reconocimientos
               </h3>
               {dataLoading ? <Skeleton className="h-20" /> : feed.length > 0 ? (
-                <div className="space-y-3">
+                <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
                   {feed.slice(0, 3).map((r) => (
-                    <div key={r.id} className="flex items-start gap-3 p-3">
+                    <motion.div
+                      key={r.id}
+                      className="flex items-start gap-3 p-3"
+                      variants={fadeUpItem}
+                      whileHover={{ x: 4, transition: { duration: 0.15 } }}
+                    >
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">🏆</div>
                       <div className="min-w-0">
                         <p className="text-sm text-foreground">
@@ -167,9 +240,9 @@ const Dashboard = () => {
                         </p>
                         <p className="text-xs text-primary font-bold uppercase mt-0.5">{r.tipo?.replace(/_/g, ' ')}</p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               ) : (
                 <div className="text-center py-6 text-muted-foreground">
                   <span className="text-4xl mb-2 block opacity-30">🤝</span>
