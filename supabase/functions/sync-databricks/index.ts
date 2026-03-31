@@ -582,8 +582,8 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
 
   // Batch upsert in chunks of 500
   const BATCH = 500;
-  for (let i = 0; i < ventaRows.length; i += BATCH) {
-    const chunk = ventaRows.slice(i, i + BATCH);
+  for (let i = 0; i < uniqueRows.length; i += BATCH) {
+    const chunk = uniqueRows.slice(i, i + BATCH);
     const { error, count } = await supabase.from("ventas").upsert(chunk, {
       onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
     });
@@ -591,5 +591,5 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
     else insertedVentas += (count || chunk.length);
   }
 
-  return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, errores: errores.slice(0, 20) };
+  return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
