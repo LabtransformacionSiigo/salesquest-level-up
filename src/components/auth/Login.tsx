@@ -66,8 +66,8 @@ const Login = () => {
           initial="hidden"
           animate="show"
         >
-          <motion.img src={logoIncentivos} alt="Siigo Incentivos" className="h-10 mx-auto mb-8" variants={fadeUp} />
-          <motion.h1 className="text-4xl font-black font-heading text-white mb-2" variants={fadeUp}>Siigo Incentivos</motion.h1>
+          <motion.img src={logoIncentivos} alt="Siigo Arena" className="h-10 mx-auto mb-8" variants={fadeUp} />
+          <motion.h1 className="text-4xl font-black font-heading text-white mb-2" variants={fadeUp}>Siigo Arena</motion.h1>
           <motion.p className="text-xl font-bold text-white/90 mb-2" variants={fadeUp}>Plataforma de Gamificación</motion.p>
           <motion.p className="text-sm text-white/70 max-w-xs mx-auto" variants={fadeUp}>Potencia tus resultados comerciales con Siigo Points</motion.p>
           <motion.div className="mt-10 grid grid-cols-3 gap-6 text-white/80 text-xs" variants={stagger}>
