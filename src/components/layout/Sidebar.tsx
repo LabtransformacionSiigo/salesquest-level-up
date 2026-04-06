@@ -11,7 +11,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const menuItems = [
-  { path: '/dashboard', icon: 'dashboard', label: 'Inicio' },
+  { path: '/dashboard', icon: 'dashboard', label: 'Panel General' },
   { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
   { path: '/mi-performance', icon: 'insights', label: 'Mi Performance' },
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
@@ -51,7 +51,7 @@ const Sidebar = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <img src={logoIncentivos} alt="Siigo Incentivos" className="h-8" />
+        <img src={logoIncentivos} alt="Siigo Arena" className="h-8" />
       </motion.div>
 
       {/* Profile */}
@@ -138,8 +138,8 @@ const Sidebar = () => {
       {/* Footer */}
       <div className="px-5 py-4 border-t border-sidebar-border">
         <div className="text-center">
-          <img src={logoIncentivos} alt="Siigo Incentivos" className="h-5 mx-auto opacity-50" />
-          <p className="text-[10px] text-sidebar-muted mt-1">Siigo · Incentivos</p>
+          <img src={logoIncentivos} alt="Siigo Arena" className="h-5 mx-auto opacity-50" />
+          <p className="text-[10px] text-sidebar-muted mt-1">Siigo · Arena</p>
         </div>
       </div>
 

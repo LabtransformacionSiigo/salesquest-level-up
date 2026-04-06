@@ -69,7 +69,7 @@ const Header = ({ title }: HeaderProps) => {
           whileTap={{ scale: 0.97 }}
         >
           <MI icon="emoji_events" className="text-base text-primary-foreground" />
-          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Incentivos</span>
+          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Arena</span>
         </motion.div>
 
         <NotificationBell />
