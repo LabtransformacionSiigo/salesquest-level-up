@@ -16,10 +16,14 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const TIPOS_RECONOCIMIENTO = [
-  { id: 'IMPULSO_PAR', nombre: 'Impulso', sp_para: 80, sp_de: 20, desc: 'Destacar cualquier logro de un colega', emoji: '👏' },
-  { id: 'PALABRA_LIDERAZGO', nombre: 'Liderazgo', sp_para: 120, sp_de: 30, desc: 'Reconocer liderazgo en momentos clave', emoji: '🌟' },
-  { id: 'SELLO_EXCELENCIA', nombre: 'Excelencia', sp_para: 200, sp_de: 50, desc: 'El mejor resultado del mes (1 vez/mes)', emoji: '💎' },
-  { id: 'RECONOCIMIENTO_CUMBRE', nombre: 'Cumbre', sp_para: 300, sp_de: 60, desc: 'Para momentos extraordinarios (1 vez/trimestre)', emoji: '🏆' },
+  { id: 'IMPULSO', nombre: 'Impulso', sp_para: 20, sp_de: 5, desc: 'Destaca cualquier logro cotidiano de un Asesor Comercial', emoji: '👏' },
+  { id: 'MANO_AMIGA', nombre: 'Mano Amiga', sp_para: 30, sp_de: 5, desc: 'Ayudó a un compañero sin que nadie se lo pidiera', emoji: '🤝' },
+  { id: 'ESPIRITU_FAMILIAR', nombre: 'Espíritu Familiar', sp_para: 30, sp_de: 5, desc: 'Cuida del equipo como si fuera su familia', emoji: '🏠' },
+  { id: 'VOZ_TRANSPARENTE', nombre: 'Voz Transparente', sp_para: 30, sp_de: 5, desc: 'Tuvo el coraje de dar feedback difícil con empatía', emoji: '🗣️' },
+  { id: 'CHISPA_INNOVACION', nombre: 'Chispa de Innovación', sp_para: 40, sp_de: 5, desc: 'Propuso una nueva forma de hacer las cosas', emoji: '💡' },
+  { id: 'LIDERAZGO', nombre: 'Liderazgo', sp_para: 40, sp_de: 5, desc: 'Tomó las riendas en un momento clave', emoji: '🌟' },
+  { id: 'EXCELENCIA', nombre: 'Excelencia', sp_para: 60, sp_de: 10, desc: 'El mejor resultado individual del mes', emoji: '💎' },
+  { id: 'CIMA', nombre: 'Cima', sp_para: 80, sp_de: 10, desc: 'El más alto honor que un gerente puede otorgar', emoji: '🏆' },
 ];
 
 const getISOWeek = (d: Date) => {
