@@ -215,11 +215,11 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             .eq('gerente_id', profile.id)
             .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
             .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
-          /* 6 */ isVC
-            ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6)
+          /* 6 – current month ACV */ isVC
+            ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('mes', currentMonthName).eq('anio', anioActual).limit(1)
             : Promise.resolve({ data: [] }),
-          /* 7 */ isVC
-            ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual)
+          /* 7 – product breakdown current month */ isVC
+            ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
           /* 8 – top ranking */
           isVC
