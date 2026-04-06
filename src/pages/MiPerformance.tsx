@@ -72,22 +72,66 @@ const MiPerformance = () => {
       <CelebrationOverlay show={celebration.show} type={celebration.type} onComplete={handleCelebrationComplete} />
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-          <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
-            style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-            <div className="absolute inset-0 bg-primary/30" />
-            <div className="relative z-10 w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
-              <MI icon="person" className="text-white" />
-            </div>
-            <div>
-              <p className="text-lg font-bold font-heading text-white">{profile?.nombre}</p>
-              <p className="text-xs text-white/70 flex items-center gap-2">
-                <span>{FLAG_MAP[profile?.pais || ''] || '🌎'}</span>
-                <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{canalLabel}</span>
-              </p>
-            </div>
-            <div className="ml-auto text-right">
-              <p className="text-2xl font-black font-scoreboard text-white">{(profile?.sp_totales || 0).toLocaleString()}</p>
-              <p className="text-[10px] text-white/60 font-scoreboard">SIIGO POINTS</p>
+          {/* ═══ BANNER ═══ */}
+          <motion.div 
+            className="relative rounded-2xl overflow-hidden shadow-smooth-md"
+            variants={fadeUpItem}
+            whileHover={{ scale: 1.005, transition: { duration: 0.3 } }}
+          >
+            {/* Background image + gradient overlay */}
+            <div className="absolute inset-0" style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-secondary/80 via-primary/70 to-primary/50" />
+            
+            {/* Shimmer effect */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12"
+              variants={shimmerLine}
+              initial="hidden"
+              animate="show"
+            />
+
+            <div className="relative z-10 flex items-center gap-5 p-6">
+              {/* Avatar */}
+              <motion.div 
+                className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center shadow-lg"
+                variants={popIn}
+                initial="hidden"
+                animate="show"
+              >
+                <MI icon="person" className="text-white !text-2xl" />
+              </motion.div>
+
+              {/* Name + channel */}
+              <motion.div 
+                className="flex-1 min-w-0"
+                variants={slideInRight}
+                initial="hidden"
+                animate="show"
+              >
+                <p className="text-xl font-black font-heading text-white drop-shadow-md truncate">{profile?.nombre}</p>
+                <p className="text-xs text-white/80 flex items-center gap-2 mt-0.5">
+                  <span className="text-base">{FLAG_MAP[profile?.pais || ''] || '🌎'}</span>
+                  <span className="bg-white/20 backdrop-blur-sm text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-white/20">{canalLabel}</span>
+                </p>
+              </motion.div>
+
+              {/* SP counter */}
+              <motion.div 
+                className="text-right flex flex-col items-end"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+              >
+                <div className="flex items-baseline gap-1.5">
+                  <motion.span
+                    className="text-lg"
+                    animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4 }}
+                  >⚡</motion.span>
+                  <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                </div>
+                <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
+              </motion.div>
             </div>
           </motion.div>
 
