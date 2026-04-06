@@ -11,7 +11,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const menuItems = [
-  { path: '/dashboard', icon: 'dashboard', label: 'Inicio' },
+  { path: '/dashboard', icon: 'dashboard', label: 'Panel General' },
   { path: '/ranking', icon: 'leaderboard', label: 'Ranking' },
   { path: '/mi-performance', icon: 'insights', label: 'Mi Performance' },
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
