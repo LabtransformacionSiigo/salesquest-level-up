@@ -92,7 +92,7 @@ const Login = () => {
         </motion.div>
         <motion.img
           src={logoIncentivos}
-          alt="Siigo Incentivos"
+          alt="Siigo Arena"
           className="absolute bottom-6 right-6 h-6 opacity-40 z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.4 }}
