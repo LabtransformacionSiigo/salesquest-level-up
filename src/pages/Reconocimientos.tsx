@@ -64,17 +64,15 @@ const Reconocimientos = () => {
       } else {
         colaboradoresPromise = supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true);
       }
-      const [colaboradoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
+      const [colaboradoresRes, feedRes, countRes] = await Promise.all([
         colaboradoresPromise,
         supabase.from('feed_reconocimientos').select('*').limit(20),
-        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
-        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('tipo', 'RECONOCIMIENTO_CUMBRE').gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
+        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).gte('created_at', mesStart).lt('created_at', mesEnd),
       ]);
       const colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
       setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
-      setCumbresTrimestre(cumbreRes.count || 0);
       setDataLoading(false);
     };
 
