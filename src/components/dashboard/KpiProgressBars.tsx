@@ -37,67 +37,40 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
 
   if (loading) {
     return (
-      <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
-        </div>
+      <motion.div className="grid grid-cols-1 lg:grid-cols-5 gap-5" variants={fadeUpItem}>
+        <Skeleton className="lg:col-span-2 h-72 rounded-2xl" />
+        <Skeleton className="lg:col-span-3 h-72 rounded-2xl" />
       </motion.div>
     );
   }
 
   return (
-    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-5" variants={fadeUpItem}>
-      {/* Card 1: Meta Mensual */}
-      <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm flex flex-col items-center" variants={popIn}>
-        <h3 className="text-sm font-bold font-heading text-secondary mb-1 self-start flex items-center gap-2">
-          <span className="text-primary">🎯</span> Meta Mensual
-        </h3>
-        <p className="text-xs text-muted-foreground mb-4 self-start">
-          {isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
-        </p>
-        <DonutChart
-          value={pct}
-          max={100}
-          size={150}
-          strokeWidth={14}
-          color={pct >= 100 ? 'hsl(var(--accent))' : pct >= 70 ? 'hsl(var(--primary))' : 'hsl(var(--orange))'}
-          bgColor="hsl(var(--muted))"
-        >
-          <span className="text-2xl font-black font-scoreboard text-foreground">{Math.round(pct)}%</span>
-          <span className="text-[10px] text-muted-foreground font-bold uppercase">cumplimiento</span>
-        </DonutChart>
-        <div className="mt-4 w-full space-y-1 text-xs text-muted-foreground">
-          {metaValue > 0 && (
-            <div className="flex justify-between">
-              <span>Meta</span>
-              <span className="font-bold text-foreground">{fmt(metaValue)}</span>
-            </div>
-          )}
-          {ventasValue > 0 && (
-            <div className="flex justify-between">
-              <span>{isVcAdvisor ? 'ACV+' : 'Ventas'}</span>
-              <span className="font-bold text-primary">{fmt(ventasValue)}</span>
-            </div>
-          )}
-        </div>
-      </motion.div>
+    <motion.div className="grid grid-cols-1 lg:grid-cols-5 gap-5" variants={fadeUpItem}>
 
-      {/* Card 2: Nivel & Progresión */}
-      <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm flex flex-col" variants={popIn}>
-        <h3 className="text-sm font-bold font-heading text-secondary mb-1 flex items-center gap-2">
+      {/* ── LEFT: Nivel Actual (2/5 width) ── */}
+      <motion.div
+        className="lg:col-span-2 bg-card border border-border rounded-2xl p-7 shadow-smooth-sm flex flex-col"
+        variants={popIn}
+        whileHover={{ y: -3, transition: { duration: 0.2 } }}
+      >
+        <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
           <span className="text-primary">⚡</span> Nivel Actual
         </h3>
-        <p className="text-xs text-muted-foreground mb-4">Progresión de gemas por Siigo Points</p>
+        <p className="text-xs text-muted-foreground mb-5">Progresión de gemas por Siigo Points</p>
 
-        {/* Current level badge */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl">
+        {/* Current level badge - larger */}
+        <div className="flex items-center gap-4 mb-6">
+          <motion.div
+            className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-3xl"
+            animate={{ scale: [1, 1.06, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
             {nivelActual.emoji}
-          </div>
+          </motion.div>
           <div>
-            <p className="text-lg font-black font-heading text-foreground">{nivelActual.nombre}</p>
-            <p className="text-xs text-muted-foreground font-semibold">
-              <span className="font-scoreboard text-primary">{sp.toLocaleString()}</span> SP totales
+            <p className="text-2xl font-black font-heading text-foreground">{nivelActual.nombre}</p>
+            <p className="text-sm text-muted-foreground font-semibold">
+              <span className="font-scoreboard text-primary text-lg">{sp.toLocaleString()}</span> SP totales
             </p>
           </div>
         </div>
@@ -106,27 +79,27 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         {nivelSiguiente ? (
           <div className="mt-auto">
             <div className="flex justify-between text-xs text-muted-foreground mb-2">
-              <span>{nivelActual.nombre}</span>
+              <span className="font-semibold">{nivelActual.nombre}</span>
               <span className="font-bold text-foreground">{Math.round(pctNivel)}%</span>
-              <span>{nivelSiguiente.nombre} {nivelSiguiente.emoji}</span>
+              <span className="font-semibold">{nivelSiguiente.nombre} {nivelSiguiente.emoji}</span>
             </div>
-            <Progress value={pctNivel} className="h-3" />
-            <p className="text-[11px] text-muted-foreground mt-2 text-center">
+            <Progress value={pctNivel} className="h-3.5" />
+            <p className="text-xs text-muted-foreground mt-2.5 text-center">
               Faltan <span className="font-bold font-scoreboard text-primary">{(spParaSiguiente - sp).toLocaleString()}</span> SP para {nivelSiguiente.nombre}
             </p>
           </div>
         ) : (
-          <div className="mt-auto text-center py-2">
-            <p className="text-sm font-bold text-accent">🏆 ¡Nivel máximo alcanzado!</p>
+          <div className="mt-auto text-center py-3">
+            <p className="text-base font-bold text-accent">🏆 ¡Nivel máximo alcanzado!</p>
           </div>
         )}
 
         {/* Level dots */}
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="flex justify-center gap-2.5 mt-5">
           {NIVELES.slice(0, 5).map((n, i) => (
             <div
               key={n.nombre}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ${
                 i <= nivelIdx ? 'bg-primary text-primary-foreground scale-100' : 'bg-muted text-muted-foreground scale-90'
               } ${i === nivelIdx ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''}`}
               title={n.nombre}
@@ -137,49 +110,90 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         </div>
       </motion.div>
 
-      {/* Card 3: KPIs Clave */}
-      <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm flex flex-col" variants={popIn}>
-        <h3 className="text-sm font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">📊</span> KPIs del Mes
+      {/* ── RIGHT: Meta Mensual + KPIs unificados (3/5 width) ── */}
+      <motion.div
+        className="lg:col-span-3 bg-card border border-border rounded-2xl p-7 shadow-smooth-sm flex flex-col"
+        variants={popIn}
+        whileHover={{ y: -3, transition: { duration: 0.2 } }}
+      >
+        <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
+          <span className="text-primary">🎯</span> Rendimiento del Mes
         </h3>
-        <p className="text-xs text-muted-foreground mb-4">Indicadores clave de rendimiento</p>
+        <p className="text-xs text-muted-foreground mb-5">
+          {isVcAdvisor ? 'ACV+ vs Meta asignada e indicadores clave' : 'Ventas vs Meta del mes e indicadores clave'}
+        </p>
 
-        <div className="space-y-4 flex-1">
-          {/* ACV+ */}
-          <div>
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-              <span>ACV+ del Mes</span>
-              <span className="text-foreground font-scoreboard">{fmt(acvMes)}</span>
+        <div className="flex flex-col md:flex-row gap-6 flex-1">
+          {/* Donut section */}
+          <div className="flex flex-col items-center justify-center md:w-[200px] flex-shrink-0">
+            <DonutChart
+              value={pct}
+              max={100}
+              size={160}
+              strokeWidth={15}
+              color={pct >= 100 ? 'hsl(var(--accent))' : pct >= 70 ? 'hsl(var(--primary))' : 'hsl(var(--orange))'}
+              bgColor="hsl(var(--muted))"
+            >
+              <span className="text-3xl font-black font-scoreboard text-foreground">{Math.round(pct)}%</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase">cumplimiento</span>
+            </DonutChart>
+            <div className="mt-3 w-full space-y-1 text-xs text-muted-foreground">
+              {metaValue > 0 && (
+                <div className="flex justify-between">
+                  <span>Meta</span>
+                  <span className="font-bold text-foreground">{fmt(metaValue)}</span>
+                </div>
+              )}
+              {ventasValue > 0 && (
+                <div className="flex justify-between">
+                  <span>{isVcAdvisor ? 'ACV+' : 'Ventas'}</span>
+                  <span className="font-bold text-primary">{fmt(ventasValue)}</span>
+                </div>
+              )}
             </div>
-            <Progress value={metaValue > 0 ? Math.min(100, (acvMes / metaValue) * 100) : (acvMes > 0 ? 50 : 0)} className="h-2.5" />
           </div>
 
-          {/* Unidades del mes */}
-          <div>
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-              <span>Unidades Vendidas</span>
-              <span className="text-foreground font-scoreboard">{kpis?.sc_creados || 0}</span>
-            </div>
-            <Progress value={Math.min(100, ((kpis?.sc_creados || 0) / 20) * 100)} className="h-2.5" />
-          </div>
+          {/* Divider */}
+          <div className="hidden md:block w-px bg-border" />
 
-          {/* Referidos (VN only) */}
-          {!isVcAdvisor && kpis?.cant_recomendados != null && (
+          {/* KPIs section */}
+          <div className="flex-1 flex flex-col justify-between gap-4">
+            {/* ACV+ */}
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>Referidos</span>
-                <span className="text-foreground font-scoreboard">{kpis.cant_recomendados}</span>
+                <span>ACV+ del Mes</span>
+                <span className="text-foreground font-scoreboard">{fmt(acvMes)}</span>
               </div>
-              <Progress value={Math.min(100, (kpis.cant_recomendados / 10) * 100)} className="h-2.5" />
+              <Progress value={metaValue > 0 ? Math.min(100, (acvMes / metaValue) * 100) : (acvMes > 0 ? 50 : 0)} className="h-2.5" />
             </div>
-          )}
-        </div>
 
-        {/* Status indicator */}
-        <div className={`mt-4 rounded-lg px-3 py-2 text-center text-xs font-bold ${
-          pct >= 100 ? 'bg-accent/10 text-accent' : pct >= 70 ? 'bg-primary/10 text-primary' : pct >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
-        }`}>
-          {pct >= 100 ? '🏆 ¡Meta superada!' : pct >= 70 ? '🔥 ¡Buen ritmo!' : pct >= 40 ? '⚡ Sigue avanzando' : '💪 ¡A por la meta!'}
+            {/* Unidades */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                <span>Unidades Vendidas</span>
+                <span className="text-foreground font-scoreboard">{kpis?.sc_creados || 0}</span>
+              </div>
+              <Progress value={Math.min(100, ((kpis?.sc_creados || 0) / 20) * 100)} className="h-2.5" />
+            </div>
+
+            {/* Referidos (VN only) */}
+            {!isVcAdvisor && kpis?.cant_recomendados != null && (
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                  <span>Referidos</span>
+                  <span className="text-foreground font-scoreboard">{kpis.cant_recomendados}</span>
+                </div>
+                <Progress value={Math.min(100, (kpis.cant_recomendados / 10) * 100)} className="h-2.5" />
+              </div>
+            )}
+
+            {/* Status indicator */}
+            <div className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold mt-auto ${
+              pct >= 100 ? 'bg-accent/10 text-accent' : pct >= 70 ? 'bg-primary/10 text-primary' : pct >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
+            }`}>
+              {pct >= 100 ? '🏆 ¡Meta superada!' : pct >= 70 ? '🔥 ¡Buen ritmo!' : pct >= 40 ? '⚡ Sigue avanzando' : '💪 ¡A por la meta!'}
+            </div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
