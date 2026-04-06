@@ -40,20 +40,18 @@ const Reconocimientos = () => {
   const [asesores, setAsesores] = useState<any[]>([]);
   const [feed, setFeed] = useState<any[]>([]);
   const [sentCount, setSentCount] = useState(0);
-  const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedGerente, setSelectedGerente] = useState('');
   const [selectedTipo, setSelectedTipo] = useState('');
   const [mensaje, setMensaje] = useState('');
 
-  const currentWeek = getISOWeek(new Date());
   const currentYear = new Date().getFullYear();
-  const trimestre = Math.ceil((new Date().getMonth() + 1) / 3);
-  const trimestreStart = `${currentYear}-${String((trimestre - 1) * 3 + 1).padStart(2, '0')}-01`;
-  const trimestreEnd = trimestre === 4
+  const currentMonth = new Date().getMonth() + 1;
+  const mesStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const mesEnd = currentMonth === 12
     ? `${currentYear + 1}-01-01`
-    : `${currentYear}-${String(trimestre * 3 + 1).padStart(2, '0')}-01`;
+    : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
   useEffect(() => {
     if (!profile?.id) return;
