@@ -62,8 +62,8 @@ const MiPerformance = () => {
   const vcMetrics = vcSnapshot?.metrics;
   const vcBlocks = vcSnapshot?.blockTotals;
   const vcHistory = isVcAdvisor ? (vcMetrics?.monthlyHistory || []) : acvData;
-  const vcHeadlineValue = isVcAdvisor ? vcMetrics?.totalAcv || 0 : acvData[0]?.acv_plus_total || 0;
-  const vcUnitsTotal = isVcAdvisor ? Number(vcMetrics?.currentMonthUnits) || 0 : Number(acvData[0]?.unidades) || 0;
+  const vcHeadlineValue = isVcAdvisor ? vcMetrics?.totalAcv || 0 : metrics.acvMes;
+  const vcUnitsTotal = isVcAdvisor ? Number(vcMetrics?.currentMonthUnits) || 0 : Number(acvData[0]?.unidades) || metrics.unidades;
   const vcUnitsLabel = `Sumatoria de unidades del mes: ${vcUnitsTotal} ${vcUnitsTotal === 1 ? 'unidad' : 'unidades'}`;
 
   return (
