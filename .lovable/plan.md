@@ -1,36 +1,64 @@
 
 
-## Aclaración importante
+# Plan: Corregir métricas mensuales en Dashboard, Mi Performance y Rankings
 
-El SSO que configuraste (`oidc.b-a202f9d7` con URL `https://lovable.dev/sso-login/...`) es un SSO **de la plataforma Lovable** — sirve para que los miembros de tu equipo accedan al editor de Lovable, no para autenticar usuarios dentro de tu aplicación SalesQuest.
+## Problemas identificados
 
-Son dos sistemas de autenticación completamente separados:
+1. **Dashboard muestra 79% incorrecto**: El `vcCumplimiento` suma TODOS los meses (ACV total / Meta total), en vez de mostrar solo el mes actual (Abril).
 
-```text
-┌─────────────────────────────┐     ┌─────────────────────────────┐
-│   SSO de Lovable (OIDC)     │     │   Auth de SalesQuest        │
-│   Para acceder al editor    │     │   Para tus usuarios/ventas  │
-│   lovable.dev/sso-login/... │     │   salesquest-level-up.app   │
-└─────────────────────────────┘     └─────────────────────────────┘
-```
+2. **Mi Performance - ACV+ muestra $1202.5M**: `vcHeadlineValue` usa `acvData[0]` que toma el primer resultado de `acv_vc_mensual` ordenado por `anio DESC` sin filtrar por mes actual. Muestra datos de cualquier mes.
 
-## Opciones para autenticación en SalesQuest
+3. **Mi Performance - Unidades incorrectas**: Mismo problema, toma unidades del primer registro que no necesariamente es Abril.
 
-Para el login de tu aplicación SalesQuest, los proveedores OAuth disponibles en Lovable Cloud son:
+4. **Cumplimiento por Mes desordenado**: No está ordenado de más reciente a más antiguo.
 
-1. **Google SSO** — Los usuarios inician sesión con su cuenta de Google/Google Workspace. Ideal si tu empresa usa Google Workspace.
-2. **Apple SSO** — Inicio de sesión con Apple ID.
-3. **Email/contraseña** — Lo que ya tienes funcionando actualmente.
+5. **Rankings - SP = 0 para Nerli/Adelia**: El ranking de comerciales busca SP por nombre de gerente en `ranking_general`, pero Adelia tiene 0 SP en `sp_acumulados`. Esto indica que el motor `calcular-sp-semanal` no le ha otorgado puntos a este gerente.
 
-**OIDC genérico y Microsoft/Azure NO están soportados** como proveedores de autenticación para tu app en Lovable Cloud.
+6. **Desglose por producto muestra todos los meses**: El hook filtra por `headlineMonth` pero si ese valor es incorrecto, muestra datos equivocados.
 
-## Plan propuesto
+## Cambios a realizar
 
-Si quieres agregar **Google SSO** como opción de inicio de sesión en SalesQuest (además del email/contraseña actual):
+### 1. Hook `useGamificationMetrics.ts` — Filtrar por mes actual
 
-1. Configurar Google como proveedor social usando la herramienta de autenticación del backend.
-2. Agregar un botón "Continuar con Google" en `src/components/auth/Login.tsx` usando `lovable.auth.signInWithOAuth("google")`.
-3. Mantener el formulario de email/contraseña como alternativa.
+**Gerente VC path (query 6):**
+- Añadir filtro `.eq('mes', currentMonthName)` a la query de `acv_vc_mensual` para obtener solo datos de Abril.
+- Cambiar `vcHeadlineValue` para usar solo el mes actual, no `totalAcv`.
 
-Si solo necesitas email/contraseña, no se requiere ningún cambio — ya está funcionando.
+**Gerente VC path (query 7):**  
+- Añadir filtro `.eq('mes', currentMonthName)` a la query de `desglose_producto_vc`.
+
+**`vcCumplimiento`:**
+- Calcular el % de cumplimiento solo con datos del mes actual (no sumando todos los meses).
+
+**`vcMonthlyCumplimiento`:**
+- Seguir trayendo todos los meses para el historial, pero ordenar de más reciente a más antiguo.
+
+**VC Advisor path:**
+- Aplicar la misma lógica: filtrar `ventasMetaRes` por mes actual para headline, y mantener historial completo ordenado.
+
+### 2. `MiPerformance.tsx` — Corregir headline y orden
+
+- `vcHeadlineValue`: Usar `acvMes` (que vendrá filtrado por mes actual desde el hook).
+- `vcUnitsTotal`: Usar `unidades` del hook (filtrado por mes actual).
+- `vcMonthlyCumplimiento`: Ordenar por índice de mes (más reciente primero).
+
+### 3. `Rankings.tsx` — SP de comerciales
+
+- Para comerciales VC, el SP debe venir del gerente asociado o calcularse. El problema es que Adelia tiene 0 en `sp_acumulados`. Esto requiere que el motor SP haya corrido correctamente para ella.
+- Verificar si el motor `calcular-sp-semanal` cubre a todos los gerentes VC activos.
+
+### 4. `Dashboard.tsx` — % Cumplimiento del mes actual
+
+- `pctCumplimiento` ya viene del hook; asegurar que refleje solo Abril tras el fix del hook.
+
+## Resumen técnico de ediciones
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useGamificationMetrics.ts` | Filtrar `acv_vc_mensual` y `desglose_producto_vc` por mes actual; calcular `vcCumplimiento` solo con mes actual; ordenar `vcMonthlyCumplimiento` de reciente a antiguo |
+| `src/pages/MiPerformance.tsx` | Usar `acvMes` para headline; ordenar historial cumplimiento; usar `unidades` del hook |
+| `src/pages/Dashboard.tsx` | Sin cambios necesarios (hereda fix del hook) |
+| `src/pages/Rankings.tsx` | Sin cambios necesarios (las vistas ya filtran por `mes_actual_nombre()`) |
+
+El problema de SP = 0 para algunos gerentes es un problema de datos: el motor de cálculo de SP no ha procesado a esos gerentes. Después de implementar estos cambios, se recomienda ejecutar una sincronización completa desde Admin → Databricks para recalcular los SP de todos.
 
