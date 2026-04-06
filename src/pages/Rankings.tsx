@@ -46,13 +46,18 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const [comRes, gerentesRes] = await Promise.all([
+        const [comRes, gerentesRes, spRes] = await Promise.all([
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
+          supabase.from('ranking_general').select('id, sp_totales, nivel, nombre').eq('canal', 'VC'),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
           if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
+        });
+        const spByName = new Map<string, number>();
+        (spRes.data || []).forEach((s: any) => {
+          if (s.nombre) spByName.set(s.nombre, Number(s.sp_totales) || 0);
         });
         const currentName = normalizePersonName(profile?.nombre);
         const mapped = (comRes.data || []).map((r: any) => ({
@@ -61,7 +66,7 @@ const Rankings = () => {
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
           meta_total: Math.round(Number(r.meta_total) || 0),
-          sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
+          sp_totales: spByName.get(r.nombre) || Math.round(Number(r.pct_cumplimiento) || 0),
           pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
