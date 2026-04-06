@@ -6,9 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem } from '@/lib/animations';
+import { staggerContainer, fadeUpItem, slideInRight, popIn, shimmerLine } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
@@ -71,22 +72,66 @@ const MiPerformance = () => {
       <CelebrationOverlay show={celebration.show} type={celebration.type} onComplete={handleCelebrationComplete} />
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
-          <motion.div className="relative rounded-2xl p-6 flex items-center gap-4 overflow-hidden" variants={fadeUpItem}
-            style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-            <div className="absolute inset-0 bg-primary/30" />
-            <div className="relative z-10 w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-2xl">
-              <MI icon="person" className="text-white" />
-            </div>
-            <div>
-              <p className="text-lg font-bold font-heading text-white">{profile?.nombre}</p>
-              <p className="text-xs text-white/70 flex items-center gap-2">
-                <span>{FLAG_MAP[profile?.pais || ''] || '🌎'}</span>
-                <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{canalLabel}</span>
-              </p>
-            </div>
-            <div className="ml-auto text-right">
-              <p className="text-2xl font-black font-scoreboard text-white">{(profile?.sp_totales || 0).toLocaleString()}</p>
-              <p className="text-[10px] text-white/60 font-scoreboard">SIIGO POINTS</p>
+          {/* ═══ BANNER ═══ */}
+          <motion.div 
+            className="relative rounded-2xl overflow-hidden shadow-smooth-md"
+            variants={fadeUpItem}
+            whileHover={{ scale: 1.005, transition: { duration: 0.3 } }}
+          >
+            {/* Background image + gradient overlay */}
+            <div className="absolute inset-0" style={{ backgroundImage: `url(${bannerPerformance})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-secondary/80 via-primary/70 to-primary/50" />
+            
+            {/* Shimmer effect */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12"
+              variants={shimmerLine}
+              initial="hidden"
+              animate="show"
+            />
+
+            <div className="relative z-10 flex items-center gap-5 p-6">
+              {/* Avatar */}
+              <motion.div 
+                className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center shadow-lg"
+                variants={popIn}
+                initial="hidden"
+                animate="show"
+              >
+                <MI icon="person" className="text-white !text-2xl" />
+              </motion.div>
+
+              {/* Name + channel */}
+              <motion.div 
+                className="flex-1 min-w-0"
+                variants={slideInRight}
+                initial="hidden"
+                animate="show"
+              >
+                <p className="text-xl font-black font-heading text-white drop-shadow-md truncate">{profile?.nombre}</p>
+                <p className="text-xs text-white/80 flex items-center gap-2 mt-0.5">
+                  <span className="text-base">{FLAG_MAP[profile?.pais || ''] || '🌎'}</span>
+                  <span className="bg-white/20 backdrop-blur-sm text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-white/20">{canalLabel}</span>
+                </p>
+              </motion.div>
+
+              {/* SP counter */}
+              <motion.div 
+                className="text-right flex flex-col items-end"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+              >
+                <div className="flex items-baseline gap-1.5">
+                  <motion.span
+                    className="text-lg"
+                    animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4 }}
+                  >⚡</motion.span>
+                  <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                </div>
+                <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
+              </motion.div>
             </div>
           </motion.div>
 
@@ -157,54 +202,6 @@ const MiPerformance = () => {
                     </>
                   )}
 
-                  {/* Cumplimiento de Meta VC - Global */}
-                  {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
-                    <>
-                      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta asignada) × 100." />
-                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                        <div className="flex items-center gap-8">
-                          <div className="relative w-28 h-28 shrink-0">
-                            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, vcCumplimiento?.pct || 0) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-xl font-bold font-scoreboard text-primary">{vcCumplimiento?.pct || 0}%</span>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                            <MetaRow label="ACV+ Logrado" value={formatMoney(vcCumplimiento?.acv)} />
-                            <MetaRow label="Meta" value={formatMoney(vcCumplimiento?.meta)} />
-                          </div>
-                        </div>
-                      </motion.div>
-
-                      {/* Monthly breakdown */}
-                      {vcMonthlyCumplimiento.length > 0 && (
-                        <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                          <h4 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
-                            <MI icon="calendar_month" className="text-primary text-lg" /> Cumplimiento por Mes
-                          </h4>
-                          <div className="space-y-4">
-                            {vcMonthlyCumplimiento.map((m) => (
-                              <div key={m.mes}>
-                                <div className="flex justify-between text-sm mb-1.5">
-                                  <span className="font-semibold text-foreground">{m.mes}</span>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-xs text-muted-foreground">{formatMoney(m.acv)} / {formatMoney(m.meta)}</span>
-                                    <span className={cn("font-bold font-scoreboard", m.pct >= 100 ? "text-accent" : "text-primary")}>{m.pct}%</span>
-                                  </div>
-                                </div>
-                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                                  <div className={cn("h-full rounded-full transition-all duration-700", m.pct >= 100 ? "bg-accent" : "bg-primary")} style={{ width: `${Math.min(100, m.pct)}%` }} />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </>
-                  )}
                 </>
               )}
 
