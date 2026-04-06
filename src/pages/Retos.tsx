@@ -31,8 +31,9 @@ interface RetoConfig {
 }
 
 const RETOS_DIARIOS: RetoConfig[] = [
-  { id: 'primer_disparo', nombre: 'Primera Venta', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario', emoji: '🎯' },
-  { id: 'jornada_redonda', nombre: 'Doble Impacto', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario', emoji: '⚡' },
+  { id: 'siempre_en_la_jugada', nombre: 'Siempre en la jugada', sp: 1, desc: 'Ingresa a la plataforma al menos 1 vez por día', tipo: 'diario', emoji: '🔓' },
+  { id: 'sin_irme_en_0', nombre: 'Sin irme en 0', sp: 1, desc: 'Logra al menos 1 venta en el día', umbral: 1, tipo: 'diario', emoji: '🎯' },
+  { id: 'jornada_redonda', nombre: 'Jornada Redonda', sp: 3, desc: 'Logra 5 ventas en el día', umbral: 5, tipo: 'diario', emoji: '🔥' },
 ];
 
 const RETOS_SEMANALES: RetoConfig[] = [
@@ -84,8 +85,9 @@ const Retos = () => {
         if (cancelled) return;
         const metrics = snapshot?.metrics;
         const auto = new Set<string>();
-        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`primer_disparo::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 2) auto.add(`jornada_redonda::${periodoHoy}`);
+        auto.add(`siempre_en_la_jugada::${periodoHoy}`);
+        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`sin_irme_en_0::${periodoHoy}`);
+        if ((metrics?.todaySalesCount || 0) >= 5) auto.add(`jornada_redonda::${periodoHoy}`);
         if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
@@ -102,11 +104,15 @@ const Retos = () => {
       const { data: retosData } = await supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id);
       if (cancelled) return;
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-      setAutoCompletados(new Set());
+      const gerenteAuto = new Set<string>();
+      gerenteAuto.add(`siempre_en_la_jugada::${periodoHoy}`);
 
       const { data: ventasHoyData } = await supabase.from('ventas').select('id', { count: 'exact' }).eq('gerente_id', profile.id).eq('fecha_facturacion', todayStr);
       if (cancelled) return;
-      setVentasHoy(ventasHoyData?.length || 0);
+      const ventasCount = ventasHoyData?.length || 0;
+      setVentasHoy(ventasCount);
+      if (ventasCount >= 1) gerenteAuto.add(`sin_irme_en_0::${periodoHoy}`);
+      if (ventasCount >= 5) gerenteAuto.add(`jornada_redonda::${periodoHoy}`);
 
       const weekStart = getISOWeekStartDate(semanaISO, anio);
       const weekEnd = new Date(weekStart);
@@ -118,6 +124,7 @@ const Retos = () => {
       const { data: kpiData } = await supabase.from('kpis_mes_actual').select('pct_cumplimiento').eq('gerente_id', profile.id).maybeSingle();
       if (cancelled) return;
       setPctCumplimiento(Number(kpiData?.pct_cumplimiento) || 0);
+      setAutoCompletados(gerenteAuto);
       setDataLoading(false);
     };
 
@@ -132,8 +139,9 @@ const Retos = () => {
 
   const getProgress = (reto: RetoConfig): { current: number; target: number; pct: number } => {
     if (reto.tipo === 'diario') {
-      if (reto.id === 'primer_disparo') return { current: ventasHoy, target: 1, pct: Math.min(100, ventasHoy * 100) };
-      if (reto.id === 'jornada_redonda') return { current: ventasHoy, target: 2, pct: Math.min(100, (ventasHoy / 2) * 100) };
+      if (reto.id === 'siempre_en_la_jugada') return { current: 1, target: 1, pct: 100 };
+      if (reto.id === 'sin_irme_en_0') return { current: ventasHoy, target: 1, pct: Math.min(100, ventasHoy * 100) };
+      if (reto.id === 'jornada_redonda') return { current: ventasHoy, target: 5, pct: Math.min(100, (ventasHoy / 5) * 100) };
     }
     if (reto.tipo === 'semanal' && reto.umbral) return { current: ventasSemana, target: reto.umbral, pct: Math.min(100, (ventasSemana / reto.umbral) * 100) };
     if (reto.tipo === 'mensual' && reto.umbral) return { current: pctCumplimiento, target: reto.umbral, pct: Math.min(100, (pctCumplimiento / reto.umbral) * 100) };
