@@ -1115,6 +1115,13 @@ export type Database = {
           },
         ]
       }
+      sp_acumulados_comerciales: {
+        Row: {
+          nombre: string | null
+          sp_totales: number | null
+        }
+        Relationships: []
+      }
       sp_totales_gerente: {
         Row: {
           activo: boolean | null
