@@ -110,7 +110,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <motion.div className="lg:hidden text-center mb-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
             <img src={siigoLogoBlue} alt="Siigo" className="h-8 mx-auto mb-3" />
-            <p className="text-lg font-bold text-primary font-heading">Siigo Incentivos</p>
+            <p className="text-lg font-bold text-primary font-heading">Siigo Arena</p>
           </motion.div>
           <motion.div
             className="bg-white border border-border rounded-3xl p-8 space-y-6 shadow-smooth-md"
