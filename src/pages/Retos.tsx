@@ -109,7 +109,10 @@ const Retos = () => {
 
       const { data: ventasHoyData } = await supabase.from('ventas').select('id', { count: 'exact' }).eq('gerente_id', profile.id).eq('fecha_facturacion', todayStr);
       if (cancelled) return;
-      setVentasHoy(ventasHoyData?.length || 0);
+      const ventasCount = ventasHoyData?.length || 0;
+      setVentasHoy(ventasCount);
+      if (ventasCount >= 1) gerenteAuto.add(`sin_irme_en_0::${periodoHoy}`);
+      if (ventasCount >= 5) gerenteAuto.add(`jornada_redonda::${periodoHoy}`);
 
       const weekStart = getISOWeekStartDate(semanaISO, anio);
       const weekEnd = new Date(weekStart);
@@ -121,6 +124,7 @@ const Retos = () => {
       const { data: kpiData } = await supabase.from('kpis_mes_actual').select('pct_cumplimiento').eq('gerente_id', profile.id).maybeSingle();
       if (cancelled) return;
       setPctCumplimiento(Number(kpiData?.pct_cumplimiento) || 0);
+      setAutoCompletados(gerenteAuto);
       setDataLoading(false);
     };
 
