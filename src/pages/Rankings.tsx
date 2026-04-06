@@ -55,10 +55,6 @@ const Rankings = () => {
         (gerentesRes.data || []).forEach((g: any) => {
           if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
         });
-        const spByGerenteName = new Map<string, number>();
-        (spRes.data || []).forEach((s: any) => {
-          if (s.nombre) spByGerenteName.set(s.nombre, Number(s.sp_totales) || 0);
-        });
         const currentName = normalizePersonName(profile?.nombre);
         const mapped = (comRes.data || []).map((r: any) => ({
           id: `${r.nombre}-${r.gerente_nombre}`,
@@ -66,7 +62,7 @@ const Rankings = () => {
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
           meta_total: Math.round(Number(r.meta_total) || 0),
-          sp_totales: spByGerenteName.get(r.gerente_nombre) || 0,
+          sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
           pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
