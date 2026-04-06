@@ -152,7 +152,7 @@ const Reconocimientos = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-                  <motion.div className="grid grid-cols-2 gap-2" variants={staggerContainer} initial="hidden" animate="show">
+                  <motion.div className="grid grid-cols-4 gap-2" variants={staggerContainer} initial="hidden" animate="show">
                     {TIPOS_RECONOCIMIENTO.map(tipo => (
                         <motion.button
                           key={tipo.id}
