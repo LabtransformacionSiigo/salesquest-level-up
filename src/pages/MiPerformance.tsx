@@ -202,54 +202,6 @@ const MiPerformance = () => {
                     </>
                   )}
 
-                  {/* Cumplimiento de Meta VC - Global */}
-                  {(vcCumplimiento || kpis?.pct_cumplimiento != null) && (
-                    <>
-                      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta asignada) × 100." />
-                      <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                        <div className="flex items-center gap-8">
-                          <div className="relative w-28 h-28 shrink-0">
-                            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, vcCumplimiento?.pct || 0) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-xl font-bold font-scoreboard text-primary">{vcCumplimiento?.pct || 0}%</span>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                            <MetaRow label="ACV+ Logrado" value={formatMoney(vcCumplimiento?.acv)} />
-                            <MetaRow label="Meta" value={formatMoney(vcCumplimiento?.meta)} />
-                          </div>
-                        </div>
-                      </motion.div>
-
-                      {/* Monthly breakdown */}
-                      {vcMonthlyCumplimiento.length > 0 && (
-                        <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-                          <h4 className="text-sm font-bold font-heading text-secondary mb-4 flex items-center gap-2">
-                            <MI icon="calendar_month" className="text-primary text-lg" /> Cumplimiento por Mes
-                          </h4>
-                          <div className="space-y-4">
-                            {vcMonthlyCumplimiento.map((m) => (
-                              <div key={m.mes}>
-                                <div className="flex justify-between text-sm mb-1.5">
-                                  <span className="font-semibold text-foreground">{m.mes}</span>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-xs text-muted-foreground">{formatMoney(m.acv)} / {formatMoney(m.meta)}</span>
-                                    <span className={cn("font-bold font-scoreboard", m.pct >= 100 ? "text-accent" : "text-primary")}>{m.pct}%</span>
-                                  </div>
-                                </div>
-                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                                  <div className={cn("h-full rounded-full transition-all duration-700", m.pct >= 100 ? "bg-accent" : "bg-primary")} style={{ width: `${Math.min(100, m.pct)}%` }} />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </>
-                  )}
                 </>
               )}
 
