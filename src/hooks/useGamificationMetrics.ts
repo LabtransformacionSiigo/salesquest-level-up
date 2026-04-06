@@ -281,15 +281,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
         }
 
-        // Format top ranking
-        const topRanking = isVC
-          ? (rankingRes.data || []).map((r: any) => ({
-              id: r.gerente_id, nombre: r.nombre,
-              sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
-              pct_cumplimiento: Math.round(Number(r.pct_cumplimiento) || 0),
-              acv_total: Number(r.acv_total) || 0,
-            }))
-          : rankingRes.data || [];
+        // Format top ranking — always by SP totales
+        const topRanking = (rankingRes.data || []).map((r: any) => ({
+          id: r.id, nombre: r.nombre,
+          sp_totales: Number(r.sp_totales) || 0,
+          canal: r.canal,
+          nivel: r.nivel,
+        }));
 
         // Format team
         const team = isVC
