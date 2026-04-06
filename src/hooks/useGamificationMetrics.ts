@@ -251,26 +251,29 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let upgradesCount = 0;
 
         if (isVC) {
+          // Current month data (from query 6 filtered by currentMonthName)
           const acvRow = acvRows[0];
           acvMes = Number(acvRow?.acv_plus_total) || 0;
           const metaRow = Number(acvRow?.meta_total) || 0;
           pctCumplimiento = metaRow > 0 ? Math.round((acvMes / metaRow) * 100) : 0;
 
-          vcMonthlyCumplimiento = (acvRows as any[]).map((row: any) => {
+          // Current month cumplimiento (NOT sum of all months)
+          vcCumplimiento = { acv: acvMes, meta: metaRow, pct: pctCumplimiento };
+
+          // Monthly history from all months (query 10), sorted newest first
+          const allMonthRows = acvAllMonthsRes.data || [];
+          const monthOrder = [...MONTH_NAMES_ES].reverse();
+          vcMonthlyCumplimiento = (allMonthRows as any[]).map((row: any) => {
             const acv = Number(row.acv_plus_total) || 0;
             const meta = Number(row.meta_total) || 0;
             return { mes: row.mes || 'Unknown', acv, meta, pct: meta > 0 ? Math.round((acv / meta) * 100) : 0 };
-          });
-          const totalAcv = vcMonthlyCumplimiento.reduce((s, m) => s + m.acv, 0);
-          const totalMeta = vcMonthlyCumplimiento.reduce((s, m) => s + m.meta, 0);
-          vcCumplimiento = { acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 };
+          }).sort((a, b) => monthOrder.indexOf(a.mes) - monthOrder.indexOf(b.mes));
 
+          // Product breakdown (query 7 already filtered by currentMonthName)
           if (productRes.data) {
-            const headlineRow = acvRows.find((row: any) => row.mes === currentMonthName) || acvRows[0];
-            const headlineMonth = headlineRow?.mes || currentMonthName;
-            const filtered = (productRes.data as any[]).filter((r: any) => r.mes === headlineMonth);
+            const items = (productRes.data as any[]);
             productBreakdown = aggregateProductBreakdown(
-              filtered.map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
+              items.map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
             );
             const upgradeRow = productBreakdown.find((r) => r.label.toLowerCase() === 'upgrade');
             upgradesCount = upgradeRow ? Number(upgradeRow.units) || 0 : 0;
