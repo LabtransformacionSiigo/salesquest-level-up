@@ -51,9 +51,10 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const [comRes, gerentesRes] = await Promise.all([
+        const [comRes, gerentesRes, spRes] = await Promise.all([
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
+          supabase.from('ranking_general').select('id, sp_totales, nivel, nombre').eq('canal', 'VC'),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
