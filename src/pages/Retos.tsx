@@ -44,11 +44,9 @@ const RETOS_SEMANALES: RetoConfig[] = [
 ];
 
 const RETOS_MENSUALES: RetoConfig[] = [
-  { id: 'meta_conquistada', nombre: 'Meta Cumplida', sp: 500, desc: '≥100% cumplimiento', umbral: 100, tipo: 'mensual', emoji: '✅' },
-  { id: 'mes_impacto', nombre: 'Sobre Meta', sp: 800, desc: '≥120% cumplimiento', umbral: 120, tipo: 'mensual', emoji: '⚡' },
-  { id: 'mes_elite', nombre: 'Élite', sp: 1200, desc: '≥150% cumplimiento', umbral: 150, tipo: 'mensual', emoji: '💎' },
-  { id: 'mes_legendario', nombre: 'Leyenda', sp: 2000, desc: '≥200% cumplimiento', umbral: 200, tipo: 'mensual', emoji: '🌟' },
-  { id: 'el_que_no_para', nombre: 'Imbatible', sp: 600, desc: 'Sin semanas rojas', tipo: 'mensual', emoji: '🛡️' },
+  { id: 'meta_conquistada', nombre: 'Meta Conquistada', sp: 5, desc: 'Cumple al 100% de la meta de ACV+', umbral: 100, tipo: 'mensual', emoji: '✅' },
+  { id: 'performance_elite', nombre: 'Performance Élite', sp: 7, desc: 'Cumple al 125% de la meta de ACV+', umbral: 125, tipo: 'mensual', emoji: '⚡' },
+  { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 10, desc: 'Cumple al 150% de la meta de ACV+', umbral: 150, tipo: 'mensual', emoji: '🌟' },
 ];
 
 const Retos = () => {
