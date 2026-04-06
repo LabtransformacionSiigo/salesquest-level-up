@@ -1147,6 +1147,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      mes_actual_nombre: { Args: never; Returns: string }
       otorgar_medalla_si_aplica: {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
