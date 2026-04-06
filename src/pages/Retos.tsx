@@ -31,8 +31,9 @@ interface RetoConfig {
 }
 
 const RETOS_DIARIOS: RetoConfig[] = [
-  { id: 'primer_disparo', nombre: 'Primera Venta', sp: 10, desc: 'Registra tu primera venta del día', tipo: 'diario', emoji: '🎯' },
-  { id: 'jornada_redonda', nombre: 'Doble Impacto', sp: 25, desc: 'Más de 1 venta en el día', umbral: 2, tipo: 'diario', emoji: '⚡' },
+  { id: 'siempre_en_la_jugada', nombre: 'Siempre en la jugada', sp: 1, desc: 'Ingresa a la plataforma al menos 1 vez por día', tipo: 'diario', emoji: '🔓' },
+  { id: 'sin_irme_en_0', nombre: 'Sin irme en 0', sp: 1, desc: 'Logra al menos 1 venta en el día', umbral: 1, tipo: 'diario', emoji: '🎯' },
+  { id: 'jornada_redonda', nombre: 'Jornada Redonda', sp: 3, desc: 'Logra 5 ventas en el día', umbral: 5, tipo: 'diario', emoji: '🔥' },
 ];
 
 const RETOS_SEMANALES: RetoConfig[] = [
