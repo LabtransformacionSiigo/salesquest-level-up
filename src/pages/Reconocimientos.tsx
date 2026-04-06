@@ -16,19 +16,16 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const TIPOS_RECONOCIMIENTO = [
-  { id: 'IMPULSO_PAR', nombre: 'Impulso', sp_para: 80, sp_de: 20, desc: 'Destacar cualquier logro de un colega', emoji: '👏' },
-  { id: 'PALABRA_LIDERAZGO', nombre: 'Liderazgo', sp_para: 120, sp_de: 30, desc: 'Reconocer liderazgo en momentos clave', emoji: '🌟' },
-  { id: 'SELLO_EXCELENCIA', nombre: 'Excelencia', sp_para: 200, sp_de: 50, desc: 'El mejor resultado del mes (1 vez/mes)', emoji: '💎' },
-  { id: 'RECONOCIMIENTO_CUMBRE', nombre: 'Cumbre', sp_para: 300, sp_de: 60, desc: 'Para momentos extraordinarios (1 vez/trimestre)', emoji: '🏆' },
+  { id: 'IMPULSO', nombre: 'Impulso', sp_para: 20, sp_de: 5, desc: 'Destaca cualquier logro cotidiano de un Asesor Comercial', emoji: '👏' },
+  { id: 'MANO_AMIGA', nombre: 'Mano Amiga', sp_para: 30, sp_de: 5, desc: 'Ayudó a un compañero sin que nadie se lo pidiera', emoji: '🤝' },
+  { id: 'ESPIRITU_FAMILIAR', nombre: 'Espíritu Familiar', sp_para: 30, sp_de: 5, desc: 'Cuida del equipo como si fuera su familia', emoji: '🏠' },
+  { id: 'VOZ_TRANSPARENTE', nombre: 'Voz Transparente', sp_para: 30, sp_de: 5, desc: 'Tuvo el coraje de dar feedback difícil con empatía', emoji: '🗣️' },
+  { id: 'CHISPA_INNOVACION', nombre: 'Chispa de Innovación', sp_para: 40, sp_de: 5, desc: 'Propuso una nueva forma de hacer las cosas', emoji: '💡' },
+  { id: 'LIDERAZGO', nombre: 'Liderazgo', sp_para: 40, sp_de: 5, desc: 'Tomó las riendas en un momento clave', emoji: '🌟' },
+  { id: 'EXCELENCIA', nombre: 'Excelencia', sp_para: 60, sp_de: 10, desc: 'El mejor resultado individual del mes', emoji: '💎' },
+  { id: 'CIMA', nombre: 'Cima', sp_para: 80, sp_de: 10, desc: 'El más alto honor que un gerente puede otorgar', emoji: '🏆' },
 ];
 
-const getISOWeek = (d: Date) => {
-  const date = new Date(d.getTime());
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-};
 
 const Reconocimientos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
@@ -36,20 +33,18 @@ const Reconocimientos = () => {
   const [asesores, setAsesores] = useState<any[]>([]);
   const [feed, setFeed] = useState<any[]>([]);
   const [sentCount, setSentCount] = useState(0);
-  const [cumbresTrimestre, setCumbresTrimestre] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedGerente, setSelectedGerente] = useState('');
   const [selectedTipo, setSelectedTipo] = useState('');
   const [mensaje, setMensaje] = useState('');
 
-  const currentWeek = getISOWeek(new Date());
   const currentYear = new Date().getFullYear();
-  const trimestre = Math.ceil((new Date().getMonth() + 1) / 3);
-  const trimestreStart = `${currentYear}-${String((trimestre - 1) * 3 + 1).padStart(2, '0')}-01`;
-  const trimestreEnd = trimestre === 4
+  const currentMonth = new Date().getMonth() + 1;
+  const mesStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const mesEnd = currentMonth === 12
     ? `${currentYear + 1}-01-01`
-    : `${currentYear}-${String(trimestre * 3 + 1).padStart(2, '0')}-01`;
+    : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -62,17 +57,15 @@ const Reconocimientos = () => {
       } else {
         colaboradoresPromise = supabase.from('asesores').select('id, nombre, avatar_url').eq('gerente_id', profile.id).eq('activo', true);
       }
-      const [colaboradoresRes, feedRes, countRes, cumbreRes] = await Promise.all([
+      const [colaboradoresRes, feedRes, countRes] = await Promise.all([
         colaboradoresPromise,
         supabase.from('feed_reconocimientos').select('*').limit(20),
-        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('semana_iso', currentWeek).eq('anio', currentYear),
-        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).eq('tipo', 'RECONOCIMIENTO_CUMBRE').gte('created_at', trimestreStart).lt('created_at', trimestreEnd),
+        supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).gte('created_at', mesStart).lt('created_at', mesEnd),
       ]);
       const colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
       setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
-      setCumbresTrimestre(cumbreRes.count || 0);
       setDataLoading(false);
     };
 
@@ -85,27 +78,26 @@ const Reconocimientos = () => {
 
   const handleSend = async () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
-    if (sentCount >= 6) { toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' }); return; }
-    if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) { toast({ title: 'No disponible', description: `Ya usaste tu reconocimiento Cumbre este trimestre.`, variant: 'destructive' }); return; }
+    if (sentCount >= 6) { toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos al mes', variant: 'destructive' }); return; }
     const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === selectedTipo);
     if (!tipo) return;
     setSending(true);
     const isNameOnly = selectedGerente.startsWith('name::');
     const paraName = isNameOnly ? selectedGerente.replace('name::', '') : null;
     const paraId = isNameOnly ? null : selectedGerente;
+    const periodoMes = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
     const { error } = await supabase.from('reconocimientos').insert({
       de_gerente_id: profile.id, para_gerente_id: paraId, para_nombre: paraName,
       tipo: selectedTipo, sp_para: tipo.sp_para, sp_de: tipo.sp_de,
-      semana_iso: currentWeek, anio: currentYear, mensaje: mensaje || null,
+      semana_iso: null, anio: currentYear, mensaje: mensaje || null,
     } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
-      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado` })];
-      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
+      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` })];
+      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
       await Promise.all(spInserts);
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
-      if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
     setSending(false);
@@ -134,7 +126,7 @@ const Reconocimientos = () => {
           ) : (
             <>
               <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-5 text-center shadow-smooth-sm" variants={popIn}>
-                <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
+                <p className="text-sm text-muted-foreground">Reconocimientos este mes</p>
                 <motion.p
                   className="text-3xl font-bold font-scoreboard text-primary mt-1"
                   initial={{ scale: 0 }}
@@ -160,29 +152,23 @@ const Reconocimientos = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-                  <motion.div className="grid grid-cols-2 gap-2" variants={staggerContainer} initial="hidden" animate="show">
-                    {TIPOS_RECONOCIMIENTO.map(tipo => {
-                      const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
-                      return (
+                  <motion.div className="grid grid-cols-4 gap-2" variants={staggerContainer} initial="hidden" animate="show">
+                    {TIPOS_RECONOCIMIENTO.map(tipo => (
                         <motion.button
                           key={tipo.id}
-                          onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
-                          disabled={isCumbreUsed}
+                          onClick={() => setSelectedTipo(tipo.id)}
                           variants={popIn}
-                          whileHover={!isCumbreUsed ? { scale: 1.05, y: -2 } : {}}
-                          whileTap={!isCumbreUsed ? { scale: 0.95 } : {}}
-                          className={cn("p-3 rounded-xl border text-center transition-all text-xs relative",
-                            isCumbreUsed ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
-                              : selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-white text-muted-foreground hover:border-primary/50")}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={cn("p-3 rounded-xl border text-center transition-all text-xs",
+                            selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-white text-muted-foreground hover:border-primary/50")}
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
                           <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
-                          {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive text-white px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
                         </motion.button>
-                      );
-                    })}
+                    ))}
                   </motion.div>
                 </div>
                 <div>
