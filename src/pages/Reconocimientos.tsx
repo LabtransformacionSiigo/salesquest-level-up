@@ -92,19 +92,19 @@ const Reconocimientos = () => {
     const isNameOnly = selectedGerente.startsWith('name::');
     const paraName = isNameOnly ? selectedGerente.replace('name::', '') : null;
     const paraId = isNameOnly ? null : selectedGerente;
+    const periodoMes = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
     const { error } = await supabase.from('reconocimientos').insert({
       de_gerente_id: profile.id, para_gerente_id: paraId, para_nombre: paraName,
       tipo: selectedTipo, sp_para: tipo.sp_para, sp_de: tipo.sp_de,
-      semana_iso: currentWeek, anio: currentYear, mensaje: mensaje || null,
+      semana_iso: null, anio: currentYear, mensaje: mensaje || null,
     } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
-      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} enviado` })];
-      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: `${currentYear}-W${String(currentWeek).padStart(2, '0')}`, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
+      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` })];
+      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
       await Promise.all(spInserts);
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
-      if (selectedTipo === 'RECONOCIMIENTO_CUMBRE') setCumbresTrimestre(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
     setSending(false);
