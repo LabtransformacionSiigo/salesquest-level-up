@@ -11,13 +11,7 @@ interface TopSiigoPointersProps {
 
 const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
 
-const formatMoney = (val: number) => {
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
-  return `$${val}`;
-};
-
-const TopSiigoPointers = ({ canal, loading, isVC, topRanking = [] }: TopSiigoPointersProps) => {
+const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) => {
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
       <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
@@ -32,17 +26,13 @@ const TopSiigoPointers = ({ canal, loading, isVC, topRanking = [] }: TopSiigoPoi
               <span className={`w-10 h-10 rounded-lg ${BADGE_COLORS[i] || 'bg-muted'} text-primary-foreground flex items-center justify-center text-sm font-black font-heading`}>
                 #{i + 1}
               </span>
-              <span className="flex-1 text-sm font-semibold text-foreground truncate">{user.nombre}</span>
-              {isVC ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold font-scoreboard text-primary">{user.pct_cumplimiento}%</span>
-                  <span className="text-xs text-muted-foreground">{formatMoney(user.acv_total)}</span>
-                </div>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary">
-                  🏆 {(user.sp_totales || 0).toLocaleString()} SP
-                </span>
-              )}
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold text-foreground truncate block">{user.nombre}</span>
+                {user.nivel && <span className="text-[11px] text-muted-foreground">{user.nivel}</span>}
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary font-scoreboard">
+                ⚡ {(user.sp_totales || 0).toLocaleString()} SP
+              </span>
             </div>
           ))}
         </div>

@@ -221,10 +221,8 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           /* 7 – product breakdown current month */ isVC
             ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
-          /* 8 – top ranking */
-          isVC
-            ? supabase.from('ranking_vc_gerentes' as any).select('*').order('pct_cumplimiento', { ascending: false }).limit(3)
-            : supabase.from('ranking_general').select('*').eq('canal', profile.canal!).order('sp_totales', { ascending: false }).limit(3),
+          /* 8 – top ranking (always by SP totales) */
+          supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
           /* 9 – team */
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
@@ -283,15 +281,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
         }
 
-        // Format top ranking
-        const topRanking = isVC
-          ? (rankingRes.data || []).map((r: any) => ({
-              id: r.gerente_id, nombre: r.nombre,
-              sp_totales: Math.round(Number(r.pct_cumplimiento) || 0),
-              pct_cumplimiento: Math.round(Number(r.pct_cumplimiento) || 0),
-              acv_total: Number(r.acv_total) || 0,
-            }))
-          : rankingRes.data || [];
+        // Format top ranking — always by SP totales
+        const topRanking = (rankingRes.data || []).map((r: any) => ({
+          id: r.id, nombre: r.nombre,
+          sp_totales: Number(r.sp_totales) || 0,
+          canal: r.canal,
+          nivel: r.nivel,
+        }));
 
         // Format team
         const team = isVC
