@@ -293,7 +293,7 @@ const Rankings = () => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.25, delay: i * 0.04 + 0.3 }}
                       >
-                        <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{g.posicion || i + 4}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground font-scoreboard">{i + 4}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <FlagIcon pais={g.pais} />
