@@ -6,9 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
-import { staggerContainer, fadeUpItem } from '@/lib/animations';
+import { staggerContainer, fadeUpItem, slideInRight, popIn, shimmerLine } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
