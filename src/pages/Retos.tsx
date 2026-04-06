@@ -104,7 +104,8 @@ const Retos = () => {
       const { data: retosData } = await supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id);
       if (cancelled) return;
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-      setAutoCompletados(new Set());
+      const gerenteAuto = new Set<string>();
+      gerenteAuto.add(`siempre_en_la_jugada::${periodoHoy}`);
 
       const { data: ventasHoyData } = await supabase.from('ventas').select('id', { count: 'exact' }).eq('gerente_id', profile.id).eq('fecha_facturacion', todayStr);
       if (cancelled) return;
