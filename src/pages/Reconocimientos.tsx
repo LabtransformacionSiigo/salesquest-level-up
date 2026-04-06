@@ -85,8 +85,7 @@ const Reconocimientos = () => {
 
   const handleSend = async () => {
     if (!profile?.id || !selectedGerente || !selectedTipo) return;
-    if (sentCount >= 6) { toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos por semana', variant: 'destructive' }); return; }
-    if (selectedTipo === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1) { toast({ title: 'No disponible', description: `Ya usaste tu reconocimiento Cumbre este trimestre.`, variant: 'destructive' }); return; }
+    if (sentCount >= 6) { toast({ title: 'Límite alcanzado', description: 'Solo puedes enviar 6 reconocimientos al mes', variant: 'destructive' }); return; }
     const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === selectedTipo);
     if (!tipo) return;
     setSending(true);
