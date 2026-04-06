@@ -133,7 +133,7 @@ const Reconocimientos = () => {
           ) : (
             <>
               <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-5 text-center shadow-smooth-sm" variants={popIn}>
-                <p className="text-sm text-muted-foreground">Reconocimientos esta semana</p>
+                <p className="text-sm text-muted-foreground">Reconocimientos este mes</p>
                 <motion.p
                   className="text-3xl font-bold font-scoreboard text-primary mt-1"
                   initial={{ scale: 0 }}
