@@ -160,28 +160,22 @@ const Reconocimientos = () => {
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
                   <motion.div className="grid grid-cols-2 gap-2" variants={staggerContainer} initial="hidden" animate="show">
-                    {TIPOS_RECONOCIMIENTO.map(tipo => {
-                      const isCumbreUsed = tipo.id === 'RECONOCIMIENTO_CUMBRE' && cumbresTrimestre >= 1;
-                      return (
+                    {TIPOS_RECONOCIMIENTO.map(tipo => (
                         <motion.button
                           key={tipo.id}
-                          onClick={() => !isCumbreUsed && setSelectedTipo(tipo.id)}
-                          disabled={isCumbreUsed}
+                          onClick={() => setSelectedTipo(tipo.id)}
                           variants={popIn}
-                          whileHover={!isCumbreUsed ? { scale: 1.05, y: -2 } : {}}
-                          whileTap={!isCumbreUsed ? { scale: 0.95 } : {}}
-                          className={cn("p-3 rounded-xl border text-center transition-all text-xs relative",
-                            isCumbreUsed ? "border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed"
-                              : selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-white text-muted-foreground hover:border-primary/50")}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={cn("p-3 rounded-xl border text-center transition-all text-xs",
+                            selectedTipo === tipo.id ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-white text-muted-foreground hover:border-primary/50")}
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
                           <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
-                          {isCumbreUsed && <span className="absolute top-1 right-1 text-[8px] bg-destructive text-white px-1.5 py-0.5 rounded-full font-bold">Usado Q{trimestre}</span>}
                         </motion.button>
-                      );
-                    })}
+                    ))}
                   </motion.div>
                 </div>
                 <div>
