@@ -85,8 +85,9 @@ const Retos = () => {
         if (cancelled) return;
         const metrics = snapshot?.metrics;
         const auto = new Set<string>();
-        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`primer_disparo::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 2) auto.add(`jornada_redonda::${periodoHoy}`);
+        auto.add(`siempre_en_la_jugada::${periodoHoy}`);
+        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`sin_irme_en_0::${periodoHoy}`);
+        if ((metrics?.todaySalesCount || 0) >= 5) auto.add(`jornada_redonda::${periodoHoy}`);
         if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
         if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
