@@ -139,8 +139,9 @@ const Retos = () => {
 
   const getProgress = (reto: RetoConfig): { current: number; target: number; pct: number } => {
     if (reto.tipo === 'diario') {
-      if (reto.id === 'primer_disparo') return { current: ventasHoy, target: 1, pct: Math.min(100, ventasHoy * 100) };
-      if (reto.id === 'jornada_redonda') return { current: ventasHoy, target: 2, pct: Math.min(100, (ventasHoy / 2) * 100) };
+      if (reto.id === 'siempre_en_la_jugada') return { current: 1, target: 1, pct: 100 };
+      if (reto.id === 'sin_irme_en_0') return { current: ventasHoy, target: 1, pct: Math.min(100, ventasHoy * 100) };
+      if (reto.id === 'jornada_redonda') return { current: ventasHoy, target: 5, pct: Math.min(100, (ventasHoy / 5) * 100) };
     }
     if (reto.tipo === 'semanal' && reto.umbral) return { current: ventasSemana, target: reto.umbral, pct: Math.min(100, (ventasSemana / reto.umbral) * 100) };
     if (reto.tipo === 'mensual' && reto.umbral) return { current: pctCumplimiento, target: reto.umbral, pct: Math.min(100, (pctCumplimiento / reto.umbral) * 100) };
