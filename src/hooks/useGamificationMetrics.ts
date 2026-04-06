@@ -215,11 +215,11 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             .eq('gerente_id', profile.id)
             .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
             .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
-          /* 6 */ isVC
-            ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).order('anio', { ascending: false }).limit(6)
+          /* 6 – current month ACV */ isVC
+            ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('mes', currentMonthName).eq('anio', anioActual).limit(1)
             : Promise.resolve({ data: [] }),
-          /* 7 */ isVC
-            ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual)
+          /* 7 – product breakdown current month */ isVC
+            ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
           /* 8 – top ranking */
           isVC
@@ -229,12 +229,15 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
             : supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre'),
+          /* 10 – all months ACV for history */ isVC
+            ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -248,26 +251,29 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let upgradesCount = 0;
 
         if (isVC) {
+          // Current month data (from query 6 filtered by currentMonthName)
           const acvRow = acvRows[0];
           acvMes = Number(acvRow?.acv_plus_total) || 0;
           const metaRow = Number(acvRow?.meta_total) || 0;
           pctCumplimiento = metaRow > 0 ? Math.round((acvMes / metaRow) * 100) : 0;
 
-          vcMonthlyCumplimiento = (acvRows as any[]).map((row: any) => {
+          // Current month cumplimiento (NOT sum of all months)
+          vcCumplimiento = { acv: acvMes, meta: metaRow, pct: pctCumplimiento };
+
+          // Monthly history from all months (query 10), sorted newest first
+          const allMonthRows = acvAllMonthsRes.data || [];
+          const monthOrder = [...MONTH_NAMES_ES].reverse();
+          vcMonthlyCumplimiento = (allMonthRows as any[]).map((row: any) => {
             const acv = Number(row.acv_plus_total) || 0;
             const meta = Number(row.meta_total) || 0;
             return { mes: row.mes || 'Unknown', acv, meta, pct: meta > 0 ? Math.round((acv / meta) * 100) : 0 };
-          });
-          const totalAcv = vcMonthlyCumplimiento.reduce((s, m) => s + m.acv, 0);
-          const totalMeta = vcMonthlyCumplimiento.reduce((s, m) => s + m.meta, 0);
-          vcCumplimiento = { acv: totalAcv, meta: totalMeta, pct: totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0 };
+          }).sort((a, b) => monthOrder.indexOf(a.mes) - monthOrder.indexOf(b.mes));
 
+          // Product breakdown (query 7 already filtered by currentMonthName)
           if (productRes.data) {
-            const headlineRow = acvRows.find((row: any) => row.mes === currentMonthName) || acvRows[0];
-            const headlineMonth = headlineRow?.mes || currentMonthName;
-            const filtered = (productRes.data as any[]).filter((r: any) => r.mes === headlineMonth);
+            const items = (productRes.data as any[]);
             productBreakdown = aggregateProductBreakdown(
-              filtered.map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
+              items.map((r: any) => ({ label: r.producto, value: Number(r.acv_total) || 0, units: Number(r.unidades) || 0 }))
             );
             const upgradeRow = productBreakdown.find((r) => r.label.toLowerCase() === 'upgrade');
             upgradesCount = upgradeRow ? Number(upgradeRow.units) || 0 : 0;
