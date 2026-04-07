@@ -1274,6 +1274,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_puntos_canjeables: {
+        Args: { p_amount: number; p_gerente_id: string }
+        Returns: undefined
+      }
       mes_actual_nombre: { Args: never; Returns: string }
       otorgar_medalla_si_aplica: {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
