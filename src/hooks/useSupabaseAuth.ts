@@ -23,6 +23,7 @@ export interface AuthUser extends Gerente {
   sp_nivel_actual: number;
   sp_siguiente_nivel: number | null;
   role: string | null;
+  puntos_canjeables: number;
 }
 
 const NIVELES = [
@@ -108,6 +109,7 @@ export const useSupabaseAuth = () => {
           sp_nivel_actual: 0,
           sp_siguiente_nivel: null,
           role: 'admin',
+          puntos_canjeables: 0,
         });
         setLoading(false);
         return;
@@ -160,6 +162,7 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
+            puntos_canjeables: asesor.puntos_canjeables ?? 0,
           });
         } else {
           setProfile(null);
@@ -192,6 +195,7 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: data.sp_nivel_actual ?? 0,
             sp_siguiente_nivel: data.sp_siguiente_nivel,
             role: userRole,
+            puntos_canjeables: 0,
           });
         } else {
           setProfile(null);
