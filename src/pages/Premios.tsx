@@ -77,6 +77,7 @@ const Premios = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const saldo = profile?.puntos_canjeables || 0;
+  const siigoPoints = profile?.sp_totales || 0;
 
   return (
     <Layout title="🎁 Tienda de Premios">
@@ -87,11 +88,18 @@ const Premios = () => {
           className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-6 text-primary-foreground shadow-smooth"
           variants={fadeUpItem}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm opacity-80">Tu saldo de puntos canjeables</p>
-              <p className="text-4xl font-black font-scoreboard">{saldo.toLocaleString()}</p>
-              <p className="text-xs opacity-60 mt-1">Ganados por medallas, retos y reconocimientos</p>
+          <div className="flex items-center justify-between gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1">
+              <div>
+                <p className="text-sm opacity-80">Tus Siigo Points</p>
+                <p className="text-4xl font-black font-scoreboard">{siigoPoints.toLocaleString()}</p>
+                <p className="text-xs opacity-60 mt-1">Solo cumplimiento de meta</p>
+              </div>
+              <div>
+                <p className="text-sm opacity-80">Tus canjeables</p>
+                <p className="text-4xl font-black font-scoreboard">{saldo.toLocaleString()}</p>
+                <p className="text-xs opacity-60 mt-1">Medallas, retos y reconocimientos</p>
+              </div>
             </div>
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}
@@ -145,7 +153,7 @@ const Premios = () => {
                         <div className="flex items-center justify-between mt-4">
                           <div>
                             <p className="text-lg font-black font-scoreboard text-primary">{premio.costo_puntos.toLocaleString()}</p>
-                            <p className="text-[10px] text-muted-foreground">puntos</p>
+                         <p className="text-[10px] text-muted-foreground">canjeables</p>
                           </div>
                           <div className="text-right">
                             <p className="text-[10px] text-muted-foreground mb-1">Stock: {premio.stock}</p>
@@ -155,7 +163,7 @@ const Premios = () => {
                               onClick={() => handleCanjear(premio)}
                               className={cn(!canAfford && 'opacity-50')}
                             >
-                              {canjeando === premio.id ? '...' : canAfford ? 'Canjear' : 'Sin puntos'}
+                              {canjeando === premio.id ? '...' : canAfford ? 'Canjear' : 'Sin canjeables'}
                             </Button>
                           </div>
                         </div>
@@ -179,7 +187,7 @@ const Premios = () => {
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="text-left px-5 py-3 text-xs font-bold text-muted-foreground uppercase">Premio</th>
-                      <th className="text-center px-5 py-3 text-xs font-bold text-muted-foreground uppercase">Puntos</th>
+                       <th className="text-center px-5 py-3 text-xs font-bold text-muted-foreground uppercase">Canjeables</th>
                       <th className="text-center px-5 py-3 text-xs font-bold text-muted-foreground uppercase">Estado</th>
                       <th className="text-right px-5 py-3 text-xs font-bold text-muted-foreground uppercase">Fecha</th>
                     </tr>

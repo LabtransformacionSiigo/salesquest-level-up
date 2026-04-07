@@ -122,7 +122,7 @@ const MiPerformance = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
               >
-                <div className="text-right" title="Solo cumplimiento de meta">
+                <div className="text-right" title="Siigo Points · Solo cumplimiento de meta">
                   <div className="flex items-baseline gap-1.5">
                     <motion.span
                       className="text-lg"
@@ -131,9 +131,9 @@ const MiPerformance = () => {
                     >⚡</motion.span>
                     <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                   </div>
-                  <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SP RANKING</p>
+                  <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
                 </div>
-                <div className="text-right border-l border-white/20 pl-6" title="Medallas, retos y reconocimientos">
+                <div className="text-right border-l border-white/20 pl-6" title="Puntos canjeables · Medallas, retos y reconocimientos">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg">🎁</span>
                     <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />

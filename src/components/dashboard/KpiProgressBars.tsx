@@ -56,7 +56,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
           <span className="text-primary">⚡</span> Nivel Actual
         </h3>
-        <p className="text-xs text-muted-foreground mb-6">Progresión de gemas por SP Ranking (cumplimiento)</p>
+        <p className="text-xs text-muted-foreground mb-6">Progresión de gemas por Siigo Points de cumplimiento</p>
 
         {/* Current level badge */}
         <div className="flex items-center gap-5 mb-8">
@@ -70,7 +70,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <div>
             <p className="text-3xl font-black font-heading text-foreground">{nivelActual.nombre}</p>
             <p className="text-sm text-muted-foreground font-semibold">
-              <span className="font-scoreboard text-primary text-xl">{sp.toLocaleString()}</span> SP Ranking
+                <span className="font-scoreboard text-primary text-xl">{sp.toLocaleString()}</span> Siigo Points
             </p>
           </div>
         </div>

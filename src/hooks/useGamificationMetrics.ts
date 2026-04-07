@@ -230,12 +230,14 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           /* 10 – all months ACV for history */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
+          /* 11 – canjeables map for top ranking */
+          supabase.from('gerentes').select('id, puntos_canjeables'),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -282,9 +284,15 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         }
 
         // Format top ranking — always by SP totales
+        const canjeablesMap = new Map<string, number>();
+        (canjeablesRes.data || []).forEach((row: any) => {
+          if (row.id) canjeablesMap.set(row.id, Number(row.puntos_canjeables) || 0);
+        });
+
         const topRanking = (rankingRes.data || []).map((r: any) => ({
           id: r.id, nombre: r.nombre,
           sp_totales: Number(r.sp_totales) || 0,
+          puntos_canjeables: canjeablesMap.get(r.id) || 0,
           canal: r.canal,
           nivel: r.nivel,
         }));
