@@ -25,6 +25,7 @@ export type Database = {
           id: string
           nombre: string
           pais: string | null
+          puntos_canjeables: number
           user_id: string | null
         }
         Insert: {
@@ -37,6 +38,7 @@ export type Database = {
           id?: string
           nombre: string
           pais?: string | null
+          puntos_canjeables?: number
           user_id?: string | null
         }
         Update: {
@@ -49,6 +51,7 @@ export type Database = {
           id?: string
           nombre?: string
           pais?: string | null
+          puntos_canjeables?: number
           user_id?: string | null
         }
         Relationships: [
@@ -92,6 +95,83 @@ export type Database = {
             columns: ["gerente_id"]
             isOneToOne: false
             referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canjes: {
+        Row: {
+          estado: string
+          fecha_canje: string
+          gerente_id: string
+          id: string
+          premio_id: string
+          puntos_gastados: number
+        }
+        Insert: {
+          estado?: string
+          fecha_canje?: string
+          gerente_id: string
+          id?: string
+          premio_id: string
+          puntos_gastados: number
+        }
+        Update: {
+          estado?: string
+          fecha_canje?: string
+          gerente_id?: string
+          id?: string
+          premio_id?: string
+          puntos_gastados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canjes_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canjes_premio_id_fkey"
+            columns: ["premio_id"]
+            isOneToOne: false
+            referencedRelation: "premios"
             referencedColumns: ["id"]
           },
         ]
@@ -182,6 +262,7 @@ export type Database = {
           lider: string | null
           nombre: string
           pais: string | null
+          puntos_canjeables: number
           user_id: string | null
         }
         Insert: {
@@ -194,6 +275,7 @@ export type Database = {
           lider?: string | null
           nombre: string
           pais?: string | null
+          puntos_canjeables?: number
           user_id?: string | null
         }
         Update: {
@@ -206,6 +288,7 @@ export type Database = {
           lider?: string | null
           nombre?: string
           pais?: string | null
+          puntos_canjeables?: number
           user_id?: string | null
         }
         Relationships: []
@@ -398,6 +481,39 @@ export type Database = {
           mensaje?: string | null
           tipo?: string
           titulo?: string
+        }
+        Relationships: []
+      }
+      premios: {
+        Row: {
+          activo: boolean
+          costo_puntos: number
+          created_at: string
+          descripcion: string | null
+          id: string
+          imagen_url: string | null
+          nombre: string
+          stock: number
+        }
+        Insert: {
+          activo?: boolean
+          costo_puntos: number
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          imagen_url?: string | null
+          nombre: string
+          stock?: number
+        }
+        Update: {
+          activo?: boolean
+          costo_puntos?: number
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          imagen_url?: string | null
+          nombre?: string
+          stock?: number
         }
         Relationships: []
       }
@@ -1146,6 +1262,10 @@ export type Database = {
         Returns: number
       }
       calcular_sp_cop: { Args: { ingresos_cop: number }; Returns: number }
+      canjear_premio: {
+        Args: { p_gerente_id: string; p_premio_id: string }
+        Returns: Json
+      }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
