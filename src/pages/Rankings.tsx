@@ -46,10 +46,11 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const [comRes, gerentesRes, spComRes] = await Promise.all([
+        const [comRes, gerentesRes, spComRes, asesoresRes] = await Promise.all([
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
           supabase.from('sp_acumulados_comerciales' as any).select('nombre, sp_totales'),
+          supabase.from('asesores').select('nombre, puntos_canjeables').eq('canal', 'VC'),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
@@ -58,6 +59,10 @@ const Rankings = () => {
         const spByComercial = new Map<string, number>();
         (spComRes.data || []).forEach((s: any) => {
           if (s.nombre) spByComercial.set(s.nombre, Number(s.sp_totales) || 0);
+        });
+        const canjeablesByComercial = new Map<string, number>();
+        (asesoresRes.data || []).forEach((a: any) => {
+          if (a.nombre) canjeablesByComercial.set(normalizePersonName(a.nombre), Number(a.puntos_canjeables) || 0);
         });
         const currentName = normalizePersonName(profile?.nombre);
         const mapped = (comRes.data || []).map((r: any) => ({
@@ -72,6 +77,7 @@ const Rankings = () => {
           posicion: r.posicion,
           canal: 'VC',
           pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
+          puntos_canjeables: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
           nivel: null,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         }));
@@ -79,13 +85,18 @@ const Rankings = () => {
         setRanking(mapped.filter(r => r.pais === userPais));
       } else {
         // Gerentes VC — filter by user's country
-        const [vcGerentesRes, spRes] = await Promise.all([
+        const [vcGerentesRes, spRes, gerentesRes] = await Promise.all([
           supabase.from('ranking_vc_gerentes' as any).select('*').eq('pais', userPais),
           supabase.from('ranking_general').select('id, sp_totales, nivel, user_id, avatar_url').eq('canal', 'VC'),
+          supabase.from('gerentes').select('id, puntos_canjeables').eq('canal', 'VC').eq('pais', userPais),
         ]);
         const spMap = new Map<string, any>();
         (spRes.data || []).forEach((s: any) => {
           if (s.id) spMap.set(s.id, s);
+        });
+        const canjeablesMap = new Map<string, number>();
+        (gerentesRes.data || []).forEach((g: any) => {
+          if (g.id) canjeablesMap.set(g.id, Number(g.puntos_canjeables) || 0);
         });
         const mapped = (vcGerentesRes.data || []).map((r: any) => {
           const sp = spMap.get(r.gerente_id);
@@ -98,6 +109,7 @@ const Rankings = () => {
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
             sp_totales: sp?.sp_totales || 0,
+            puntos_canjeables: canjeablesMap.get(r.gerente_id) || 0,
             nivel: sp?.nivel || null,
             user_id: sp?.user_id || null,
             avatar_url: sp?.avatar_url || null,
@@ -107,18 +119,24 @@ const Rankings = () => {
         setRanking(mapped);
       }
     } else {
-      const [rankRes, kpiRes] = await Promise.all([
+      const [rankRes, kpiRes, gerentesRes] = await Promise.all([
         supabase.from('ranking_general').select('*').eq('canal', profile.canal).eq('pais', userPais),
         supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', profile.canal),
+        supabase.from('gerentes').select('id, puntos_canjeables').eq('canal', profile.canal).eq('pais', userPais),
       ]);
       const kpiMap = new Map<string, { acv: number; units: number }>();
       (kpiRes.data || []).forEach((k: any) => {
         if (k.gerente_id) kpiMap.set(k.gerente_id, { acv: Number(k.acv_f) || 0, units: Number(k.sc_creados) || 0 });
       });
+      const canjeablesMap = new Map<string, number>();
+      (gerentesRes.data || []).forEach((g: any) => {
+        if (g.id) canjeablesMap.set(g.id, Number(g.puntos_canjeables) || 0);
+      });
       setRanking((rankRes.data || []).map((r: any) => ({
         ...r,
         kpi_value: kpiMap.get(r.id)?.acv || 0,
         units: kpiMap.get(r.id)?.units || 0,
+        puntos_canjeables: canjeablesMap.get(r.id) || 0,
       })));
     }
     setDataLoading(false);
@@ -215,9 +233,15 @@ const Rankings = () => {
                           transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
                         >⚡</motion.span>
                         <AnimatedCounter value={g.sp_totales || 0} className="text-3xl font-black font-scoreboard text-primary" duration={1.2} />
-                        <span className="text-xs font-bold text-primary/70 font-scoreboard">SP Ranking</span>
+                        <span className="text-xs font-bold text-primary/70 font-scoreboard">Siigo Points</span>
                       </div>
                     </motion.div>
+
+                    <div className="mt-2 flex justify-center">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
+                        🎁 {(g.puntos_canjeables || 0).toLocaleString()} <span className="text-[10px] text-accent/70">Canjeables</span>
+                      </span>
+                    </div>
 
                     {/* Secondary metrics */}
                     <div className="flex items-center justify-center gap-3 text-xs">
@@ -265,7 +289,8 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      <th className="text-right px-4 py-3">⚡ SP Ranking</th>
+                      <th className="text-right px-4 py-3">⚡ Siigo Points</th>
+                      <th className="text-right px-4 py-3">🎁 Canjeables</th>
                       {(isComercialTab || isGerentesVCTab) && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
@@ -305,7 +330,10 @@ const Rankings = () => {
                         {/* SP Ranking — prominent */}
                         <td className="px-4 py-3 text-right">
                           <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
-                          <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">SP</span>
+                          <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-sm font-black font-scoreboard text-accent">{(g.puntos_canjeables || 0).toLocaleString()}</span>
                         </td>
                         {(isComercialTab || isGerentesVCTab) && (
                           <>

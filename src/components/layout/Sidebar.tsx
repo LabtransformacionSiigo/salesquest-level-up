@@ -77,11 +77,11 @@ const Sidebar = () => {
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
               whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
-              title="SP Ranking · Solo cumplimiento de meta"
+              title="Siigo Points · Solo cumplimiento de meta"
             >
               <MI icon="leaderboard" className="text-sidebar-primary text-lg" />
               <span className="text-base font-bold font-scoreboard text-sidebar-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
-              <span className="text-xs text-sidebar-muted font-medium">SP Ranking</span>
+              <span className="text-xs text-sidebar-muted font-medium">Siigo Points</span>
             </motion.div>
             <motion.div 
               className="mt-2 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2"
@@ -90,7 +90,7 @@ const Sidebar = () => {
             >
               <MI icon="redeem" className="text-accent text-lg" />
               <span className="text-sm font-bold font-scoreboard text-accent">{(profile?.puntos_canjeables || 0).toLocaleString()}</span>
-              <span className="text-xs text-sidebar-muted font-medium">🎁 Canjeables</span>
+              <span className="text-xs text-sidebar-muted font-medium">Canjeables</span>
             </motion.div>
           </>
         )}

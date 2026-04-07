@@ -108,11 +108,11 @@ const Dashboard = () => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4, type: 'spring', stiffness: 200, damping: 15 }}
             >
-              <div className="text-right" title="Solo cumplimiento de meta">
+              <div className="text-right" title="Siigo Points · Solo cumplimiento de meta">
                 <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
-                <p className="text-xs text-white/60 font-scoreboard uppercase">⚡ SP Ranking</p>
+                <p className="text-xs text-white/60 font-scoreboard uppercase">⚡ Siigo Points</p>
               </div>
-              <div className="text-right border-l border-white/20 pl-6" title="Medallas, retos y reconocimientos">
+              <div className="text-right border-l border-white/20 pl-6" title="Puntos canjeables · Medallas, retos y reconocimientos">
                 <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white" duration={1.5} />
                 <p className="text-xs text-white/60 font-scoreboard uppercase">🎁 Canjeables</p>
               </div>

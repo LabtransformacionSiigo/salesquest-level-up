@@ -15,9 +15,9 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
       <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-        <span className="text-primary">🏆</span> Top Siigo Pointers
+        <span className="text-primary">🏆</span> Top Siigo Points
       </h3>
-      <p className="text-xs text-muted-foreground mb-5">Ranking por cumplimiento de meta</p>
+      <p className="text-xs text-muted-foreground mb-5">Ranking por cumplimiento de meta con saldo canjeable visible</p>
       {loading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : topRanking.length > 0 ? (
@@ -31,9 +31,14 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
                 <span className="text-sm font-semibold text-foreground truncate block">{user.nombre}</span>
                 {user.nivel && <span className="text-[11px] text-muted-foreground">{user.nivel}</span>}
               </div>
-              <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary font-scoreboard">
-                ⚡ {(user.sp_totales || 0).toLocaleString()} <span className="text-[10px] text-primary/60">SP Ranking</span>
-              </span>
+              <div className="ml-auto flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary font-scoreboard">
+                  ⚡ {(user.sp_totales || 0).toLocaleString()} <span className="text-[10px] text-primary/60">Siigo Points</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold border border-border rounded-full px-3 py-1 text-accent font-scoreboard">
+                  🎁 {(user.puntos_canjeables || 0).toLocaleString()} <span className="text-[10px] text-accent/70">Canjeables</span>
+                </span>
+              </div>
             </div>
           ))}
         </div>
