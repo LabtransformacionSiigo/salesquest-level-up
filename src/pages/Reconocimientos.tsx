@@ -93,24 +93,15 @@ const Reconocimientos = () => {
     } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
-      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` })];
+      const promises: Promise<any>[] = [
+        supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` }),
+        supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: profile.id, p_amount: tipo.sp_de }),
+      ];
       if (paraId) {
-        spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` }));
-        // Credit redeemable points to recipient
-        spInserts.push(supabase.from('gerentes').update({ puntos_canjeables: (profile?.puntos_canjeables || 0) + tipo.sp_de } as any).eq('id', profile.id) as any);
-        spInserts.push(supabase.rpc('canjear_premio', { p_gerente_id: 'skip', p_premio_id: 'skip' }) as any); // skip - handled below
+        promises.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` }));
+        promises.push(supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }));
       }
-      // Credit canjeables: sender gets sp_de, recipient gets sp_para
-      const updatePromises: Promise<any>[] = [...spInserts.slice(0, paraId ? 2 : 1)];
-      // Update sender puntos_canjeables
-      updatePromises.push(supabase.from('gerentes').update({ puntos_canjeables: (profile?.puntos_canjeables || 0) + tipo.sp_de } as any).eq('id', profile.id) as any);
-      if (paraId) {
-        // Update recipient puntos_canjeables via raw update
-        updatePromises.push(
-          supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }) as any
-        );
-      }
-      await Promise.all(updatePromises);
+      await Promise.all(promises);
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
