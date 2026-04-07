@@ -1,64 +1,110 @@
 
 
-# Plan: Corregir métricas mensuales en Dashboard, Mi Performance y Rankings
+## Plan: Separación de Puntos (Ranking vs Canjeables) y Sistema de Premios
 
-## Problemas identificados
+### Resumen
 
-1. **Dashboard muestra 79% incorrecto**: El `vcCumplimiento` suma TODOS los meses (ACV total / Meta total), en vez de mostrar solo el mes actual (Abril).
+Separar el sistema de puntos en dos bolsas independientes: **puntos de ranking** (basados en cumplimiento de meta, intocables) y **puntos canjeables** (ganados por medallas, retos, rachas, reconocimientos — gastables en premios). Crear un catálogo de premios con sistema de canje y administración.
 
-2. **Mi Performance - ACV+ muestra $1202.5M**: `vcHeadlineValue` usa `acvData[0]` que toma el primer resultado de `acv_vc_mensual` ordenado por `anio DESC` sin filtrar por mes actual. Muestra datos de cualquier mes.
+---
 
-3. **Mi Performance - Unidades incorrectas**: Mismo problema, toma unidades del primer registro que no necesariamente es Abril.
+### 1. Cambios en Base de Datos (Migración)
 
-4. **Cumplimiento por Mes desordenado**: No está ordenado de más reciente a más antiguo.
+**Nueva columna en `gerentes`:**
+- `puntos_canjeables` (integer, default 0) — saldo actual de puntos canjeables
 
-5. **Rankings - SP = 0 para Nerli/Adelia**: El ranking de comerciales busca SP por nombre de gerente en `ranking_general`, pero Adelia tiene 0 SP en `sp_acumulados`. Esto indica que el motor `calcular-sp-semanal` no le ha otorgado puntos a este gerente.
+**Nueva columna en `asesores`:**
+- `puntos_canjeables` (integer, default 0)
 
-6. **Desglose por producto muestra todos los meses**: El hook filtra por `headlineMonth` pero si ese valor es incorrecto, muestra datos equivocados.
+**Nueva tabla `premios`:**
+- `id` (uuid, PK), `nombre` (text), `descripcion` (text), `costo_puntos` (int), `imagen_url` (text), `stock` (int), `activo` (boolean, default true), `created_at` (timestamp)
+- RLS: SELECT para authenticated, ALL para admins
 
-## Cambios a realizar
+**Nueva tabla `canjes`:**
+- `id` (uuid, PK), `gerente_id` (uuid, FK → gerentes), `premio_id` (uuid, FK → premios), `puntos_gastados` (int), `fecha_canje` (timestamp), `estado` (text, default 'pendiente' — valores: pendiente, entregado, cancelado)
+- RLS: SELECT propios registros, INSERT propio gerente_id, admins ALL
 
-### 1. Hook `useGamificationMetrics.ts` — Filtrar por mes actual
+**Nueva función `canjear_premio`** (SECURITY DEFINER):
+- Valida stock > 0 y puntos_canjeables >= costo
+- Resta puntos_canjeables del gerente/asesor
+- Resta stock del premio
+- Inserta registro en canjes
+- Retorna éxito o error
 
-**Gerente VC path (query 6):**
-- Añadir filtro `.eq('mes', currentMonthName)` a la query de `acv_vc_mensual` para obtener solo datos de Abril.
-- Cambiar `vcHeadlineValue` para usar solo el mes actual, no `totalAcv`.
+**Backfill**: Calcular `puntos_canjeables` iniciales sumando SP de fuentes MEDALLA, RETO, RECONOCIMIENTO, RACHA desde `sp_acumulados` (menos canjes ya hechos, si los hubiera).
 
-**Gerente VC path (query 7):**  
-- Añadir filtro `.eq('mes', currentMonthName)` a la query de `desglose_producto_vc`.
+---
 
-**`vcCumplimiento`:**
-- Calcular el % de cumplimiento solo con datos del mes actual (no sumando todos los meses).
+### 2. Lógica de Gamificación (Backend)
 
-**`vcMonthlyCumplimiento`:**
-- Seguir trayendo todos los meses para el historial, pero ordenar de más reciente a más antiguo.
+**`calcular-sp-semanal` edge function:**
+- Los SP por CUMPLIMIENTO_META siguen igual → solo ranking
+- Al otorgar medallas (`otorgar_medalla_si_aplica`), además de insertar en `sp_acumulados`, sumar los SP a `puntos_canjeables` del gerente
+- Modificar la función DB `otorgar_medalla_si_aplica` para que también haga `UPDATE gerentes SET puntos_canjeables = puntos_canjeables + p_sp`
 
-**VC Advisor path:**
-- Aplicar la misma lógica: filtrar `ventasMetaRes` por mes actual para headline, y mantener historial completo ordenado.
+**Triggers de nivel (`notify_nivel_cambio`):** Se mantienen basados en `sp_acumulados` total (ranking + canjeables acumulados históricamente).
 
-### 2. `MiPerformance.tsx` — Corregir headline y orden
+**Retos completados** (`Retos.tsx`): Al completar un reto, además del insert en `sp_acumulados`, sumar SP a `puntos_canjeables`.
 
-- `vcHeadlineValue`: Usar `acvMes` (que vendrá filtrado por mes actual desde el hook).
-- `vcUnitsTotal`: Usar `unidades` del hook (filtrado por mes actual).
-- `vcMonthlyCumplimiento`: Ordenar por índice de mes (más reciente primero).
+**Reconocimientos** (`Reconocimientos.tsx`): Al enviar reconocimiento, sumar `sp_para` a `puntos_canjeables` del destinatario.
 
-### 3. `Rankings.tsx` — SP de comerciales
+---
 
-- Para comerciales VC, el SP debe venir del gerente asociado o calcularse. El problema es que Adelia tiene 0 en `sp_acumulados`. Esto requiere que el motor SP haya corrido correctamente para ella.
-- Verificar si el motor `calcular-sp-semanal` cubre a todos los gerentes VC activos.
+### 3. Cambios en Auth/Profile Hook
 
-### 4. `Dashboard.tsx` — % Cumplimiento del mes actual
+**`useSupabaseAuth.ts`:**
+- Añadir `puntos_canjeables` al tipo `AuthUser`
+- Para gerentes: leer desde `gerentes.puntos_canjeables`
+- Para asesores: leer desde `asesores.puntos_canjeables`
+- Exponer en el profile para uso en UI
 
-- `pctCumplimiento` ya viene del hook; asegurar que refleje solo Abril tras el fix del hook.
+---
 
-## Resumen técnico de ediciones
+### 4. Interfaz de Usuario
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/hooks/useGamificationMetrics.ts` | Filtrar `acv_vc_mensual` y `desglose_producto_vc` por mes actual; calcular `vcCumplimiento` solo con mes actual; ordenar `vcMonthlyCumplimiento` de reciente a antiguo |
-| `src/pages/MiPerformance.tsx` | Usar `acvMes` para headline; ordenar historial cumplimiento; usar `unidades` del hook |
-| `src/pages/Dashboard.tsx` | Sin cambios necesarios (hereda fix del hook) |
-| `src/pages/Rankings.tsx` | Sin cambios necesarios (las vistas ya filtran por `mes_actual_nombre()`) |
+**Sidebar (`Sidebar.tsx`):**
+- Añadir ítem "Premios" (icon: `redeem`) en menú regular
+- Añadir ítem "Premios" (icon: `storefront`) en menú admin
 
-El problema de SP = 0 para algunos gerentes es un problema de datos: el motor de cálculo de SP no ha procesado a esos gerentes. Después de implementar estos cambios, se recomienda ejecutar una sincronización completa desde Admin → Databricks para recalcular los SP de todos.
+**Header (`Header.tsx`):**
+- Mostrar dos badges: SP ranking y puntos canjeables con iconos distintos
+
+**Dashboard (`Dashboard.tsx`):**
+- Mostrar ambos saldos en el banner/resumen
+
+**Nueva página `Premios.tsx`:**
+- Catálogo con tarjetas: imagen, nombre, descripción, costo, botón "Canjear"
+- Validación de saldo suficiente antes de canjear
+- Historial de canjes del usuario
+- Animación de confirmación al canjear
+
+**Nueva página `AdminPremios.tsx`:**
+- CRUD de premios (nombre, descripción, costo, imagen URL, stock)
+- Lista de canjes pendientes con opción de marcar como "entregado"
+- Protegida con `AdminRoute`
+
+**Rankings (`Rankings.tsx`):**
+- Sin cambios — sigue ordenando por SP totales de cumplimiento (ya usa `sp_totales` de la vista `ranking_general`)
+
+**Rutas (`App.tsx`):**
+- Añadir `/premios` → `<Premios />`
+- Añadir `/admin/premios` → `<AdminRoute><AdminPremios /></AdminRoute>`
+
+---
+
+### 5. Archivos a crear/modificar
+
+| Archivo | Acción |
+|---|---|
+| Migración SQL | Crear tablas `premios`, `canjes`, columnas `puntos_canjeables`, función `canjear_premio`, backfill |
+| `src/pages/Premios.tsx` | Crear |
+| `src/pages/admin/AdminPremios.tsx` | Crear |
+| `src/App.tsx` | Añadir rutas |
+| `src/components/layout/Sidebar.tsx` | Añadir ítems de menú |
+| `src/components/layout/Header.tsx` | Mostrar ambos saldos |
+| `src/hooks/useSupabaseAuth.ts` | Añadir `puntos_canjeables` al profile |
+| `src/pages/Retos.tsx` | Al completar reto, actualizar `puntos_canjeables` |
+| `src/pages/Reconocimientos.tsx` | Al enviar reconocimiento, actualizar `puntos_canjeables` |
+| `supabase/functions/calcular-sp-semanal/index.ts` | No cambios directos (medallas ya usan la función DB) |
+| Función DB `otorgar_medalla_si_aplica` | Añadir UPDATE a `puntos_canjeables` |
 
