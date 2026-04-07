@@ -32,7 +32,7 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
                 {user.nivel && <span className="text-[11px] text-muted-foreground">{user.nivel}</span>}
               </div>
               <span className="inline-flex items-center gap-1.5 text-sm font-bold border border-border rounded-full px-4 py-1.5 text-primary font-scoreboard">
-                ⚡ {(user.sp_totales || 0).toLocaleString()} SP
+                ⚡ {(user.sp_totales || 0).toLocaleString()} <span className="text-[10px] text-primary/60">SP Ranking</span>
               </span>
             </div>
           ))}
