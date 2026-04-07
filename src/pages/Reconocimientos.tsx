@@ -102,7 +102,7 @@ const Reconocimientos = () => {
         promises.push(supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }).then());
       }
       await Promise.all(promises);
-      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} canjeables para ti, +${tipo.sp_para} canjeables para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
