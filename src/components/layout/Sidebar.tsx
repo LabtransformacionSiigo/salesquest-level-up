@@ -17,6 +17,7 @@ const menuItems = [
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/retos', icon: 'flag', label: 'Retos' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
+  { path: '/premios', icon: 'redeem', label: 'Premios' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
 
@@ -26,6 +27,7 @@ const adminItems = [
   { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
+  { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
 ];
 
@@ -71,14 +73,24 @@ const Sidebar = () => {
           </div>
         </div>
         {!isAdmin && (
-          <motion.div 
-            className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
-            whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
-          >
-            <MI icon="bolt" className="text-sidebar-primary text-lg" />
-            <span className="text-base font-bold font-scoreboard text-sidebar-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
-            <span className="text-sm text-sidebar-muted font-medium">SP</span>
-          </motion.div>
+          <>
+            <motion.div 
+              className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
+              whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
+            >
+              <MI icon="bolt" className="text-sidebar-primary text-lg" />
+              <span className="text-base font-bold font-scoreboard text-sidebar-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
+              <span className="text-sm text-sidebar-muted font-medium">SP</span>
+            </motion.div>
+            <motion.div 
+              className="mt-2 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2"
+              whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
+            >
+              <MI icon="redeem" className="text-accent text-lg" />
+              <span className="text-sm font-bold font-scoreboard text-accent">{(profile?.puntos_canjeables || 0).toLocaleString()}</span>
+              <span className="text-xs text-sidebar-muted font-medium">Canjeables</span>
+            </motion.div>
+          </>
         )}
       </motion.div>
 
