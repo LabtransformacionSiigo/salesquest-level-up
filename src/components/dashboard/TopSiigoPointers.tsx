@@ -14,9 +14,10 @@ const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
 const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) => {
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
-      <h3 className="text-base font-bold font-heading text-secondary mb-5 flex items-center gap-2">
+      <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
         <span className="text-primary">🏆</span> Top Siigo Pointers
       </h3>
+      <p className="text-xs text-muted-foreground mb-5">Ranking por cumplimiento de meta</p>
       {loading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : topRanking.length > 0 ? (

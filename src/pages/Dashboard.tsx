@@ -108,13 +108,13 @@ const Dashboard = () => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4, type: 'spring', stiffness: 200, damping: 15 }}
             >
-              <div className="text-right">
+              <div className="text-right" title="Solo cumplimiento de meta">
                 <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
-                <p className="text-xs text-white/60 font-scoreboard uppercase">Siigo Points</p>
+                <p className="text-xs text-white/60 font-scoreboard uppercase">⚡ SP Ranking</p>
               </div>
-              <div className="text-right border-l border-white/20 pl-6">
+              <div className="text-right border-l border-white/20 pl-6" title="Medallas, retos y reconocimientos">
                 <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white" duration={1.5} />
-                <p className="text-xs text-white/60 font-scoreboard uppercase">Canjeables</p>
+                <p className="text-xs text-white/60 font-scoreboard uppercase">🎁 Canjeables</p>
               </div>
             </motion.div>
           </div>
@@ -197,7 +197,7 @@ const Dashboard = () => {
                     >
                       <p className="text-sm font-bold text-foreground mb-1">{reto.nombre}</p>
                       <p className="text-xs text-muted-foreground mb-4">
-                        <span className="text-primary font-scoreboard font-bold">⚡ {reto.sp} SP</span>
+                        <span className="text-accent font-scoreboard font-bold">🎁 {reto.sp} Canjeables</span>
                       </p>
                       <DonutChart
                         value={ventasSemana}
@@ -254,7 +254,7 @@ const Dashboard = () => {
                       >🏅</motion.span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{m.medalla}</p>
-                        <p className="text-xs font-bold font-scoreboard text-accent">+{m.sp_otorgados} SP</p>
+                        <p className="text-xs font-bold font-scoreboard text-accent">🎁 +{m.sp_otorgados} Canjeables</p>
                       </div>
                     </motion.div>
                   ))}

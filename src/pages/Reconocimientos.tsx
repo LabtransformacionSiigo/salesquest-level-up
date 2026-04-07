@@ -102,7 +102,7 @@ const Reconocimientos = () => {
         promises.push(supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }).then());
       }
       await Promise.all(promises);
-      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} canjeables para ti, +${tipo.sp_para} canjeables para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
@@ -172,7 +172,7 @@ const Reconocimientos = () => {
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block">{tipo.nombre}</span>
-                          <span className="text-[9px] text-muted-foreground block font-scoreboard">+{tipo.sp_para} SP</span>
+                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para}</span>
                         </motion.button>
                     ))}
                   </motion.div>
@@ -231,7 +231,7 @@ const Reconocimientos = () => {
                         <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
                         {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
                         <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] text-accent font-semibold font-scoreboard">+{r.sp_para} SP</span>
+                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} Canjeables</span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>

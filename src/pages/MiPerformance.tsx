@@ -130,7 +130,7 @@ const MiPerformance = () => {
                   >⚡</motion.span>
                   <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                 </div>
-                <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
+                <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SP RANKING</p>
               </motion.div>
             </div>
           </motion.div>
