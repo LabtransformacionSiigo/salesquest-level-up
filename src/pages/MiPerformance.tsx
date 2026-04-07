@@ -202,6 +202,48 @@ const MiPerformance = () => {
                     </>
                   )}
 
+                  {/* Historial Mensual: ACV vs Meta */}
+                  {vcMonthlyCumplimiento.length > 0 && (
+                    <>
+                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta por mes, con % de cumplimiento." />
+                      <motion.div className="bg-white border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
+                              <th className="text-left px-4 py-3">Mes</th>
+                              <th className="text-right px-4 py-3">ACV+</th>
+                              <th className="text-right px-4 py-3">Meta</th>
+                              <th className="text-right px-4 py-3">% Cumpl.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vcMonthlyCumplimiento.map((m, i) => (
+                              <motion.tr
+                                key={m.mes}
+                                className="border-b border-border hover:bg-primary/5 transition-colors"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
+                              >
+                                <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
+                                <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
+                                <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(m.meta)}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <span className={cn(
+                                    "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
+                                    m.pct >= 100 ? "bg-green-100 text-green-700" : m.pct >= 70 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
+                                  )}>
+                                    {m.pct}%
+                                  </span>
+                                </td>
+                              </motion.tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </motion.div>
+                    </>
+                  )}
+
                 </>
               )}
 
