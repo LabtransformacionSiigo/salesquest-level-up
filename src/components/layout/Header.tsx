@@ -68,13 +68,13 @@ const Header = ({ title }: HeaderProps) => {
             className="hidden md:flex items-center gap-3"
             whileHover={{ scale: 1.05 }}
           >
-            <div className="flex items-center gap-1.5 bg-primary rounded-full px-3 py-1.5">
-              <MI icon="bolt" className="text-sm text-primary-foreground" />
+            <div className="flex items-center gap-1.5 bg-primary rounded-full px-3 py-1.5" title="SP Ranking · Solo cumplimiento de meta">
+              <MI icon="leaderboard" className="text-sm text-primary-foreground" />
               <span className="text-xs font-bold text-primary-foreground font-scoreboard">{(profile?.sp_totales || 0).toLocaleString()} SP</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5">
+            <div className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5" title="Puntos canjeables · Medallas, retos y reconocimientos">
               <MI icon="redeem" className="text-sm text-accent-foreground" />
-              <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.puntos_canjeables || 0).toLocaleString()}</span>
+              <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.puntos_canjeables || 0).toLocaleString()} 🎁</span>
             </div>
           </motion.div>
         )}

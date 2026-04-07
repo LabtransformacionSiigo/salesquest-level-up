@@ -202,7 +202,8 @@ const Retos = () => {
             <motion.span
               className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}
               animate={completed ? { scale: [1, 1.15, 1] } : {}}
-            >{completed ? `+${reto.sp}` : reto.sp} SP</motion.span>
+              title="Se suman a puntos canjeables"
+            >🎁 {completed ? `+${reto.sp}` : reto.sp}</motion.span>
           </div>
         </div>
 

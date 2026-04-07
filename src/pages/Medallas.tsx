@@ -157,8 +157,8 @@ const Medallas = () => {
                             {medalla.producto}
                           </span>
                         )}
-                        <span className="inline-block text-[10px] font-semibold font-scoreboard bg-accent text-white px-2 py-0.5 rounded-full mb-2 relative z-10">
-                          +{medalla.sp} SP
+                        <span className="inline-block text-[10px] font-semibold font-scoreboard bg-accent text-white px-2 py-0.5 rounded-full mb-2 relative z-10" title="Se suman a puntos canjeables">
+                          🎁 +{medalla.sp} Canjeables
                         </span>
 
                         {desbloqueada && dataMedalla?.fecha_desbloqueo && (
