@@ -70,7 +70,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <div>
             <p className="text-3xl font-black font-heading text-foreground">{nivelActual.nombre}</p>
             <p className="text-sm text-muted-foreground font-semibold">
-              <span className="font-scoreboard text-primary text-xl">{sp.toLocaleString()}</span> SP totales
+              <span className="font-scoreboard text-primary text-xl">{sp.toLocaleString()}</span> SP Ranking
             </p>
           </div>
         </div>

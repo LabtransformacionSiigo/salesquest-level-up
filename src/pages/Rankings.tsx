@@ -215,7 +215,7 @@ const Rankings = () => {
                           transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
                         >⚡</motion.span>
                         <AnimatedCounter value={g.sp_totales || 0} className="text-3xl font-black font-scoreboard text-primary" duration={1.2} />
-                        <span className="text-sm font-bold text-primary/70 font-scoreboard">SP</span>
+                        <span className="text-xs font-bold text-primary/70 font-scoreboard">SP Ranking</span>
                       </div>
                     </motion.div>
 
@@ -265,7 +265,7 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      <th className="text-right px-4 py-3">⚡ SP</th>
+                      <th className="text-right px-4 py-3">⚡ SP Ranking</th>
                       {(isComercialTab || isGerentesVCTab) && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
@@ -302,9 +302,10 @@ const Rankings = () => {
                           </div>
                         </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
-                        {/* SP — prominent */}
+                        {/* SP Ranking — prominent */}
                         <td className="px-4 py-3 text-right">
-                          <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()} SP</span>
+                          <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
+                          <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">SP</span>
                         </td>
                         {(isComercialTab || isGerentesVCTab) && (
                           <>
