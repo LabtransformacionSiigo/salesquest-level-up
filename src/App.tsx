@@ -15,6 +15,7 @@ import Reconocimientos from '@/pages/Reconocimientos';
 import MiEquipo from '@/pages/MiEquipo';
 import Retos from '@/pages/Retos';
 import NotFound from '@/pages/NotFound';
+import Premios from '@/pages/Premios';
 
 // Admin Pages
 import AdminGerentes from '@/pages/admin/AdminGerentes';
@@ -23,6 +24,7 @@ import AdminMedallas from '@/pages/admin/AdminMedallas';
 import AdminRachas from '@/pages/admin/AdminRachas';
 import AdminCalculoSP from '@/pages/admin/AdminCalculoSP';
 import AdminDatabricks from '@/pages/admin/AdminDatabricks';
+import AdminPremios from '@/pages/admin/AdminPremios';
 import AdminRoute from '@/components/auth/AdminRoute';
 
 function App() {
@@ -40,6 +42,7 @@ function App() {
             <Route path="/reconocimientos" element={<Reconocimientos />} />
             <Route path="/mi-equipo" element={<MiEquipo />} />
             <Route path="/retos" element={<Retos />} />
+            <Route path="/premios" element={<Premios />} />
             {/* Admin - Solo administradores */}
             <Route path="/admin/gerentes" element={<AdminRoute><AdminGerentes /></AdminRoute>} />
             <Route path="/admin/asesores" element={<AdminRoute><AdminAsesores /></AdminRoute>} />
@@ -47,6 +50,7 @@ function App() {
             <Route path="/admin/rachas" element={<AdminRoute><AdminRachas /></AdminRoute>} />
             <Route path="/admin/calculos" element={<AdminRoute><AdminCalculoSP /></AdminRoute>} />
             <Route path="/admin/databricks" element={<AdminRoute><AdminDatabricks /></AdminRoute>} />
+            <Route path="/admin/premios" element={<AdminRoute><AdminPremios /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

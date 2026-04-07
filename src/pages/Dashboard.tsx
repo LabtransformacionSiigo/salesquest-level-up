@@ -103,13 +103,19 @@ const Dashboard = () => {
               <h2 className="text-2xl font-black font-heading text-white">{profile?.nombre || 'Usuario'}</h2>
             </motion.div>
             <motion.div
-              className="ml-auto text-right"
+              className="ml-auto text-right flex items-center gap-6"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4, type: 'spring', stiffness: 200, damping: 15 }}
             >
-              <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
-              <p className="text-xs text-white/60 font-scoreboard uppercase">Siigo Points</p>
+              <div className="text-right">
+                <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
+                <p className="text-xs text-white/60 font-scoreboard uppercase">Siigo Points</p>
+              </div>
+              <div className="text-right border-l border-white/20 pl-6">
+                <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white" duration={1.5} />
+                <p className="text-xs text-white/60 font-scoreboard uppercase">Canjeables</p>
+              </div>
             </motion.div>
           </div>
         </motion.div>

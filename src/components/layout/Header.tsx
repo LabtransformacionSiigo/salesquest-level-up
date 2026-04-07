@@ -63,14 +63,32 @@ const Header = ({ title }: HeaderProps) => {
           </motion.div>
         )}
 
-        <motion.div
-          className="hidden md:flex items-center gap-2 bg-primary rounded-full px-4 py-2"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          <MI icon="emoji_events" className="text-base text-primary-foreground" />
-          <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Arena</span>
-        </motion.div>
+        {profile?.role !== 'admin' && (
+          <motion.div
+            className="hidden md:flex items-center gap-3"
+            whileHover={{ scale: 1.05 }}
+          >
+            <div className="flex items-center gap-1.5 bg-primary rounded-full px-3 py-1.5">
+              <MI icon="bolt" className="text-sm text-primary-foreground" />
+              <span className="text-xs font-bold text-primary-foreground font-scoreboard">{(profile?.sp_totales || 0).toLocaleString()} SP</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5">
+              <MI icon="redeem" className="text-sm text-accent-foreground" />
+              <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.puntos_canjeables || 0).toLocaleString()}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {profile?.role === 'admin' && (
+          <motion.div
+            className="hidden md:flex items-center gap-2 bg-primary rounded-full px-4 py-2"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <MI icon="emoji_events" className="text-base text-primary-foreground" />
+            <span className="text-xs font-bold text-primary-foreground font-heading">Siigo Arena</span>
+          </motion.div>
+        )}
 
         <NotificationBell />
       </motion.div>

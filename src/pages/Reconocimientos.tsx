@@ -93,9 +93,15 @@ const Reconocimientos = () => {
     } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
-      const spInserts = [supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` })];
-      if (paraId) { spInserts.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` })); }
-      await Promise.all(spInserts);
+      const promises = [
+        supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado` }).then(),
+        supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: profile.id, p_amount: tipo.sp_de }).then(),
+      ];
+      if (paraId) {
+        promises.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}` }).then());
+        promises.push(supabase.rpc('increment_puntos_canjeables' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }).then());
+      }
+      await Promise.all(promises);
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} SP para ti, +${tipo.sp_para} SP para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
