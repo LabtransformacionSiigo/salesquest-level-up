@@ -138,7 +138,7 @@ export const useSupabaseAuth = () => {
             const advisorSales = filterVcAdvisorSales(ventasRes.data || [], asesor.nombre, asesor.gerente_id);
             spTotales = getVcAdvisorDerivedMetrics(advisorSales).totalSp;
           } else {
-            const spRes = await supabase.from('sp_acumulados').select('sp').eq('gerente_id', asesor.id);
+            const spRes = await supabase.from('sp_acumulados').select('sp').eq('gerente_id', asesor.id).eq('fuente', 'CUMPLIMIENTO_META');
             if (spRes.error) throw spRes.error;
             spTotales = (spRes.data || []).reduce((total: number, row: any) => total + (Number(row.sp) || 0), 0);
           }
