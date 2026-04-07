@@ -168,11 +168,10 @@ export const useSupabaseAuth = () => {
           setProfile(null);
         }
       } else {
-        const profileRes = await supabase
-          .from('sp_totales_gerente')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const [profileRes, gerenteRes] = await Promise.all([
+          supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
+          supabase.from('gerentes').select('puntos_canjeables').eq('user_id', userId).maybeSingle(),
+        ]);
 
         if (profileRes.error) throw profileRes.error;
 
@@ -195,7 +194,7 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: data.sp_nivel_actual ?? 0,
             sp_siguiente_nivel: data.sp_siguiente_nivel,
             role: userRole,
-            puntos_canjeables: 0,
+            puntos_canjeables: (gerenteRes.data as any)?.puntos_canjeables ?? 0,
           });
         } else {
           setProfile(null);
