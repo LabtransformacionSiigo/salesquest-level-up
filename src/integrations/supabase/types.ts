@@ -19,39 +19,48 @@ export type Database = {
           activo: boolean | null
           avatar_url: string | null
           canal: string | null
+          canal_direccion: string | null
           created_at: string | null
+          documento: string | null
           email: string
           gerente_id: string
           id: string
           nombre: string
           pais: string | null
           puntos_canjeables: number
+          puntos_ranking: number | null
           user_id: string | null
         }
         Insert: {
           activo?: boolean | null
           avatar_url?: string | null
           canal?: string | null
+          canal_direccion?: string | null
           created_at?: string | null
+          documento?: string | null
           email: string
           gerente_id: string
           id?: string
           nombre: string
           pais?: string | null
           puntos_canjeables?: number
+          puntos_ranking?: number | null
           user_id?: string | null
         }
         Update: {
           activo?: boolean | null
           avatar_url?: string | null
           canal?: string | null
+          canal_direccion?: string | null
           created_at?: string | null
+          documento?: string | null
           email?: string
           gerente_id?: string
           id?: string
           nombre?: string
           pais?: string | null
           puntos_canjeables?: number
+          puntos_ranking?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -206,6 +215,51 @@ export type Database = {
           id?: string
           nombre?: string
           umbral_verde?: number | null
+        }
+        Relationships: []
+      }
+      ejecucion_asesores: {
+        Row: {
+          acv_total: number | null
+          canal_direccion: string
+          cant_recomendados: number | null
+          created_at: string | null
+          documento_asesor: string
+          id: string
+          pais: string | null
+          periodo: string
+          productividad: number | null
+          ventas_fe: number | null
+          ventas_nube: number | null
+          ventas_total: number | null
+        }
+        Insert: {
+          acv_total?: number | null
+          canal_direccion: string
+          cant_recomendados?: number | null
+          created_at?: string | null
+          documento_asesor: string
+          id?: string
+          pais?: string | null
+          periodo: string
+          productividad?: number | null
+          ventas_fe?: number | null
+          ventas_nube?: number | null
+          ventas_total?: number | null
+        }
+        Update: {
+          acv_total?: number | null
+          canal_direccion?: string
+          cant_recomendados?: number | null
+          created_at?: string | null
+          documento_asesor?: string
+          id?: string
+          pais?: string | null
+          periodo?: string
+          productividad?: number | null
+          ventas_fe?: number | null
+          ventas_nube?: number | null
+          ventas_total?: number | null
         }
         Relationships: []
       }
@@ -411,6 +465,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      metas_asesores: {
+        Row: {
+          anio_mes: string
+          canal_direccion: string
+          created_at: string | null
+          documento_asesor: string
+          id: string
+          meta_fe: number | null
+          meta_nube: number | null
+          meta_total: number | null
+          pais: string | null
+        }
+        Insert: {
+          anio_mes: string
+          canal_direccion: string
+          created_at?: string | null
+          documento_asesor: string
+          id?: string
+          meta_fe?: number | null
+          meta_nube?: number | null
+          meta_total?: number | null
+          pais?: string | null
+        }
+        Update: {
+          anio_mes?: string
+          canal_direccion?: string
+          created_at?: string | null
+          documento_asesor?: string
+          id?: string
+          meta_fe?: number | null
+          meta_nube?: number | null
+          meta_total?: number | null
+          pais?: string | null
+        }
+        Relationships: []
       }
       notificaciones: {
         Row: {
