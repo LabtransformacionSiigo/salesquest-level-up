@@ -415,6 +415,8 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
     ventas_empresarios: syncVentasEmpresarios,
     ventas_aliados: syncVentasAliados,
     productividad_asesores: syncProductividadAsesores,
+    ventas_vn_aliados: (sb, r) => syncVentasVN(sb, r, "VN_ALIADOS"),
+    ventas_vn_empresarios: (sb, r) => syncVentasVN(sb, r, "VN_EMPRESARIOS"),
   };
 
   const syncFn = SYNC_MAP[table];
