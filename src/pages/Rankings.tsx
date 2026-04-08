@@ -392,6 +392,9 @@ const Rankings = () => {
                     <motion.p className="text-4xl mb-2" animate={{ rotate: [0, -8, 8, -4, 4, 0] }} transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}>{PODIUM_EMOJIS[i]}</motion.p>
                     <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 mx-auto flex items-center justify-center text-3xl mb-2">🏅</div>
                     <p className="font-bold font-heading text-secondary text-lg">{g.nombre}</p>
+                    {g.celula_nombre && g.celula_nombre !== g.nombre && (
+                      <p className="text-[11px] text-muted-foreground font-medium mt-0.5">📋 {g.celula_nombre}</p>
+                    )}
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
                       <FlagIcon pais={g.pais} /> {g.canal?.replace(/_/g, ' ')}
                     </p>
