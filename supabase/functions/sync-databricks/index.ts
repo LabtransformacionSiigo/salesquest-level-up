@@ -94,7 +94,7 @@ ${limit}`;
   ventas_aliados: {
     label: "Ventas Aliados (tbl_gld_Ventas_SA)",
     sql: (limit: string) =>
-      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA ${limit}`,
+      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA WHERE YEAR(fecha) = 2026 ${limit}`,
   },
   // ── NEW: Productividad Asesores (gamificación) ──
   productividad_asesores: {
