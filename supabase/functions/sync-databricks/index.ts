@@ -100,7 +100,7 @@ ${limit}`;
   productividad_asesores: {
     label: "Productividad Asesores (Progresiva)",
     sql: (limit: string) =>
-      `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva ${limit}`,
+      `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
 };
 
