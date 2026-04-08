@@ -223,6 +223,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             })),
             ejecucion: null,
             metaAsesor: null,
+            vnProductBreakdown: [],
           });
           return;
         }
