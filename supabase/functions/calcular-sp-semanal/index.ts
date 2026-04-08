@@ -479,6 +479,7 @@ async function evaluateMedals(
             .from("ventas")
             .select("id", { count: "exact", head: true })
             .eq("gerente_id", gerente.id)
+            .eq("canal", canal)
             .ilike("producto", `%${medal.producto}%`);
 
           if ((count || 0) >= 1) {
@@ -496,6 +497,7 @@ async function evaluateMedals(
               .from("ventas")
               .select("id", { count: "exact", head: true })
               .eq("gerente_id", gerente.id)
+              .eq("canal", canal)
               .ilike("producto", `%${medal.producto}%`);
 
             if ((count || 0) >= (medal.cantidad_requerida || 1)) {
@@ -526,7 +528,8 @@ async function evaluateMedals(
           const { data: acvData } = await supabase
             .from("ventas")
             .select("acv_plus")
-            .eq("gerente_id", gerente.id);
+            .eq("gerente_id", gerente.id)
+            .eq("canal", canal);
 
           const acvTotal = (acvData || []).reduce(
             (s: number, v: any) => s + (Number(v.acv_plus) || 0), 0

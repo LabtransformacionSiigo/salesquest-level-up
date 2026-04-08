@@ -29,6 +29,9 @@ const TABLE_LABELS: Record<string, { label: string; icon: string }> = {
   ventas_empresarios: { label: 'Ventas Empresarios', icon: 'business' },
   ventas_aliados: { label: 'Ventas Aliados', icon: 'handshake' },
   productividad_asesores: { label: 'Productividad Asesores', icon: 'emoji_events' },
+  ventas_vn_completo: { label: 'Ventas VN Completo', icon: 'sync_alt' },
+  ventas_vn_aliados: { label: 'Ventas VN Aliados (→ventas)', icon: 'people' },
+  ventas_vn_empresarios: { label: 'Ventas VN Empresarios (→ventas)', icon: 'business_center' },
   all_new: { label: 'Sync Completo (Nuevos)', icon: 'sync_alt' },
 };
 
