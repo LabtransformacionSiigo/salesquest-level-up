@@ -214,16 +214,42 @@ const Rankings = () => {
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
-        const [productividadRes] = await Promise.all([
+        const [productividadRes, gerentesRes] = await Promise.all([
           supabase.from('productividad_asesores').select('celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
+          supabase.from('gerentes').select('nombre, celula, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
         ]);
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+        // Build gerente name lookup by celula: find gerente whose first name appears in celula name
+        const gerentesByCelula = new Map<string, { nombre: string; sp_canje: number }>();
+        const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number }>>();
+        (gerentesRes.data || []).forEach((g: any) => {
+          if (!g.celula) return;
+          const list = gerentesByCell.get(g.celula) || [];
+          list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0 });
+          gerentesByCell.set(g.celula, list);
+        });
+        // For each celula, find the gerente whose first name appears in the celula name
+        gerentesByCell.forEach((members, celula) => {
+          const celulaLower = celula.toLowerCase();
+          const match = members.find(m => {
+            const firstName = m.nombre.split(' ')[0]?.toLowerCase();
+            return firstName && firstName.length > 2 && celulaLower.includes(firstName);
+          });
+          if (match) {
+            gerentesByCelula.set(celula, match);
+          } else if (members.length > 0) {
+            // Fallback: just pick first member alphabetically
+            gerentesByCelula.set(celula, members[0]);
+          }
+        });
+
         // Aggregate by celula + month
-        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number }>();
+        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
         (productividadRes.data || []).forEach((row: any) => {
           const celula = row.celula;
           if (!celula) return;
-          const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0 };
+          const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0, currentAcv: 0 };
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
           cm.ventas += Number(row.ventas) || 0;
@@ -235,6 +261,7 @@ const Rankings = () => {
             agg.currentVentas += Number(row.ventas) || 0;
             agg.currentMeta += Number(row.meta) || 0;
             agg.currentRecomendados += Number(row.cant_recomendados) || 0;
+            agg.currentAcv += Number(row.acv_f) || 0;
           }
           celulaAgg.set(celula, agg);
         });
@@ -245,19 +272,22 @@ const Rankings = () => {
             return total;
           }, 0);
           const pct = agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0;
+          const gerenteInfo = gerentesByCelula.get(celula);
           entries.push({
             id: celula,
-            nombre: celula,
+            nombre: gerenteInfo?.nombre || celula,
+            celula_nombre: celula,
             canal: profile.canal,
             pais: userPais,
-            kpi_value: Math.round(agg.acv),
+            kpi_value: Math.round(agg.currentAcv),
+            acv_total_year: Math.round(agg.acv),
             meta_total: agg.currentMeta,
             unidades_logradas: agg.currentVentas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
             sp_totales: spConv,
-            sp_canje: 0,
+            sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
             posicion: 0,
           });
