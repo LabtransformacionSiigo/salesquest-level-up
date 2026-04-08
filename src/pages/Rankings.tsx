@@ -214,16 +214,42 @@ const Rankings = () => {
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
-        const [productividadRes] = await Promise.all([
+        const [productividadRes, gerentesRes] = await Promise.all([
           supabase.from('productividad_asesores').select('celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
+          supabase.from('gerentes').select('nombre, celula, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
         ]);
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+        // Build gerente name lookup by celula: find gerente whose first name appears in celula name
+        const gerentesByCelula = new Map<string, { nombre: string; sp_canje: number }>();
+        const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number }>>();
+        (gerentesRes.data || []).forEach((g: any) => {
+          if (!g.celula) return;
+          const list = gerentesByCell.get(g.celula) || [];
+          list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0 });
+          gerentesByCell.set(g.celula, list);
+        });
+        // For each celula, find the gerente whose first name appears in the celula name
+        gerentesByCell.forEach((members, celula) => {
+          const celulaLower = celula.toLowerCase();
+          const match = members.find(m => {
+            const firstName = m.nombre.split(' ')[0]?.toLowerCase();
+            return firstName && firstName.length > 2 && celulaLower.includes(firstName);
+          });
+          if (match) {
+            gerentesByCelula.set(celula, match);
+          } else if (members.length > 0) {
+            // Fallback: just pick first member alphabetically
+            gerentesByCelula.set(celula, members[0]);
+          }
+        });
+
         // Aggregate by celula + month
-        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number }>();
+        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
         (productividadRes.data || []).forEach((row: any) => {
           const celula = row.celula;
           if (!celula) return;
-          const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0 };
+          const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0, currentAcv: 0 };
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
           cm.ventas += Number(row.ventas) || 0;
@@ -235,6 +261,7 @@ const Rankings = () => {
             agg.currentVentas += Number(row.ventas) || 0;
             agg.currentMeta += Number(row.meta) || 0;
             agg.currentRecomendados += Number(row.cant_recomendados) || 0;
+            agg.currentAcv += Number(row.acv_f) || 0;
           }
           celulaAgg.set(celula, agg);
         });
@@ -245,19 +272,22 @@ const Rankings = () => {
             return total;
           }, 0);
           const pct = agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0;
+          const gerenteInfo = gerentesByCelula.get(celula);
           entries.push({
             id: celula,
-            nombre: celula,
+            nombre: gerenteInfo?.nombre || celula,
+            celula_nombre: celula,
             canal: profile.canal,
             pais: userPais,
-            kpi_value: Math.round(agg.acv),
+            kpi_value: Math.round(agg.currentAcv),
+            acv_total_year: Math.round(agg.acv),
             meta_total: agg.currentMeta,
             unidades_logradas: agg.currentVentas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
             sp_totales: spConv,
-            sp_canje: 0,
+            sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
             posicion: 0,
           });
@@ -362,6 +392,9 @@ const Rankings = () => {
                     <motion.p className="text-4xl mb-2" animate={{ rotate: [0, -8, 8, -4, 4, 0] }} transition={{ duration: 0.6, delay: i * 0.15 + 0.4 }}>{PODIUM_EMOJIS[i]}</motion.p>
                     <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 mx-auto flex items-center justify-center text-3xl mb-2">🏅</div>
                     <p className="font-bold font-heading text-secondary text-lg">{g.nombre}</p>
+                    {g.celula_nombre && g.celula_nombre !== g.nombre && (
+                      <p className="text-[11px] text-muted-foreground font-medium mt-0.5">📋 {g.celula_nombre}</p>
+                    )}
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
                       <FlagIcon pais={g.pais} /> {g.canal?.replace(/_/g, ' ')}
                     </p>
@@ -409,6 +442,11 @@ const Rankings = () => {
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
+                                <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
                                 <p className="text-sm font-bold font-scoreboard text-accent">{(g.cant_recomendados || 0).toLocaleString()}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</p>
                               </div>
@@ -441,6 +479,7 @@ const Rankings = () => {
 
                     {!isComercialTab && g.nivel && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
                     {isComercialTab && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
+                    {isGerentesVNTab && g.celula_nombre && g.celula_nombre !== g.nombre && <p className="text-[10px] text-muted-foreground mt-2">📋 {g.celula_nombre}</p>}
                     {(g.isCurrent || g.user_id === profile?.user_id) && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">Tú</span>}
                   </motion.div>
                 ))}
@@ -470,6 +509,7 @@ const Rankings = () => {
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
@@ -497,7 +537,12 @@ const Rankings = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <FlagIcon pais={g.pais} />
-                            <span className="text-sm text-foreground">{g.nombre}</span>
+                            <div>
+                              <span className="text-sm text-foreground">{g.nombre}</span>
+                              {g.celula_nombre && g.celula_nombre !== g.nombre && (
+                                <p className="text-[10px] text-muted-foreground">📋 {g.celula_nombre}</p>
+                              )}
+                            </div>
                             {(g.isCurrent || g.user_id === profile?.user_id) && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
@@ -521,6 +566,7 @@ const Rankings = () => {
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}

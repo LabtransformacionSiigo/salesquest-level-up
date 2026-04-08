@@ -163,6 +163,14 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               <Progress value={metaAsesor.meta_total > 0 ? Math.min(100, (ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0} className="h-3" />
             </div>
 
+            {/* ACV cumplimiento */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                <span>💰 ACV+</span>
+                <span className="text-foreground font-scoreboard">{fmt(ejecucion.acv_total)}</span>
+              </div>
+            </div>
+
             {/* Extras: Productividad + Recomendados */}
             <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
               <div className="text-center">
