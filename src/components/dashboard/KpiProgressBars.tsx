@@ -132,23 +132,27 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         {isVN && ejecucion && metaAsesor ? (
           /* ── VN: FE/Nube progress bars + extras ── */
           <div className="flex flex-col gap-5 flex-1">
-            {/* FE progress */}
+            {/* FE progress - only show if meta_fe > 0 */}
+            {metaAsesor.meta_fe > 0 && (
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>📦 Ventas FE</span>
                 <span className="text-foreground font-scoreboard">{ejecucion.ventas_fe} / {metaAsesor.meta_fe}</span>
               </div>
-              <Progress value={metaAsesor.meta_fe > 0 ? Math.min(100, (ejecucion.ventas_fe / metaAsesor.meta_fe) * 100) : 0} className="h-3" />
+              <Progress value={Math.min(100, (ejecucion.ventas_fe / metaAsesor.meta_fe) * 100)} className="h-3" />
             </div>
+            )}
 
-            {/* Nube progress */}
+            {/* Nube progress - only show if meta_nube > 0 */}
+            {metaAsesor.meta_nube > 0 && (
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>☁️ Ventas Nube</span>
                 <span className="text-foreground font-scoreboard">{ejecucion.ventas_nube} / {metaAsesor.meta_nube}</span>
               </div>
-              <Progress value={metaAsesor.meta_nube > 0 ? Math.min(100, (ejecucion.ventas_nube / metaAsesor.meta_nube) * 100) : 0} className="h-3" />
+              <Progress value={Math.min(100, (ejecucion.ventas_nube / metaAsesor.meta_nube) * 100)} className="h-3" />
             </div>
+            )}
 
             {/* Total progress */}
             <div>
