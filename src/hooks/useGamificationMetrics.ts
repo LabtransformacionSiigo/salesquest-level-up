@@ -279,10 +279,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .limit(1000)
             : Promise.resolve({ data: [] }),
           /* 15 – metas_gerentes for VN gerente */
-          isVN && profile.role !== 'asesor'
+          isVN && profile.role !== 'asesor' && profile.celula
             ? supabase.from('metas_gerentes').select('meta_total_und, meta_total_acv, fe, nube, recomendados')
                 .eq('canal_direccion', profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios')
-                .ilike('celula', `%${profile.nombre}%`)
+                .eq('celula', profile.celula)
                 .limit(1)
             : Promise.resolve({ data: [] }),
           /* 16 – kpis_mensuales history for VN gerente (all months this year) */
