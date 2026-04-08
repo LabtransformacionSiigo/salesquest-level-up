@@ -502,6 +502,72 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_gerentes: {
+        Row: {
+          canal_direccion: string
+          celula: string
+          coi: number | null
+          created_at: string | null
+          cuota: number | null
+          director: string | null
+          efectividad_sql: number | null
+          fe: number | null
+          hc_operativo: number | null
+          id: string
+          m: string | null
+          meta_total_acv: number | null
+          meta_total_und: number | null
+          noi: number | null
+          nube: number | null
+          pais_gestion: string | null
+          productividad: number | null
+          recomendados: number | null
+          siigo_fiscal: number | null
+        }
+        Insert: {
+          canal_direccion: string
+          celula: string
+          coi?: number | null
+          created_at?: string | null
+          cuota?: number | null
+          director?: string | null
+          efectividad_sql?: number | null
+          fe?: number | null
+          hc_operativo?: number | null
+          id?: string
+          m?: string | null
+          meta_total_acv?: number | null
+          meta_total_und?: number | null
+          noi?: number | null
+          nube?: number | null
+          pais_gestion?: string | null
+          productividad?: number | null
+          recomendados?: number | null
+          siigo_fiscal?: number | null
+        }
+        Update: {
+          canal_direccion?: string
+          celula?: string
+          coi?: number | null
+          created_at?: string | null
+          cuota?: number | null
+          director?: string | null
+          efectividad_sql?: number | null
+          fe?: number | null
+          hc_operativo?: number | null
+          id?: string
+          m?: string | null
+          meta_total_acv?: number | null
+          meta_total_und?: number | null
+          noi?: number | null
+          nube?: number | null
+          pais_gestion?: string | null
+          productividad?: number | null
+          recomendados?: number | null
+          siigo_fiscal?: number | null
+        }
+        Relationships: []
+      }
       notificaciones: {
         Row: {
           created_at: string | null
@@ -562,6 +628,63 @@ export type Database = {
           imagen_url?: string | null
           nombre?: string
           stock?: number
+        }
+        Relationships: []
+      }
+      productividad_asesores: {
+        Row: {
+          acv_f: number | null
+          anio_mes: string
+          area: string | null
+          asesor: string
+          cant_recomendados: number | null
+          celula: string | null
+          created_at: string | null
+          director: string | null
+          id: string
+          meta: number | null
+          pais: string | null
+          rango_antiguedad: string | null
+          sc_creados: number | null
+          ventas: number | null
+          ventas_mm_recomendados: number | null
+          ventas_mm_sql: number | null
+        }
+        Insert: {
+          acv_f?: number | null
+          anio_mes: string
+          area?: string | null
+          asesor: string
+          cant_recomendados?: number | null
+          celula?: string | null
+          created_at?: string | null
+          director?: string | null
+          id?: string
+          meta?: number | null
+          pais?: string | null
+          rango_antiguedad?: string | null
+          sc_creados?: number | null
+          ventas?: number | null
+          ventas_mm_recomendados?: number | null
+          ventas_mm_sql?: number | null
+        }
+        Update: {
+          acv_f?: number | null
+          anio_mes?: string
+          area?: string | null
+          asesor?: string
+          cant_recomendados?: number | null
+          celula?: string | null
+          created_at?: string | null
+          director?: string | null
+          id?: string
+          meta?: number | null
+          pais?: string | null
+          rango_antiguedad?: string | null
+          sc_creados?: number | null
+          ventas?: number | null
+          ventas_mm_recomendados?: number | null
+          ventas_mm_sql?: number | null
         }
         Relationships: []
       }
@@ -1064,6 +1187,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ventas_diarias: {
+        Row: {
+          acv: number | null
+          asesor: string
+          canal_direccion: string
+          celula: string | null
+          created_at: string | null
+          director: string | null
+          equipo: string | null
+          fecha: string | null
+          id: string
+          origen: string | null
+          pais: string | null
+          producto: string | null
+          recurrencia: string | null
+          tipo_producto: string | null
+          unidades: number | null
+        }
+        Insert: {
+          acv?: number | null
+          asesor: string
+          canal_direccion: string
+          celula?: string | null
+          created_at?: string | null
+          director?: string | null
+          equipo?: string | null
+          fecha?: string | null
+          id?: string
+          origen?: string | null
+          pais?: string | null
+          producto?: string | null
+          recurrencia?: string | null
+          tipo_producto?: string | null
+          unidades?: number | null
+        }
+        Update: {
+          acv?: number | null
+          asesor?: string
+          canal_direccion?: string
+          celula?: string | null
+          created_at?: string | null
+          director?: string | null
+          equipo?: string | null
+          fecha?: string | null
+          id?: string
+          origen?: string | null
+          pais?: string | null
+          producto?: string | null
+          recurrencia?: string | null
+          tipo_producto?: string | null
+          unidades?: number | null
+        }
+        Relationships: []
       }
     }
     Views: {
