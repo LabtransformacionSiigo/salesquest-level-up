@@ -239,7 +239,7 @@ const Rankings = () => {
 
                     <div className="mt-2 flex justify-center">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
-                        🎁 {(g.puntos_canjeables || 0).toLocaleString()} <span className="text-[10px] text-accent/70">Canjeables</span>
+                        🎁 {(g.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
                       </span>
                     </div>
 
@@ -333,7 +333,7 @@ const Rankings = () => {
                           <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-black font-scoreboard text-accent">{(g.puntos_canjeables || 0).toLocaleString()}</span>
+                          <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
                         </td>
                         {(isComercialTab || isGerentesVCTab) && (
                           <>
