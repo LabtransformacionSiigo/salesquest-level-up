@@ -255,7 +255,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
           /* 11 */
-          supabase.from('gerentes').select('id, puntos_canjeables'),
+          supabase.from('gerentes').select('id, sp_canje'),
           /* 12 – ejecucion_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
             ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(1000)
@@ -430,13 +430,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         // Format top ranking
         const canjeablesMap = new Map<string, number>();
         (canjeablesRes.data || []).forEach((row: any) => {
-          if (row.id) canjeablesMap.set(row.id, Number(row.puntos_canjeables) || 0);
+          if (row.id) canjeablesMap.set(row.id, Number(row.sp_canje) || 0);
         });
 
         const topRanking = (rankingRes.data || []).map((r: any) => ({
           id: r.id, nombre: r.nombre,
           sp_totales: Number(r.sp_totales) || 0,
-          puntos_canjeables: canjeablesMap.get(r.id) || 0,
+          sp_canje: canjeablesMap.get(r.id) || 0,
           canal: r.canal,
           nivel: r.nivel,
         }));

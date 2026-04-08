@@ -36,7 +36,7 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
                   ⚡ {(user.sp_totales || 0).toLocaleString()} <span className="text-[10px] text-primary/60">Siigo Points</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold border border-border rounded-full px-3 py-1 text-accent font-scoreboard">
-                  🎁 {(user.puntos_canjeables || 0).toLocaleString()} <span className="text-[10px] text-accent/70">Canjeables</span>
+                  🎁 {(user.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
                 </span>
               </div>
             </div>

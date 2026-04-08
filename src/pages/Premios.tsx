@@ -76,7 +76,7 @@ const Premios = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const saldo = profile?.puntos_canjeables || 0;
+   const saldo = profile?.sp_canje || 0;
   const siigoPoints = profile?.sp_totales || 0;
 
   return (

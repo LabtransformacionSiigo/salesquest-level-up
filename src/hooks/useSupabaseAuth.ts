@@ -23,7 +23,8 @@ export interface AuthUser extends Gerente {
   sp_nivel_actual: number;
   sp_siguiente_nivel: number | null;
   role: string | null;
-  puntos_canjeables: number;
+  sp_canje: number;
+  sp_convencion: number;
   canal_direccion?: string | null;
 }
 
@@ -110,7 +111,8 @@ export const useSupabaseAuth = () => {
           sp_nivel_actual: 0,
           sp_siguiente_nivel: null,
           role: 'admin',
-          puntos_canjeables: 0,
+           sp_canje: 0,
+           sp_convencion: 0,
         });
         setLoading(false);
         return;
@@ -163,7 +165,8 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
-            puntos_canjeables: asesor.puntos_canjeables ?? 0,
+             sp_canje: asesor.sp_canje ?? 0,
+             sp_convencion: asesor.sp_convencion ?? 0,
             canal_direccion: (asesor as any).canal_direccion ?? null,
           });
         } else {
@@ -172,7 +175,7 @@ export const useSupabaseAuth = () => {
       } else {
         const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('gerentes').select('puntos_canjeables').eq('user_id', userId).maybeSingle(),
+          supabase.from('gerentes').select('sp_canje, sp_convencion').eq('user_id', userId).maybeSingle(),
         ]);
 
         if (profileRes.error) throw profileRes.error;
@@ -196,7 +199,8 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: data.sp_nivel_actual ?? 0,
             sp_siguiente_nivel: data.sp_siguiente_nivel,
             role: userRole,
-            puntos_canjeables: (gerenteRes.data as any)?.puntos_canjeables ?? 0,
+             sp_canje: (gerenteRes.data as any)?.sp_canje ?? 0,
+             sp_convencion: (gerenteRes.data as any)?.sp_convencion ?? 0,
           });
         } else {
           setProfile(null);

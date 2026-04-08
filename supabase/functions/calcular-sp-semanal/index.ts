@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
             if (spFinal > 0) {
               const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
                 gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-                periodo: mesActual, detalle: `Cumplimiento de Meta: ${spFinal}% · VC`,
+                periodo: mesActual, detalle: `Cumplimiento de Meta: ${spFinal}% · VC`, tipo_sp: "convencion",
               }, { onConflict: "gerente_id,fuente,periodo" });
               if (upsertErr) { if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`); }
               else { totalSpOtorgados += spFinal; resumenCanal[canal].sp += spFinal; }
@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
 
             const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-              periodo: String(kpi.anio_mes), detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal} · ${kpi.anio_mes}`,
+              periodo: String(kpi.anio_mes), detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal} · ${kpi.anio_mes}`, tipo_sp: "convencion",
             }, { onConflict: "gerente_id,fuente,periodo" });
             if (upsertErr) { if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`); }
             else { totalSpOtorgados += spFinal; resumenCanal[canal].sp += spFinal; }
@@ -355,6 +355,7 @@ async function processAsesoresEjecucion(
         sp: spFinal,
         periodo: periodoSemana,
         detalle: `Cumplimiento: ${spFinal}% · ${ejec.canal_direccion}`,
+        tipo_sp: "convencion",
       }, { onConflict: "gerente_id,fuente,periodo" });
 
       if (upsertErr) {
@@ -363,7 +364,7 @@ async function processAsesoresEjecucion(
         spOtorgados += spFinal;
       }
 
-      // Update puntos_ranking on asesor
+      // Update sp_convencion on asesor
       const { data: allSp } = await supabase
         .from("sp_acumulados")
         .select("sp")
@@ -371,7 +372,7 @@ async function processAsesoresEjecucion(
         .eq("fuente", "CUMPLIMIENTO_META");
 
       const totalRanking = (allSp || []).reduce((s: number, r: any) => s + (Number(r.sp) || 0), 0);
-      await supabase.from("asesores").update({ puntos_ranking: totalRanking }).eq("id", asesor.id);
+      await supabase.from("asesores").update({ sp_convencion: totalRanking }).eq("id", asesor.id);
 
       // Evaluate medals for new fronts
       await evaluateAsesorMedals(supabase, asesor, ejec, meta, medalsByCanal[ejec.canal_direccion] || []);

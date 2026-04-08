@@ -27,8 +27,8 @@ export type Database = {
           id: string
           nombre: string
           pais: string | null
-          puntos_canjeables: number
-          puntos_ranking: number | null
+          sp_canje: number
+          sp_convencion: number | null
           user_id: string | null
         }
         Insert: {
@@ -43,8 +43,8 @@ export type Database = {
           id?: string
           nombre: string
           pais?: string | null
-          puntos_canjeables?: number
-          puntos_ranking?: number | null
+          sp_canje?: number
+          sp_convencion?: number | null
           user_id?: string | null
         }
         Update: {
@@ -59,8 +59,8 @@ export type Database = {
           id?: string
           nombre?: string
           pais?: string | null
-          puntos_canjeables?: number
-          puntos_ranking?: number | null
+          sp_canje?: number
+          sp_convencion?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -274,7 +274,8 @@ export type Database = {
           lider: string | null
           nombre: string
           pais: string | null
-          puntos_canjeables: number
+          sp_canje: number
+          sp_convencion: number
           user_id: string | null
         }
         Insert: {
@@ -287,7 +288,8 @@ export type Database = {
           lider?: string | null
           nombre: string
           pais?: string | null
-          puntos_canjeables?: number
+          sp_canje?: number
+          sp_convencion?: number
           user_id?: string | null
         }
         Update: {
@@ -300,7 +302,8 @@ export type Database = {
           lider?: string | null
           nombre?: string
           pais?: string | null
-          puntos_canjeables?: number
+          sp_canje?: number
+          sp_convencion?: number
           user_id?: string | null
         }
         Relationships: []
@@ -967,6 +970,7 @@ export type Database = {
           id: string
           periodo: string
           sp: number
+          tipo_sp: string
         }
         Insert: {
           created_at?: string | null
@@ -976,6 +980,7 @@ export type Database = {
           id?: string
           periodo: string
           sp: number
+          tipo_sp?: string
         }
         Update: {
           created_at?: string | null
@@ -985,6 +990,7 @@ export type Database = {
           id?: string
           periodo?: string
           sp?: number
+          tipo_sp?: string
         }
         Relationships: [
           {
@@ -1473,6 +1479,7 @@ export type Database = {
           nivel: string | null
           nombre: string | null
           pais: string | null
+          sp_convencion: number | null
           sp_nivel_actual: number | null
           sp_siguiente_nivel: number | null
           sp_totales: number | null
@@ -1500,6 +1507,10 @@ export type Database = {
         Returns: boolean
       }
       increment_puntos_canjeables: {
+        Args: { p_amount: number; p_gerente_id: string }
+        Returns: undefined
+      }
+      increment_sp_canje: {
         Args: { p_amount: number; p_gerente_id: string }
         Returns: undefined
       }
