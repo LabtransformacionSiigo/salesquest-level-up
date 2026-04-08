@@ -1,110 +1,147 @@
 
 
-## Plan: Separación de Puntos (Ranking vs Canjeables) y Sistema de Premios
+# Plan: Integración Multi-Frente (Aliados + Empresarios) en Siigo Arena
 
-### Resumen
+## Contexto
 
-Separar el sistema de puntos en dos bolsas independientes: **puntos de ranking** (basados en cumplimiento de meta, intocables) y **puntos canjeables** (ganados por medallas, retos, rachas, reconocimientos — gastables en premios). Crear un catálogo de premios con sistema de canje y administración.
-
----
-
-### 1. Cambios en Base de Datos (Migración)
-
-**Nueva columna en `gerentes`:**
-- `puntos_canjeables` (integer, default 0) — saldo actual de puntos canjeables
-
-**Nueva columna en `asesores`:**
-- `puntos_canjeables` (integer, default 0)
-
-**Nueva tabla `premios`:**
-- `id` (uuid, PK), `nombre` (text), `descripcion` (text), `costo_puntos` (int), `imagen_url` (text), `stock` (int), `activo` (boolean, default true), `created_at` (timestamp)
-- RLS: SELECT para authenticated, ALL para admins
-
-**Nueva tabla `canjes`:**
-- `id` (uuid, PK), `gerente_id` (uuid, FK → gerentes), `premio_id` (uuid, FK → premios), `puntos_gastados` (int), `fecha_canje` (timestamp), `estado` (text, default 'pendiente' — valores: pendiente, entregado, cancelado)
-- RLS: SELECT propios registros, INSERT propio gerente_id, admins ALL
-
-**Nueva función `canjear_premio`** (SECURITY DEFINER):
-- Valida stock > 0 y puntos_canjeables >= costo
-- Resta puntos_canjeables del gerente/asesor
-- Resta stock del premio
-- Inserta registro en canjes
-- Retorna éxito o error
-
-**Backfill**: Calcular `puntos_canjeables` iniciales sumando SP de fuentes MEDALLA, RETO, RECONOCIMIENTO, RACHA desde `sp_acumulados` (menos canjes ya hechos, si los hubiera).
+La plataforma ya soporta 3 canales (`VC`, `VN_ALIADOS`, `VN_EMPRESARIOS`) con gerentes activos en cada uno. La sincronización actual con Databricks ya maneja Productividad para VN y Ventas VC. Necesitamos crear tablas dedicadas para metas y ejecución de asesores de Aliados/Empresarios, actualizar la lógica de SP, y adaptar el UI.
 
 ---
 
-### 2. Lógica de Gamificación (Backend)
+## Fase 1: Nuevas Tablas de Base de Datos
 
-**`calcular-sp-semanal` edge function:**
-- Los SP por CUMPLIMIENTO_META siguen igual → solo ranking
-- Al otorgar medallas (`otorgar_medalla_si_aplica`), además de insertar en `sp_acumulados`, sumar los SP a `puntos_canjeables` del gerente
-- Modificar la función DB `otorgar_medalla_si_aplica` para que también haga `UPDATE gerentes SET puntos_canjeables = puntos_canjeables + p_sp`
+### Migration 1: `metas_asesores`
+```sql
+CREATE TABLE public.metas_asesores (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  documento_asesor text NOT NULL,
+  pais text DEFAULT 'COL',
+  canal_direccion text NOT NULL,
+  meta_fe integer DEFAULT 0,
+  meta_nube integer DEFAULT 0,
+  meta_total integer DEFAULT 0,
+  anio_mes text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(documento_asesor, canal_direccion, anio_mes)
+);
+ALTER TABLE public.metas_asesores ENABLE ROW LEVEL SECURITY;
+-- SELECT para authenticated, INSERT/UPDATE para admins
+```
 
-**Triggers de nivel (`notify_nivel_cambio`):** Se mantienen basados en `sp_acumulados` total (ranking + canjeables acumulados históricamente).
+### Migration 2: `ejecucion_asesores`
+```sql
+CREATE TABLE public.ejecucion_asesores (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  documento_asesor text NOT NULL,
+  periodo text NOT NULL,
+  canal_direccion text NOT NULL,
+  pais text DEFAULT 'COL',
+  ventas_fe integer DEFAULT 0,
+  ventas_nube integer DEFAULT 0,
+  ventas_total integer DEFAULT 0,
+  acv_total numeric DEFAULT 0,
+  cant_recomendados integer DEFAULT 0,
+  productividad numeric DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(documento_asesor, canal_direccion, periodo)
+);
+ALTER TABLE public.ejecucion_asesores ENABLE ROW LEVEL SECURITY;
+```
 
-**Retos completados** (`Retos.tsx`): Al completar un reto, además del insert en `sp_acumulados`, sumar SP a `puntos_canjeables`.
-
-**Reconocimientos** (`Reconocimientos.tsx`): Al enviar reconocimiento, sumar `sp_para` a `puntos_canjeables` del destinatario.
-
----
-
-### 3. Cambios en Auth/Profile Hook
-
-**`useSupabaseAuth.ts`:**
-- Añadir `puntos_canjeables` al tipo `AuthUser`
-- Para gerentes: leer desde `gerentes.puntos_canjeables`
-- Para asesores: leer desde `asesores.puntos_canjeables`
-- Exponer en el profile para uso en UI
-
----
-
-### 4. Interfaz de Usuario
-
-**Sidebar (`Sidebar.tsx`):**
-- Añadir ítem "Premios" (icon: `redeem`) en menú regular
-- Añadir ítem "Premios" (icon: `storefront`) en menú admin
-
-**Header (`Header.tsx`):**
-- Mostrar dos badges: SP ranking y puntos canjeables con iconos distintos
-
-**Dashboard (`Dashboard.tsx`):**
-- Mostrar ambos saldos en el banner/resumen
-
-**Nueva página `Premios.tsx`:**
-- Catálogo con tarjetas: imagen, nombre, descripción, costo, botón "Canjear"
-- Validación de saldo suficiente antes de canjear
-- Historial de canjes del usuario
-- Animación de confirmación al canjear
-
-**Nueva página `AdminPremios.tsx`:**
-- CRUD de premios (nombre, descripción, costo, imagen URL, stock)
-- Lista de canjes pendientes con opción de marcar como "entregado"
-- Protegida con `AdminRoute`
-
-**Rankings (`Rankings.tsx`):**
-- Sin cambios — sigue ordenando por SP totales de cumplimiento (ya usa `sp_totales` de la vista `ranking_general`)
-
-**Rutas (`App.tsx`):**
-- Añadir `/premios` → `<Premios />`
-- Añadir `/admin/premios` → `<AdminRoute><AdminPremios /></AdminRoute>`
+### Migration 3: Agregar `puntos_ranking` a asesores
+```sql
+ALTER TABLE public.asesores 
+  ADD COLUMN IF NOT EXISTS puntos_ranking integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS documento text,
+  ADD COLUMN IF NOT EXISTS canal_direccion text;
+```
 
 ---
 
-### 5. Archivos a crear/modificar
+## Fase 2: Edge Function de Sincronización (Aliados/Empresarios)
+
+Actualizar `sync-databricks/index.ts`:
+
+- Agregar nueva config `TABLE_CONFIGS` para queries de Databricks que traigan datos de Aliados y Empresarios (unidades por tipo producto, recomendados, productividad).
+- Nueva función `syncEjecucionAsesores()` que:
+  1. Reciba rows de Databricks con campos como `TIPO_PRODUCTO`, `UNIDADES`, `CANT_RECOMENDADOS`.
+  2. Normalice productos bajo categorías maestras ("NUBE", "FE", etc.).
+  3. Agrupe por `documento_asesor + periodo + canal_direccion`.
+  4. Upsert en `ejecucion_asesores`.
+- Nueva función `syncMetasAsesores()` para ingestar metas por asesor/periodo/canal.
+
+---
+
+## Fase 3: Lógica Universal de Siigo Points (Ranking)
+
+Actualizar `calcular-sp-semanal/index.ts`:
+
+- Agregar un bloque para canales `VN_ALIADOS` y `VN_EMPRESARIOS` que:
+  1. Lea `ejecucion_asesores` agrupado por `documento_asesor` y `canal_direccion`.
+  2. Cruce con `metas_asesores` del mismo periodo y canal.
+  3. Calcule `SP = ROUND((ventas_total / meta_total) * 100)`.
+  4. Upsert en `sp_acumulados` con `fuente = 'CUMPLIMIENTO_META'`.
+  5. Actualice `asesores.puntos_ranking` con la sumatoria.
+- Solo comparar si `canal_direccion` coincide entre ejecución y meta.
+
+---
+
+## Fase 4: Medallas y Puntos Canjeables para Nuevos Frentes
+
+Actualizar la función `evaluateMedals` en `calcular-sp-semanal`:
+
+- Agregar nuevos `condicion_tipo` en el catálogo:
+  - `"recomendados"`: Si `cant_recomendados >= cantidad_requerida` → medalla + puntos canjeables.
+  - `"equilibrio"`: Si `ventas_fe >= meta_fe AND ventas_nube >= meta_nube` → medalla + puntos canjeables.
+  - `"productividad_superior"`: Si productividad > promedio del equipo → reto completado.
+- Estas medallas alimentan `puntos_canjeables` vía `otorgar_medalla_si_aplica` (ya soporta asesores).
+- No afectan `puntos_ranking`.
+
+---
+
+## Fase 5: UI/UX Segmentado
+
+### `KpiProgressBars.tsx`
+- Leer `canal_direccion` del perfil del usuario.
+- Si es Aliados/Empresarios: mostrar barras de FE vs meta_fe, Nube vs meta_nube, Productividad, y Recomendados.
+- Si es VC: mantener el layout actual (ACV+ vs Meta).
+
+### `Dashboard.tsx` y `MiPerformance.tsx`
+- Agregar fetch de `ejecucion_asesores` y `metas_asesores` cuando `canal_direccion` sea Aliados o Empresarios.
+- Mostrar tarjetas dinámicas de Productividad y Recomendados.
+
+### `Rankings.tsx`
+- Mantener filtros existentes de `pais` y `canal`.
+- Para Aliados/Empresarios: leer `puntos_ranking` de asesores + `puntos_canjeables`, mostrar ambas columnas.
+- Agregar tab de "Asesores" para estos frentes.
+
+### `useSupabaseAuth.ts`
+- Para asesores de Aliados/Empresarios: leer SP desde `sp_acumulados` filtrado por `fuente = 'CUMPLIMIENTO_META'` (ya implementado en rama `else` del asesor no-VC).
+
+### `useGamificationMetrics.ts`
+- Agregar branch para canales VN: fetch de `ejecucion_asesores` y `metas_asesores` para poblar KPIs del dashboard.
+
+---
+
+## Archivos a Modificar/Crear
 
 | Archivo | Acción |
 |---|---|
-| Migración SQL | Crear tablas `premios`, `canjes`, columnas `puntos_canjeables`, función `canjear_premio`, backfill |
-| `src/pages/Premios.tsx` | Crear |
-| `src/pages/admin/AdminPremios.tsx` | Crear |
-| `src/App.tsx` | Añadir rutas |
-| `src/components/layout/Sidebar.tsx` | Añadir ítems de menú |
-| `src/components/layout/Header.tsx` | Mostrar ambos saldos |
-| `src/hooks/useSupabaseAuth.ts` | Añadir `puntos_canjeables` al profile |
-| `src/pages/Retos.tsx` | Al completar reto, actualizar `puntos_canjeables` |
-| `src/pages/Reconocimientos.tsx` | Al enviar reconocimiento, actualizar `puntos_canjeables` |
-| `supabase/functions/calcular-sp-semanal/index.ts` | No cambios directos (medallas ya usan la función DB) |
-| Función DB `otorgar_medalla_si_aplica` | Añadir UPDATE a `puntos_canjeables` |
+| `supabase/migrations/...` | 3 migraciones (tablas + columnas) |
+| `supabase/functions/sync-databricks/index.ts` | Agregar sync de ejecución y metas |
+| `supabase/functions/calcular-sp-semanal/index.ts` | SP universal + medallas nuevos frentes |
+| `src/hooks/useGamificationMetrics.ts` | Branch para VN con datos de ejecución |
+| `src/hooks/useSupabaseAuth.ts` | Mapear `canal_direccion` al perfil |
+| `src/components/dashboard/KpiProgressBars.tsx` | Barras dinámicas FE/Nube/Productividad |
+| `src/pages/Dashboard.tsx` | Tarjetas condicionales por frente |
+| `src/pages/MiPerformance.tsx` | Métricas VN específicas |
+| `src/pages/Rankings.tsx` | Tabs + filtros por canal_direccion |
+
+---
+
+## Notas Técnicas
+
+- Las queries de Databricks para Aliados/Empresarios necesitarán ser definidas con el usuario (nombres exactos de tablas/columnas en Databricks). El plan asume una estructura similar a la de Productividad.
+- El mapeo de productos (ej. "Nube Facturación" → "NUBE") se hará con una función de normalización en la Edge Function de sincronización.
+- Los tipos TypeScript se actualizarán automáticamente tras las migraciones.
 
