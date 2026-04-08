@@ -24,6 +24,21 @@ interface MonthlyCumplimiento {
   pct: number;
 }
 
+export interface EjecucionAsesor {
+  ventas_fe: number;
+  ventas_nube: number;
+  ventas_total: number;
+  acv_total: number;
+  cant_recomendados: number;
+  productividad: number;
+}
+
+export interface MetaAsesor {
+  meta_fe: number;
+  meta_nube: number;
+  meta_total: number;
+}
+
 export interface GamificationMetrics {
   /* shared */
   loading: boolean;
@@ -60,10 +75,14 @@ export interface GamificationMetrics {
 
   /* team (for MiEquipo) */
   team: any[];
+
+  /* Aliados/Empresarios specific */
+  ejecucion: EjecucionAsesor | null;
+  metaAsesor: MetaAsesor | null;
 }
 
 /* ------------------------------------------------------------------ */
-/*  ISO-week helpers (duplicated from Dashboard to avoid coupling)     */
+/*  ISO-week helpers                                                   */
 /* ------------------------------------------------------------------ */
 
 const getISOWeek = (d: Date) => {
@@ -109,10 +128,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     upgradesCount: 0,
     topRanking: [],
     team: [],
+    ejecucion: null,
+    metaAsesor: null,
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
   const isVC = profile?.canal === 'VC';
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -125,6 +147,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const currentMonthName = MONTH_NAMES_ES[now.getMonth()];
+    const mesActual = `${anioActual}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const fetchAll = async () => {
       try {
@@ -155,7 +178,6 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
 
           const metrics = snapshot?.metrics;
 
-          // monthly cumplimiento from SUM- records
           const monthlyMap = new Map<string, { acv: number; meta: number }>();
           (ventasMetaRes.data || []).forEach((v: any) => {
             const mes = v.mes || 'Unknown';
@@ -195,6 +217,8 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             team: (teamRes.data || []).map((c: any) => ({
               id: c.nombre, nombre: c.nombre, activo: true, canal: 'VC', pais: profile.pais, email: '',
             })),
+            ejecucion: null,
+            metaAsesor: null,
           });
           return;
         }
@@ -215,52 +239,58 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             .eq('gerente_id', profile.id)
             .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
             .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
-          /* 6 – current month ACV */ isVC
+          /* 6 */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('mes', currentMonthName).eq('anio', anioActual).limit(1)
             : Promise.resolve({ data: [] }),
-          /* 7 – product breakdown current month */ isVC
+          /* 7 */ isVC
             ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
-          /* 8 – top ranking (always by SP totales) */
+          /* 8 */
           supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
-          /* 9 – team */
+          /* 9 */
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
             : supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre'),
-          /* 10 – all months ACV for history */ isVC
+          /* 10 */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
-          /* 11 – canjeables map for top ranking */
+          /* 11 */
           supabase.from('gerentes').select('id, puntos_canjeables'),
+          /* 12 – ejecucion_asesores for VN asesor role */
+          isVN && profile.role === 'asesor'
+            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(1000)
+            : Promise.resolve({ data: [] }),
+          /* 13 – metas_asesores for VN asesor role */
+          isVN && profile.role === 'asesor'
+            ? supabase.from('metas_asesores').select('*').eq('anio_mes', mesActual).limit(1000)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
 
-        // Compute VC-specific derived data
         let acvMes = 0;
         let pctCumplimiento = 0;
         let vcCumplimiento: { acv: number; meta: number; pct: number } | null = null;
         let vcMonthlyCumplimiento: MonthlyCumplimiento[] = [];
         let productBreakdown: ProductBreakdownItem[] = [];
         let upgradesCount = 0;
+        let ejecucion: EjecucionAsesor | null = null;
+        let metaAsesor: MetaAsesor | null = null;
 
         if (isVC) {
-          // Current month data (from query 6 filtered by currentMonthName)
           const acvRow = acvRows[0];
           acvMes = Number(acvRow?.acv_plus_total) || 0;
           const metaRow = Number(acvRow?.meta_total) || 0;
           pctCumplimiento = metaRow > 0 ? Math.round((acvMes / metaRow) * 100) : 0;
 
-          // Current month cumplimiento (NOT sum of all months)
           vcCumplimiento = { acv: acvMes, meta: metaRow, pct: pctCumplimiento };
 
-          // Monthly history from all months (query 10), sorted newest first
           const allMonthRows = acvAllMonthsRes.data || [];
           const monthOrder = [...MONTH_NAMES_ES].reverse();
           vcMonthlyCumplimiento = (allMonthRows as any[]).map((row: any) => {
@@ -269,7 +299,6 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             return { mes: row.mes || 'Unknown', acv, meta, pct: meta > 0 ? Math.round((acv / meta) * 100) : 0 };
           }).sort((a, b) => monthOrder.indexOf(a.mes) - monthOrder.indexOf(b.mes));
 
-          // Product breakdown (query 7 already filtered by currentMonthName)
           if (productRes.data) {
             const items = (productRes.data as any[]);
             productBreakdown = aggregateProductBreakdown(
@@ -283,7 +312,44 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
         }
 
-        // Format top ranking — always by SP totales
+        // Parse ejecucion/meta for VN asesor
+        if (isVN && profile.role === 'asesor') {
+          // Find matching row by asesor documento from asesores table
+          const { data: asesorData } = await supabase
+            .from('asesores')
+            .select('documento, canal_direccion')
+            .eq('id', profile.id)
+            .maybeSingle();
+
+          if (asesorData?.documento) {
+            const matchingEjec = (ejecRes.data || []).find(
+              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
+            );
+            const matchingMeta = (metasRes.data || []).find(
+              (m: any) => m.documento_asesor === asesorData.documento && m.canal_direccion === asesorData.canal_direccion
+            );
+
+            if (matchingEjec) {
+              ejecucion = {
+                ventas_fe: Number(matchingEjec.ventas_fe) || 0,
+                ventas_nube: Number(matchingEjec.ventas_nube) || 0,
+                ventas_total: Number(matchingEjec.ventas_total) || 0,
+                acv_total: Number(matchingEjec.acv_total) || 0,
+                cant_recomendados: Number(matchingEjec.cant_recomendados) || 0,
+                productividad: Number(matchingEjec.productividad) || 0,
+              };
+            }
+            if (matchingMeta) {
+              metaAsesor = {
+                meta_fe: Number(matchingMeta.meta_fe) || 0,
+                meta_nube: Number(matchingMeta.meta_nube) || 0,
+                meta_total: Number(matchingMeta.meta_total) || 0,
+              };
+            }
+          }
+        }
+
+        // Format top ranking
         const canjeablesMap = new Map<string, number>();
         (canjeablesRes.data || []).forEach((row: any) => {
           if (row.id) canjeablesMap.set(row.id, Number(row.puntos_canjeables) || 0);
@@ -297,7 +363,6 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           nivel: r.nivel,
         }));
 
-        // Format team
         const team = isVC
           ? (teamRes.data || []).map((c: any) => ({
               id: c.nombre, nombre: c.nombre, activo: true, canal: 'VC', pais: profile.pais, email: '',
@@ -323,6 +388,8 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           upgradesCount,
           topRanking,
           team,
+          ejecucion,
+          metaAsesor,
         });
       } catch (err: any) {
         if (!cancelled) {
@@ -335,7 +402,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     setState(prev => ({ ...prev, loading: true, error: null }));
     fetchAll();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, isVC]);
+  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, isVC, isVN]);
 
-  return { ...state, isVcAdvisor, isVC };
+  return { ...state, isVcAdvisor, isVC, isVN };
 };
