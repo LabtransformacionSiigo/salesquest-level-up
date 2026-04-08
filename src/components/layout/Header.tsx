@@ -93,6 +93,20 @@ const Header = ({ title }: HeaderProps) => {
               <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.sp_canje || 0).toLocaleString()}</span>
               <span className="text-[10px] text-accent-foreground/70">SP Canje</span>
             </div>
+            {isVN && vnMetrics && (
+              <>
+                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1.5 border border-border" title="Unidades vendidas este mes">
+                  <MI icon="inventory_2" className="text-sm text-foreground" />
+                  <span className="text-xs font-bold text-foreground font-scoreboard">{vnMetrics.unidades}</span>
+                  <span className="text-[10px] text-muted-foreground">Uds</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1.5 border border-border" title={REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}>
+                  <MI icon="group_add" className="text-sm text-foreground" />
+                  <span className="text-xs font-bold text-foreground font-scoreboard">{vnMetrics.referidos}</span>
+                  <span className="text-[10px] text-muted-foreground">{REFERIDOS_LABEL[profile?.canal || ''] || 'Ref.'}</span>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 
