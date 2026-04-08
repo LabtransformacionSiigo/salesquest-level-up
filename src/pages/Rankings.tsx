@@ -479,6 +479,7 @@ const Rankings = () => {
 
                     {!isComercialTab && g.nivel && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
                     {isComercialTab && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}
+                    {isGerentesVNTab && g.celula_nombre && g.celula_nombre !== g.nombre && <p className="text-[10px] text-muted-foreground mt-2">📋 {g.celula_nombre}</p>}
                     {(g.isCurrent || g.user_id === profile?.user_id) && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">Tú</span>}
                   </motion.div>
                 ))}
