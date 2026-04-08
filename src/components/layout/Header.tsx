@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 
+const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
+
 interface HeaderProps {
   title: string;
 }
@@ -16,6 +18,8 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
   const [racha, setRacha] = useState<any>(null);
+  const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -25,7 +29,18 @@ const Header = ({ title }: HeaderProps) => {
       .eq('gerente_id', profile.id)
       .maybeSingle()
       .then(({ data }) => setRacha(data));
-  }, [profile?.id]);
+
+    if (isVN) {
+      supabase
+        .from('kpis_mes_actual')
+        .select('sc_creados, cant_recomendados')
+        .eq('gerente_id', profile.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setVnMetrics({ unidades: Number(data.sc_creados) || 0, referidos: Number(data.cant_recomendados) || 0 });
+        });
+    }
+  }, [profile?.id, isVN]);
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
@@ -78,6 +93,20 @@ const Header = ({ title }: HeaderProps) => {
               <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.sp_canje || 0).toLocaleString()}</span>
               <span className="text-[10px] text-accent-foreground/70">SP Canje</span>
             </div>
+            {isVN && vnMetrics && (
+              <>
+                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1.5 border border-border" title="Unidades vendidas este mes">
+                  <MI icon="inventory_2" className="text-sm text-foreground" />
+                  <span className="text-xs font-bold text-foreground font-scoreboard">{vnMetrics.unidades}</span>
+                  <span className="text-[10px] text-muted-foreground">Uds</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1.5 border border-border" title={REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}>
+                  <MI icon="group_add" className="text-sm text-foreground" />
+                  <span className="text-xs font-bold text-foreground font-scoreboard">{vnMetrics.referidos}</span>
+                  <span className="text-[10px] text-muted-foreground">{REFERIDOS_LABEL[profile?.canal || ''] || 'Ref.'}</span>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 

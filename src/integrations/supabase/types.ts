@@ -1617,6 +1617,7 @@ export type Database = {
         Row: {
           acv_total: number | null
           canal: string | null
+          cant_recomendados: number | null
           gerente_nombre: string | null
           nombre: string | null
           pais_gerente: string | null
