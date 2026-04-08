@@ -38,6 +38,7 @@ const Rankings = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [tab, setTab] = useState<RankingTab>('comerciales');
   const isVC = profile?.canal === 'VC';
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
 
   const fetchRanking = async () => {
@@ -117,6 +118,54 @@ const Rankings = () => {
           };
         });
         setRanking(mapped);
+      }
+    } else if (isVN) {
+      // VN channels: use ranking_vn views
+      if (tab === 'comerciales') {
+        const comRes = await supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal);
+        setRanking((comRes.data || []).map((r: any) => ({
+          id: `${r.nombre}-${r.gerente_nombre}`,
+          nombre: r.nombre,
+          gerente_nombre: r.gerente_nombre,
+          kpi_value: Math.round(Number(r.acv_total) || 0),
+          unidades_total: Number(r.unidades_total) || 0,
+          pct_cumplimiento: 0,
+          ventas_count: r.ventas_count,
+          posicion: r.posicion,
+          canal: r.canal,
+          pais: r.pais_gerente || userPais,
+          sp_totales: 0,
+          sp_canje: 0,
+          nivel: null,
+        })));
+      } else {
+        const [gerentesRes, spRankRes, canjeablesRes] = await Promise.all([
+          supabase.from('ranking_vn_gerentes' as any).select('*').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('ranking_general').select('*').eq('canal', profile.canal),
+          supabase.from('gerentes').select('id, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
+        ]);
+        const spMap = new Map<string, any>();
+        (spRankRes.data || []).forEach((r: any) => { if (r.id) spMap.set(r.id, r); });
+        const canjeablesMap = new Map<string, number>();
+        (canjeablesRes.data || []).forEach((g: any) => { if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0); });
+
+        setRanking((gerentesRes.data || []).map((r: any) => {
+          const sp = spMap.get(r.gerente_id);
+          return {
+            id: r.gerente_id,
+            nombre: r.nombre,
+            canal: r.canal,
+            pais: r.pais,
+            kpi_value: Math.round(Number(r.acv_total) || 0),
+            meta_total: Number(r.meta_unidades) || 0,
+            unidades_logradas: Number(r.unidades_logradas) || 0,
+            pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
+            sp_totales: sp?.sp_totales || 0,
+            sp_canje: canjeablesMap.get(r.gerente_id) || 0,
+            nivel: sp?.nivel || null,
+            posicion: r.posicion,
+          };
+        }));
       }
     } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
