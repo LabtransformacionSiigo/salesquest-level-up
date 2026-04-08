@@ -364,9 +364,29 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               meta_total: metaTotal,
             };
           } else {
-            // Fallback to kpis_mes_actual
-            acvMes = Number(kpisRes.data?.acv_f) || 0;
-            pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
+            // Fallback to kpis_mes_actual (populated by productividad sync)
+            const kpiData = kpisRes.data;
+            acvMes = Number(kpiData?.acv_f) || 0;
+            pctCumplimiento = Number(kpiData?.pct_cumplimiento) || 0;
+
+            // Build ejecucion/metaAsesor from kpis so VN progress bars render
+            if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
+              const ventasTotal = Number(kpiData.ventas) || 0;
+              const metaTotal = Number(kpiData.meta) || 0;
+              ejecucion = {
+                ventas_fe: 0,
+                ventas_nube: 0,
+                ventas_total: ventasTotal,
+                acv_total: acvMes,
+                cant_recomendados: Number(kpiData.cant_recomendados) || 0,
+                productividad: metaTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0,
+              };
+              metaAsesor = {
+                meta_fe: 0,
+                meta_nube: 0,
+                meta_total: metaTotal,
+              };
+            }
           }
         }
 
