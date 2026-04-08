@@ -5,6 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 
+const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
+import NotificationBell from './NotificationBell';
+
 interface HeaderProps {
   title: string;
 }
@@ -16,6 +19,8 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
   const [racha, setRacha] = useState<any>(null);
+  const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -25,7 +30,18 @@ const Header = ({ title }: HeaderProps) => {
       .eq('gerente_id', profile.id)
       .maybeSingle()
       .then(({ data }) => setRacha(data));
-  }, [profile?.id]);
+
+    if (isVN) {
+      supabase
+        .from('kpis_mes_actual')
+        .select('sc_creados, cant_recomendados')
+        .eq('gerente_id', profile.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setVnMetrics({ unidades: Number(data.sc_creados) || 0, referidos: Number(data.cant_recomendados) || 0 });
+        });
+    }
+  }, [profile?.id, isVN]);
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
