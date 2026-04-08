@@ -500,7 +500,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           acvMes,
           ventasSemana: weekRevenue,
           pctCumplimiento,
-          unidades: Number(kpisRes.data?.ventas) || unidadesRes.count || 0,
+          unidades: ejecucion?.ventas_total || Number(kpisRes.data?.ventas) || unidadesRes.count || 0,
           vcSnapshot: null,
           vcCumplimiento,
           vcMonthlyCumplimiento,
