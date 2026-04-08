@@ -164,6 +164,7 @@ export const useSupabaseAuth = () => {
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
             puntos_canjeables: asesor.puntos_canjeables ?? 0,
+            canal_direccion: (asesor as any).canal_direccion ?? null,
           });
         } else {
           setProfile(null);
