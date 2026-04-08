@@ -212,28 +212,18 @@ const Rankings = () => {
         });
         setRanking(entries);
       } else {
-        // Gerentes tab for VN: calculate SP convención from kpis_mensuales (all months accumulated)
-        const [kpisRes, canjeablesRes] = await Promise.all([
-          supabase.from('kpis_mensuales').select('gerente_id, anio_mes, ventas, meta, cant_recomendados, sc_creados, acv_f').eq('canal', profile.canal).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
-          supabase.from('gerentes').select('id, nombre, sp_canje, pais').eq('canal', profile.canal).eq('pais', userPais),
+        // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
+        const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
+        const [productividadRes] = await Promise.all([
+          supabase.from('productividad_asesores').select('celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
         ]);
-        const canjeablesMap = new Map<string, number>();
-        const gerenteNameMap = new Map<string, string>();
-        (canjeablesRes.data || []).forEach((g: any) => {
-          if (g.id) {
-            canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
-            gerenteNameMap.set(g.id, g.nombre);
-          }
-        });
-        // Only include gerentes that belong to the user's country
-        const validGerenteIds = new Set(canjeablesMap.keys());
-        // Aggregate by gerente_id across all months
-        const gerenteAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number }>();
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        (kpisRes.data || []).forEach((row: any) => {
-          const gid = row.gerente_id;
-          if (!gid || !validGerenteIds.has(gid)) return;
-          const agg = gerenteAgg.get(gid) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0 };
+        // Aggregate by celula + month
+        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number }>();
+        (productividadRes.data || []).forEach((row: any) => {
+          const celula = row.celula;
+          if (!celula) return;
+          const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0 };
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
           cm.ventas += Number(row.ventas) || 0;
@@ -246,18 +236,18 @@ const Rankings = () => {
             agg.currentMeta += Number(row.meta) || 0;
             agg.currentRecomendados += Number(row.cant_recomendados) || 0;
           }
-          gerenteAgg.set(gid, agg);
+          celulaAgg.set(celula, agg);
         });
         const entries: any[] = [];
-        gerenteAgg.forEach((agg, gid) => {
+        celulaAgg.forEach((agg, celula) => {
           const spConv = [...agg.months.values()].reduce((total, m) => {
             if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
             return total;
           }, 0);
           const pct = agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0;
           entries.push({
-            id: gid,
-            nombre: gerenteNameMap.get(gid) || gid,
+            id: celula,
+            nombre: celula,
             canal: profile.canal,
             pais: userPais,
             kpi_value: Math.round(agg.acv),
@@ -267,7 +257,7 @@ const Rankings = () => {
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
             sp_totales: spConv,
-            sp_canje: canjeablesMap.get(gid) || 0,
+            sp_canje: 0,
             nivel: null,
             posicion: 0,
           });
