@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { filterVcAdvisorSales, getVcAdvisorDerivedMetrics } from '@/lib/vc-advisor-metrics';
 
 export interface Gerente {
   id: string;
@@ -131,20 +130,14 @@ export const useSupabaseAuth = () => {
           const asesor = asesorRes.data;
           let spTotales = 0;
 
-          if (asesor.canal === 'VC' && asesor.gerente_id) {
-            const ventasRes = await supabase
-              .from('ventas')
-              .select('fecha_facturacion, valor_producto, acv_plus, comercial, gerente_id')
-              .eq('gerente_id', asesor.gerente_id);
-
-            if (ventasRes.error) throw ventasRes.error;
-            const advisorSales = filterVcAdvisorSales(ventasRes.data || [], asesor.nombre, asesor.gerente_id);
-            spTotales = getVcAdvisorDerivedMetrics(advisorSales).totalSp;
-          } else {
-            const spRes = await supabase.from('sp_acumulados').select('sp').eq('gerente_id', asesor.id).eq('fuente', 'CUMPLIMIENTO_META');
-            if (spRes.error) throw spRes.error;
-            spTotales = (spRes.data || []).reduce((total: number, row: any) => total + (Number(row.sp) || 0), 0);
-          }
+          const spRes = await supabase
+            .from('sp_acumulados')
+            .select('sp')
+            .eq('gerente_id', asesor.id)
+            .eq('fuente', 'CUMPLIMIENTO_META')
+            .eq('tipo_sp', 'convencion');
+          if (spRes.error) throw spRes.error;
+          spTotales = (spRes.data || []).reduce((total: number, row: any) => total + (Number(row.sp) || 0), 0);
 
           const nivelData = getNivelData(spTotales);
 

@@ -47,19 +47,18 @@ const Rankings = () => {
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const [comRes, gerentesRes, spComRes, asesoresRes] = await Promise.all([
+        const [comRes, gerentesRes, asesoresRes] = await Promise.all([
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
-          supabase.from('sp_acumulados_comerciales' as any).select('nombre, sp_totales'),
-          supabase.from('asesores').select('nombre, sp_canje').eq('canal', 'VC'),
+          supabase.from('asesores').select('nombre, sp_canje, sp_convencion').eq('canal', 'VC'),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
           if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
         });
         const spByComercial = new Map<string, number>();
-        (spComRes.data || []).forEach((s: any) => {
-          if (s.nombre) spByComercial.set(s.nombre, Number(s.sp_totales) || 0);
+        (asesoresRes.data || []).forEach((a: any) => {
+          if (a.nombre) spByComercial.set(normalizePersonName(a.nombre), Number(a.sp_convencion) || 0);
         });
         const canjeablesByComercial = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
@@ -72,7 +71,7 @@ const Rankings = () => {
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
           meta_total: Math.round(Number(r.meta_total) || 0),
-          sp_totales: spByComercial.get(r.nombre) || 0,
+          sp_totales: spByComercial.get(normalizePersonName(r.nombre)) || 0,
           pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
