@@ -120,7 +120,6 @@ Deno.serve(async (req) => {
 
         if (canal === "VC") {
           // VC: SP = % cumplimiento de meta mensual
-          // Get all monthly summary rows for this gerente in current month
           const { data: ventasMes } = await supabase
             .from("ventas")
             .select("acv_plus, meta")
@@ -128,7 +127,6 @@ Deno.serve(async (req) => {
             .eq("canal", "VC")
             .eq("mes", currentMonthName);
 
-          // Sum ACV and average meta across all asesores of this gerente
           const totalAcv = (ventasMes || []).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
           const totalMeta = (ventasMes || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
 
@@ -136,7 +134,7 @@ Deno.serve(async (req) => {
             spFinal = Math.round((totalAcv / totalMeta) * 100);
           }
         } else {
-          // Other channels: SP = % cumplimiento from kpis_mensuales
+          // VN channels: SP = % cumplimiento from kpis_mensuales
           const { data: kpi } = await supabase
             .from("kpis_mensuales")
             .select("ventas, meta")
@@ -150,7 +148,6 @@ Deno.serve(async (req) => {
         }
 
         if (spFinal > 0) {
-          // Upsert so SP reflects latest % without accumulating
           const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
             gerente_id: gerente.id,
             fuente: "CUMPLIMIENTO_META",
@@ -168,7 +165,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Update racha state (use week-based ventas for streaks)
+        // Update racha state
         const weekStartDate = getISOWeekStartDate(semanaActual, anioActual);
         const weekEndDate = new Date(weekStartDate);
         weekEndDate.setDate(weekEndDate.getDate() + 7);
@@ -238,12 +235,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Process asesores from ejecucion_asesores (Aliados/Empresarios) ──
+    const asesoresSpResult = await processAsesoresEjecucion(supabase, mesActual, periodoSemana, medalsByCanal);
+
     return new Response(JSON.stringify({
       procesados,
-      sp_otorgados: totalSpOtorgados,
+      sp_otorgados: totalSpOtorgados + asesoresSpResult.sp_otorgados,
       semana: periodoSemana,
       por_canal: resumenCanal,
-      errores,
+      asesores_procesados: asesoresSpResult,
+      errores: [...errores, ...asesoresSpResult.errores],
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -255,7 +256,172 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Medal evaluation ──
+// ── Process asesores SP from ejecucion_asesores + metas_asesores ──
+async function processAsesoresEjecucion(
+  supabase: any,
+  mesActual: string,
+  periodoSemana: string,
+  medalsByCanal: Record<string, any[]>
+) {
+  const errores: string[] = [];
+  let procesados = 0;
+  let spOtorgados = 0;
+
+  // Get all ejecucion rows for current period
+  const { data: ejecRows } = await supabase
+    .from("ejecucion_asesores")
+    .select("*")
+    .eq("periodo", mesActual);
+
+  if (!ejecRows || ejecRows.length === 0) {
+    return { procesados: 0, sp_otorgados: 0, errores: [] };
+  }
+
+  // Get matching metas
+  const { data: metasRows } = await supabase
+    .from("metas_asesores")
+    .select("*")
+    .eq("anio_mes", mesActual);
+
+  const metasMap = new Map<string, any>();
+  (metasRows || []).forEach((m: any) => {
+    metasMap.set(`${m.documento_asesor}|${m.canal_direccion}`, m);
+  });
+
+  // Get asesores mapping (documento → asesor id)
+  const { data: asesores } = await supabase
+    .from("asesores")
+    .select("id, documento, canal_direccion, nombre");
+
+  const asesorByDoc = new Map<string, any>();
+  (asesores || []).forEach((a: any) => {
+    if (a.documento) asesorByDoc.set(`${a.documento}|${a.canal_direccion}`, a);
+  });
+
+  for (const ejec of ejecRows) {
+    try {
+      const meta = metasMap.get(`${ejec.documento_asesor}|${ejec.canal_direccion}`);
+      if (!meta || !meta.meta_total || meta.meta_total <= 0) continue;
+
+      const asesor = asesorByDoc.get(`${ejec.documento_asesor}|${ejec.canal_direccion}`);
+      if (!asesor) continue;
+
+      const spFinal = Math.round((ejec.ventas_total / meta.meta_total) * 100);
+      if (spFinal <= 0) continue;
+
+      // Upsert SP
+      const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
+        gerente_id: asesor.id,
+        fuente: "CUMPLIMIENTO_META",
+        sp: spFinal,
+        periodo: periodoSemana,
+        detalle: `Cumplimiento: ${spFinal}% · ${ejec.canal_direccion}`,
+      }, { onConflict: "gerente_id,fuente,periodo" });
+
+      if (upsertErr) {
+        if (errores.length < 20) errores.push(`Asesor SP ${asesor.nombre}: ${upsertErr.message}`);
+      } else {
+        spOtorgados += spFinal;
+      }
+
+      // Update puntos_ranking on asesor
+      const { data: allSp } = await supabase
+        .from("sp_acumulados")
+        .select("sp")
+        .eq("gerente_id", asesor.id)
+        .eq("fuente", "CUMPLIMIENTO_META");
+
+      const totalRanking = (allSp || []).reduce((s: number, r: any) => s + (Number(r.sp) || 0), 0);
+      await supabase.from("asesores").update({ puntos_ranking: totalRanking }).eq("id", asesor.id);
+
+      // Evaluate medals for new fronts
+      await evaluateAsesorMedals(supabase, asesor, ejec, meta, medalsByCanal[ejec.canal_direccion] || []);
+
+      procesados++;
+    } catch (err) {
+      if (errores.length < 20) errores.push(`Asesor ejec error: ${String(err)}`);
+    }
+  }
+
+  return { procesados, sp_otorgados: spOtorgados, errores };
+}
+
+// ── Medal evaluation for asesores (Aliados/Empresarios) ──
+async function evaluateAsesorMedals(
+  supabase: any,
+  asesor: { id: string; nombre: string },
+  ejec: any,
+  meta: any,
+  medals: any[]
+) {
+  if (!medals || medals.length === 0) return;
+
+  for (const medal of medals) {
+    try {
+      switch (medal.condicion_tipo) {
+        case "recomendados": {
+          if ((ejec.cant_recomendados || 0) >= (medal.cantidad_requerida || 1)) {
+            await supabase.rpc("otorgar_medalla_si_aplica", {
+              p_gerente_id: asesor.id,
+              p_medalla: medal.nombre,
+              p_sp: medal.sp,
+            });
+          }
+          break;
+        }
+        case "equilibrio": {
+          if (
+            (ejec.ventas_fe || 0) >= (meta.meta_fe || 0) &&
+            (ejec.ventas_nube || 0) >= (meta.meta_nube || 0) &&
+            meta.meta_fe > 0 && meta.meta_nube > 0
+          ) {
+            await supabase.rpc("otorgar_medalla_si_aplica", {
+              p_gerente_id: asesor.id,
+              p_medalla: medal.nombre,
+              p_sp: medal.sp,
+            });
+          }
+          break;
+        }
+        case "primera_venta": {
+          if ((ejec.ventas_total || 0) >= 1) {
+            await supabase.rpc("otorgar_medalla_si_aplica", {
+              p_gerente_id: asesor.id,
+              p_medalla: medal.nombre,
+              p_sp: medal.sp,
+            });
+          }
+          break;
+        }
+        case "cantidad": {
+          if ((ejec.ventas_total || 0) >= (medal.cantidad_requerida || 1)) {
+            await supabase.rpc("otorgar_medalla_si_aplica", {
+              p_gerente_id: asesor.id,
+              p_medalla: medal.nombre,
+              p_sp: medal.sp,
+            });
+          }
+          break;
+        }
+        case "cumplimiento": {
+          const pct = meta.meta_total > 0 ? Math.round((ejec.ventas_total / meta.meta_total) * 100) : 0;
+          if (pct >= (medal.cantidad_requerida || 100)) {
+            await supabase.rpc("otorgar_medalla_si_aplica", {
+              p_gerente_id: asesor.id,
+              p_medalla: medal.nombre,
+              p_sp: medal.sp,
+            });
+          }
+          break;
+        }
+      }
+    } catch (_err) {
+      // Silent fail per medal
+    }
+  }
+}
+
+// ── Medal evaluation for gerentes ──
 async function evaluateMedals(
   supabase: any,
   gerente: { id: string; nombre: string },

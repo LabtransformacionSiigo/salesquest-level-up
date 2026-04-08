@@ -24,6 +24,7 @@ export interface AuthUser extends Gerente {
   sp_siguiente_nivel: number | null;
   role: string | null;
   puntos_canjeables: number;
+  canal_direccion?: string | null;
 }
 
 const NIVELES = [
@@ -163,6 +164,7 @@ export const useSupabaseAuth = () => {
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
             puntos_canjeables: asesor.puntos_canjeables ?? 0,
+            canal_direccion: (asesor as any).canal_direccion ?? null,
           });
         } else {
           setProfile(null);
