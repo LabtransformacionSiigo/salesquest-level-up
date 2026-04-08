@@ -307,10 +307,81 @@ const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: st
   </motion.div>
 );
 
+const VnCumplimientoSection = ({ kpis }: { kpis: any }) => {
+  const ventas = Number(kpis?.ventas) || 0;
+  const meta = Number(kpis?.meta) || 0;
+  const pct = Number(kpis?.pct_cumplimiento) || 0;
+  return (
+    <>
+      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(Unidades vendidas ÷ Meta unidades) × 100." />
+      <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+        <div className="flex items-center gap-8">
+          <div className="relative w-28 h-28 shrink-0">
+            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, pct) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xl font-bold font-scoreboard text-primary">{pct}%</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <MetaRow label="Unidades" value={String(ventas)} />
+            <MetaRow label="Meta Und." value={String(meta)} />
+            <MetaRow label="ACV+" value={formatMoney(kpis?.acv_f)} />
+            <MetaRow label="Referidos" value={String(kpis?.cant_recomendados || 0)} />
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+};
+
+const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | null }) => (
+  <>
+    <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Unidades vendidas vs Meta por mes, con % de cumplimiento." />
+    <motion.div className="bg-card border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
+      <table className="w-full">
+        <thead>
+          <tr className="bg-primary text-primary-foreground text-[11px] uppercase tracking-wider font-heading">
+            <th className="text-left px-4 py-3">Mes</th>
+            <th className="text-right px-4 py-3">Unidades</th>
+            <th className="text-right px-4 py-3">Meta</th>
+            <th className="text-right px-4 py-3">% Cumpl.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((m, i) => (
+            <motion.tr
+              key={m.mes}
+              className="border-b border-border hover:bg-primary/5 transition-colors"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
+            >
+              <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
+              <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{m.acv}</td>
+              <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{m.meta}</td>
+              <td className="px-4 py-3 text-right">
+                <span className={cn(
+                  "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
+                  m.pct >= 100 ? "bg-accent/10 text-accent" : m.pct >= 70 ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                )}>
+                  {m.pct}%
+                </span>
+              </td>
+            </motion.tr>
+          ))}
+        </tbody>
+      </table>
+    </motion.div>
+  </>
+);
+
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>
     <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(Ventas actuales ÷ Meta) × 100." />
-    <motion.div className="bg-white border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
+    <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
       <div className="flex items-center gap-8">
         <div className="relative w-28 h-28 shrink-0">
           <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
