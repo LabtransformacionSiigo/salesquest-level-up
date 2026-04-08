@@ -15,6 +15,7 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter';
 
 const FLAG_IMG: Record<string, string> = { COL: colombiaFlag, CO: colombiaFlag, MEX: mexicoFlag, MX: mexicoFlag, ECU: ecuadorFlag, EC: ecuadorFlag };
 const CANALES_LABEL: Record<string, string> = { VN_EMPRESARIOS: 'Empresarios', VN_ALIADOS: 'Aliados', VC: 'Venta Cruzada' };
+const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
 const PAIS_LABEL: Record<string, string> = { COL: 'Colombia', MEX: 'México', ECU: 'Ecuador' };
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = ['border-yellow bg-siigo-yellow/5', 'border-muted-foreground/30', 'border-orange/40'];
@@ -354,16 +355,16 @@ const Rankings = () => {
                     </div>
 
                     {/* Secondary metrics */}
-                    <div className="flex items-center justify-center gap-3 text-xs">
+                    <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
                       {(isComercialTab || isGerentesVCTab || isGerentesVNTab) && (
                         <>
-                          {(isGerentesVCTab || isGerentesVNTab) && (
-                            <div>
-                              <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                              <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
-                            </div>
-                          )}
-                          {isGerentesVNTab && (
+                          {/* % Cumpl — always shown */}
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
+                          </div>
+                          {/* VN: Unidades + Referidos */}
+                          {(isGerentesVNTab || (isVN && isComercialTab)) && (
                             <>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -372,19 +373,14 @@ const Rankings = () => {
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
-                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{(g.meta_total || 0).toLocaleString()}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
+                                <p className="text-sm font-bold font-scoreboard text-accent">{(g.cant_recomendados || 0).toLocaleString()}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</p>
                               </div>
                             </>
                           )}
-                          {(isComercialTab || isGerentesVCTab) && !isGerentesVNTab && (
+                          {/* VC: ACV + Meta */}
+                          {(isComercialTab || isGerentesVCTab) && !isVN && (
                             <>
-                              {isComercialTab && (
-                                <div>
-                                  <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                                  <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
-                                </div>
-                              )}
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
