@@ -220,7 +220,11 @@ const Rankings = () => {
         ]);
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
-        // Build gerente name lookup by celula: find gerente whose first name appears in celula name
+        // Build gerente name lookup by celula: find the actual leader (not an asesor in productividad)
+        const asesorNames = new Set<string>();
+        (productividadRes.data || []).forEach((row: any) => {
+          if (row.asesor) asesorNames.add(normalizePersonName(row.asesor));
+        });
         const gerentesByCelula = new Map<string, { nombre: string; sp_canje: number }>();
         const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number }>>();
         (gerentesRes.data || []).forEach((g: any) => {
@@ -229,17 +233,32 @@ const Rankings = () => {
           list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0 });
           gerentesByCell.set(g.celula, list);
         });
-        // For each celula, find the gerente whose first name appears in the celula name
+        // For each celula, find the leader: person NOT appearing as asesor in productividad_asesores
         gerentesByCell.forEach((members, celula) => {
           const celulaLower = celula.toLowerCase();
+          // Priority 1: member not in productividad (actual leader, not asesor)
+          const nonAsesor = members.filter(m => !asesorNames.has(normalizePersonName(m.nombre)));
+          if (nonAsesor.length === 1) {
+            gerentesByCelula.set(celula, nonAsesor[0]);
+            return;
+          }
+          // Priority 2: among non-asesores, find one whose name parts appear in celula
+          if (nonAsesor.length > 1) {
+            const nameMatch = nonAsesor.find(m => {
+              const parts = m.nombre.toLowerCase().split(/\s+/);
+              return parts.some(p => p.length > 2 && celulaLower.includes(p));
+            });
+            gerentesByCelula.set(celula, nameMatch || nonAsesor[0]);
+            return;
+          }
+          // Priority 3: fallback to name matching among all members
           const match = members.find(m => {
-            const firstName = m.nombre.split(' ')[0]?.toLowerCase();
-            return firstName && firstName.length > 2 && celulaLower.includes(firstName);
+            const parts = m.nombre.toLowerCase().split(/\s+/);
+            return parts.some(p => p.length > 2 && celulaLower.includes(p));
           });
           if (match) {
             gerentesByCelula.set(celula, match);
           } else if (members.length > 0) {
-            // Fallback: just pick first member alphabetically
             gerentesByCelula.set(celula, members[0]);
           }
         });
