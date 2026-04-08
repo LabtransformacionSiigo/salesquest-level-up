@@ -12,11 +12,14 @@ const SPANISH_MONTHS: Record<string, string> = {
   "Septiembre": "09", "Octubre": "10", "Noviembre": "11", "Diciembre": "12",
 };
 
-// Table configurations
+// ============================================================
+// TABLE_CONFIGS – all Databricks queries
+// ============================================================
 const TABLE_CONFIGS: Record<string, { sql: (limit: string, mesFilter?: string) => string; label: string }> = {
   productividad: {
-    label: "Productividad Progresiva",
-    sql: (limit: string) => `SELECT * FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
+    label: "Productividad Progresiva (legacy → kpis_mensuales)",
+    sql: (limit: string) =>
+      `SELECT * FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
   ventas_vc: {
     label: "Ventas VC (Mensual con Metas)",
@@ -29,34 +32,28 @@ const TABLE_CONFIGS: Record<string, { sql: (limit: string, mesFilter?: string) =
         : `WHERE \`Año_Meta\` = 2026`;
       return `
 WITH ventas_mensuales AS (
-    SELECT 
-        comercial, lider, Anio, mes,
+    SELECT comercial, lider, Anio, mes,
         SUM(CAST(ACV_PLUS AS BIGINT)) AS total_logrado_mes
     FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
     ${ventasWhere}
     GROUP BY comercial, lider, Anio, mes
 ),
 metas_mensuales AS (
-    SELECT 
-        Comercial, Lider AS Lider_Meta, \`Año_Meta\`, Mes_meta,
+    SELECT Comercial, Lider AS Lider_Meta, \`Año_Meta\`, Mes_meta,
         SUM(meta_todo) AS meta_del_mes
     FROM analyticdl.db_servicios.tbl_slv_metas_venta_cruzada
     ${metasWhere}
     GROUP BY Comercial, Lider, \`Año_Meta\`, Mes_meta
 )
 SELECT 
-    m.Comercial AS Asesor,
-    m.Lider_Meta AS Lider,
-    m.\`Año_Meta\` AS Anio,
-    m.Mes_meta AS Mes,
+    m.Comercial AS Asesor, m.Lider_Meta AS Lider,
+    m.\`Año_Meta\` AS Anio, m.Mes_meta AS Mes,
     m.meta_del_mes AS Meta_Objetivo,
     COALESCE(v.total_logrado_mes, 0) AS Saldo_ACV_Actual
 FROM metas_mensuales m
 LEFT JOIN ventas_mensuales v 
-    ON LOWER(m.Comercial) = LOWER(v.comercial) 
-    AND m.Mes_meta = v.mes
-${limit}
-`;
+    ON LOWER(m.Comercial) = LOWER(v.comercial) AND m.Mes_meta = v.mes
+${limit}`;
     },
   },
   ventas_vc_producto: {
@@ -66,37 +63,131 @@ ${limit}
         ? `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay') AND mes = '${mesFilter}'`
         : `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')`;
       return `
-SELECT 
-    comercial AS Asesor,
-    lider AS Lider,
-    Anio,
-    mes AS Mes,
-    categoria_producto_Venta AS Producto,
-    bloque_venta AS Bloque,
-    SUM(CAST(ACV_PLUS AS BIGINT)) AS ACV_Producto,
-    COUNT(*) AS Unidades
+SELECT comercial AS Asesor, lider AS Lider, Anio, mes AS Mes,
+    categoria_producto_Venta AS Producto, bloque_venta AS Bloque,
+    SUM(CAST(ACV_PLUS AS BIGINT)) AS ACV_Producto, COUNT(*) AS Unidades
 FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
 ${ventasWhere}
 GROUP BY comercial, lider, Anio, mes, categoria_producto_Venta, bloque_venta
-${limit}
-`;
+${limit}`;
     },
+  },
+  // ── NEW: Metas Gerentes ──
+  metas_gerentes: {
+    label: "Metas Gerentes (tbl_brz_gerentes)",
+    sql: (limit: string) =>
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes ${limit}`,
+  },
+  // ── NEW: Metas Asesores ──
+  metas_asesores_sync: {
+    label: "Metas Asesores (cuotas_asesores)",
+    sql: (limit: string) =>
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores ${limit}`,
+  },
+  // ── NEW: Ventas Empresarios ──
+  ventas_empresarios: {
+    label: "Ventas Empresarios (tbl_gld_Ventas_MX)",
+    sql: (limit: string) =>
+      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX ${limit}`,
+  },
+  // ── NEW: Ventas Aliados ──
+  ventas_aliados: {
+    label: "Ventas Aliados (tbl_gld_Ventas_SA)",
+    sql: (limit: string) =>
+      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA ${limit}`,
+  },
+  // ── NEW: Productividad Asesores (gamificación) ──
+  productividad_asesores: {
+    label: "Productividad Asesores (Progresiva)",
+    sql: (limit: string) =>
+      `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva ${limit}`,
   },
 };
 
+// ============================================================
+// Utilities
+// ============================================================
+const normalizeText = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9@.\s_-]/g, "").replace(/\s+/g, " ");
+
+const buildEmailFromName = (name: string) => {
+  const slug = normalizeText(name).replace(/[@]/g, "").replace(/[._-]+/g, " ").trim().replace(/\s+/g, ".");
+  return `${slug || "sin.nombre"}@siigo.com`;
+};
+
+const inferCanal = (row: Record<string, any>) => {
+  const combined = normalizeText(`${row.AREA || ""} ${row.CELULA || ""} ${row.Director || row.DIRECTOR || ""}`);
+  if (combined.includes("aliados")) return "VN_ALIADOS";
+  if (combined.includes("empres")) return "VN_EMPRESARIOS";
+  return "VC";
+};
+
+const normalizeCountry = (value: unknown) => {
+  const country = normalizeText(value).toUpperCase();
+  if (["COL", "CO", "COLOMBIA"].includes(country)) return "COL";
+  if (["MEX", "MX", "MEXICO", "MEXICO DF"].includes(country)) return "MEX";
+  if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
+  return "COL";
+};
+
+const toNumber = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(String(value).replace(/,/g, ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+};
+
+// ============================================================
+// Databricks query runner (reusable)
+// ============================================================
+async function runDatabricksQuery(queryName: string, sql: string): Promise<Record<string, any>[]> {
+  const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST")!;
+  const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN")!;
+  const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID")!;
+  const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, "")}/api/2.0/sql/statements`;
+
+  console.log(`[${queryName}] Querying Databricks...`);
+  const resp = await fetch(databricksUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ warehouse_id: DATABRICKS_WAREHOUSE_ID, statement: sql, wait_timeout: "50s", disposition: "INLINE", format: "JSON_ARRAY" }),
+  });
+  let data = await resp.json();
+  if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
+
+  let polls = 0;
+  while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
+    polls++;
+    await new Promise((r) => setTimeout(r, 5000));
+    const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
+    data = await pr.json();
+    console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
+  }
+  if (data.status?.state === "FAILED") throw new Error(data.status?.error?.message || "Query failed");
+  if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
+
+  const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
+  return (data.result?.data_array || []).map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
+
+// ============================================================
+// MAIN HANDLER
+// ============================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -108,31 +199,12 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null;
 
     if (!isServiceRole) {
-      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      });
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
       const { data: { user: authUser }, error: authErr } = await userClient.auth.getUser();
-      if (authErr || !authUser) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (authErr || !authUser) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       authUserId = authUser.id;
-
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authUser.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", authUser.id).eq("role", "admin").maybeSingle();
+      if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -141,199 +213,121 @@ Deno.serve(async (req) => {
     const mesFilter = body.mes || undefined;
     const jobId = body.jobId || undefined;
 
+    // ── Background job creation ──
     if (mode === "sync" && !jobId) {
       const { data: job, error: jobError } = await supabase
         .from("sync_jobs")
-        .insert({
-          table_name: table,
-          mode,
-          status: "pending",
-          requested_by: authUserId,
-          started_at: new Date().toISOString(),
-        })
+        .insert({ table_name: table, mode, status: "pending", requested_by: authUserId, started_at: new Date().toISOString() })
         .select("id, table_name, status, created_at")
         .single();
+      if (jobError || !job) return new Response(JSON.stringify({ error: jobError?.message || "No se pudo crear el trabajo" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      if (jobError || !job) {
-        return new Response(JSON.stringify({ error: jobError?.message || "No se pudo crear el trabajo" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      EdgeRuntime.waitUntil(processSyncJob({
-        supabaseUrl,
-        serviceRoleKey,
-        table,
-        mesFilter,
-        jobId: job.id,
-      }));
-
-      return new Response(JSON.stringify({
-        queued: true,
-        job,
-        message: "Sincronización iniciada en segundo plano",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      EdgeRuntime.waitUntil(processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, jobId: job.id }));
+      return new Response(JSON.stringify({ queued: true, job, message: "Sincronización iniciada en segundo plano" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Job status polling ──
     if (mode === "job_status") {
-      if (!jobId) {
-        return new Response(JSON.stringify({ error: "jobId es requerido" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { data: job, error: jobError } = await supabase
-        .from("sync_jobs")
-        .select("id, table_name, mode, status, requested_by, started_at, finished_at, result, error_message, created_at")
-        .eq("id", jobId)
-        .maybeSingle();
-
-      if (jobError) {
-        return new Response(JSON.stringify({ error: jobError.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (!job) {
-        return new Response(JSON.stringify({ error: "Trabajo no encontrado" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify(job), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!jobId) return new Response(JSON.stringify({ error: "jobId es requerido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: job, error: jobError } = await supabase.from("sync_jobs").select("*").eq("id", jobId).maybeSingle();
+      if (jobError) return new Response(JSON.stringify({ error: jobError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!job) return new Response(JSON.stringify({ error: "Trabajo no encontrado" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(job), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Composite modes ──
     if (table === "ventas_vc_completo") {
       const result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode });
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    if (table === "all_new") {
+      const result = await runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode });
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Single table ──
     const result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode });
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("sync-databricks error:", error);
-    return new Response(JSON.stringify({ error: String(error) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 
-async function processSyncJob({
-  supabaseUrl,
-  serviceRoleKey,
-  table,
-  mesFilter,
-  jobId,
-}: {
-  supabaseUrl: string;
-  serviceRoleKey: string;
-  table: string;
-  mesFilter?: string;
-  jobId: string;
-}) {
+// ============================================================
+// Background job processor
+// ============================================================
+async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, jobId }: { supabaseUrl: string; serviceRoleKey: string; table: string; mesFilter?: string; jobId: string }) {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
-
   try {
-    await supabase
-      .from("sync_jobs")
-      .update({ status: "running", started_at: new Date().toISOString(), error_message: null })
-      .eq("id", jobId);
+    await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString(), error_message: null }).eq("id", jobId);
 
-    const result = table === "ventas_vc_completo"
-      ? await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" })
-      : await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
+    let result: any;
+    if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
+    else if (table === "all_new") result = await runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode: "sync" });
+    else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
-    await supabase
-      .from("sync_jobs")
-      .update({
-        status: "completed",
-        finished_at: new Date().toISOString(),
-        result,
-        error_message: null,
-      })
-      .eq("id", jobId);
+    await supabase.from("sync_jobs").update({ status: "completed", finished_at: new Date().toISOString(), result, error_message: null }).eq("id", jobId);
   } catch (error) {
     console.error("processSyncJob error:", error);
-    await supabase
-      .from("sync_jobs")
-      .update({
-        status: "failed",
-        finished_at: new Date().toISOString(),
-        error_message: String(error),
-      })
-      .eq("id", jobId);
+    await supabase.from("sync_jobs").update({ status: "failed", finished_at: new Date().toISOString(), error_message: String(error) }).eq("id", jobId);
   }
 }
 
-async function runVentasVcCompleto({
-  supabase,
-  supabaseUrl,
-  serviceRoleKey,
-  mesFilter,
-  mode,
-}: {
-  supabase: any;
-  supabaseUrl: string;
-  serviceRoleKey: string;
-  mesFilter?: string;
-  mode: string;
-}) {
-  const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
-  const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
-  const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
+// ============================================================
+// Run all 5 new syncs at once
+// ============================================================
+async function runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode }: { supabase: any; supabaseUrl: string; serviceRoleKey: string; mode: string }) {
+  const limitClause = mode === "preview" ? "LIMIT 10" : "";
+  const results: Record<string, any> = {};
+  const errors: string[] = [];
 
-  if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
-    throw new Error("Faltan credenciales de Databricks.");
+  const tasks = [
+    { key: "metas_gerentes", syncFn: syncMetasGerentes },
+    { key: "metas_asesores_sync", syncFn: syncMetasAsesoresData },
+    { key: "ventas_empresarios", syncFn: syncVentasEmpresarios },
+    { key: "ventas_aliados", syncFn: syncVentasAliados },
+    { key: "productividad_asesores", syncFn: syncProductividadAsesores },
+  ];
+
+  // Run each sequentially to avoid overwhelming Databricks
+  for (const task of tasks) {
+    try {
+      console.log(`[all_new] Starting ${task.key}...`);
+      const config = TABLE_CONFIGS[task.key];
+      const rows = await runDatabricksQuery(task.key, config.sql(limitClause));
+
+      if (mode === "preview") {
+        const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+        results[task.key] = { label: config.label, total_rows: rows.length, columns: cols, sample: rows.slice(0, 3) };
+      } else {
+        results[task.key] = await task.syncFn(supabase, rows);
+      }
+    } catch (err) {
+      console.error(`[all_new] Error in ${task.key}:`, err);
+      errors.push(`${task.key}: ${String(err)}`);
+      results[task.key] = { error: String(err) };
+    }
   }
 
-  const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
+  if (mode === "sync") {
+    const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "all_new");
+    results.sp_recalculo = spResult;
+  }
+
+  return { ...results, errors };
+}
+
+// ============================================================
+// Ventas VC Completo (existing composite)
+// ============================================================
+async function runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode }: { supabase: any; supabaseUrl: string; serviceRoleKey: string; mesFilter?: string; mode: string }) {
   const limitClause = mode === "preview" ? "LIMIT 10" : "";
 
-  const runQuery = async (queryName: string, sql: string) => {
-    console.log(`[${queryName}] Querying Databricks:`, sql.trim());
-    const resp = await fetch(databricksUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ warehouse_id: DATABRICKS_WAREHOUSE_ID, statement: sql, wait_timeout: "50s", disposition: "INLINE", format: "JSON_ARRAY" }),
-    });
-    let data = await resp.json();
-    if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
-
-    let polls = 0;
-    while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
-      polls++;
-      await new Promise((r) => setTimeout(r, 5000));
-      const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
-      data = await pr.json();
-      console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
-    }
-    if (data.status?.state === "FAILED") throw new Error(data.status?.error?.message || "Query failed");
-    if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
-
-    const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
-    return (data.result?.data_array || []).map((row: any[]) => {
-      const obj: Record<string, any> = {};
-      cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
-      return obj;
-    });
-  };
-
   const [vcRows, prodRows] = await Promise.all([
-    runQuery("ventas_vc", TABLE_CONFIGS.ventas_vc.sql(limitClause, mesFilter)),
-    runQuery("ventas_vc_producto", TABLE_CONFIGS.ventas_vc_producto.sql(limitClause, mesFilter)),
+    runDatabricksQuery("ventas_vc", TABLE_CONFIGS.ventas_vc.sql(limitClause, mesFilter)),
+    runDatabricksQuery("ventas_vc_producto", TABLE_CONFIGS.ventas_vc_producto.sql(limitClause, mesFilter)),
   ]);
 
   if (mode === "preview") {
@@ -350,132 +344,61 @@ async function runVentasVcCompleto({
   ]);
 
   const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vc_completo");
-
-  return {
-    ventas_vc: vcResult,
-    ventas_vc_producto: prodResult,
-    sp_recalculo: spResult,
-  };
+  return { ventas_vc: vcResult, ventas_vc_producto: prodResult, sp_recalculo: spResult };
 }
 
-async function runSingleTableSync({
-  supabase,
-  supabaseUrl,
-  serviceRoleKey,
-  table,
-  mesFilter,
-  mode,
-}: {
-  supabase: any;
-  supabaseUrl: string;
-  serviceRoleKey: string;
-  table: string;
-  mesFilter?: string;
-  mode: string;
-}) {
+// ============================================================
+// Single table sync router
+// ============================================================
+async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode }: { supabase: any; supabaseUrl: string; serviceRoleKey: string; table: string; mesFilter?: string; mode: string }) {
   const tableConfig = TABLE_CONFIGS[table];
-  if (!tableConfig) {
-    throw new Error(`Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}, ventas_vc_completo`);
-  }
+  if (!tableConfig) throw new Error(`Tabla no soportada: ${table}. Opciones: ${Object.keys(TABLE_CONFIGS).join(", ")}, ventas_vc_completo, all_new`);
 
   const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST");
   const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN");
   const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID");
+  if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) throw new Error("Faltan credenciales de Databricks.");
 
-  if (!DATABRICKS_HOST || !DATABRICKS_TOKEN || !DATABRICKS_WAREHOUSE_ID) {
-    throw new Error("Faltan credenciales de Databricks.");
-  }
-
-  const databricksUrl = `${DATABRICKS_HOST.replace(/\/+$/, '')}/api/2.0/sql/statements`;
   const limitClause = mode === "preview" ? "LIMIT 10" : "";
   const sql = tableConfig.sql(limitClause, mesFilter);
+  const rows = await runDatabricksQuery(table, sql);
 
-  console.log(`[${table}] Querying Databricks:`, sql.trim());
-
-  const dbResponse = await fetch(databricksUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${DATABRICKS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      warehouse_id: DATABRICKS_WAREHOUSE_ID,
-      statement: sql,
-      wait_timeout: "50s",
-      disposition: "INLINE",
-      format: "JSON_ARRAY",
-    }),
-  });
-
-  let dbData = await dbResponse.json();
-
-  if (!dbResponse.ok && !dbData.statement_id) {
-    throw new Error(dbData.status?.error?.message || dbData.message || JSON.stringify(dbData));
-  }
-
-  const statementId = dbData.statement_id;
-  let pollAttempts = 0;
-  const MAX_POLLS = 24;
-  while ((dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") && pollAttempts < MAX_POLLS) {
-    pollAttempts++;
-    await new Promise((r) => setTimeout(r, 5000));
-    const pollResp = await fetch(`${databricksUrl}/${statementId}`, {
-      headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` },
-    });
-    dbData = await pollResp.json();
-    console.log(`[${table}] Poll #${pollAttempts}: state=${dbData.status?.state}`);
-  }
-
-  if (dbData.status?.state === "FAILED") {
-    throw new Error(dbData.status?.error?.message || JSON.stringify(dbData));
-  }
-
-  if (dbData.status?.state === "PENDING" || dbData.status?.state === "RUNNING") {
-    return { status: "pending", statement_id: dbData.statement_id, message: "Query aún en ejecución tras 2 min de espera. Intente de nuevo." };
-  }
-
-  const columns = dbData.manifest?.schema?.columns || [];
-  const columnNames = columns.map((c: any) => c.name);
-  const dataChunks = dbData.result?.data_array || [];
-  const rows = dataChunks.map((row: any[]) => {
-    const obj: Record<string, any> = {};
-    columnNames.forEach((col: string, i: number) => {
-      obj[col] = row[i];
-    });
-    return obj;
-  });
-
-  console.log(`[${table}] Databricks returned ${rows.length} rows, columns: ${columnNames.join(", ")}`);
+  console.log(`[${table}] Databricks returned ${rows.length} rows`);
 
   if (mode === "preview") {
-    return {
-      table: tableConfig.label,
-      columns: columnNames,
-      total_rows: rows.length,
-      sample: rows.slice(0, 5),
-    };
+    const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
+    return { table: tableConfig.label, columns: columnNames, total_rows: rows.length, sample: rows.slice(0, 5) };
   }
 
-  const syncResult = table === "ventas_vc"
-    ? await syncVentasVC(supabase, rows)
-    : table === "ventas_vc_producto"
-      ? await syncVentasVCProducto(supabase, rows)
-      : await syncProductividad(supabase, rows);
+  // Route to the correct sync function
+  const SYNC_MAP: Record<string, (sb: any, r: any[]) => Promise<any>> = {
+    productividad: syncProductividad,
+    ventas_vc: syncVentasVC,
+    ventas_vc_producto: syncVentasVCProducto,
+    metas_gerentes: syncMetasGerentes,
+    metas_asesores_sync: syncMetasAsesoresData,
+    ventas_empresarios: syncVentasEmpresarios,
+    ventas_aliados: syncVentasAliados,
+    productividad_asesores: syncProductividadAsesores,
+  };
 
+  const syncFn = SYNC_MAP[table];
+  if (!syncFn) throw new Error(`No sync function for table: ${table}`);
+
+  const syncResult = await syncFn(supabase, rows);
   const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, table);
-
   return { ...syncResult, sp_recalculo: spResult };
 }
 
+// ============================================================
+// SP recalculation trigger
+// ============================================================
 async function triggerSpRecalculation(supabaseUrl: string, serviceRoleKey: string, context: string) {
   try {
     const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
     const spResponse = await fetch(spUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
     });
     const spResult = await spResponse.json();
     console.log(`[${context}] SP recalculation triggered:`, JSON.stringify(spResult));
@@ -486,60 +409,20 @@ async function triggerSpRecalculation(supabaseUrl: string, serviceRoleKey: strin
   }
 }
 
-// Sync Productividad Progresiva → kpis_mensuales
+// ============================================================
+// SYNC: Productividad Progresiva → kpis_mensuales (existing)
+// ============================================================
 async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   let insertedKpis = 0;
   let createdGerentes = 0;
   const errores: string[] = [];
 
-  const normalizeText = (value: unknown) =>
-    String(value ?? "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9@.\s_-]/g, "")
-      .replace(/\s+/g, " ");
-
-  const buildEmailFromName = (name: string) => {
-    const slug = normalizeText(name)
-      .replace(/[@]/g, "")
-      .replace(/[._-]+/g, " ")
-      .trim()
-      .replace(/\s+/g, ".");
-    return `${slug || "sin.nombre"}@siigo.com`;
-  };
-
-  const inferCanal = (row: Record<string, any>) => {
-    const combined = normalizeText(`${row.AREA || ""} ${row.CELULA || ""} ${row.Director || row.DIRECTOR || ""}`);
-    if (combined.includes("aliados")) return "VN_ALIADOS";
-    if (combined.includes("empres")) return "VN_EMPRESARIOS";
-    return "VC";
-  };
-
-  const normalizeCountry = (value: unknown) => {
-    const country = normalizeText(value).toUpperCase();
-    if (["COL", "CO", "COLOMBIA"].includes(country)) return "COL";
-    if (["MEX", "MX", "MEXICO", "MEXICO DF"].includes(country)) return "MEX";
-    if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
-    return "COL";
-  };
-
-  const toNumber = (...values: any[]) => {
-    for (const value of values) {
-      if (value === null || value === undefined || value === "") continue;
-      const parsed = Number(String(value).replace(/,/g, ""));
-      if (Number.isFinite(parsed)) return parsed;
-      }
-    return 0;
-  };
-
   const gerenteMap = new Map<string, any>();
   const registerGerente = (gerente: any) => {
-    const normalizedName = normalizeText(gerente?.nombre);
-    const normalizedEmail = normalizeText(gerente?.email);
-    if (normalizedName) gerenteMap.set(normalizedName, gerente);
-    if (normalizedEmail) gerenteMap.set(normalizedEmail, gerente);
+    const nn = normalizeText(gerente?.nombre);
+    const ne = normalizeText(gerente?.email);
+    if (nn) gerenteMap.set(nn, gerente);
+    if (ne) gerenteMap.set(ne, gerente);
   };
 
   const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal, pais, lider");
@@ -550,218 +433,130 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
     const asesorNombre = String(row.ASESOR || row.GERENTE || row.NOMBRE_GERENTE || "").trim();
     const asesorEmail = String(row.EMAIL || row.CORREO || "").trim().toLowerCase();
     const lookupKey = normalizeText(asesorEmail || asesorNombre);
-
-    if (!lookupKey) {
-      if (errores.length < 20) errores.push(`Fila sin asesor identificable: ${JSON.stringify(row).slice(0, 120)}`);
-      continue;
-    }
+    if (!lookupKey) { if (errores.length < 20) errores.push(`Fila sin asesor: ${JSON.stringify(row).slice(0, 120)}`); continue; }
 
     if (!gerenteMap.get(lookupKey)) {
       const nombre = asesorNombre || asesorEmail.split("@")[0].replace(/\./g, " ").trim();
       const email = asesorEmail || buildEmailFromName(nombre);
       const key = normalizeText(email);
-
       if (!missingGerentes.has(key)) {
-        missingGerentes.set(key, {
-          nombre,
-          email,
-          canal: inferCanal(row),
-          pais: "COL",
-          lider: String(row.Director || row.DIRECTOR || "").trim() || null,
-          activo: true,
-        });
+        missingGerentes.set(key, { nombre, email, canal: inferCanal(row), pais: "COL", lider: String(row.Director || row.DIRECTOR || "").trim() || null, activo: true });
       }
     }
   }
 
   if (missingGerentes.size > 0) {
-    const { data: created, error: batchErr } = await supabase
-      .from("gerentes")
-      .upsert([...missingGerentes.values()], { onConflict: "email" })
-      .select("id, nombre, email, canal, pais, lider");
-
-    if (batchErr) {
-      errores.push(`Error creando participantes de productividad: ${batchErr.message}`);
-    } else {
-      createdGerentes = created?.length || 0;
-      (created || []).forEach(registerGerente);
-    }
+    const { data: created, error: batchErr } = await supabase.from("gerentes").upsert([...missingGerentes.values()], { onConflict: "email" }).select("id, nombre, email, canal, pais, lider");
+    if (batchErr) errores.push(`Error creando participantes: ${batchErr.message}`);
+    else { createdGerentes = created?.length || 0; (created || []).forEach(registerGerente); }
   }
 
   const kpiRows = new Map<string, any>();
-
   for (const row of rows) {
     try {
       const asesorNombre = String(row.ASESOR || row.GERENTE || row.NOMBRE_GERENTE || "").trim();
       const asesorEmail = String(row.EMAIL || row.CORREO || "").trim().toLowerCase();
-      const gerente =
-        gerenteMap.get(normalizeText(asesorEmail)) ||
-        gerenteMap.get(normalizeText(asesorNombre)) ||
-        gerenteMap.get(normalizeText(buildEmailFromName(asesorNombre)));
-
-      if (!gerente) {
-        if (errores.length < 20) errores.push(`Gerente no encontrado: ${JSON.stringify(row).slice(0, 120)}`);
-        continue;
-      }
+      const gerente = gerenteMap.get(normalizeText(asesorEmail)) || gerenteMap.get(normalizeText(asesorNombre)) || gerenteMap.get(normalizeText(buildEmailFromName(asesorNombre)));
+      if (!gerente) { if (errores.length < 20) errores.push(`Gerente no encontrado: ${JSON.stringify(row).slice(0, 120)}`); continue; }
 
       const anioMes = String(row.ANIO_MES || row.anio_mes || "").trim();
       if (!anioMes) continue;
 
-      const kpiRow = {
-        gerente_id: gerente.id,
-        anio_mes: anioMes,
-        canal: gerente.canal || inferCanal(row),
-        moneda: "COP",
-        ventas: toNumber(row.VENTAS, row.ventas, row.VENTA_TOTAL),
-        meta: toNumber(row.META, row.meta),
-        acv_f: toNumber(row.ACV_F, row.acv_f),
-        cant_recomendados: toNumber(row.CANT_RECOMENDADOS, row.cant_recomendados),
-        ventas_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS, row.VENTAS_RECOMENDADOS, row.ventas_recomendados),
-        sa_creados: toNumber(row.SA_Creados_MM, row.SA_CREADOS, row.sa_creados),
-        sc_creados: toNumber(row.SC_Creados_MM, row.SC_CREADOS, row.sc_creados),
-        ventas_sql: toNumber(row.VENTAS_MM_SQL, row.VENTAS_SQL, row.ventas_sql),
-        hc_final: toNumber(row.HC_final, row.HC_FINAL, row.hc_final),
-        hc_inicial: toNumber(row.HC_inicial, row.HC_INICIAL, row.hc_inicial),
-        terminaciones: toNumber(row.terminaciones, row.TERMINACIONES),
-      };
-
-      kpiRows.set(`${gerente.id}|${anioMes}`, kpiRow);
-    } catch (err) {
-      if (errores.length < 20) errores.push(`Row error: ${String(err)}`);
-    }
+      kpiRows.set(`${gerente.id}|${anioMes}`, {
+        gerente_id: gerente.id, anio_mes: anioMes, canal: gerente.canal || inferCanal(row), moneda: "COP",
+        ventas: toNumber(row.VENTAS, row.ventas), meta: toNumber(row.META, row.meta),
+        acv_f: toNumber(row.ACV_F, row.acv_f), cant_recomendados: toNumber(row.CANT_RECOMENDADOS),
+        ventas_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS), sa_creados: toNumber(row.SA_Creados_MM),
+        sc_creados: toNumber(row.SC_Creados_MM), ventas_sql: toNumber(row.VENTAS_MM_SQL),
+        hc_final: toNumber(row.HC_final), hc_inicial: toNumber(row.HC_inicial), terminaciones: toNumber(row.terminaciones),
+      });
+    } catch (err) { if (errores.length < 20) errores.push(`Row error: ${String(err)}`); }
   }
 
   const uniqueKpiRows = [...kpiRows.values()];
   const BATCH = 500;
   for (let i = 0; i < uniqueKpiRows.length; i += BATCH) {
     const chunk = uniqueKpiRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("kpis_mensuales").upsert(chunk, {
-      onConflict: "gerente_id,anio_mes",
-      count: "exact",
-    });
-
-    if (error) errores.push(`KPI batch ${i}-${i + chunk.length}: ${error.message}`);
+    const { error, count } = await supabase.from("kpis_mensuales").upsert(chunk, { onConflict: "gerente_id,anio_mes", count: "exact" });
+    if (error) errores.push(`KPI batch ${i}: ${error.message}`);
     else insertedKpis += count || chunk.length;
   }
 
-  return {
-    total_rows: rows.length,
-    participantes_creados: createdGerentes,
-    kpis_sincronizados: insertedKpis,
-    filas_unicas: uniqueKpiRows.length,
-    errores: errores.slice(0, 20),
-  };
+  return { total_rows: rows.length, participantes_creados: createdGerentes, kpis_sincronizados: insertedKpis, filas_unicas: uniqueKpiRows.length, errores: errores.slice(0, 20) };
 }
 
-// Sync Ventas VC → ventas table (monthly summaries with metas)
+// ============================================================
+// SYNC: Ventas VC → ventas table (existing)
+// ============================================================
 async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   let insertedVentas = 0;
   const errores: string[] = [];
 
   const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
   const gerenteMap = new Map<string, any>();
-  (gerentes || []).forEach((g: any) => {
-    gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
-  });
+  (gerentes || []).forEach((g: any) => { gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g); });
 
-  // Auto-create gerentes from lider column
   const liderNames = new Set<string>();
-  for (const row of rows) {
-    const lider = (row.Lider || "").trim();
-    if (lider && !gerenteMap.get(lider.toLowerCase())) liderNames.add(lider);
-  }
+  for (const row of rows) { const lider = (row.Lider || "").trim(); if (lider && !gerenteMap.get(lider.toLowerCase())) liderNames.add(lider); }
 
   if (liderNames.size > 0) {
-    const newGerentes = [...liderNames].map(name => ({
-      nombre: name,
-      email: name.toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "@siigo.com",
-      canal: "VC", pais: "COL", activo: true,
-    }));
+    const newGerentes = [...liderNames].map(name => ({ nombre: name, email: name.toLowerCase().replace(/\s+/g, ".").normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "@siigo.com", canal: "VC", pais: "COL", activo: true }));
     const { data: created, error: batchErr } = await supabase.from("gerentes").upsert(newGerentes, { onConflict: "email" }).select("id, nombre, email, canal");
     if (batchErr) errores.push(`Error creando gerentes: ${batchErr.message}`);
     (created || []).forEach((g: any) => gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g));
   }
 
-  // Build venta rows from monthly summary data
   const ventaRows: any[] = [];
   for (const row of rows) {
     const liderName = (row.Lider || "").toLowerCase().trim();
     const gerente = gerenteMap.get(liderName);
-    if (!gerente) {
-      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`);
-      continue;
-    }
-
+    if (!gerente) { if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`); continue; }
     const monthNum = SPANISH_MONTHS[row.Mes] || "01";
     const anio = Number(row.Anio) || 2026;
     const asesor = String(row.Asesor || row.comercial || "");
-
     ventaRows.push({
-      gerente_id: gerente.id,
-      fecha_facturacion: `${anio}-${monthNum}-01`,
-      canal: "VC",
-      anio,
-      mes: String(row.Mes || ""),
-      producto: "Resumen Mensual VC",
-      bloque_venta: "",
-      documento_factura: `SUM-${anio}-${row.Mes}-${asesor}`,
-      valor_producto: Number(row.Saldo_ACV_Actual || 0),
-      acv_plus: Number(row.Saldo_ACV_Actual || 0),
-      meta: Number(row.Meta_Objetivo || 0),
-      comercial: asesor,
-      lider: String(row.Lider || ""),
-      categoria_producto_venta: "",
+      gerente_id: gerente.id, fecha_facturacion: `${anio}-${monthNum}-01`, canal: "VC", anio, mes: String(row.Mes || ""),
+      producto: "Resumen Mensual VC", bloque_venta: "", documento_factura: `SUM-${anio}-${row.Mes}-${asesor}`,
+      valor_producto: Number(row.Saldo_ACV_Actual || 0), acv_plus: Number(row.Saldo_ACV_Actual || 0),
+      meta: Number(row.Meta_Objetivo || 0), comercial: asesor, lider: String(row.Lider || ""), categoria_producto_venta: "",
     });
   }
 
-  // Deduplicate
   const deduped = new Map<string, any>();
   for (const row of ventaRows) {
     const key = `${row.documento_factura}|${row.producto}|${row.fecha_facturacion}`;
-    if (deduped.has(key)) {
-      const existing = deduped.get(key);
-      existing.acv_plus += row.acv_plus;
-      existing.valor_producto += row.valor_producto;
-      existing.meta = Math.max(existing.meta, row.meta);
-    } else {
-      deduped.set(key, { ...row });
-    }
+    if (deduped.has(key)) { const e = deduped.get(key); e.acv_plus += row.acv_plus; e.valor_producto += row.valor_producto; e.meta = Math.max(e.meta, row.meta); }
+    else deduped.set(key, { ...row });
   }
   const uniqueRows = [...deduped.values()];
 
   const BATCH = 500;
   for (let i = 0; i < uniqueRows.length; i += BATCH) {
     const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas").upsert(chunk, {
-      onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
-    });
-    if (error) errores.push(`Batch ${i}-${i + chunk.length}: ${error.message}`);
+    const { error, count } = await supabase.from("ventas").upsert(chunk, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" });
+    if (error) errores.push(`Batch ${i}: ${error.message}`);
     else insertedVentas += (count || chunk.length);
   }
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
 
-// Sync Ventas VC Product Breakdown → ventas table (product-level rows per advisor per month)
+// ============================================================
+// SYNC: Ventas VC Producto → ventas table (existing)
+// ============================================================
 async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) {
   let insertedVentas = 0;
   const errores: string[] = [];
 
   const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, email, canal");
   const gerenteMap = new Map<string, any>();
-  (gerentes || []).forEach((g: any) => {
-    gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g);
-  });
+  (gerentes || []).forEach((g: any) => { gerenteMap.set(g.nombre?.toLowerCase()?.trim(), g); });
 
   const ventaRows: any[] = [];
   for (const row of rows) {
     const liderName = (row.Lider || "").toLowerCase().trim();
     const gerente = gerenteMap.get(liderName);
-    if (!gerente) {
-      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`);
-      continue;
-    }
-
+    if (!gerente) { if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Lider || "?"}`); continue; }
     const monthNum = SPANISH_MONTHS[row.Mes] || "01";
     const anio = Number(row.Anio) || 2026;
     const asesor = String(row.Asesor || "").trim();
@@ -769,52 +564,332 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
     const bloque = String(row.Bloque || "").trim();
     const acv = Number(row.ACV_Producto || 0);
     const unidades = Number(row.Unidades || 0);
-
     if (acv === 0 && unidades === 0) continue;
-
-    const docKey = `PROD-${anio}-${row.Mes}-${asesor}-${producto}-${bloque}`;
     ventaRows.push({
-      gerente_id: gerente.id,
-      fecha_facturacion: `${anio}-${monthNum}-01`,
-      canal: "VC",
-      anio,
-      mes: String(row.Mes || ""),
-      producto: producto,
-      bloque_venta: bloque,
-      documento_factura: docKey,
-      valor_producto: acv,
-      acv_plus: acv,
-      meta: 0,
-      comercial: asesor,
-      lider: String(row.Lider || ""),
-      categoria_producto_venta: producto,
+      gerente_id: gerente.id, fecha_facturacion: `${anio}-${monthNum}-01`, canal: "VC", anio, mes: String(row.Mes || ""),
+      producto, bloque_venta: bloque, documento_factura: `PROD-${anio}-${row.Mes}-${asesor}-${producto}-${bloque}`,
+      valor_producto: acv, acv_plus: acv, meta: 0, comercial: asesor, lider: String(row.Lider || ""), categoria_producto_venta: producto,
     });
   }
 
-  // Deduplicate by documento_factura+producto+fecha to avoid "cannot affect row a second time"
   const deduped = new Map<string, any>();
   for (const row of ventaRows) {
     const key = `${row.documento_factura}|${row.producto}|${row.fecha_facturacion}`;
+    if (deduped.has(key)) { const e = deduped.get(key); e.acv_plus += row.acv_plus; e.valor_producto += row.valor_producto; }
+    else deduped.set(key, { ...row });
+  }
+  const uniqueRows = [...deduped.values()];
+
+  const BATCH = 500;
+  for (let i = 0; i < uniqueRows.length; i += BATCH) {
+    const chunk = uniqueRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("ventas").upsert(chunk, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" });
+    if (error) errores.push(`Batch ${i}: ${error.message}`);
+    else insertedVentas += (count || chunk.length);
+  }
+
+  return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// NEW SYNC 1: Metas Gerentes → metas_gerentes
+// ============================================================
+async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
+  let synced = 0;
+  const errores: string[] = [];
+
+  const upsertRows = rows.map((row) => ({
+    pais_gestion: String(row.pais_gestion || "").trim() || null,
+    canal_direccion: String(row.canal_direccion || "").trim(),
+    director: String(row.director || "").trim() || null,
+    celula: String(row.celula || "").trim(),
+    m: String(row.m || "").trim() || null,
+    cuota: toNumber(row.cuota),
+    hc_operativo: toNumber(row.hc_operativo),
+    fe: toNumber(row.fe),
+    nube: toNumber(row.nube),
+    coi: toNumber(row.coi),
+    noi: toNumber(row.noi),
+    siigo_fiscal: toNumber(row.siigo_fiscal),
+    meta_total_und: toNumber(row.meta_total_und),
+    meta_total_acv: toNumber(row.meta_total_acv),
+    recomendados: toNumber(row.recomendados),
+    efectividad_sql: toNumber(row.efectividad_sql),
+    productividad: toNumber(row.productividad),
+  })).filter((r) => r.celula && r.canal_direccion);
+
+  const BATCH = 500;
+  for (let i = 0; i < upsertRows.length; i += BATCH) {
+    const chunk = upsertRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("metas_gerentes").upsert(chunk, { onConflict: "celula,canal_direccion", count: "exact" });
+    if (error) errores.push(`metas_gerentes batch ${i}: ${error.message}`);
+    else synced += count || chunk.length;
+  }
+
+  return { total_rows: rows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// NEW SYNC 2: Metas Asesores → metas_asesores
+// ============================================================
+async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[]) {
+  let synced = 0;
+  const errores: string[] = [];
+
+  // Build current month as anio_mes default
+  const now = new Date();
+  const defaultAnioMes = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const upsertRows = rows.map((row) => ({
+    documento_asesor: String(row.documento_asesor || "").trim(),
+    pais: normalizeCountry(row.pais),
+    canal_direccion: String(row.canal_direccion || "").trim(),
+    meta_fe: toNumber(row.meta_fe),
+    meta_nube: toNumber(row.meta_nube),
+    meta_total: toNumber(row.meta_total),
+    anio_mes: defaultAnioMes,
+  })).filter((r) => r.documento_asesor && r.canal_direccion);
+
+  const BATCH = 500;
+  for (let i = 0; i < upsertRows.length; i += BATCH) {
+    const chunk = upsertRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("metas_asesores").upsert(chunk, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" });
+    if (error) errores.push(`metas_asesores batch ${i}: ${error.message}`);
+    else synced += count || chunk.length;
+  }
+
+  // Also update asesores table with documento and canal_direccion
+  for (const row of rows) {
+    const doc = String(row.documento_asesor || "").trim();
+    const canal = String(row.canal_direccion || "").trim();
+    const nombre = String(row.nombre_asesor || "").trim();
+    if (doc && nombre) {
+      await supabase.from("asesores").update({ documento: doc, canal_direccion: canal }).eq("nombre", nombre);
+    }
+  }
+
+  return { total_rows: rows.length, metas_asesores_sincronizadas: synced, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// Product normalization for Empresarios/Aliados
+// ============================================================
+function normalizeProductCategory(tipoProducto: string): "FE" | "NUBE" | "COI" | "NOI" | "OTRO" {
+  const p = (tipoProducto || "").toUpperCase().trim();
+  if (p.includes("FE") || p.includes("FACTURACION ELECTRONICA") || p.includes("FACTURACIÓN")) return "FE";
+  if (p.includes("NUBE") || p.includes("CLOUD") || p.includes("SIIGO NUBE")) return "NUBE";
+  if (p.includes("COI") || p.includes("ASPEL COI") || p.includes("CONTABILIDAD")) return "COI";
+  if (p.includes("NOI") || p.includes("ASPEL NOI") || p.includes("NOMINA") || p.includes("NÓMINA")) return "NOI";
+  return "OTRO";
+}
+
+// ============================================================
+// NEW SYNC 3: Ventas Empresarios → ventas_diarias
+// ============================================================
+async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[]) {
+  let synced = 0;
+  const errores: string[] = [];
+
+  const upsertRows: any[] = [];
+  for (const row of rows) {
+    const asesor = String(row.ASESOR || "").trim();
+    const tipoProducto = String(row.TIPO_PRODUCTO || "").trim();
+    const producto = String(row.Producto || "").trim();
+    if (!asesor) continue;
+
+    upsertRows.push({
+      fecha: row.FECHA ? String(row.FECHA).trim() : null,
+      asesor,
+      celula: String(row.CELULA || "").trim() || null,
+      director: String(row.Director || "").trim() || null,
+      equipo: String(row.Equipo || "").trim() || null,
+      tipo_producto: tipoProducto || null,
+      producto: producto || null,
+      unidades: toNumber(row.Unidades),
+      acv: toNumber(row.ACV),
+      recurrencia: String(row.Recurrencia || "").trim() || null,
+      origen: String(row.ORIGEN || "").trim() || null,
+      canal_direccion: "Empresarios",
+      pais: "MEX",
+    });
+  }
+
+  // Deduplicate
+  const deduped = new Map<string, any>();
+  for (const row of upsertRows) {
+    const key = `${row.fecha}|${row.asesor}|${row.tipo_producto}|${row.canal_direccion}|${row.producto}`;
     if (deduped.has(key)) {
-      const existing = deduped.get(key);
-      existing.acv_plus += row.acv_plus;
-      existing.valor_producto += row.valor_producto;
+      const e = deduped.get(key);
+      e.unidades += row.unidades;
+      e.acv += row.acv;
     } else {
       deduped.set(key, { ...row });
     }
   }
   const uniqueRows = [...deduped.values()];
 
-  // Batch upsert in chunks of 500
   const BATCH = 500;
   for (let i = 0; i < uniqueRows.length; i += BATCH) {
     const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas").upsert(chunk, {
-      onConflict: "documento_factura,producto,fecha_facturacion", count: "exact",
-    });
-    if (error) errores.push(`Batch ${i}-${i + chunk.length}: ${error.message}`);
-    else insertedVentas += (count || chunk.length);
+    const { error, count } = await supabase.from("ventas_diarias").upsert(chunk, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" });
+    if (error) errores.push(`ventas_diarias empresarios batch ${i}: ${error.message}`);
+    else synced += count || chunk.length;
   }
 
-  return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+  // Also update ejecucion_asesores (summarize by asesor + month)
+  await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Empresarios", errores);
+
+  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// NEW SYNC 4: Ventas Aliados → ventas_diarias
+// ============================================================
+async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
+  let synced = 0;
+  const errores: string[] = [];
+
+  const upsertRows: any[] = [];
+  for (const row of rows) {
+    const asesor = String(row.fullname || "").trim();
+    const tipoProducto = String(row.tipo_producto1 || "").trim();
+    if (!asesor) continue;
+
+    upsertRows.push({
+      fecha: row.fecha ? String(row.fecha).trim() : null,
+      asesor,
+      celula: String(row.celula || "").trim() || null,
+      director: String(row.Director || "").trim() || null,
+      equipo: String(row.equipo || "").trim() || null,
+      tipo_producto: tipoProducto || null,
+      producto: tipoProducto || null,
+      unidades: toNumber(row.Cuenta_comercial),
+      acv: toNumber(row.ACV),
+      recurrencia: null,
+      origen: String(row.origen || "").trim() || null,
+      canal_direccion: "Aliados",
+      pais: normalizeCountry(row.pais),
+    });
+  }
+
+  // Deduplicate
+  const deduped = new Map<string, any>();
+  for (const row of upsertRows) {
+    const key = `${row.fecha}|${row.asesor}|${row.tipo_producto}|${row.canal_direccion}|${row.producto}`;
+    if (deduped.has(key)) {
+      const e = deduped.get(key);
+      e.unidades += row.unidades;
+      e.acv += row.acv;
+    } else {
+      deduped.set(key, { ...row });
+    }
+  }
+  const uniqueRows = [...deduped.values()];
+
+  const BATCH = 500;
+  for (let i = 0; i < uniqueRows.length; i += BATCH) {
+    const chunk = uniqueRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("ventas_diarias").upsert(chunk, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" });
+    if (error) errores.push(`ventas_diarias aliados batch ${i}: ${error.message}`);
+    else synced += count || chunk.length;
+  }
+
+  await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Aliados", errores);
+
+  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// Helper: Update ejecucion_asesores from ventas_diarias rows
+// ============================================================
+async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], canalDireccion: string, errores: string[]) {
+  // Group by asesor + month → summarize FE, Nube, total
+  const grouped = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number; acv_total: number; documento_asesor: string; periodo: string }>();
+
+  for (const row of rows) {
+    const fecha = String(row.fecha || "");
+    const periodo = fecha.length >= 7 ? fecha.substring(0, 7).replace("-", "") : new Date().toISOString().substring(0, 7).replace("-", "");
+    // Ensure periodo is 6 chars (YYYYMM)
+    const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
+    const key = `${row.asesor}|${periodoClean}`;
+    const cat = normalizeProductCategory(row.tipo_producto || "");
+
+    if (!grouped.has(key)) {
+      grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
+    }
+    const g = grouped.get(key)!;
+    const unidades = row.unidades || 0;
+    g.ventas_total += unidades;
+    g.acv_total += row.acv || 0;
+    if (cat === "FE") g.ventas_fe += unidades;
+    if (cat === "NUBE") g.ventas_nube += unidades;
+  }
+
+  const ejRows = [...grouped.values()].map((g) => ({
+    documento_asesor: g.documento_asesor,
+    periodo: g.periodo,
+    canal_direccion: canalDireccion,
+    ventas_fe: g.ventas_fe,
+    ventas_nube: g.ventas_nube,
+    ventas_total: g.ventas_total,
+    acv_total: g.acv_total,
+  }));
+
+  if (ejRows.length > 0) {
+    const BATCH = 500;
+    for (let i = 0; i < ejRows.length; i += BATCH) {
+      const chunk = ejRows.slice(i, i + BATCH);
+      const { error } = await supabase.from("ejecucion_asesores").upsert(chunk, { onConflict: "documento_asesor,canal_direccion,periodo" });
+      if (error) errores.push(`ejecucion_asesores batch ${i}: ${error.message}`);
+    }
+  }
+}
+
+// ============================================================
+// NEW SYNC 5: Productividad Asesores → productividad_asesores
+// ============================================================
+async function syncProductividadAsesores(supabase: any, rows: Record<string, any>[]) {
+  let synced = 0;
+  const errores: string[] = [];
+
+  const upsertRows = rows.map((row) => ({
+    anio_mes: String(row.ANIO_MES || "").trim(),
+    asesor: String(row.ASESOR || "").trim(),
+    pais: normalizeCountry(row.PAIS),
+    celula: String(row.CELULA || "").trim() || null,
+    area: String(row.AREA || "").trim() || null,
+    rango_antiguedad: String(row.RANGO_ANTIGUEDAD_SIIGO || "").trim() || null,
+    cant_recomendados: toNumber(row.CANT_RECOMENDADOS),
+    ventas_mm_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS),
+    sc_creados: toNumber(row.SC_Creados_MM),
+    ventas_mm_sql: toNumber(row.VENTAS_MM_SQL),
+    meta: toNumber(row.META),
+    ventas: toNumber(row.VENTAS),
+    acv_f: toNumber(row.ACV_F),
+    director: String(row.Director || "").trim() || null,
+  })).filter((r) => r.asesor && r.anio_mes);
+
+  const BATCH = 500;
+  for (let i = 0; i < upsertRows.length; i += BATCH) {
+    const chunk = upsertRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("productividad_asesores").upsert(chunk, { onConflict: "asesor,anio_mes", count: "exact" });
+    if (error) errores.push(`productividad_asesores batch ${i}: ${error.message}`);
+    else synced += count || chunk.length;
+  }
+
+  // Also update ejecucion_asesores cant_recomendados and productividad
+  for (const row of upsertRows) {
+    if (row.cant_recomendados > 0 || row.ventas > 0) {
+      const productividad = row.meta > 0 ? Number(((row.ventas / row.meta) * 100).toFixed(2)) : 0;
+      await supabase.from("ejecucion_asesores").upsert({
+        documento_asesor: row.asesor,
+        periodo: String(row.anio_mes),
+        canal_direccion: row.area?.toLowerCase()?.includes("aliados") ? "Aliados" : row.area?.toLowerCase()?.includes("empres") ? "Empresarios" : "VC",
+        cant_recomendados: row.cant_recomendados,
+        productividad,
+      }, { onConflict: "documento_asesor,canal_direccion,periodo" });
+    }
+  }
+
+  return { total_rows: rows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
 }
