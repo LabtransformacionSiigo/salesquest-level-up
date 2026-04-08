@@ -15,6 +15,7 @@ export interface GamificationProfile {
   gerente_id?: string | null;
   role?: string | null;
   sp_totales?: number;
+  celula?: string | null;
 }
 
 interface MonthlyCumplimiento {
