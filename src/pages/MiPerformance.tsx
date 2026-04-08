@@ -152,7 +152,7 @@ const MiPerformance = () => {
                 <>
                   <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" tip="Métricas principales que alimentan tu puntaje." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" tip="Cantidad total de productos vendidas." />
+                    <KPICard icon="inventory_2" label="Unidades" value={`${kpis?.ventas || 0} / ${kpis?.meta || 0}`} sub="Vendidas vs Meta" tip="Unidades vendidas este mes vs meta asignada." />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
                     <KPICard icon="group_add" label="# de Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                   </motion.div>
@@ -161,7 +161,8 @@ const MiPerformance = () => {
                     <RetoCard icon="target" label="Efectividad SQL" value={`${kpis?.efectividad_sql_pct || 0}%`} progress={Number(kpis?.efectividad_sql_pct || 0)} description="% SQL convertidos" tip="(Ventas SQL ÷ Total SQL) × 100." />
                     <RetoCard icon="speed" label="Productividad" value={formatMoney(kpis?.productividad_por_asesor)} progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)} description="Ventas / HC activo" tip="Ventas totales ÷ Headcount activo." />
                   </motion.div>
-                  <CumplimientoSection kpis={kpis} />
+                  <VnCumplimientoSection kpis={kpis} />
+                  {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
 
@@ -169,7 +170,7 @@ const MiPerformance = () => {
                 <>
                   <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
+                    <KPICard icon="inventory_2" label="Unidades" value={`${kpis?.ventas || 0} / ${kpis?.meta || 0}`} sub="Vendidas vs Meta" />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
                     <KPICard icon="person_add" label="Referidos del Contador" value={String(kpis?.cant_recomendados || 0)} sub="Referidos de aliados" color="text-accent" />
                   </motion.div>
@@ -177,7 +178,8 @@ const MiPerformance = () => {
                   <motion.div className="grid grid-cols-1 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <RetoCard icon="handshake" label="Efectividad Referidos" value={`${kpis?.efectividad_referidos_pct || 0}%`} progress={Number(kpis?.efectividad_referidos_pct || 0)} description="% referidos convertidos" />
                   </motion.div>
-                  <CumplimientoSection kpis={kpis} />
+                  <VnCumplimientoSection kpis={kpis} />
+                  {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
 
