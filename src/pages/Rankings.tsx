@@ -212,34 +212,67 @@ const Rankings = () => {
         });
         setRanking(entries);
       } else {
-        const [gerentesRes, spRankRes, canjeablesRes] = await Promise.all([
-          supabase.from('ranking_vn_gerentes' as any).select('*').eq('canal', profile.canal).eq('pais', userPais),
-          supabase.from('ranking_general').select('*').eq('canal', profile.canal),
-          supabase.from('gerentes').select('id, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
+        // Gerentes tab for VN: calculate SP convención from kpis_mensuales (all months accumulated)
+        const [kpisRes, canjeablesRes] = await Promise.all([
+          supabase.from('kpis_mensuales').select('gerente_id, anio_mes, ventas, meta, cant_recomendados, sc_creados, acv_f').eq('canal', profile.canal).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('gerentes').select('id, nombre, sp_canje, pais').eq('canal', profile.canal).eq('pais', userPais),
         ]);
-        const spMap = new Map<string, any>();
-        (spRankRes.data || []).forEach((r: any) => { if (r.id) spMap.set(r.id, r); });
         const canjeablesMap = new Map<string, number>();
-        (canjeablesRes.data || []).forEach((g: any) => { if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0); });
-
-        setRanking((gerentesRes.data || []).map((r: any) => {
-          const sp = spMap.get(r.gerente_id);
-          return {
-            id: r.gerente_id,
-            nombre: r.nombre,
-            canal: r.canal,
-            pais: r.pais,
-            kpi_value: Math.round(Number(r.acv_total) || 0),
-            meta_total: Number(r.meta_unidades) || 0,
-            unidades_logradas: Number(r.unidades_logradas) || 0,
-            cant_recomendados: Number(r.cant_recomendados) || 0,
-            pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
-            sp_totales: sp?.sp_totales || 0,
-            sp_canje: canjeablesMap.get(r.gerente_id) || 0,
-            nivel: sp?.nivel || null,
-            posicion: r.posicion,
-          };
-        }));
+        const gerenteNameMap = new Map<string, string>();
+        (canjeablesRes.data || []).forEach((g: any) => {
+          if (g.id) {
+            canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
+            gerenteNameMap.set(g.id, g.nombre);
+          }
+        });
+        // Only include gerentes that belong to the user's country
+        const validGerenteIds = new Set(canjeablesMap.keys());
+        // Aggregate by gerente_id across all months
+        const gerenteAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number }>();
+        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        (kpisRes.data || []).forEach((row: any) => {
+          const gid = row.gerente_id;
+          if (!gid || !validGerenteIds.has(gid)) return;
+          const agg = gerenteAgg.get(gid) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0 };
+          const period = String(row.anio_mes || '');
+          const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
+          cm.ventas += Number(row.ventas) || 0;
+          cm.meta += Number(row.meta) || 0;
+          agg.months.set(period, cm);
+          agg.unidades += Number(row.ventas) || 0;
+          agg.acv += Number(row.acv_f) || 0;
+          if (period === currentMonth) {
+            agg.currentVentas += Number(row.ventas) || 0;
+            agg.currentMeta += Number(row.meta) || 0;
+            agg.currentRecomendados += Number(row.cant_recomendados) || 0;
+          }
+          gerenteAgg.set(gid, agg);
+        });
+        const entries: any[] = [];
+        gerenteAgg.forEach((agg, gid) => {
+          const spConv = [...agg.months.values()].reduce((total, m) => {
+            if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
+            return total;
+          }, 0);
+          const pct = agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0;
+          entries.push({
+            id: gid,
+            nombre: gerenteNameMap.get(gid) || gid,
+            canal: profile.canal,
+            pais: userPais,
+            kpi_value: Math.round(agg.acv),
+            meta_total: agg.currentMeta,
+            unidades_logradas: agg.currentVentas,
+            unidades_total: agg.unidades,
+            cant_recomendados: agg.currentRecomendados,
+            pct_cumplimiento: pct,
+            sp_totales: spConv,
+            sp_canje: canjeablesMap.get(gid) || 0,
+            nivel: null,
+            posicion: 0,
+          });
+        });
+        setRanking(entries);
       }
     } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
