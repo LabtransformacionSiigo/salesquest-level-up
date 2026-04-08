@@ -262,7 +262,7 @@ export const useSupabaseAuth = () => {
       } else {
         const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('gerentes').select('id, sp_canje, celula').eq('user_id', userId).maybeSingle(),
+          supabase.from('gerentes').select('id, sp_canje, celula, canal').eq('user_id', userId).maybeSingle(),
         ]);
 
         if (profileRes.error) throw profileRes.error;
@@ -270,6 +270,10 @@ export const useSupabaseAuth = () => {
         if (profileRes.data) {
           const data = profileRes.data;
           const gerenteId = data.id || (gerenteRes.data as any)?.id;
+          const gerenteCelula = (gerenteRes.data as any)?.celula;
+          const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
+          const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
+
           const spRes = gerenteId
             ? await supabase
                 .from('sp_acumulados')
@@ -283,7 +287,22 @@ export const useSupabaseAuth = () => {
 
           if (spRes.error) throw spRes.error;
 
-          const spTotales = sumConventionRows(spRes.data as any[]);
+          let spTotales = sumConventionRows(spRes.data as any[]);
+
+          // Fallback for VN gerentes: calculate from productividad_asesores by celula
+          if (spTotales === 0 && isVnGerente && gerenteCelula) {
+            const fallbackRes = await supabase
+              .from('productividad_asesores')
+              .select('anio_mes, ventas, meta')
+              .eq('celula', gerenteCelula)
+              .gte('anio_mes', `${currentConventionYear}01`)
+              .lte('anio_mes', `${currentConventionYear}12`);
+
+            if (!fallbackRes.error) {
+              spTotales = getVnMonthlyConventionTotal(fallbackRes.data as any[]);
+            }
+          }
+
           const nivelData = getNivelData(spTotales);
 
           setProfile({
@@ -295,7 +314,7 @@ export const useSupabaseAuth = () => {
             canal: data.canal,
             pais: data.pais,
             lider: data.lider,
-            celula: (gerenteRes.data as any)?.celula ?? null,
+            celula: gerenteCelula ?? null,
             activo: data.activo ?? true,
             avatar_url: data.avatar_url,
             created_at: '',
