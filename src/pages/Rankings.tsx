@@ -209,6 +209,7 @@ const Rankings = () => {
             kpi_value: Math.round(Number(r.acv_total) || 0),
             meta_total: Number(r.meta_unidades) || 0,
             unidades_logradas: Number(r.unidades_logradas) || 0,
+            cant_recomendados: Number(r.cant_recomendados) || 0,
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
             sp_totales: sp?.sp_totales || 0,
             sp_canje: canjeablesMap.get(r.gerente_id) || 0,
