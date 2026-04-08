@@ -82,7 +82,7 @@ ${limit}`;
   metas_asesores_sync: {
     label: "Metas Asesores (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE m_de_antiguedad LIKE '%2026%' OR m_de_antiguedad LIKE '%26' ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
