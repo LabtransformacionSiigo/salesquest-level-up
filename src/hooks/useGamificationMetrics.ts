@@ -524,7 +524,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     setState(prev => ({ ...prev, loading: true, error: null }));
     fetchAll();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, isVC, isVN]);
+  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN]);
 
   return { ...state, isVcAdvisor, isVC, isVN };
 };
