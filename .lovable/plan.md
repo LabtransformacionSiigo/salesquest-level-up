@@ -1,147 +1,81 @@
 
 
-# Plan: Integración Multi-Frente (Aliados + Empresarios) en Siigo Arena
+# Plan: Extensión VN_ALIADOS & VN_EMPRESARIOS a Siigo Arena
 
-## Contexto
+## Resumen
 
-La plataforma ya soporta 3 canales (`VC`, `VN_ALIADOS`, `VN_EMPRESARIOS`) con gerentes activos en cada uno. La sincronización actual con Databricks ya maneja Productividad para VN y Ventas VC. Necesitamos crear tablas dedicadas para metas y ejecución de asesores de Aliados/Empresarios, actualizar la lógica de SP, y adaptar el UI.
-
----
-
-## Fase 1: Nuevas Tablas de Base de Datos
-
-### Migration 1: `metas_asesores`
-```sql
-CREATE TABLE public.metas_asesores (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  documento_asesor text NOT NULL,
-  pais text DEFAULT 'COL',
-  canal_direccion text NOT NULL,
-  meta_fe integer DEFAULT 0,
-  meta_nube integer DEFAULT 0,
-  meta_total integer DEFAULT 0,
-  anio_mes text NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(documento_asesor, canal_direccion, anio_mes)
-);
-ALTER TABLE public.metas_asesores ENABLE ROW LEVEL SECURITY;
--- SELECT para authenticated, INSERT/UPDATE para admins
-```
-
-### Migration 2: `ejecucion_asesores`
-```sql
-CREATE TABLE public.ejecucion_asesores (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  documento_asesor text NOT NULL,
-  periodo text NOT NULL,
-  canal_direccion text NOT NULL,
-  pais text DEFAULT 'COL',
-  ventas_fe integer DEFAULT 0,
-  ventas_nube integer DEFAULT 0,
-  ventas_total integer DEFAULT 0,
-  acv_total numeric DEFAULT 0,
-  cant_recomendados integer DEFAULT 0,
-  productividad numeric DEFAULT 0,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(documento_asesor, canal_direccion, periodo)
-);
-ALTER TABLE public.ejecucion_asesores ENABLE ROW LEVEL SECURITY;
-```
-
-### Migration 3: Agregar `puntos_ranking` a asesores
-```sql
-ALTER TABLE public.asesores 
-  ADD COLUMN IF NOT EXISTS puntos_ranking integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS documento text,
-  ADD COLUMN IF NOT EXISTS canal_direccion text;
-```
+Replicar el modelo de ventas individuales + rankings que ya funciona para VC, pero para los canales VN_ALIADOS y VN_EMPRESARIOS. Esto incluye: nuevas columnas en `ventas`, nuevas vistas SQL de ranking y desglose, nueva lógica de sync en la Edge Function para insertar transacciones VN en la tabla `ventas`, y actualización del frontend (Rankings, MiPerformance, AdminDatabricks) para soportar VN con métricas de unidades.
 
 ---
 
-## Fase 2: Edge Function de Sincronización (Aliados/Empresarios)
+## Fase 1 — Migración SQL
 
-Actualizar `sync-databricks/index.ts`:
+Crear una migración con:
 
-- Agregar nueva config `TABLE_CONFIGS` para queries de Databricks que traigan datos de Aliados y Empresarios (unidades por tipo producto, recomendados, productividad).
-- Nueva función `syncEjecucionAsesores()` que:
-  1. Reciba rows de Databricks con campos como `TIPO_PRODUCTO`, `UNIDADES`, `CANT_RECOMENDADOS`.
-  2. Normalice productos bajo categorías maestras ("NUBE", "FE", etc.).
-  3. Agrupe por `documento_asesor + periodo + canal_direccion`.
-  4. Upsert en `ejecucion_asesores`.
-- Nueva función `syncMetasAsesores()` para ingestar metas por asesor/periodo/canal.
+1. **Nuevas columnas en `ventas`**: `sc_creados_ind` (integer, default 1), `recurrencia` (text), `origen` (text), `pais` (text)
+2. **Vista `ranking_vn_gerentes`**: Ranking mensual de gerentes VN por % cumplimiento de unidades desde `kpis_mensuales`, particionado por canal + país
+3. **Vista `ranking_vn_comerciales`**: Ranking de asesores VN por ACV total desde la tabla `ventas` (registros con canal VN_*), particionado por canal
+4. **Vista `desglose_producto_vn`**: Agrupación de ventas por producto/bloque para gerentes VN, similar a `desglose_producto_vc`
 
 ---
 
-## Fase 3: Lógica Universal de Siigo Points (Ranking)
+## Fase 2 — Edge Function: sync-databricks
 
-Actualizar `calcular-sp-semanal/index.ts`:
+Modificaciones al archivo `supabase/functions/sync-databricks/index.ts`:
 
-- Agregar un bloque para canales `VN_ALIADOS` y `VN_EMPRESARIOS` que:
-  1. Lea `ejecucion_asesores` agrupado por `documento_asesor` y `canal_direccion`.
-  2. Cruce con `metas_asesores` del mismo periodo y canal.
-  3. Calcule `SP = ROUND((ventas_total / meta_total) * 100)`.
-  4. Upsert en `sp_acumulados` con `fuente = 'CUMPLIMIENTO_META'`.
-  5. Actualice `asesores.puntos_ranking` con la sumatoria.
-- Solo comparar si `canal_direccion` coincide entre ejecución y meta.
+1. **Corregir `inferCanal`**: Mapear `AREA = 'Aliados'` → `VN_ALIADOS`, `AREA` con 'digital'/'mercadeo'/'leads' → `VN_EMPRESARIOS`, fallback `VN_EMPRESARIOS`
+2. **Agregar nuevas TABLE_CONFIGS**: `ventas_vn_aliados` y `ventas_vn_empresarios` con queries que traen transacciones individuales de Databricks
+3. **Nueva función `syncVentasVN`**: Inserta transacciones individuales en tabla `ventas` (no `ventas_diarias`) con prefijo `VN-` en `documento_factura`, auto-crea gerentes faltantes, y mapea por lider/celula
+4. **Agregar `ventas_vn_completo`** al SYNC_MAP y como tabla compuesta (similar a `ventas_vc_completo`)
+5. **Actualizar `all_new`** para incluir las nuevas tablas VN en la secuencia
 
 ---
 
-## Fase 4: Medallas y Puntos Canjeables para Nuevos Frentes
+## Fase 3 — Edge Function: calcular-sp-semanal
 
-Actualizar la función `evaluateMedals` en `calcular-sp-semanal`:
-
-- Agregar nuevos `condicion_tipo` en el catálogo:
-  - `"recomendados"`: Si `cant_recomendados >= cantidad_requerida` → medalla + puntos canjeables.
-  - `"equilibrio"`: Si `ventas_fe >= meta_fe AND ventas_nube >= meta_nube` → medalla + puntos canjeables.
-  - `"productividad_superior"`: Si productividad > promedio del equipo → reto completado.
-- Estas medallas alimentan `puntos_canjeables` vía `otorgar_medalla_si_aplica` (ya soporta asesores).
-- No afectan `puntos_ranking`.
+1. **Filtro de canal en `evaluateMedals`**: Agregar `.eq("canal", gerente.canal)` a las queries de ventas para medallas de tipo `primera_venta` y `cantidad`
+2. Sin otros cambios — la lógica VN de SP ya funciona vía `kpis_mensuales`
 
 ---
 
-## Fase 5: UI/UX Segmentado
+## Fase 4 — AdminDatabricks.tsx
 
-### `KpiProgressBars.tsx`
-- Leer `canal_direccion` del perfil del usuario.
-- Si es Aliados/Empresarios: mostrar barras de FE vs meta_fe, Nube vs meta_nube, Productividad, y Recomendados.
-- Si es VC: mantener el layout actual (ACV+ vs Meta).
-
-### `Dashboard.tsx` y `MiPerformance.tsx`
-- Agregar fetch de `ejecucion_asesores` y `metas_asesores` cuando `canal_direccion` sea Aliados o Empresarios.
-- Mostrar tarjetas dinámicas de Productividad y Recomendados.
-
-### `Rankings.tsx`
-- Mantener filtros existentes de `pais` y `canal`.
-- Para Aliados/Empresarios: leer `puntos_ranking` de asesores + `puntos_canjeables`, mostrar ambas columnas.
-- Agregar tab de "Asesores" para estos frentes.
-
-### `useSupabaseAuth.ts`
-- Para asesores de Aliados/Empresarios: leer SP desde `sp_acumulados` filtrado por `fuente = 'CUMPLIMIENTO_META'` (ya implementado en rama `else` del asesor no-VC).
-
-### `useGamificationMetrics.ts`
-- Agregar branch para canales VN: fetch de `ejecucion_asesores` y `metas_asesores` para poblar KPIs del dashboard.
+Agregar las nuevas tablas VN al diccionario `TABLE_LABELS`:
+- `ventas_vn_aliados`: "Ventas VN Aliados"
+- `ventas_vn_empresarios`: "Ventas VN Empresarios"  
+- `ventas_vn_completo`: "Ventas VN Completo"
 
 ---
 
-## Archivos a Modificar/Crear
+## Fase 5 — Rankings.tsx
+
+1. **Agregar tabs para VN**: Cuando el canal es VN_ALIADOS o VN_EMPRESARIOS, mostrar tabs "Asesores" y "Gerentes"
+2. **Branch de fetch para VN**: 
+   - Tab "Asesores": consultar `ranking_vn_comerciales` filtrado por canal
+   - Tab "Gerentes": consultar `ranking_vn_gerentes` filtrado por canal + país
+3. **Columnas específicas VN**: Mostrar "% Cumpl. Unidades", "Unidades", "Meta" en lugar de solo ACV+
+
+---
+
+## Fase 6 — useGamificationMetrics.ts + MiPerformance.tsx
+
+1. **Agregar query de `desglose_producto_vn`** al hook para canales no-VC
+2. **Exportar `vnProductBreakdown`** en las métricas retornadas
+3. **MiPerformance**: Renderizar sección de desglose por producto para Aliados/Empresarios
+4. **KpiProgressBars**: Ajustar labels para VN (mostrar "Unidades vendidas vs Meta" en lugar de "ACV+")
+
+---
+
+## Archivos a modificar
 
 | Archivo | Acción |
 |---|---|
-| `supabase/migrations/...` | 3 migraciones (tablas + columnas) |
-| `supabase/functions/sync-databricks/index.ts` | Agregar sync de ejecución y metas |
-| `supabase/functions/calcular-sp-semanal/index.ts` | SP universal + medallas nuevos frentes |
-| `src/hooks/useGamificationMetrics.ts` | Branch para VN con datos de ejecución |
-| `src/hooks/useSupabaseAuth.ts` | Mapear `canal_direccion` al perfil |
-| `src/components/dashboard/KpiProgressBars.tsx` | Barras dinámicas FE/Nube/Productividad |
-| `src/pages/Dashboard.tsx` | Tarjetas condicionales por frente |
-| `src/pages/MiPerformance.tsx` | Métricas VN específicas |
-| `src/pages/Rankings.tsx` | Tabs + filtros por canal_direccion |
-
----
-
-## Notas Técnicas
-
-- Las queries de Databricks para Aliados/Empresarios necesitarán ser definidas con el usuario (nombres exactos de tablas/columnas en Databricks). El plan asume una estructura similar a la de Productividad.
-- El mapeo de productos (ej. "Nube Facturación" → "NUBE") se hará con una función de normalización en la Edge Function de sincronización.
-- Los tipos TypeScript se actualizarán automáticamente tras las migraciones.
+| Nueva migración SQL | CREAR: vistas + columnas |
+| `supabase/functions/sync-databricks/index.ts` | MODIFICAR: inferCanal, TABLE_CONFIGS, syncVentasVN |
+| `supabase/functions/calcular-sp-semanal/index.ts` | MODIFICAR: canal filter en evaluateMedals |
+| `src/pages/admin/AdminDatabricks.tsx` | MODIFICAR: TABLE_LABELS |
+| `src/pages/Rankings.tsx` | MODIFICAR: VN tabs + fetch + columnas |
+| `src/hooks/useGamificationMetrics.ts` | MODIFICAR: desglose_producto_vn query |
+| `src/pages/MiPerformance.tsx` | MODIFICAR: sección desglose VN |
+| `src/components/dashboard/KpiProgressBars.tsx` | MODIFICAR: labels VN |
 
