@@ -170,15 +170,15 @@ const MiPerformance = () => {
                 <>
                   <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    <KPICard icon="inventory_2" label="Unidades" value={`${kpis?.ventas || 0} / ${kpis?.meta || 0}`} sub="Vendidas vs Meta" />
-                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
-                    <KPICard icon="person_add" label="Referidos del Contador" value={String(kpis?.cant_recomendados || 0)} sub="Referidos de aliados" color="text-accent" />
+                    <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" />
+                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
+                    <KPICard icon="person_add" label="Referidos del Contador" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos de aliados" color="text-accent" />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" />
                   <motion.div className="grid grid-cols-1 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <RetoCard icon="handshake" label="Efectividad Referidos" value={`${kpis?.efectividad_referidos_pct || 0}%`} progress={Number(kpis?.efectividad_referidos_pct || 0)} description="% referidos convertidos" />
                   </motion.div>
-                  <VnCumplimientoSection kpis={kpis} />
+                  <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
