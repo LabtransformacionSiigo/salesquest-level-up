@@ -508,6 +508,7 @@ const Rankings = () => {
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
