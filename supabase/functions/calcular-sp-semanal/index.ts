@@ -364,7 +364,7 @@ async function processAsesoresEjecucion(
         spOtorgados += spFinal;
       }
 
-      // Update puntos_ranking on asesor
+      // Update sp_convencion on asesor
       const { data: allSp } = await supabase
         .from("sp_acumulados")
         .select("sp")
