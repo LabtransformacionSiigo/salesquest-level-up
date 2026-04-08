@@ -125,6 +125,9 @@ const buildEmailFromName = (name: string) => {
 };
 
 const inferCanal = (row: Record<string, any>) => {
+  const area = (row.AREA || "").trim().toLowerCase();
+  if (area === "aliados") return "VN_ALIADOS";
+  if (area.includes("digital") || area.includes("mercadeo") || area.includes("leads")) return "VN_EMPRESARIOS";
   const combined = normalizeText(`${row.AREA || ""} ${row.CELULA || ""} ${row.Director || row.DIRECTOR || ""}`);
   if (combined.includes("aliados")) return "VN_ALIADOS";
   if (combined.includes("empres")) return "VN_EMPRESARIOS";
@@ -224,7 +227,7 @@ Deno.serve(async (req) => {
 
     // ── all_new: run each table sequentially in background ──
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "productividad_asesores"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
@@ -271,7 +274,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-
+    if (table === "ventas_vn_completo") {
+      const result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode });
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
 
     // ── Single table ──
@@ -293,6 +299,7 @@ async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, j
 
     let result: any;
     if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
+    else if (table === "ventas_vn_completo") result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
     else if (table === "all_new") result = { error: "all_new should be dispatched, not processed inline" };
     else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
