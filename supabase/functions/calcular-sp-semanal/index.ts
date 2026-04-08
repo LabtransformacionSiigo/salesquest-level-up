@@ -141,13 +141,52 @@ Deno.serve(async (req) => {
           }
         } else {
           // VN channels (VN_ALIADOS, VN_EMPRESARIOS): SP = % cumplimiento per EACH month
-          const { data: allKpis } = await supabase
+          // Primary: read from kpis_mensuales (populated by aggregateVentasDiariasToKpis)
+          // Fallback: read directly from ventas_diarias + metas_gerentes
+          let { data: allKpis } = await supabase
             .from("kpis_mensuales")
             .select("anio_mes, ventas, meta")
             .eq("gerente_id", gerente.id)
             .eq("canal", canal)
             .gte("anio_mes", `${anioActual}01`)
             .lte("anio_mes", `${anioActual}12`);
+
+          // If no kpis found, try aggregating from ventas_diarias directly
+          if (!allKpis || allKpis.length === 0) {
+            const canalNorm = canal === "VN_ALIADOS" ? "Aliados" : canal === "VN_EMPRESARIOS" ? "Empresarios" : canal;
+            const normalizeText = (v: string) => v.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const { data: ventasDiarias } = await supabase
+              .from("ventas_diarias")
+              .select("fecha, unidades, acv")
+              .eq("canal_direccion", canalNorm)
+              .ilike("asesor", `%${gerente.nombre}%`);
+
+            // Get meta from metas_gerentes
+            const { data: metasG } = await supabase
+              .from("metas_gerentes")
+              .select("meta_total_und, meta_total_acv")
+              .eq("canal_direccion", canalNorm)
+              .ilike("celula", `%${gerente.nombre}%`)
+              .limit(1)
+              .maybeSingle();
+
+            if (ventasDiarias && ventasDiarias.length > 0) {
+              // Group by month
+              const byMonth = new Map<string, number>();
+              for (const vd of ventasDiarias) {
+                const fecha = String(vd.fecha || "");
+                const periodo = fecha.length >= 7 ? fecha.substring(0, 7).replace("-", "") : mesActual;
+                const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
+                byMonth.set(periodoClean, (byMonth.get(periodoClean) || 0) + (Number(vd.unidades) || 0));
+              }
+              const meta = Number(metasG?.meta_total_und) || Number(metasG?.meta_total_acv) || 0;
+              allKpis = [...byMonth.entries()].map(([anio_mes, ventas]) => ({
+                anio_mes,
+                ventas,
+                meta,
+              }));
+            }
+          }
 
           for (const kpi of (allKpis || [])) {
             const metaVal = Number(kpi.meta) || 0;

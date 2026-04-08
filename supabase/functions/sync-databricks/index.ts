@@ -110,6 +110,15 @@ ${limit}`;
 const normalizeText = (value: unknown) =>
   String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9@.\s_-]/g, "").replace(/\s+/g, " ");
 
+// Normalize canal_direccion from any Databricks variant to canonical form
+const normalizeCanalDireccion = (value: unknown): string => {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw.includes("aliado") || raw === "vn_aliados") return "Aliados";
+  if (raw.includes("empresario") || raw === "vn_empresarios") return "Empresarios";
+  if (raw.includes("venta cruzada") || raw === "vc") return "VC";
+  return String(value ?? "").trim() || "VC";
+};
+
 const buildEmailFromName = (name: string) => {
   const slug = normalizeText(name).replace(/[@]/g, "").replace(/[._-]+/g, " ").trim().replace(/\s+/g, ".");
   return `${slug || "sin.nombre"}@siigo.com`;
@@ -600,7 +609,7 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
 
   const upsertRows = rows.map((row) => ({
     pais_gestion: String(row.pais_gestion || "").trim() || null,
-    canal_direccion: String(row.canal_direccion || "").trim(),
+    canal_direccion: normalizeCanalDireccion(row.canal_direccion),
     director: String(row.director || "").trim() || null,
     celula: String(row.celula || "").trim(),
     m: String(row.m || "").trim() || null,
@@ -643,7 +652,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   const upsertRows = rows.map((row) => ({
     documento_asesor: String(row.documento_asesor || "").trim(),
     pais: normalizeCountry(row.pais),
-    canal_direccion: String(row.canal_direccion || "").trim(),
+    canal_direccion: normalizeCanalDireccion(row.canal_direccion),
     meta_fe: toNumber(row.meta_fe),
     meta_nube: toNumber(row.meta_nube),
     meta_total: toNumber(row.meta_total),
@@ -661,7 +670,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   // Also update asesores table with documento and canal_direccion
   for (const row of rows) {
     const doc = String(row.documento_asesor || "").trim();
-    const canal = String(row.canal_direccion || "").trim();
+    const canal = normalizeCanalDireccion(row.canal_direccion);
     const nombre = String(row.nombre_asesor || "").trim();
     if (doc && nombre) {
       await supabase.from("asesores").update({ documento: doc, canal_direccion: canal }).eq("nombre", nombre);
@@ -709,8 +718,8 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       acv: toNumber(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
-      canal_direccion: "Empresarios",
-      pais: "MEX",
+      canal_direccion: normalizeCanalDireccion("Empresarios"),
+      pais: normalizeCountry("MEX"),
     });
   }
 
@@ -738,6 +747,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
 
   // Also update ejecucion_asesores (summarize by asesor + month)
   await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Empresarios", errores);
+  await aggregateVentasDiariasToKpis(supabase, uniqueRows, "VN_EMPRESARIOS", errores);
 
   return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
@@ -767,8 +777,8 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       acv: toNumber(row.ACV),
       recurrencia: null,
       origen: String(row.origen || "").trim() || null,
-      canal_direccion: "Aliados",
-      pais: normalizeCountry(row.pais),
+      canal_direccion: normalizeCanalDireccion("Aliados"),
+      pais: normalizeCountry(row.pais || "COL"),
     });
   }
 
@@ -795,6 +805,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   }
 
   await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Aliados", errores);
+  await aggregateVentasDiariasToKpis(supabase, uniqueRows, "VN_ALIADOS", errores);
 
   return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
@@ -884,7 +895,7 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
       await supabase.from("ejecucion_asesores").upsert({
         documento_asesor: row.asesor,
         periodo: String(row.anio_mes),
-        canal_direccion: row.area?.toLowerCase()?.includes("aliados") ? "Aliados" : row.area?.toLowerCase()?.includes("empres") ? "Empresarios" : "VC",
+        canal_direccion: normalizeCanalDireccion(row.area || row.celula || "VC"),
         cant_recomendados: row.cant_recomendados,
         productividad,
       }, { onConflict: "documento_asesor,canal_direccion,periodo" });
@@ -892,4 +903,86 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
   }
 
   return { total_rows: rows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// Helper: Aggregate ventas_diarias into kpis_mensuales for VN gerentes
+// Bridges the gap so SP calculation works uniformly
+// ============================================================
+async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: string, errores: string[]) {
+  // Get all gerentes for this canal
+  const { data: gerentes } = await supabase
+    .from("gerentes")
+    .select("id, nombre, canal, pais")
+    .eq("canal", canal)
+    .eq("activo", true);
+
+  if (!gerentes || gerentes.length === 0) return;
+
+  const gerenteByName = new Map<string, any>();
+  for (const g of gerentes) {
+    gerenteByName.set(normalizeText(g.nombre), g);
+  }
+
+  // Group sales by asesor name + month
+  const asesorSales = new Map<string, { ventas: number; acv: number; periodo: string }>();
+  for (const row of rows) {
+    const asesor = String(row.asesor || "").trim();
+    const fecha = String(row.fecha || "");
+    const periodo = fecha.length >= 7 ? fecha.substring(0, 7).replace("-", "") : new Date().toISOString().substring(0, 7).replace("-", "");
+    const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
+    if (!asesor) continue;
+    const key = `${normalizeText(asesor)}|${periodoClean}`;
+    if (!asesorSales.has(key)) asesorSales.set(key, { ventas: 0, acv: 0, periodo: periodoClean });
+    const s = asesorSales.get(key)!;
+    s.ventas += row.unidades || 0;
+    s.acv += row.acv || 0;
+  }
+
+  // Match asesor names to gerentes (in VN, "gerentes" ARE the individual sellers)
+  const kpiUpdates = new Map<string, any>();
+  for (const [key, sales] of asesorSales) {
+    const [asesorNorm, periodo] = key.split("|");
+    const gerente = gerenteByName.get(asesorNorm);
+    if (!gerente) continue;
+
+    const kpiKey = `${gerente.id}|${periodo}`;
+    if (!kpiUpdates.has(kpiKey)) {
+      kpiUpdates.set(kpiKey, { gerente_id: gerente.id, anio_mes: periodo, canal, ventas: 0, acv_f: 0, meta: 0, moneda: "COP" });
+    }
+    const kpi = kpiUpdates.get(kpiKey)!;
+    kpi.ventas += sales.ventas;
+    kpi.acv_f += sales.acv;
+  }
+
+  // Try to fill meta from metas_gerentes
+  const canalNorm = canal === "VN_ALIADOS" ? "Aliados" : "Empresarios";
+  const { data: metasGerentes } = await supabase
+    .from("metas_gerentes")
+    .select("celula, canal_direccion, meta_total_und, meta_total_acv")
+    .eq("canal_direccion", canalNorm);
+
+  const metaByCelula = new Map<string, any>();
+  for (const m of (metasGerentes || [])) {
+    metaByCelula.set(normalizeText(m.celula), m);
+  }
+
+  for (const [, kpi] of kpiUpdates) {
+    const gerente = gerentes.find((g: any) => g.id === kpi.gerente_id);
+    if (gerente) {
+      const meta = metaByCelula.get(normalizeText(gerente.nombre));
+      if (meta) kpi.meta = meta.meta_total_und || meta.meta_total_acv || 0;
+    }
+  }
+
+  // Upsert to kpis_mensuales
+  const kpiRows = [...kpiUpdates.values()];
+  if (kpiRows.length > 0) {
+    const BATCH = 500;
+    for (let i = 0; i < kpiRows.length; i += BATCH) {
+      const chunk = kpiRows.slice(i, i + BATCH);
+      const { error } = await supabase.from("kpis_mensuales").upsert(chunk, { onConflict: "gerente_id,anio_mes" });
+      if (error) errores.push(`kpis_mensuales VN batch ${i}: ${error.message}`);
+    }
+  }
 }

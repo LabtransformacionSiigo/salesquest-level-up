@@ -264,12 +264,25 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           isVN && profile.role === 'asesor'
             ? supabase.from('metas_asesores').select('*').eq('anio_mes', mesActual).limit(1000)
             : Promise.resolve({ data: [] }),
+          /* 14 – ventas_diarias for VN gerente (read own sales by name) */
+          isVN && profile.role !== 'asesor'
+            ? supabase.from('ventas_diarias').select('fecha, unidades, acv, tipo_producto, canal_direccion')
+                .eq('canal_direccion', profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios')
+                .ilike('asesor', `%${profile.nombre}%`)
+            : Promise.resolve({ data: [] }),
+          /* 15 – metas_gerentes for VN gerente */
+          isVN && profile.role !== 'asesor'
+            ? supabase.from('metas_gerentes').select('meta_total_und, meta_total_acv, fe, nube, recomendados')
+                .eq('canal_direccion', profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios')
+                .ilike('celula', `%${profile.nombre}%`)
+                .limit(1)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, vnVentasRes, vnMetasRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -308,8 +321,53 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             upgradesCount = upgradeRow ? Number(upgradeRow.units) || 0 : 0;
           }
         } else {
-          acvMes = Number(kpisRes.data?.acv_f) || 0;
-          pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
+          // VN gerente path: prefer ventas_diarias + metas_gerentes over kpis_mes_actual
+          const vnVentas = vnVentasRes?.data || [];
+          const vnMeta = vnMetasRes?.data?.[0] || null;
+
+          if (vnVentas.length > 0) {
+            // Filter current month only
+            const currentMonthPrefix = `${anioActual}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const currentMonthVentas = vnVentas.filter((v: any) => String(v.fecha || '').startsWith(currentMonthPrefix));
+            const totalUnidades = currentMonthVentas.reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
+            const totalAcv = currentMonthVentas.reduce((s: number, v: any) => s + (Number(v.acv) || 0), 0);
+            const metaTotal = Number(vnMeta?.meta_total_und) || Number(vnMeta?.meta_total_acv) || 0;
+
+            acvMes = totalAcv;
+            pctCumplimiento = metaTotal > 0 ? Math.round((totalUnidades / metaTotal) * 100) : 0;
+
+            // Build ejecucion-like data for VN gerente dashboard
+            const feVentas = currentMonthVentas
+              .filter((v: any) => {
+                const tp = String(v.tipo_producto || '').toUpperCase();
+                return tp.includes('FE') || tp.includes('FACTUR');
+              })
+              .reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
+            const nubeVentas = currentMonthVentas
+              .filter((v: any) => {
+                const tp = String(v.tipo_producto || '').toUpperCase();
+                return tp.includes('NUBE') || tp.includes('CLOUD');
+              })
+              .reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
+
+            ejecucion = {
+              ventas_fe: feVentas,
+              ventas_nube: nubeVentas,
+              ventas_total: totalUnidades,
+              acv_total: totalAcv,
+              cant_recomendados: 0,
+              productividad: metaTotal > 0 ? Math.round((totalUnidades / metaTotal) * 100) : 0,
+            };
+            metaAsesor = {
+              meta_fe: Number(vnMeta?.fe) || 0,
+              meta_nube: Number(vnMeta?.nube) || 0,
+              meta_total: metaTotal,
+            };
+          } else {
+            // Fallback to kpis_mes_actual
+            acvMes = Number(kpisRes.data?.acv_f) || 0;
+            pctCumplimiento = Number(kpisRes.data?.pct_cumplimiento) || 0;
+          }
         }
 
         // Parse ejecucion/meta for VN asesor
