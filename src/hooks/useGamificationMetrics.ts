@@ -79,6 +79,9 @@ export interface GamificationMetrics {
   /* Aliados/Empresarios specific */
   ejecucion: EjecucionAsesor | null;
   metaAsesor: MetaAsesor | null;
+
+  /* VN product breakdown */
+  vnProductBreakdown: ProductBreakdownItem[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +133,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     team: [],
     ejecucion: null,
     metaAsesor: null,
+    vnProductBreakdown: [],
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
