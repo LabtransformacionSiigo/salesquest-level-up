@@ -76,31 +76,31 @@ ${limit}`;
   metas_gerentes: {
     label: "Metas Gerentes (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes ${limit}`,
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE m LIKE '%2026%' OR m LIKE '%26' ${limit}`,
   },
   // ── NEW: Metas Asesores ──
   metas_asesores_sync: {
     label: "Metas Asesores (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE m_de_antiguedad LIKE '%2026%' OR m_de_antiguedad LIKE '%26' ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
     label: "Ventas Empresarios (tbl_gld_Ventas_MX)",
     sql: (limit: string) =>
-      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX ${limit}`,
+      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
   },
   // ── NEW: Ventas Aliados ──
   ventas_aliados: {
     label: "Ventas Aliados (tbl_gld_Ventas_SA)",
     sql: (limit: string) =>
-      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA ${limit}`,
+      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA WHERE YEAR(fecha) = 2026 ${limit}`,
   },
   // ── NEW: Productividad Asesores (gamificación) ──
   productividad_asesores: {
     label: "Productividad Asesores (Progresiva)",
     sql: (limit: string) =>
-      `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva ${limit}`,
+      `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
 };
 
