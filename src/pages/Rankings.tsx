@@ -201,8 +201,9 @@ const Rankings = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const isComercialTab = isVC && tab === 'comerciales';
+  const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
+  const isGerentesVNTab = isVN && tab === 'gerentes';
 
   // Sort by SP totales as primary, then by % cumplimiento
   const sorted = [...ranking].sort((a, b) => {
@@ -223,10 +224,10 @@ const Rankings = () => {
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
           <div className="flex gap-2">
-            {isVC && (
+            {(isVC || isVN) && (
               <>
                 <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
-                  👤 Comerciales
+                  👤 {isVN ? 'Asesores' : 'Comerciales'}
                 </button>
                 <button onClick={() => setTab('gerentes')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
                   👥 Gerentes
