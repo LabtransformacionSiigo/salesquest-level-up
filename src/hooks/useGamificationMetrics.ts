@@ -270,11 +270,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           isVN && profile.role === 'asesor'
             ? supabase.from('metas_asesores').select('*').eq('anio_mes', mesActual).limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 14 – ventas_diarias for VN gerente (read own sales by name) */
-          isVN && profile.role !== 'asesor'
-            ? supabase.from('ventas_diarias').select('fecha, unidades, acv, tipo_producto, canal_direccion')
-                .eq('canal_direccion', profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios')
-                .ilike('asesor', `%${profile.nombre}%`)
+          /* 14 – productividad_asesores aggregated by celula for VN gerente */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase.from('productividad_asesores').select('anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
+                .eq('celula', profile.celula)
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .limit(1000)
             : Promise.resolve({ data: [] }),
           /* 15 – metas_gerentes for VN gerente */
           isVN && profile.role !== 'asesor'
