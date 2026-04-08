@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
-import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   title: string;
