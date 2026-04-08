@@ -536,7 +536,12 @@ const Rankings = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <FlagIcon pais={g.pais} />
-                            <span className="text-sm text-foreground">{g.nombre}</span>
+                            <div>
+                              <span className="text-sm text-foreground">{g.nombre}</span>
+                              {g.celula_nombre && g.celula_nombre !== g.nombre && (
+                                <p className="text-[10px] text-muted-foreground">📋 {g.celula_nombre}</p>
+                              )}
+                            </div>
                             {(g.isCurrent || g.user_id === profile?.user_id) && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">Tú</span>}
                           </div>
                         </td>
@@ -560,6 +565,7 @@ const Rankings = () => {
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}
