@@ -282,6 +282,14 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .ilike('celula', `%${profile.nombre}%`)
                 .limit(1)
             : Promise.resolve({ data: [] }),
+          /* 16 – kpis_mensuales history for VN gerente (all months this year) */
+          isVN
+            ? supabase.from('kpis_mensuales').select('anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
+                .eq('gerente_id', profile.id)
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .order('anio_mes', { ascending: false })
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
