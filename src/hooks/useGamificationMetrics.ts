@@ -337,55 +337,42 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             upgradesCount = upgradeRow ? Number(upgradeRow.units) || 0 : 0;
           }
         } else {
-          // VN gerente path: prefer ventas_diarias + metas_gerentes over kpis_mes_actual
-          const vnVentas = vnVentasRes?.data || [];
+          // VN gerente path: prefer productividad_asesores by celula
+          const celulaRows = celulaProductividadRes?.data || [];
           const vnMeta = vnMetasRes?.data?.[0] || null;
 
-          if (vnVentas.length > 0) {
-            // Filter current month only
-            const currentMonthPrefix = `${anioActual}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            const currentMonthVentas = vnVentas.filter((v: any) => String(v.fecha || '').startsWith(currentMonthPrefix));
-            const totalUnidades = currentMonthVentas.reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
-            const totalAcv = currentMonthVentas.reduce((s: number, v: any) => s + (Number(v.acv) || 0), 0);
-            const metaTotal = Number(vnMeta?.meta_total_und) || Number(vnMeta?.meta_total_acv) || 0;
+          // Aggregate current month from celula productividad
+          const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
+
+          if (currentMonthRows.length > 0) {
+            const totalVentas = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+            const totalMeta = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
+            const totalAcv = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.acv_f) || 0), 0);
+            const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
+            const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
             acvMes = totalAcv;
-            pctCumplimiento = metaTotal > 0 ? Math.round((totalUnidades / metaTotal) * 100) : 0;
-
-            // Build ejecucion-like data for VN gerente dashboard
-            const feVentas = currentMonthVentas
-              .filter((v: any) => {
-                const tp = String(v.tipo_producto || '').toUpperCase();
-                return tp.includes('FE') || tp.includes('FACTUR');
-              })
-              .reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
-            const nubeVentas = currentMonthVentas
-              .filter((v: any) => {
-                const tp = String(v.tipo_producto || '').toUpperCase();
-                return tp.includes('NUBE') || tp.includes('CLOUD');
-              })
-              .reduce((s: number, v: any) => s + (Number(v.unidades) || 0), 0);
+            pctCumplimiento = totalMeta > 0 ? Math.round((totalVentas / totalMeta) * 100) : 0;
 
             ejecucion = {
-              ventas_fe: feVentas,
-              ventas_nube: nubeVentas,
-              ventas_total: totalUnidades,
+              ventas_fe: 0,
+              ventas_nube: 0,
+              ventas_total: totalVentas,
               acv_total: totalAcv,
-              cant_recomendados: 0,
-              productividad: metaTotal > 0 ? Math.round((totalUnidades / metaTotal) * 100) : 0,
+              cant_recomendados: totalReferidos,
+              productividad: totalMeta > 0 ? Math.round((totalVentas / totalMeta) * 100) : 0,
             };
             metaAsesor = {
               meta_fe: Number(vnMeta?.fe) || 0,
               meta_nube: Number(vnMeta?.nube) || 0,
-              meta_total: metaTotal,
+              meta_total: totalMeta,
             };
           } else {
-            // Fallback to kpis_mes_actual (populated by productividad sync)
+            // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             acvMes = Number(kpiData?.acv_f) || 0;
             pctCumplimiento = Number(kpiData?.pct_cumplimiento) || 0;
 
-            // Build ejecucion/metaAsesor from kpis so VN progress bars render
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
               const metaTotal = Number(kpiData.meta) || 0;
