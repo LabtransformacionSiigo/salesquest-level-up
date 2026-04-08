@@ -24,6 +24,7 @@ export interface AuthUser extends Gerente {
   sp_siguiente_nivel: number | null;
   role: string | null;
   puntos_canjeables: number;
+  canal_direccion?: string | null;
 }
 
 const NIVELES = [
