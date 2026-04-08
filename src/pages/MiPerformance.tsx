@@ -152,16 +152,16 @@ const MiPerformance = () => {
                 <>
                   <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" tip="Métricas principales que alimentan tu puntaje." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    <KPICard icon="inventory_2" label="Unidades" value={`${kpis?.ventas || 0} / ${kpis?.meta || 0}`} sub="Vendidas vs Meta" tip="Unidades vendidas este mes vs meta asignada." />
-                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
-                    <KPICard icon="group_add" label="# de Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
+                    <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" tip="Unidades vendidas este mes vs meta asignada." />
+                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
+                    <KPICard icon="group_add" label="# de Referidos" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos semanales para SP extra." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <RetoCard icon="target" label="Efectividad SQL" value={`${kpis?.efectividad_sql_pct || 0}%`} progress={Number(kpis?.efectividad_sql_pct || 0)} description="% SQL convertidos" tip="(Ventas SQL ÷ Total SQL) × 100." />
                     <RetoCard icon="speed" label="Productividad" value={formatMoney(kpis?.productividad_por_asesor)} progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)} description="Ventas / HC activo" tip="Ventas totales ÷ Headcount activo." />
                   </motion.div>
-                  <VnCumplimientoSection kpis={kpis} />
+                  <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
@@ -307,10 +307,12 @@ const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: st
   </motion.div>
 );
 
-const VnCumplimientoSection = ({ kpis }: { kpis: any }) => {
-  const ventas = Number(kpis?.ventas) || 0;
-  const meta = Number(kpis?.meta) || 0;
-  const pct = Number(kpis?.pct_cumplimiento) || 0;
+const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; ejecucion?: EjecucionAsesor | null; metaAsesor?: MetaAsesor | null }) => {
+  const ventas = ejecucion?.ventas_total ?? Number(kpis?.ventas) ?? 0;
+  const meta = metaAsesor?.meta_total ?? Number(kpis?.meta) ?? 0;
+  const pct = meta > 0 ? Math.round((ventas / meta) * 100) : (Number(kpis?.pct_cumplimiento) || 0);
+  const acv = ejecucion?.acv_total ?? Number(kpis?.acv_f) ?? 0;
+  const referidos = ejecucion?.cant_recomendados ?? Number(kpis?.cant_recomendados) ?? 0;
   return (
     <>
       <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(Unidades vendidas ÷ Meta unidades) × 100." />
@@ -328,8 +330,8 @@ const VnCumplimientoSection = ({ kpis }: { kpis: any }) => {
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <MetaRow label="Unidades" value={String(ventas)} />
             <MetaRow label="Meta Und." value={String(meta)} />
-            <MetaRow label="ACV+" value={formatMoney(kpis?.acv_f)} />
-            <MetaRow label="Referidos" value={String(kpis?.cant_recomendados || 0)} />
+            <MetaRow label="ACV+" value={formatMoney(acv)} />
+            <MetaRow label="Referidos" value={String(referidos)} />
           </div>
         </div>
       </motion.div>
