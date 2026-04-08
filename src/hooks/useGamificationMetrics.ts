@@ -430,26 +430,44 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           }
         }
 
-        // Build VN monthly cumplimiento from kpis_mensuales history
+        // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
         let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
         if (isVN && !isVC) {
-          const vnHistoryRows = vnHistoryRes?.data || [];
-          vnMonthlyCumpl = vnHistoryRows.map((row: any) => {
-            const period = String(row.anio_mes || '');
-            const monthNum = parseInt(period.slice(4), 10);
-            const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-            const ventas = Number(row.ventas) || 0;
-            const meta = Number(row.meta) || 0;
-            const pctVal = meta > 0 ? Math.round((ventas / meta) * 100) : 0;
-            return { mes: mesName, acv: Number(row.acv_f) || 0, meta: ventas, pct: pctVal, unidades: ventas, metaUnidades: meta };
-          });
-          // vcMonthlyCumplimiento is reused for VN to show history
-          vcMonthlyCumplimiento = vnMonthlyCumpl.map(m => ({
-            mes: m.mes,
-            acv: (m as any).unidades,
-            meta: (m as any).metaUnidades,
-            pct: m.pct,
-          }));
+          const celulaRows = celulaProductividadRes?.data || [];
+          if (celulaRows.length > 0 && profile.role !== 'asesor') {
+            // Aggregate by month from celula productividad
+            const monthAgg = new Map<string, { ventas: number; meta: number; acv: number; referidos: number }>();
+            celulaRows.forEach((row: any) => {
+              const period = String(row.anio_mes || '');
+              const cur = monthAgg.get(period) || { ventas: 0, meta: 0, acv: 0, referidos: 0 };
+              cur.ventas += Number(row.ventas) || 0;
+              cur.meta += Number(row.meta) || 0;
+              cur.acv += Number(row.acv_f) || 0;
+              cur.referidos += Number(row.cant_recomendados) || 0;
+              monthAgg.set(period, cur);
+            });
+            vnMonthlyCumpl = [...monthAgg.entries()]
+              .sort((a, b) => b[0].localeCompare(a[0]))
+              .map(([period, { ventas, meta, acv, referidos }]) => {
+                const monthNum = parseInt(period.slice(4), 10);
+                const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
+                const pctVal = meta > 0 ? Math.round((ventas / meta) * 100) : 0;
+                return { mes: mesName, acv: ventas, meta, pct: pctVal };
+              });
+          } else {
+            // Fallback to kpis_mensuales
+            const vnHistoryRows = vnHistoryRes?.data || [];
+            vnMonthlyCumpl = vnHistoryRows.map((row: any) => {
+              const period = String(row.anio_mes || '');
+              const monthNum = parseInt(period.slice(4), 10);
+              const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
+              const ventas = Number(row.ventas) || 0;
+              const meta = Number(row.meta) || 0;
+              const pctVal = meta > 0 ? Math.round((ventas / meta) * 100) : 0;
+              return { mes: mesName, acv: ventas, meta, pct: pctVal };
+            });
+          }
+          vcMonthlyCumplimiento = vnMonthlyCumpl;
         }
 
         // Format top ranking
