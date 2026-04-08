@@ -171,7 +171,7 @@ const MiPerformance = () => {
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={String(kpis?.sc_creados || 0)} sub="Vendidas este mes" />
                     <KPICard icon="trending_up" label="ACV+" value={formatMoney(kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
-                    <KPICard icon="person_add" label="Referidos" value={String(kpis?.cant_recomendados || 0)} sub="Referidos aliados" color="text-accent" />
+                    <KPICard icon="person_add" label="Referidos del Contador" value={String(kpis?.cant_recomendados || 0)} sub="Referidos de aliados" color="text-accent" />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" />
                   <motion.div className="grid grid-cols-1 gap-4" variants={staggerContainer} initial="hidden" animate="show">

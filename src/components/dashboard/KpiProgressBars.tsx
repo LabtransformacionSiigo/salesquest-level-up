@@ -171,7 +171,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               </div>
               <div className="text-center">
                 <p className="text-2xl font-black font-scoreboard text-accent">{ejecucion.cant_recomendados}</p>
-                <p className="text-[10px] text-muted-foreground font-heading uppercase">Referidos</p>
+                <p className="text-[10px] text-muted-foreground font-heading uppercase">{canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos'}</p>
               </div>
             </div>
 
@@ -234,7 +234,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               {!isVcAdvisor && kpis?.cant_recomendados != null && (
                 <div>
                   <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                    <span>Referidos</span>
+                    <span>{isVN && canal === 'VN_ALIADOS' ? 'Referidos del Contador' : 'Referidos'}</span>
                     <span className="text-foreground font-scoreboard">{kpis.cant_recomendados}</span>
                   </div>
                   <Progress value={Math.min(100, (kpis.cant_recomendados / 10) * 100)} className="h-2.5" />
