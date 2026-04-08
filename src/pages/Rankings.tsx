@@ -424,14 +424,27 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
                         </td>
-                        {(isComercialTab || isGerentesVCTab) && (
+                        {(isComercialTab || isGerentesVCTab) && !isVN && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
                           </>
                         )}
-                        {!isComercialTab && !isGerentesVCTab && (
+                        {isGerentesVNTab && (
+                          <>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_total || 0).toLocaleString()}</td>
+                          </>
+                        )}
+                        {isVN && isComercialTab && (
+                          <>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_total || 0).toLocaleString()}</td>
+                          </>
+                        )}
+                        {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                           <>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>
