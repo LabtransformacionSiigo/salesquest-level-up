@@ -222,6 +222,27 @@ Deno.serve(async (req) => {
     const mesFilter = body.mes || undefined;
     const jobId = body.jobId || undefined;
 
+    // ── all_new: run each table sequentially in background ──
+    if (table === "all_new" && mode === "sync") {
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "productividad_asesores"];
+      const jobIds: Record<string, string> = {};
+      for (const t of tables) {
+        const { data: job } = await supabase
+          .from("sync_jobs")
+          .insert({ table_name: t, mode: "sync", status: "pending", requested_by: authUserId, started_at: new Date().toISOString() })
+          .select("id").single();
+        if (job) jobIds[t] = job.id;
+      }
+      // Process all sequentially in background (single waitUntil, one table at a time)
+      EdgeRuntime.waitUntil((async () => {
+        for (const t of tables) {
+          if (!jobIds[t]) continue;
+          await processSyncJob({ supabaseUrl, serviceRoleKey, table: t, jobId: jobIds[t] });
+        }
+      })());
+      return new Response(JSON.stringify({ queued: true, launched: tables, message: `${tables.length} syncs iniciados secuencialmente` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ── Background job creation ──
     if (mode === "sync" && !jobId) {
       const { data: job, error: jobError } = await supabase
@@ -250,10 +271,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (table === "all_new") {
-      const result = await runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode });
-      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+
+
 
     // ── Single table ──
     const result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode });
@@ -274,7 +293,7 @@ async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, j
 
     let result: any;
     if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
-    else if (table === "all_new") result = await runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode: "sync" });
+    else if (table === "all_new") result = { error: "all_new should be dispatched, not processed inline" };
     else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
     await supabase.from("sync_jobs").update({ status: "completed", finished_at: new Date().toISOString(), result, error_message: null }).eq("id", jobId);
