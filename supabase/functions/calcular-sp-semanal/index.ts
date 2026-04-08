@@ -12,6 +12,34 @@ const SPANISH_MONTHS: Record<number, string> = {
   9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
 };
 
+const MONTH_NUMBERS_ES: Record<string, string> = {
+  Enero: "01",
+  Febrero: "02",
+  Marzo: "03",
+  Abril: "04",
+  Mayo: "05",
+  Junio: "06",
+  Julio: "07",
+  Agosto: "08",
+  Septiembre: "09",
+  Octubre: "10",
+  Noviembre: "11",
+  Diciembre: "12",
+};
+
+const getPeriodFromSpanishMonth = (year?: number | null, monthName?: string | null) => {
+  if (!year || !monthName) return null;
+  const monthNumber = MONTH_NUMBERS_ES[monthName];
+  return monthNumber ? `${year}${monthNumber}` : null;
+};
+
+const getPeriodFromDate = (dateValue?: string | null) => {
+  if (!dateValue) return null;
+  const [year, month] = dateValue.split("-");
+  if (!year || !month) return null;
+  return `${year}${month}`;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,6 +90,8 @@ Deno.serve(async (req) => {
     const mesActual = `${anioActual}${String(now.getMonth() + 1).padStart(2, "0")}`;
     const currentMonthName = SPANISH_MONTHS[now.getMonth() + 1] || "Enero";
     const periodoSemana = `${anioActual}-W${String(semanaActual).padStart(2, "0")}`;
+    const yearStartDate = `${anioActual}-01-01`;
+    const nextYearStartDate = `${anioActual + 1}-01-01`;
     const currentMonthStart = `${anioActual}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
     const nextMonthStart = now.getMonth() === 11
       ? `${anioActual + 1}-01-01`
@@ -91,22 +121,26 @@ Deno.serve(async (req) => {
       medalsByCanal[m.canal].push(m);
     });
 
-    // ── Batch load ventas for VC (current month) ──
-    // Load ALL ventas for current month grouped by gerente
-    const { data: allVentasMes } = await supabase
+    // ── Batch load ventas for VC (year to date, monthly SUM rows only) ──
+    const { data: allVentasVc } = await supabase
       .from("ventas")
-      .select("gerente_id, acv_plus, meta, canal")
-      .eq("mes", currentMonthName)
-      .eq("canal", "VC");
+      .select("gerente_id, acv_plus, meta, mes, anio, documento_factura")
+      .eq("canal", "VC")
+      .eq("anio", anioActual)
+      .like("documento_factura", "SUM-%");
 
-    // Aggregate VC ventas by gerente_id
-    const vcAgg = new Map<string, { acv: number; meta: number }>();
-    (allVentasMes || []).forEach((v) => {
+    const vcMonthlyByGerente = new Map<string, Map<string, { mes: string; acv: number; meta: number }>>();
+    (allVentasVc || []).forEach((v) => {
       if (!v.gerente_id) return;
-      const entry = vcAgg.get(v.gerente_id) || { acv: 0, meta: 0 };
+      const periodo = getPeriodFromSpanishMonth(v.anio, v.mes);
+      if (!periodo) return;
+
+      const monthlyRows = vcMonthlyByGerente.get(v.gerente_id) || new Map<string, { mes: string; acv: number; meta: number }>();
+      const entry = monthlyRows.get(periodo) || { mes: v.mes || currentMonthName, acv: 0, meta: 0 };
       entry.acv += Number(v.acv_plus) || 0;
       entry.meta += Number(v.meta) || 0;
-      vcAgg.set(v.gerente_id, entry);
+      monthlyRows.set(periodo, entry);
+      vcMonthlyByGerente.set(v.gerente_id, monthlyRows);
     });
 
     // ── Batch load kpis_mensuales for VN gerentes (all months this year) ──
@@ -139,13 +173,15 @@ Deno.serve(async (req) => {
 
       try {
         if (canal === "VC") {
-          const agg = vcAgg.get(gerente.id);
-          if (agg && agg.meta > 0) {
+          const monthlyRows = vcMonthlyByGerente.get(gerente.id);
+          for (const [periodo, agg] of monthlyRows?.entries() || []) {
+            if (agg.meta <= 0) continue;
+
             const spFinal = Math.round((agg.acv / agg.meta) * 100);
             if (spFinal > 0) {
               spUpserts.push({
                 gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-                periodo: mesActual, detalle: `Cumplimiento de Meta: ${spFinal}% · VC`, tipo_sp: "convencion",
+                periodo, detalle: `Cumplimiento de Meta: ${spFinal}% · VC · ${agg.mes}`, tipo_sp: "convencion",
               });
               totalSpOtorgados += spFinal;
               resumenCanal[canal].sp += spFinal;
@@ -348,7 +384,7 @@ Deno.serve(async (req) => {
 
     // ── Process asesores SP Convención ──
     const asesoresConvResult = await processAsesoresConvencion(
-      supabase, mesActual, currentMonthStart, nextMonthStart, medalsByCanal
+      supabase, anioActual, mesActual, yearStartDate, nextYearStartDate, medalsByCanal
     );
 
     // ── Process asesores SP Canje ──
@@ -379,9 +415,10 @@ Deno.serve(async (req) => {
 // ══════════════════════════════════════════════════════════════════════
 async function processAsesoresConvencion(
   supabase: any,
+  anioActual: number,
   mesActual: string,
-  currentMonthStart: string,
-  nextMonthStart: string,
+  yearStartDate: string,
+  nextYearStartDate: string,
   medalsByCanal: Record<string, any[]>
 ) {
   const errores: string[] = [];
@@ -390,23 +427,33 @@ async function processAsesoresConvencion(
 
   const [asesoresRes, metasRes, ventasDiariasRes, ejecRes] = await Promise.all([
     supabase.from("asesores").select("id, documento, canal_direccion, nombre, canal"),
-    supabase.from("metas_asesores").select("*").eq("anio_mes", mesActual),
+    supabase.from("metas_asesores").select("*")
+      .gte("anio_mes", `${anioActual}01`)
+      .lte("anio_mes", `${anioActual}12`),
     supabase.from("ventas_diarias").select("asesor, canal_direccion, unidades, acv, fecha")
-      .gte("fecha", currentMonthStart).lt("fecha", nextMonthStart),
+      .gte("fecha", yearStartDate).lt("fecha", nextYearStartDate),
     supabase.from("ejecucion_asesores")
-      .select("documento_asesor, canal_direccion, ventas_total, acv_total, ventas_fe, ventas_nube, cant_recomendados")
-      .eq("periodo", mesActual),
+      .select("documento_asesor, canal_direccion, periodo, ventas_total, acv_total, ventas_fe, ventas_nube, cant_recomendados")
+      .gte("periodo", `${anioActual}01`)
+      .lte("periodo", `${anioActual}12`),
   ]);
 
   const asesores = asesoresRes.data || [];
   if (asesores.length === 0) return { procesados: 0, sp_otorgados: 0, errores: [] };
 
-  const metasMap = new Map<string, any>();
-  (metasRes.data || []).forEach((m: any) => metasMap.set(`${m.documento_asesor}|${m.canal_direccion}`, m));
+  const metasByAsesor = new Map<string, any[]>();
+  (metasRes.data || []).forEach((m: any) => {
+    const key = `${m.documento_asesor}|${m.canal_direccion}`;
+    const current = metasByAsesor.get(key) || [];
+    current.push(m);
+    metasByAsesor.set(key, current);
+  });
 
   const ventasAgg = new Map<string, { unidades: number; acv: number }>();
   (ventasDiariasRes.data || []).forEach((vd: any) => {
-    const key = `${(vd.asesor || "").trim().toLowerCase()}|${vd.canal_direccion}`;
+    const periodo = getPeriodFromDate(vd.fecha);
+    if (!periodo) return;
+    const key = `${(vd.asesor || "").trim().toLowerCase()}|${vd.canal_direccion}|${periodo}`;
     const entry = ventasAgg.get(key) || { unidades: 0, acv: 0 };
     entry.unidades += Number(vd.unidades) || 0;
     entry.acv += Number(vd.acv) || 0;
@@ -414,7 +461,7 @@ async function processAsesoresConvencion(
   });
 
   const ejecMap = new Map<string, any>();
-  (ejecRes.data || []).forEach((e: any) => ejecMap.set(`${e.documento_asesor}|${e.canal_direccion}`, e));
+  (ejecRes.data || []).forEach((e: any) => ejecMap.set(`${e.documento_asesor}|${e.canal_direccion}|${e.periodo}`, e));
 
   const spUpserts: any[] = [];
   const asesorSpTotals: { id: string; sp: number; ejec: any; meta: any; canalDir: string }[] = [];
@@ -423,48 +470,57 @@ async function processAsesoresConvencion(
     try {
       if (!asesor.documento) continue;
       const canalDir = asesor.canal_direccion || "";
-      const meta = metasMap.get(`${asesor.documento}|${canalDir}`);
-      if (!meta) continue;
+      const metas = metasByAsesor.get(`${asesor.documento}|${canalDir}`) || [];
+      if (metas.length === 0) continue;
 
       const isVentaCruzada = canalDir.toLowerCase().includes("cruzada") || canalDir === "VC";
-      const asesorNameKey = `${asesor.nombre.trim().toLowerCase()}|${canalDir}`;
-      const ventasData = ventasAgg.get(asesorNameKey);
-      const ejecData = ejecMap.get(`${asesor.documento}|${canalDir}`);
+      let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string } | null = null;
 
-      let spFinal = 0;
-      let detalleLabel = "";
+      for (const meta of metas) {
+        const periodo = String(meta.anio_mes);
+        const asesorNameKey = `${asesor.nombre.trim().toLowerCase()}|${canalDir}|${periodo}`;
+        const ventasData = ventasAgg.get(asesorNameKey);
+        const ejecData = ejecMap.get(`${asesor.documento}|${canalDir}|${periodo}`);
 
-      if (isVentaCruzada) {
-        const acvTotal = ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0);
-        const metaAcv = Number(meta.meta_total) || 0;
-        if (metaAcv > 0 && acvTotal > 0) {
-          spFinal = Math.round((acvTotal / metaAcv) * 100);
-          detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada`;
+        let spFinal = 0;
+        let detalleLabel = "";
+
+        if (isVentaCruzada) {
+          const acvTotal = ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0);
+          const metaAcv = Number(meta.meta_total) || 0;
+          if (metaAcv > 0 && acvTotal > 0) {
+            spFinal = Math.round((acvTotal / metaAcv) * 100);
+            detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada · ${periodo}`;
+          }
+        } else {
+          const unidadesTotal = ventasData?.unidades ?? (ejecData ? Number(ejecData.ventas_total) || 0 : 0);
+          const metaUnidades = Number(meta.meta_total) || 0;
+          if (metaUnidades > 0 && unidadesTotal > 0) {
+            spFinal = Math.round((unidadesTotal / metaUnidades) * 100);
+            detalleLabel = `Cumplimiento Unidades: ${spFinal}% · ${canalDir} · ${periodo}`;
+          }
         }
-      } else {
-        const unidadesTotal = ventasData?.unidades ?? (ejecData ? Number(ejecData.ventas_total) || 0 : 0);
-        const metaUnidades = Number(meta.meta_total) || 0;
-        if (metaUnidades > 0 && unidadesTotal > 0) {
-          spFinal = Math.round((unidadesTotal / metaUnidades) * 100);
-          detalleLabel = `Cumplimiento Unidades: ${spFinal}% · ${canalDir}`;
+
+        if (spFinal <= 0) continue;
+
+        spUpserts.push({
+          gerente_id: asesor.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
+          periodo, detalle: detalleLabel, tipo_sp: "convencion",
+        });
+        spOtorgados += spFinal;
+
+        if (periodo === mesActual) {
+          const ejec = ejecData || {
+            ventas_total: ventasData?.unidades || 0,
+            acv_total: ventasData?.acv || 0,
+            cant_recomendados: 0, ventas_fe: 0, ventas_nube: 0,
+          };
+          currentMonthSummary = { id: asesor.id, sp: spFinal, ejec, meta, canalDir };
         }
+        procesados++;
       }
 
-      if (spFinal <= 0) continue;
-
-      spUpserts.push({
-        gerente_id: asesor.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-        periodo: mesActual, detalle: detalleLabel, tipo_sp: "convencion",
-      });
-      spOtorgados += spFinal;
-
-      const ejec = ejecData || {
-        ventas_total: ventasData?.unidades || 0,
-        acv_total: ventasData?.acv || 0,
-        cant_recomendados: 0, ventas_fe: 0, ventas_nube: 0,
-      };
-      asesorSpTotals.push({ id: asesor.id, sp: spFinal, ejec, meta, canalDir });
-      procesados++;
+      if (currentMonthSummary) asesorSpTotals.push(currentMonthSummary);
     } catch (err) {
       if (errores.length < 20) errores.push(`Asesor conv error: ${String(err)}`);
     }
