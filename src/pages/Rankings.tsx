@@ -430,17 +430,11 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
-                      {isGerentesVNTab && (
+                      {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">Unidades</th>
-                          <th className="text-right px-4 py-3">Meta</th>
-                        </>
-                      )}
-                      {isVN && isComercialTab && (
-                        <>
-                          <th className="text-right px-4 py-3">ACV+</th>
-                          <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
@@ -487,17 +481,11 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
                           </>
                         )}
-                        {isGerentesVNTab && (
+                        {(isGerentesVNTab || (isVN && isComercialTab)) && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_total || 0).toLocaleString()}</td>
-                          </>
-                        )}
-                        {isVN && isComercialTab && (
-                          <>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_total || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}
                         {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
