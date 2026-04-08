@@ -76,7 +76,7 @@ ${limit}`;
   metas_gerentes: {
     label: "Metas Gerentes (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes ${limit}`,
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE m LIKE '%2026%' OR m LIKE '%26' ${limit}`,
   },
   // ── NEW: Metas Asesores ──
   metas_asesores_sync: {
