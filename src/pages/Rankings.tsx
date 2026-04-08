@@ -442,6 +442,11 @@ const Rankings = () => {
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
+                                <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
                                 <p className="text-sm font-bold font-scoreboard text-accent">{(g.cant_recomendados || 0).toLocaleString()}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</p>
                               </div>
