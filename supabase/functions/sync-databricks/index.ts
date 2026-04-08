@@ -88,7 +88,7 @@ ${limit}`;
   ventas_empresarios: {
     label: "Ventas Empresarios (tbl_gld_Ventas_MX)",
     sql: (limit: string) =>
-      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX ${limit}`,
+      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
   },
   // ── NEW: Ventas Aliados ──
   ventas_aliados: {
