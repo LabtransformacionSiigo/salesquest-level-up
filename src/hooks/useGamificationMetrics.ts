@@ -282,12 +282,20 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .ilike('celula', `%${profile.nombre}%`)
                 .limit(1)
             : Promise.resolve({ data: [] }),
+          /* 16 – kpis_mensuales history for VN gerente (all months this year) */
+          isVN
+            ? supabase.from('kpis_mensuales').select('anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
+                .eq('gerente_id', profile.id)
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .order('anio_mes', { ascending: false })
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, vnVentasRes, vnMetasRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, vnVentasRes, vnMetasRes, vnHistoryRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -432,6 +440,28 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           }
         }
 
+        // Build VN monthly cumplimiento from kpis_mensuales history
+        let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
+        if (isVN && !isVC) {
+          const vnHistoryRows = vnHistoryRes?.data || [];
+          vnMonthlyCumpl = vnHistoryRows.map((row: any) => {
+            const period = String(row.anio_mes || '');
+            const monthNum = parseInt(period.slice(4), 10);
+            const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
+            const ventas = Number(row.ventas) || 0;
+            const meta = Number(row.meta) || 0;
+            const pctVal = meta > 0 ? Math.round((ventas / meta) * 100) : 0;
+            return { mes: mesName, acv: Number(row.acv_f) || 0, meta: ventas, pct: pctVal, unidades: ventas, metaUnidades: meta };
+          });
+          // vcMonthlyCumplimiento is reused for VN to show history
+          vcMonthlyCumplimiento = vnMonthlyCumpl.map(m => ({
+            mes: m.mes,
+            acv: (m as any).unidades,
+            meta: (m as any).metaUnidades,
+            pct: m.pct,
+          }));
+        }
+
         // Format top ranking
         const canjeablesMap = new Map<string, number>();
         (canjeablesRes.data || []).forEach((row: any) => {
@@ -462,7 +492,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           acvMes,
           ventasSemana: weekRevenue,
           pctCumplimiento,
-          unidades: unidadesRes.count || 0,
+          unidades: Number(kpisRes.data?.ventas) || unidadesRes.count || 0,
           vcSnapshot: null,
           vcCumplimiento,
           vcMonthlyCumplimiento,
