@@ -173,13 +173,22 @@ const Rankings = () => {
             pais: a.pais || userPais,
           });
         });
+        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const pctByAdvisor = new Map<string, number>();
+        monthlyByAdvisor.forEach((months, advisor) => {
+          const cm = months.get(currentMonth);
+          if (cm && cm.meta > 0 && cm.ventas > 0) {
+            pctByAdvisor.set(advisor, Math.round((cm.ventas / cm.meta) * 100));
+          }
+        });
         setRanking((comRes.data || []).map((r: any) => ({
           id: `${r.nombre}-${r.gerente_nombre}`,
           nombre: r.nombre,
           gerente_nombre: r.gerente_nombre,
           kpi_value: Math.round(Number(r.acv_total) || 0),
           unidades_total: Number(r.unidades_total) || 0,
-          pct_cumplimiento: 0,
+          cant_recomendados: Number(r.cant_recomendados) || 0,
+          pct_cumplimiento: pctByAdvisor.get(normalizePersonName(r.nombre)) || 0,
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: r.canal,
