@@ -142,62 +142,75 @@ const Rankings = () => {
         setRanking(mapped);
       }
     } else if (isVN) {
-      // VN channels: use ranking_vn views
+      // VN channels
+      const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
       if (tab === 'comerciales') {
-        const [comRes, asesoresRes, productividadRes] = await Promise.all([
-          supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal),
+        // Build ranking directly from productividad_asesores
+        const [productividadRes, asesoresRes] = await Promise.all([
+          supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
-          supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, pais').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
         ]);
-        const advisorNames = new Set((asesoresRes.data || []).map((a: any) => normalizePersonName(a.nombre)));
-        const monthlyByAdvisor = new Map<string, Map<string, { ventas: number; meta: number }>>();
-        (productividadRes.data || []).forEach((row: any) => {
-          const advisor = normalizePersonName(row.asesor);
-          const period = String(row.anio_mes || '');
-          if (!advisor || !period || !advisorNames.has(advisor)) return;
-
-          const monthly = monthlyByAdvisor.get(advisor) || new Map<string, { ventas: number; meta: number }>();
-          const current = monthly.get(period) || { ventas: 0, meta: 0 };
-          current.ventas += Number(row.ventas) || 0;
-          current.meta += Number(row.meta) || 0;
-          monthly.set(period, current);
-          monthlyByAdvisor.set(advisor, monthly);
-        });
-        const spMap = new Map<string, { conv: number; canje: number; pais: string }>();
+        const canjeMap = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
-          const advisor = normalizePersonName(a.nombre);
-          const monthlyRows = [...(monthlyByAdvisor.get(advisor)?.values() || [])].map((month) => ({ sp: month.meta > 0 && month.ventas > 0 ? Math.round((month.ventas / month.meta) * 100) : 0 }));
-          if (!a.nombre) return;
-          spMap.set(advisor, {
-            conv: sumMonthlyConvention(monthlyRows),
-            canje: Number(a.sp_canje) || 0,
-            pais: a.pais || userPais,
-          });
+          if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const pctByAdvisor = new Map<string, number>();
-        monthlyByAdvisor.forEach((months, advisor) => {
-          const cm = months.get(currentMonth);
-          if (cm && cm.meta > 0 && cm.ventas > 0) {
-            pctByAdvisor.set(advisor, Math.round((cm.ventas / cm.meta) * 100));
+        // Aggregate by advisor
+        const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; celula: string; months: Map<string, { ventas: number; meta: number }> }>();
+        (productividadRes.data || []).forEach((row: any) => {
+          const name = row.asesor;
+          if (!name) return;
+          const key = normalizePersonName(name);
+          const agg = advisorAgg.get(key) || { ventas: 0, meta: 0, recomendados: 0, unidades: 0, acv: 0, celula: '', months: new Map() };
+          agg.celula = row.celula || agg.celula;
+          // Monthly aggregation for SP calculation
+          const period = String(row.anio_mes || '');
+          const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
+          cm.ventas += Number(row.ventas) || 0;
+          cm.meta += Number(row.meta) || 0;
+          agg.months.set(period, cm);
+          // Current month totals
+          if (period === currentMonth) {
+            agg.ventas += Number(row.ventas) || 0;
+            agg.meta += Number(row.meta) || 0;
+            agg.recomendados += Number(row.cant_recomendados) || 0;
           }
+          // Totals across all months
+          agg.unidades += Number(row.ventas) || 0;
+          agg.acv += Number(row.acv_f) || 0;
+          advisorAgg.set(key, agg);
+          // Keep original name
+          if (!agg.celula) agg.celula = row.celula || '';
         });
-        setRanking((comRes.data || []).map((r: any) => ({
-          id: `${r.nombre}-${r.gerente_nombre}`,
-          nombre: r.nombre,
-          gerente_nombre: r.gerente_nombre,
-          kpi_value: Math.round(Number(r.acv_total) || 0),
-          unidades_total: Number(r.unidades_total) || 0,
-          cant_recomendados: Number(r.cant_recomendados) || 0,
-          pct_cumplimiento: pctByAdvisor.get(normalizePersonName(r.nombre)) || 0,
-          ventas_count: r.ventas_count,
-          posicion: r.posicion,
-          canal: r.canal,
-          pais: spMap.get(normalizePersonName(r.nombre))?.pais || r.pais_gerente || userPais,
-          sp_totales: spMap.get(normalizePersonName(r.nombre))?.conv || 0,
-          sp_canje: spMap.get(normalizePersonName(r.nombre))?.canje || 0,
-          nivel: null,
-        })).filter((r: any) => r.pais === userPais));
+        // Build ranking entries
+        const entries: any[] = [];
+        advisorAgg.forEach((agg, key) => {
+          // SP Convención = sum of monthly % fulfillment
+          const spConv = [...agg.months.values()].reduce((total, m) => {
+            if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
+            return total;
+          }, 0);
+          const pct = agg.meta > 0 && agg.ventas > 0 ? Math.round((agg.ventas / agg.meta) * 100) : 0;
+          // Find original name from data
+          const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
+          entries.push({
+            id: key,
+            nombre: originalName,
+            gerente_nombre: agg.celula,
+            kpi_value: Math.round(agg.acv),
+            unidades_total: agg.unidades,
+            cant_recomendados: agg.recomendados,
+            pct_cumplimiento: pct,
+            ventas_count: agg.unidades,
+            posicion: 0,
+            canal: profile.canal,
+            pais: userPais,
+            sp_totales: spConv,
+            sp_canje: canjeMap.get(key) || 0,
+            nivel: null,
+          });
+        });
+        setRanking(entries);
       } else {
         const [gerentesRes, spRankRes, canjeablesRes] = await Promise.all([
           supabase.from('ranking_vn_gerentes' as any).select('*').eq('canal', profile.canal).eq('pais', userPais),
