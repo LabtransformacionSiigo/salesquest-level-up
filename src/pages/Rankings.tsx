@@ -50,7 +50,7 @@ const Rankings = () => {
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
           supabase.from('sp_acumulados_comerciales' as any).select('nombre, sp_totales'),
-          supabase.from('asesores').select('nombre, puntos_canjeables').eq('canal', 'VC'),
+          supabase.from('asesores').select('nombre, sp_canje').eq('canal', 'VC'),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
@@ -62,7 +62,7 @@ const Rankings = () => {
         });
         const canjeablesByComercial = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
-          if (a.nombre) canjeablesByComercial.set(normalizePersonName(a.nombre), Number(a.puntos_canjeables) || 0);
+          if (a.nombre) canjeablesByComercial.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
         const currentName = normalizePersonName(profile?.nombre);
         const mapped = (comRes.data || []).map((r: any) => ({
@@ -77,7 +77,7 @@ const Rankings = () => {
           posicion: r.posicion,
           canal: 'VC',
           pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
-          puntos_canjeables: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
+          sp_canje: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
           nivel: null,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         }));
@@ -88,7 +88,7 @@ const Rankings = () => {
         const [vcGerentesRes, spRes, gerentesRes] = await Promise.all([
           supabase.from('ranking_vc_gerentes' as any).select('*').eq('pais', userPais),
           supabase.from('ranking_general').select('id, sp_totales, nivel, user_id, avatar_url').eq('canal', 'VC'),
-          supabase.from('gerentes').select('id, puntos_canjeables').eq('canal', 'VC').eq('pais', userPais),
+          supabase.from('gerentes').select('id, sp_canje').eq('canal', 'VC').eq('pais', userPais),
         ]);
         const spMap = new Map<string, any>();
         (spRes.data || []).forEach((s: any) => {
@@ -96,7 +96,7 @@ const Rankings = () => {
         });
         const canjeablesMap = new Map<string, number>();
         (gerentesRes.data || []).forEach((g: any) => {
-          if (g.id) canjeablesMap.set(g.id, Number(g.puntos_canjeables) || 0);
+          if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
         });
         const mapped = (vcGerentesRes.data || []).map((r: any) => {
           const sp = spMap.get(r.gerente_id);
@@ -109,7 +109,7 @@ const Rankings = () => {
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
             sp_totales: sp?.sp_totales || 0,
-            puntos_canjeables: canjeablesMap.get(r.gerente_id) || 0,
+            sp_canje: canjeablesMap.get(r.gerente_id) || 0,
             nivel: sp?.nivel || null,
             user_id: sp?.user_id || null,
             avatar_url: sp?.avatar_url || null,
@@ -122,7 +122,7 @@ const Rankings = () => {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
         supabase.from('ranking_general').select('*').eq('canal', profile.canal).eq('pais', userPais),
         supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', profile.canal),
-        supabase.from('gerentes').select('id, puntos_canjeables').eq('canal', profile.canal).eq('pais', userPais),
+        supabase.from('gerentes').select('id, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
       ]);
       const kpiMap = new Map<string, { acv: number; units: number }>();
       (kpiRes.data || []).forEach((k: any) => {
@@ -130,13 +130,13 @@ const Rankings = () => {
       });
       const canjeablesMap = new Map<string, number>();
       (gerentesRes.data || []).forEach((g: any) => {
-        if (g.id) canjeablesMap.set(g.id, Number(g.puntos_canjeables) || 0);
+        if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
       });
       setRanking((rankRes.data || []).map((r: any) => ({
         ...r,
         kpi_value: kpiMap.get(r.id)?.acv || 0,
         units: kpiMap.get(r.id)?.units || 0,
-        puntos_canjeables: canjeablesMap.get(r.id) || 0,
+        sp_canje: canjeablesMap.get(r.id) || 0,
       })));
     }
     setDataLoading(false);

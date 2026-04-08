@@ -112,9 +112,9 @@ const Dashboard = () => {
                 <AnimatedCounter value={sp} className="text-3xl font-black font-scoreboard text-white" duration={1.5} />
                 <p className="text-xs text-white/60 font-scoreboard uppercase">⚡ Siigo Points</p>
               </div>
-              <div className="text-right border-l border-white/20 pl-6" title="Puntos canjeables · Medallas, retos y reconocimientos">
-                <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white" duration={1.5} />
-                <p className="text-xs text-white/60 font-scoreboard uppercase">🎁 Canjeables</p>
+              <div className="text-right border-l border-white/20 pl-6" title="SP Canje · Medallas, retos y reconocimientos">
+                <AnimatedCounter value={profile?.sp_canje || 0} className="text-2xl font-black font-scoreboard text-white" duration={1.5} />
+                <p className="text-xs text-white/60 font-scoreboard uppercase">🎁 SP Canje</p>
               </div>
             </motion.div>
           </div>

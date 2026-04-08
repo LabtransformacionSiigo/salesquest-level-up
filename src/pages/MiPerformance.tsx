@@ -133,12 +133,12 @@ const MiPerformance = () => {
                   </div>
                   <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
                 </div>
-                <div className="text-right border-l border-white/20 pl-6" title="Puntos canjeables · Medallas, retos y reconocimientos">
+                 <div className="text-right border-l border-white/20 pl-6" title="SP Canje · Medallas, retos y reconocimientos">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg">🎁</span>
-                    <AnimatedCounter value={profile?.puntos_canjeables || 0} className="text-2xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                    <AnimatedCounter value={profile?.sp_canje || 0} className="text-2xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                   </div>
-                  <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">CANJEABLES</p>
+                  <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SP CANJE</p>
                 </div>
               </motion.div>
             </div>
