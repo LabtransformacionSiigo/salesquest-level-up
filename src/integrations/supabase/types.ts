@@ -103,6 +103,13 @@ export type Database = {
             foreignKeyName: "asesores_gerente_id_fkey"
             columns: ["gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "asesores_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
@@ -400,6 +407,13 @@ export type Database = {
             foreignKeyName: "kpis_mensuales_gerente_id_fkey"
             columns: ["gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "kpis_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
@@ -459,6 +473,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ranking_general"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
           },
           {
             foreignKeyName: "medallas_gerente_id_fkey"
@@ -759,6 +780,13 @@ export type Database = {
             foreignKeyName: "rachas_gerente_id_fkey"
             columns: ["gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
@@ -844,6 +872,13 @@ export type Database = {
             foreignKeyName: "reconocimientos_de_gerente_id_fkey"
             columns: ["de_gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "reconocimientos_de_gerente_id_fkey"
+            columns: ["de_gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
@@ -881,6 +916,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ranking_general"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconocimientos_para_gerente_id_fkey"
+            columns: ["para_gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
           },
           {
             foreignKeyName: "reconocimientos_para_gerente_id_fkey"
@@ -951,6 +993,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ranking_general"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_completados_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
           },
           {
             foreignKeyName: "retos_completados_gerente_id_fkey"
@@ -1027,6 +1076,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ranking_general"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_acumulados_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
           },
           {
             foreignKeyName: "sp_acumulados_gerente_id_fkey"
@@ -1110,7 +1166,11 @@ export type Database = {
           lider: string | null
           mes: string | null
           meta: number | null
+          origen: string | null
+          pais: string | null
           producto: string | null
+          recurrencia: string | null
+          sc_creados_ind: number | null
           valor_producto: number | null
         }
         Insert: {
@@ -1128,7 +1188,11 @@ export type Database = {
           lider?: string | null
           mes?: string | null
           meta?: number | null
+          origen?: string | null
+          pais?: string | null
           producto?: string | null
+          recurrencia?: string | null
+          sc_creados_ind?: number | null
           valor_producto?: number | null
         }
         Update: {
@@ -1146,7 +1210,11 @@ export type Database = {
           lider?: string | null
           mes?: string | null
           meta?: number | null
+          origen?: string | null
+          pais?: string | null
           producto?: string | null
+          recurrencia?: string | null
+          sc_creados_ind?: number | null
           valor_producto?: number | null
         }
         Relationships: [
@@ -1184,6 +1252,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ranking_general"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
           },
           {
             foreignKeyName: "ventas_gerente_id_fkey"
@@ -1285,6 +1360,68 @@ export type Database = {
         }
         Relationships: []
       }
+      desglose_producto_vn: {
+        Row: {
+          acv_total: number | null
+          anio: number | null
+          canal: string | null
+          gerente_id: string | null
+          mes: string | null
+          producto: string | null
+          unidades: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_reconocimientos: {
         Row: {
           created_at: string | null
@@ -1374,6 +1511,13 @@ export type Database = {
             foreignKeyName: "rachas_gerente_id_fkey"
             columns: ["gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
@@ -1457,10 +1601,47 @@ export type Database = {
             foreignKeyName: "ventas_gerente_id_fkey"
             columns: ["gerente_id"]
             isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "ventas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
             referencedRelation: "sp_totales_gerente"
             referencedColumns: ["id"]
           },
         ]
+      }
+      ranking_vn_comerciales: {
+        Row: {
+          acv_total: number | null
+          canal: string | null
+          gerente_nombre: string | null
+          nombre: string | null
+          pais_gerente: string | null
+          posicion: number | null
+          unidades_total: number | null
+          ventas_count: number | null
+        }
+        Relationships: []
+      }
+      ranking_vn_gerentes: {
+        Row: {
+          acv_total: number | null
+          canal: string | null
+          cant_recomendados: number | null
+          gerente_id: string | null
+          mes_periodo: string | null
+          meta_unidades: number | null
+          nombre: string | null
+          pais: string | null
+          pct_cumplimiento: number | null
+          posicion: number | null
+          sc_creados: number | null
+          unidades_logradas: number | null
+        }
+        Relationships: []
       }
       sp_acumulados_comerciales: {
         Row: {

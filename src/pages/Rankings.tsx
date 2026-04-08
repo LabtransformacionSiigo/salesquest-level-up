@@ -38,6 +38,7 @@ const Rankings = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [tab, setTab] = useState<RankingTab>('comerciales');
   const isVC = profile?.canal === 'VC';
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
 
   const fetchRanking = async () => {
@@ -118,6 +119,54 @@ const Rankings = () => {
         });
         setRanking(mapped);
       }
+    } else if (isVN) {
+      // VN channels: use ranking_vn views
+      if (tab === 'comerciales') {
+        const comRes = await supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal);
+        setRanking((comRes.data || []).map((r: any) => ({
+          id: `${r.nombre}-${r.gerente_nombre}`,
+          nombre: r.nombre,
+          gerente_nombre: r.gerente_nombre,
+          kpi_value: Math.round(Number(r.acv_total) || 0),
+          unidades_total: Number(r.unidades_total) || 0,
+          pct_cumplimiento: 0,
+          ventas_count: r.ventas_count,
+          posicion: r.posicion,
+          canal: r.canal,
+          pais: r.pais_gerente || userPais,
+          sp_totales: 0,
+          sp_canje: 0,
+          nivel: null,
+        })));
+      } else {
+        const [gerentesRes, spRankRes, canjeablesRes] = await Promise.all([
+          supabase.from('ranking_vn_gerentes' as any).select('*').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('ranking_general').select('*').eq('canal', profile.canal),
+          supabase.from('gerentes').select('id, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
+        ]);
+        const spMap = new Map<string, any>();
+        (spRankRes.data || []).forEach((r: any) => { if (r.id) spMap.set(r.id, r); });
+        const canjeablesMap = new Map<string, number>();
+        (canjeablesRes.data || []).forEach((g: any) => { if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0); });
+
+        setRanking((gerentesRes.data || []).map((r: any) => {
+          const sp = spMap.get(r.gerente_id);
+          return {
+            id: r.gerente_id,
+            nombre: r.nombre,
+            canal: r.canal,
+            pais: r.pais,
+            kpi_value: Math.round(Number(r.acv_total) || 0),
+            meta_total: Number(r.meta_unidades) || 0,
+            unidades_logradas: Number(r.unidades_logradas) || 0,
+            pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
+            sp_totales: sp?.sp_totales || 0,
+            sp_canje: canjeablesMap.get(r.gerente_id) || 0,
+            nivel: sp?.nivel || null,
+            posicion: r.posicion,
+          };
+        }));
+      }
     } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
         supabase.from('ranking_general').select('*').eq('canal', profile.canal).eq('pais', userPais),
@@ -152,8 +201,9 @@ const Rankings = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const isComercialTab = isVC && tab === 'comerciales';
+  const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
+  const isGerentesVNTab = isVN && tab === 'gerentes';
 
   // Sort by SP totales as primary, then by % cumplimiento
   const sorted = [...ranking].sort((a, b) => {
@@ -174,10 +224,10 @@ const Rankings = () => {
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
           <div className="flex gap-2">
-            {isVC && (
+            {(isVC || isVN) && (
               <>
                 <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
-                  👤 Comerciales
+                  👤 {isVN ? 'Asesores' : 'Comerciales'}
                 </button>
                 <button onClick={() => setTab('gerentes')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
                   👥 Gerentes
@@ -245,25 +295,51 @@ const Rankings = () => {
 
                     {/* Secondary metrics */}
                     <div className="flex items-center justify-center gap-3 text-xs">
-                      {(isComercialTab || isGerentesVCTab) && (
+                      {(isComercialTab || isGerentesVCTab || isGerentesVNTab) && (
                         <>
-                          <div>
-                            <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
-                          </div>
-                          <div className="w-px h-6 bg-border" />
-                          <div>
-                            <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
-                          </div>
-                          <div className="w-px h-6 bg-border" />
-                          <div>
-                            <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_total)}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
-                          </div>
+                          {(isGerentesVCTab || isGerentesVNTab) && (
+                            <div>
+                              <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
+                              <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
+                            </div>
+                          )}
+                          {isGerentesVNTab && (
+                            <>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-foreground">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{(g.meta_total || 0).toLocaleString()}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
+                              </div>
+                            </>
+                          )}
+                          {(isComercialTab || isGerentesVCTab) && !isGerentesVNTab && (
+                            <>
+                              {isComercialTab && (
+                                <div>
+                                  <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
+                                  <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
+                                </div>
+                              )}
+                              <div className="w-px h-6 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_total)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
+                              </div>
+                            </>
+                          )}
                         </>
                       )}
-                      {!isComercialTab && !isGerentesVCTab && g.kpi_value > 0 && (
+                      {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && g.kpi_value > 0 && (
                         <div>
                           <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
                           <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
@@ -291,14 +367,27 @@ const Rankings = () => {
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
                       <th className="text-right px-4 py-3">⚡ Siigo Points</th>
                       <th className="text-right px-4 py-3">🎁 Canjeables</th>
-                      {(isComercialTab || isGerentesVCTab) && (
+                      {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
-                      {!isComercialTab && !isGerentesVCTab && (
+                      {isGerentesVNTab && (
+                        <>
+                          <th className="text-right px-4 py-3">% Cumpl.</th>
+                          <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">Meta</th>
+                        </>
+                      )}
+                      {isVN && isComercialTab && (
+                        <>
+                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">Unidades</th>
+                        </>
+                      )}
+                      {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                         <>
                           <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-left px-4 py-3">Nivel</th>
@@ -335,14 +424,27 @@ const Rankings = () => {
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
                         </td>
-                        {(isComercialTab || isGerentesVCTab) && (
+                        {(isComercialTab || isGerentesVCTab) && !isVN && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_total)}</td>
                           </>
                         )}
-                        {!isComercialTab && !isGerentesVCTab && (
+                        {isGerentesVNTab && (
+                          <>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_total || 0).toLocaleString()}</td>
+                          </>
+                        )}
+                        {isVN && isComercialTab && (
+                          <>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_total || 0).toLocaleString()}</td>
+                          </>
+                        )}
+                        {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                           <>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3"><span className="text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span></td>

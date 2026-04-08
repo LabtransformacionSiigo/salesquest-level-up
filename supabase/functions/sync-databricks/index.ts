@@ -125,6 +125,9 @@ const buildEmailFromName = (name: string) => {
 };
 
 const inferCanal = (row: Record<string, any>) => {
+  const area = (row.AREA || "").trim().toLowerCase();
+  if (area === "aliados") return "VN_ALIADOS";
+  if (area.includes("digital") || area.includes("mercadeo") || area.includes("leads")) return "VN_EMPRESARIOS";
   const combined = normalizeText(`${row.AREA || ""} ${row.CELULA || ""} ${row.Director || row.DIRECTOR || ""}`);
   if (combined.includes("aliados")) return "VN_ALIADOS";
   if (combined.includes("empres")) return "VN_EMPRESARIOS";
@@ -224,7 +227,7 @@ Deno.serve(async (req) => {
 
     // ── all_new: run each table sequentially in background ──
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "productividad_asesores"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
@@ -271,7 +274,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-
+    if (table === "ventas_vn_completo") {
+      const result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode });
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
 
     // ── Single table ──
@@ -293,6 +299,7 @@ async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, j
 
     let result: any;
     if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
+    else if (table === "ventas_vn_completo") result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
     else if (table === "all_new") result = { error: "all_new should be dispatched, not processed inline" };
     else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
@@ -408,6 +415,8 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
     ventas_empresarios: syncVentasEmpresarios,
     ventas_aliados: syncVentasAliados,
     productividad_asesores: syncProductividadAsesores,
+    ventas_vn_aliados: (sb, r) => syncVentasVN(sb, r, "VN_ALIADOS"),
+    ventas_vn_empresarios: (sb, r) => syncVentasVN(sb, r, "VN_EMPRESARIOS"),
   };
 
   const syncFn = SYNC_MAP[table];
@@ -1004,4 +1013,163 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
       if (error) errores.push(`kpis_mensuales VN batch ${i}: ${error.message}`);
     }
   }
+}
+
+// ============================================================
+// Ventas VN Completo (composite: Aliados + Empresarios → ventas table)
+// ============================================================
+async function runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode }: { supabase: any; supabaseUrl: string; serviceRoleKey: string; mesFilter?: string; mode: string }) {
+  const limitClause = mode === "preview" ? "LIMIT 10" : "";
+
+  const [aliRows, empRows] = await Promise.all([
+    runDatabricksQuery("ventas_aliados", TABLE_CONFIGS.ventas_aliados.sql(limitClause, mesFilter)),
+    runDatabricksQuery("ventas_empresarios", TABLE_CONFIGS.ventas_empresarios.sql(limitClause, mesFilter)),
+  ]);
+
+  if (mode === "preview") {
+    return {
+      table: "Ventas VN Completo (Aliados + Empresarios → ventas)",
+      ventas_vn_aliados: { total_rows: aliRows.length, sample: aliRows.slice(0, 3) },
+      ventas_vn_empresarios: { total_rows: empRows.length, sample: empRows.slice(0, 3) },
+    };
+  }
+
+  const [aliResult, empResult] = await Promise.all([
+    syncVentasVN(supabase, aliRows, "VN_ALIADOS"),
+    syncVentasVN(supabase, empRows, "VN_EMPRESARIOS"),
+  ]);
+
+  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vn_completo");
+  return { ventas_vn_aliados: aliResult, ventas_vn_empresarios: empResult, sp_recalculo: spResult };
+}
+
+// ============================================================
+// SYNC: Ventas VN → ventas table (individual transactions)
+// ============================================================
+async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "VN_ALIADOS" | "VN_EMPRESARIOS") {
+  let insertedVentas = 0;
+  const errores: string[] = [];
+
+  const MONTH_NAMES: Record<number, string> = {
+    1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
+    7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"
+  };
+
+  // Build gerente map
+  const { data: gerentes } = await supabase
+    .from("gerentes")
+    .select("id, nombre, email, canal, pais")
+    .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
+
+  const gerenteMap = new Map<string, any>();
+  (gerentes || []).forEach((g: any) => {
+    if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
+  });
+
+  // Auto-create missing gerentes from lider/director data
+  const missingGerentes = new Map<string, any>();
+  for (const row of rows) {
+    const liderName = String(row.Director || row.lider || "").trim();
+    if (!liderName || gerenteMap.get(normalizeText(liderName))) continue;
+
+    const email = buildEmailFromName(liderName);
+    if (!missingGerentes.has(email)) {
+      const equipo = String(row.equipo || row.Equipo || "").toLowerCase();
+      const inferredCanal = equipo.includes("aliado") ? "VN_ALIADOS" : canal;
+      const pais = normalizeCountry(row.pais || row.PAIS || "COL");
+      missingGerentes.set(email, { nombre: liderName, email, canal: inferredCanal, pais, activo: true });
+    }
+  }
+
+  if (missingGerentes.size > 0) {
+    const { data: created } = await supabase
+      .from("gerentes")
+      .upsert([...missingGerentes.values()], { onConflict: "email" })
+      .select("id, nombre, email, canal, pais");
+    (created || []).forEach((g: any) => {
+      if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
+    });
+  }
+
+  // Build venta rows
+  const ventaRows: any[] = [];
+  for (const row of rows) {
+    const liderName = normalizeText(String(row.Director || row.lider || ""));
+    const gerente = gerenteMap.get(liderName);
+    if (!gerente) {
+      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Director || row.lider || "?"}`);
+      continue;
+    }
+
+    const fechaStr = row.fecha || row.FECHA || row.fecha_facturacion;
+    if (!fechaStr) continue;
+
+    const fecha = new Date(String(fechaStr));
+    if (isNaN(fecha.getTime())) continue;
+    const mes = MONTH_NAMES[fecha.getMonth() + 1] || "";
+    const anio = fecha.getFullYear();
+    const acv = toNumber(row.acv || row.ACV);
+    const unidades = toNumber(row.unidades || row.Unidades || row.Cuenta_comercial) || 1;
+    const comercial = String(row.comercial || row.ASESOR || row.fullname || "").trim();
+    const producto = String(row.producto || row.Producto || row.tipo_producto1 || "").trim();
+    const tipoProducto = String(row.tipo_producto || row.TIPO_PRODUCTO || row.tipo_producto1 || "").trim();
+    const origenVal = String(row.origen || row.ORIGEN || "").trim();
+    const equipo = String(row.equipo || row.Equipo || "").trim();
+    const recurrencia = String(row.Recurrencia || row.recurrencia || "").trim();
+
+    // Determine canal from equipo
+    const rowCanal = equipo.toLowerCase().includes("aliado") ? "VN_ALIADOS" : canal;
+
+    // Create unique documento_factura with VN- prefix
+    const fechaKey = fecha.toISOString().split("T")[0];
+    const docKey = `VN-${anio}-${mes}-${comercial.substring(0, 20)}-${producto.substring(0, 15)}-${fechaKey}`;
+
+    ventaRows.push({
+      gerente_id: gerente.id,
+      canal: rowCanal,
+      fecha_facturacion: fechaKey,
+      mes,
+      anio,
+      bloque_venta: tipoProducto,
+      categoria_producto_venta: tipoProducto,
+      producto: producto || tipoProducto || "Sin categoría",
+      documento_factura: docKey,
+      acv_plus: acv,
+      valor_producto: acv,
+      meta: 0,
+      comercial,
+      lider: String(row.Director || row.lider || ""),
+      pais: gerente.pais,
+      sc_creados_ind: unidades,
+      origen: origenVal || null,
+      recurrencia: recurrencia || null,
+    });
+  }
+
+  // Deduplicate by documento_factura+producto+fecha
+  const deduped = new Map<string, any>();
+  for (const row of ventaRows) {
+    const key = `${row.documento_factura}|${row.producto}|${row.fecha_facturacion}`;
+    if (!deduped.has(key)) deduped.set(key, { ...row });
+    else {
+      const ex = deduped.get(key)!;
+      ex.acv_plus += row.acv_plus;
+      ex.valor_producto += row.valor_producto;
+      ex.sc_creados_ind += row.sc_creados_ind;
+    }
+  }
+  const uniqueRows = [...deduped.values()];
+
+  const BATCH = 500;
+  for (let i = 0; i < uniqueRows.length; i += BATCH) {
+    const chunk = uniqueRows.slice(i, i + BATCH);
+    const { error, count } = await supabase.from("ventas").upsert(chunk, {
+      onConflict: "documento_factura,producto,fecha_facturacion",
+      count: "exact",
+    });
+    if (error) errores.push(`ventas VN batch ${i}: ${error.message}`);
+    else insertedVentas += count || chunk.length;
+  }
+
+  return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
