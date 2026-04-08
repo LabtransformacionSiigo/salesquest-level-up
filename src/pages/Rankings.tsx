@@ -32,6 +32,11 @@ const formatMoney = (val: number | null | undefined) => {
   return `$${n}`;
 };
 
+const getCurrentConventionYear = () => new Date().getFullYear();
+
+const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
+  (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
+
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
@@ -44,21 +49,38 @@ const Rankings = () => {
   const fetchRanking = async () => {
     if (!profile?.canal) return;
     setDataLoading(true);
+    const currentConventionYear = getCurrentConventionYear();
 
     if (isVC) {
       if (tab === 'comerciales') {
-        const [comRes, gerentesRes, asesoresRes] = await Promise.all([
+        const [comRes, gerentesRes, asesoresRes, ventasRes] = await Promise.all([
           supabase.from('ranking_vc_comerciales' as any).select('*'),
           supabase.from('gerentes').select('nombre, pais').eq('canal', 'VC'),
-          supabase.from('asesores').select('nombre, sp_canje, sp_convencion').eq('canal', 'VC'),
+          supabase.from('asesores').select('nombre, sp_canje').eq('canal', 'VC'),
+          supabase.from('ventas').select('comercial, anio, mes, acv_plus, meta').eq('canal', 'VC').eq('anio', currentConventionYear).like('documento_factura', 'SUM-%').range(0, 5000),
         ]);
         const gerentePaisMap = new Map<string, string>();
         (gerentesRes.data || []).forEach((g: any) => {
           if (g.nombre) gerentePaisMap.set(g.nombre, g.pais || 'COL');
         });
+        const monthlyByComercial = new Map<string, Map<string, { acv: number; meta: number }>>();
+        (ventasRes.data || []).forEach((row: any) => {
+          const comercial = normalizePersonName(row.comercial);
+          const monthNumber = ({ Enero: '01', Febrero: '02', Marzo: '03', Abril: '04', Mayo: '05', Junio: '06', Julio: '07', Agosto: '08', Septiembre: '09', Octubre: '10', Noviembre: '11', Diciembre: '12' } as Record<string, string>)[row.mes || ''];
+          if (!comercial || !row.anio || !monthNumber) return;
+
+          const period = `${row.anio}${monthNumber}`;
+          const monthly = monthlyByComercial.get(comercial) || new Map<string, { acv: number; meta: number }>();
+          const current = monthly.get(period) || { acv: 0, meta: 0 };
+          current.acv += Number(row.acv_plus) || 0;
+          current.meta += Number(row.meta) || 0;
+          monthly.set(period, current);
+          monthlyByComercial.set(comercial, monthly);
+        });
         const spByComercial = new Map<string, number>();
-        (asesoresRes.data || []).forEach((a: any) => {
-          if (a.nombre) spByComercial.set(normalizePersonName(a.nombre), Number(a.sp_convencion) || 0);
+        monthlyByComercial.forEach((months, comercial) => {
+          const rows = [...months.values()].map((month) => ({ sp: month.meta > 0 && month.acv > 0 ? Math.round((month.acv / month.meta) * 100) : 0 }));
+          spByComercial.set(comercial, sumMonthlyConvention(rows));
         });
         const canjeablesByComercial = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
@@ -121,15 +143,32 @@ const Rankings = () => {
     } else if (isVN) {
       // VN channels: use ranking_vn views
       if (tab === 'comerciales') {
-        const [comRes, asesoresRes] = await Promise.all([
+        const [comRes, asesoresRes, productividadRes] = await Promise.all([
           supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal),
-          supabase.from('asesores').select('nombre, sp_convencion, sp_canje, pais').eq('canal', profile.canal),
+          supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
+          supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, pais').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
         ]);
+        const advisorNames = new Set((asesoresRes.data || []).map((a: any) => normalizePersonName(a.nombre)));
+        const monthlyByAdvisor = new Map<string, Map<string, { ventas: number; meta: number }>>();
+        (productividadRes.data || []).forEach((row: any) => {
+          const advisor = normalizePersonName(row.asesor);
+          const period = String(row.anio_mes || '');
+          if (!advisor || !period || !advisorNames.has(advisor)) return;
+
+          const monthly = monthlyByAdvisor.get(advisor) || new Map<string, { ventas: number; meta: number }>();
+          const current = monthly.get(period) || { ventas: 0, meta: 0 };
+          current.ventas += Number(row.ventas) || 0;
+          current.meta += Number(row.meta) || 0;
+          monthly.set(period, current);
+          monthlyByAdvisor.set(advisor, monthly);
+        });
         const spMap = new Map<string, { conv: number; canje: number; pais: string }>();
         (asesoresRes.data || []).forEach((a: any) => {
+          const advisor = normalizePersonName(a.nombre);
+          const monthlyRows = [...(monthlyByAdvisor.get(advisor)?.values() || [])].map((month) => ({ sp: month.meta > 0 && month.ventas > 0 ? Math.round((month.ventas / month.meta) * 100) : 0 }));
           if (!a.nombre) return;
-          spMap.set(normalizePersonName(a.nombre), {
-            conv: Number(a.sp_convencion) || 0,
+          spMap.set(advisor, {
+            conv: sumMonthlyConvention(monthlyRows),
             canje: Number(a.sp_canje) || 0,
             pais: a.pais || userPais,
           });
