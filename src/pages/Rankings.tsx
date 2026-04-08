@@ -214,51 +214,52 @@ const Rankings = () => {
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
-        const [productividadRes, gerentesRes] = await Promise.all([
-          supabase.from('productividad_asesores').select('celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
-          supabase.from('gerentes').select('nombre, celula, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
+        const [productividadRes, gerentesRes, rolesRes] = await Promise.all([
+          supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
+          supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('user_roles').select('user_id, role'),
         ]);
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
-        // Build gerente name lookup by celula: find the actual leader (not an asesor in productividad)
         const asesorNames = new Set<string>();
         (productividadRes.data || []).forEach((row: any) => {
           if (row.asesor) asesorNames.add(normalizePersonName(row.asesor));
         });
+
+        const roleByUserId = new Map<string, string>();
+        (rolesRes.data || []).forEach((row: any) => {
+          if (row.user_id && row.role) roleByUserId.set(row.user_id, row.role);
+        });
+
         const gerentesByCelula = new Map<string, { nombre: string; sp_canje: number }>();
-        const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number }>>();
+        const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
           if (!g.celula) return;
           const list = gerentesByCell.get(g.celula) || [];
-          list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0 });
+          list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, user_id: g.user_id });
           gerentesByCell.set(g.celula, list);
         });
-        // For each celula, find the leader: person NOT appearing as asesor in productividad_asesores
+
         gerentesByCell.forEach((members, celula) => {
-          const celulaLower = celula.toLowerCase();
-          // Priority 1: member not in productividad (actual leader, not asesor)
-          const nonAsesor = members.filter(m => !asesorNames.has(normalizePersonName(m.nombre)));
-          if (nonAsesor.length === 1) {
-            gerentesByCelula.set(celula, nonAsesor[0]);
-            return;
-          }
-          // Priority 2: among non-asesores, find one whose name parts appear in celula
-          if (nonAsesor.length > 1) {
-            const nameMatch = nonAsesor.find(m => {
-              const parts = m.nombre.toLowerCase().split(/\s+/);
-              return parts.some(p => p.length > 2 && celulaLower.includes(p));
-            });
-            gerentesByCelula.set(celula, nameMatch || nonAsesor[0]);
-            return;
-          }
-          // Priority 3: fallback to name matching among all members
-          const match = members.find(m => {
-            const parts = m.nombre.toLowerCase().split(/\s+/);
-            return parts.some(p => p.length > 2 && celulaLower.includes(p));
+          const roleMatches = members.filter((member) => {
+            if (!member.user_id) return false;
+            const role = roleByUserId.get(member.user_id);
+            return role === 'gerente' || role === 'admin';
           });
-          if (match) {
-            gerentesByCelula.set(celula, match);
-          } else if (members.length > 0) {
+
+          const explicitLeader = roleMatches.find((member) => !asesorNames.has(normalizePersonName(member.nombre))) || roleMatches[0];
+          if (explicitLeader) {
+            gerentesByCelula.set(celula, explicitLeader);
+            return;
+          }
+
+          const nonAsesor = members.find((member) => !asesorNames.has(normalizePersonName(member.nombre)));
+          if (nonAsesor) {
+            gerentesByCelula.set(celula, nonAsesor);
+            return;
+          }
+
+          if (members.length > 0) {
             gerentesByCelula.set(celula, members[0]);
           }
         });
