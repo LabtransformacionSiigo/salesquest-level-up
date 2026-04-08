@@ -11,6 +11,7 @@ export interface Gerente {
   canal: string | null;
   pais: string | null;
   lider: string | null;
+  celula: string | null;
   activo: boolean;
   avatar_url: string | null;
   created_at: string;
@@ -163,6 +164,7 @@ export const useSupabaseAuth = () => {
           canal: gerenteData?.canal || null,
           pais: gerenteData?.pais || null,
           lider: null,
+          celula: null,
           activo: true,
           avatar_url: gerenteData?.avatar_url || null,
           created_at: gerenteData?.created_at || '',
@@ -241,6 +243,7 @@ export const useSupabaseAuth = () => {
             canal: asesor.canal,
             pais: asesor.pais,
             lider: null,
+            celula: null,
             activo: asesor.activo ?? true,
             avatar_url: asesor.avatar_url,
             created_at: asesor.created_at ?? '',
@@ -259,7 +262,7 @@ export const useSupabaseAuth = () => {
       } else {
         const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('gerentes').select('id, sp_canje').eq('user_id', userId).maybeSingle(),
+          supabase.from('gerentes').select('id, sp_canje, celula').eq('user_id', userId).maybeSingle(),
         ]);
 
         if (profileRes.error) throw profileRes.error;
@@ -292,6 +295,7 @@ export const useSupabaseAuth = () => {
             canal: data.canal,
             pais: data.pais,
             lider: data.lider,
+            celula: (gerenteRes.data as any)?.celula ?? null,
             activo: data.activo ?? true,
             avatar_url: data.avatar_url,
             created_at: '',

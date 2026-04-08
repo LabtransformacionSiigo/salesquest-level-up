@@ -275,6 +275,7 @@ export type Database = {
           activo: boolean | null
           avatar_url: string | null
           canal: string | null
+          celula: string | null
           created_at: string | null
           email: string
           id: string
@@ -289,6 +290,7 @@ export type Database = {
           activo?: boolean | null
           avatar_url?: string | null
           canal?: string | null
+          celula?: string | null
           created_at?: string | null
           email: string
           id?: string
@@ -303,6 +305,7 @@ export type Database = {
           activo?: boolean | null
           avatar_url?: string | null
           canal?: string | null
+          celula?: string | null
           created_at?: string | null
           email?: string
           id?: string

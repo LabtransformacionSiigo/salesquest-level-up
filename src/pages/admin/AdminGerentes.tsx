@@ -38,7 +38,7 @@ const AdminGerentes = () => {
   const [gerentes, setGerentes] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true });
+  const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' });
   const [showAdd, setShowAdd] = useState(false);
   const [filterCanal, setFilterCanal] = useState('TODOS');
 
@@ -60,12 +60,13 @@ const AdminGerentes = () => {
       toast({ title: 'Campos requeridos', description: 'Nombre y email son obligatorios', variant: 'destructive' });
       return;
     }
+    const payload = { ...form, celula: form.celula.trim() || null };
     if (editing) {
-      const { error } = await supabase.from('gerentes').update(form).eq('id', editing);
+      const { error } = await supabase.from('gerentes').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Gerente actualizado ✅' });
     } else {
-      const { error } = await supabase.from('gerentes').insert(form);
+      const { error } = await supabase.from('gerentes').insert(payload);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Gerente creado ✅' });
     }
@@ -76,7 +77,7 @@ const AdminGerentes = () => {
 
   const startEdit = (g: any) => {
     setEditing(g.id);
-    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', activo: g.activo ?? true });
+    setForm({ nombre: g.nombre, email: g.email, canal: g.canal || 'VC', pais: g.pais || 'MEX', activo: g.activo ?? true, celula: g.celula || '' });
     setShowAdd(true);
   };
 
@@ -96,7 +97,7 @@ const AdminGerentes = () => {
             <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true }); }}>
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' }); }}>
             <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
           </Button>
         </div>
@@ -143,6 +144,9 @@ const AdminGerentes = () => {
                   {PAISES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </Field>
+              <Field label="Célula / Equipo">
+                <input value={form.celula} onChange={e => setForm(f => ({ ...f, celula: e.target.value }))} placeholder="Ej: Equipo Antioquia" className={inputClass} />
+              </Field>
               <div className="flex items-end">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
@@ -170,6 +174,7 @@ const AdminGerentes = () => {
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Canal</th>
                   <th className="text-left px-4 py-3">País</th>
+                  <th className="text-left px-4 py-3">Célula</th>
                   <th className="text-center px-4 py-3">Estado</th>
                   <th className="text-center px-4 py-3">Acciones</th>
                 </tr>
@@ -185,7 +190,8 @@ const AdminGerentes = () => {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{g.email}</td>
                     <td className="px-4 py-3"><span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === g.canal)?.label || g.canal}</span></td>
-                    <td className="px-4 py-3 text-sm">{({'COL':'🇨🇴','MEX':'🇲🇽','ECU':'🇪🇨'})[g.pais] || '🌎'}</td>
+                    <td className="px-4 py-3 text-sm">{({'COL':'🇨🇴','MEX':'🇲🇽','ECU':'🇪🇨'} as any)[g.pais] || '🌎'}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{g.celula || '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", g.activo ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
                         {g.activo ? 'Activo' : 'Inactivo'}
@@ -199,7 +205,7 @@ const AdminGerentes = () => {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-12 text-muted-foreground text-sm">Sin gerentes registrados</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">Sin gerentes registrados</td></tr>
                 )}
               </tbody>
             </table>
