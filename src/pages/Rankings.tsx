@@ -367,14 +367,27 @@ const Rankings = () => {
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
                       <th className="text-right px-4 py-3">⚡ Siigo Points</th>
                       <th className="text-right px-4 py-3">🎁 Canjeables</th>
-                      {(isComercialTab || isGerentesVCTab) && (
+                      {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
                           <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
-                      {!isComercialTab && !isGerentesVCTab && (
+                      {isGerentesVNTab && (
+                        <>
+                          <th className="text-right px-4 py-3">% Cumpl.</th>
+                          <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">Meta</th>
+                        </>
+                      )}
+                      {isVN && isComercialTab && (
+                        <>
+                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">Unidades</th>
+                        </>
+                      )}
+                      {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                         <>
                           <th className="text-right px-4 py-3">ACV+</th>
                           <th className="text-left px-4 py-3">Nivel</th>
