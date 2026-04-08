@@ -121,7 +121,19 @@ const Rankings = () => {
     } else if (isVN) {
       // VN channels: use ranking_vn views
       if (tab === 'comerciales') {
-        const comRes = await supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal);
+        const [comRes, asesoresRes] = await Promise.all([
+          supabase.from('ranking_vn_comerciales' as any).select('*').eq('canal', profile.canal),
+          supabase.from('asesores').select('nombre, sp_convencion, sp_canje, pais').eq('canal', profile.canal),
+        ]);
+        const spMap = new Map<string, { conv: number; canje: number; pais: string }>();
+        (asesoresRes.data || []).forEach((a: any) => {
+          if (!a.nombre) return;
+          spMap.set(normalizePersonName(a.nombre), {
+            conv: Number(a.sp_convencion) || 0,
+            canje: Number(a.sp_canje) || 0,
+            pais: a.pais || userPais,
+          });
+        });
         setRanking((comRes.data || []).map((r: any) => ({
           id: `${r.nombre}-${r.gerente_nombre}`,
           nombre: r.nombre,
@@ -132,11 +144,11 @@ const Rankings = () => {
           ventas_count: r.ventas_count,
           posicion: r.posicion,
           canal: r.canal,
-          pais: r.pais_gerente || userPais,
-          sp_totales: 0,
-          sp_canje: 0,
+          pais: spMap.get(normalizePersonName(r.nombre))?.pais || r.pais_gerente || userPais,
+          sp_totales: spMap.get(normalizePersonName(r.nombre))?.conv || 0,
+          sp_canje: spMap.get(normalizePersonName(r.nombre))?.canje || 0,
           nivel: null,
-        })));
+        })).filter((r: any) => r.pais === userPais));
       } else {
         const [gerentesRes, spRankRes, canjeablesRes] = await Promise.all([
           supabase.from('ranking_vn_gerentes' as any).select('*').eq('canal', profile.canal).eq('pais', userPais),
