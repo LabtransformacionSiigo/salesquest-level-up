@@ -13,6 +13,12 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 const TABLE_OPTIONS = [
   { value: "productividad", label: "Productividad Progresiva", desc: "KPIs mensuales (VN_EMPRESARIOS / VN_ALIADOS)", icon: "trending_up" },
   { value: "ventas_vc_completo", label: "Ventas VC Completo", desc: "Totales, metas y desglose por producto (todo junto)", icon: "storefront" },
+  { value: "metas_gerentes", label: "Metas Gerentes", desc: "Cuotas y metas de gerentes (tbl_brz_gerentes)", icon: "assignment" },
+  { value: "metas_asesores_sync", label: "Metas Asesores", desc: "Cuotas individuales por asesor y canal", icon: "person_search" },
+  { value: "ventas_empresarios", label: "Ventas Empresarios", desc: "Ventas diarias MX (tbl_gld_Ventas_MX)", icon: "business" },
+  { value: "ventas_aliados", label: "Ventas Aliados", desc: "Ventas diarias SA (tbl_gld_Ventas_SA)", icon: "handshake" },
+  { value: "productividad_asesores", label: "Productividad Asesores", desc: "Productividad progresiva para gamificación", icon: "emoji_events" },
+  { value: "all_new", label: "Sync Completo (Nuevos)", desc: "Ejecutar las 5 nuevas sincronizaciones a la vez", icon: "sync_alt" },
 ];
 
 const JOB_STATUS_META: Record<string, { icon: string; title: string; tone: string }> = {
@@ -146,7 +152,7 @@ const AdminDatabricks = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {TABLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
