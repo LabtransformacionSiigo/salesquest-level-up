@@ -473,6 +473,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           team,
           ejecucion,
           metaAsesor,
+          vnProductBreakdown: [],
         });
       } catch (err: any) {
         if (!cancelled) {
