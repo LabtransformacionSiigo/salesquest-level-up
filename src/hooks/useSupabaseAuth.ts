@@ -11,6 +11,7 @@ export interface Gerente {
   canal: string | null;
   pais: string | null;
   lider: string | null;
+  celula: string | null;
   activo: boolean;
   avatar_url: string | null;
   created_at: string;
@@ -259,7 +260,7 @@ export const useSupabaseAuth = () => {
       } else {
         const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('gerentes').select('id, sp_canje').eq('user_id', userId).maybeSingle(),
+          supabase.from('gerentes').select('id, sp_canje, celula').eq('user_id', userId).maybeSingle(),
         ]);
 
         if (profileRes.error) throw profileRes.error;
@@ -292,6 +293,7 @@ export const useSupabaseAuth = () => {
             canal: data.canal,
             pais: data.pais,
             lider: data.lider,
+            celula: (gerenteRes.data as any)?.celula ?? null,
             activo: data.activo ?? true,
             avatar_url: data.avatar_url,
             created_at: '',
