@@ -116,10 +116,8 @@ Deno.serve(async (req) => {
       if (!resumenCanal[canal]) resumenCanal[canal] = { procesados: 0, sp: 0 };
 
       try {
-        let spFinal = 0;
-
         if (canal === "VC") {
-          // VC: SP = % cumplimiento de meta mensual
+          // VC: SP = % cumplimiento de meta mensual (current month only, stored per month)
           const { data: ventasMes } = await supabase
             .from("ventas")
             .select("acv_plus, meta")
@@ -131,37 +129,39 @@ Deno.serve(async (req) => {
           const totalMeta = (ventasMes || []).reduce((s, v) => s + (Number(v.meta) || 0), 0);
 
           if (totalMeta > 0) {
-            spFinal = Math.round((totalAcv / totalMeta) * 100);
+            const spFinal = Math.round((totalAcv / totalMeta) * 100);
+            if (spFinal > 0) {
+              const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
+                gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
+                periodo: mesActual, detalle: `Cumplimiento de Meta: ${spFinal}% · VC`,
+              }, { onConflict: "gerente_id,fuente,periodo" });
+              if (upsertErr) { if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`); }
+              else { totalSpOtorgados += spFinal; resumenCanal[canal].sp += spFinal; }
+            }
           }
         } else {
-          // VN channels: SP = % cumplimiento from kpis_mensuales
-          const { data: kpi } = await supabase
+          // VN channels (VN_ALIADOS, VN_EMPRESARIOS): SP = % cumplimiento per EACH month
+          const { data: allKpis } = await supabase
             .from("kpis_mensuales")
-            .select("ventas, meta")
+            .select("anio_mes, ventas, meta")
             .eq("gerente_id", gerente.id)
-            .eq("anio_mes", mesActual)
-            .maybeSingle();
+            .eq("canal", canal)
+            .gte("anio_mes", `${anioActual}01`)
+            .lte("anio_mes", `${anioActual}12`);
 
-          if (kpi && Number(kpi.meta) > 0) {
-            spFinal = Math.round((Number(kpi.ventas) / Number(kpi.meta)) * 100);
-          }
-        }
+          for (const kpi of (allKpis || [])) {
+            const metaVal = Number(kpi.meta) || 0;
+            const ventasVal = Number(kpi.ventas) || 0;
+            if (metaVal <= 0) continue;
+            const spFinal = Math.round((ventasVal / metaVal) * 100);
+            if (spFinal <= 0) continue;
 
-        if (spFinal > 0) {
-          const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
-            gerente_id: gerente.id,
-            fuente: "CUMPLIMIENTO_META",
-            sp: spFinal,
-            periodo: periodoSemana,
-            detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal}`,
-          }, { onConflict: "gerente_id,fuente,periodo" });
-
-          if (upsertErr) {
-            console.error(`SP upsert error for ${gerente.nombre}:`, upsertErr);
-            if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`);
-          } else {
-            totalSpOtorgados += spFinal;
-            resumenCanal[canal].sp += spFinal;
+            const { error: upsertErr } = await supabase.from("sp_acumulados").upsert({
+              gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
+              periodo: String(kpi.anio_mes), detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal} · ${kpi.anio_mes}`,
+            }, { onConflict: "gerente_id,fuente,periodo" });
+            if (upsertErr) { if (errores.length < 30) errores.push(`SP upsert ${gerente.nombre}: ${upsertErr.message}`); }
+            else { totalSpOtorgados += spFinal; resumenCanal[canal].sp += spFinal; }
           }
         }
 
