@@ -256,7 +256,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           /* 9 */
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
-            : supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre'),
+            : (isVN && profile.celula
+              ? supabase.from('gerentes').select('id, nombre, email, canal, pais, activo, avatar_url').eq('celula', profile.celula).neq('id', profile.id).order('nombre')
+              : supabase.from('asesores').select('*').eq('gerente_id', profile.id).order('nombre')),
           /* 10 */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
