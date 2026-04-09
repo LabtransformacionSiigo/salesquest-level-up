@@ -685,6 +685,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     meta_nube: toNumber(row.meta_nube),
     meta_total: toNumber(row.meta_total),
     novedad: row.novedad ? String(row.novedad).trim() : null,
+    celula: row.celula ? String(row.celula).trim() : null,
     anio_mes: defaultAnioMes,
   })).filter((r) => r.documento_asesor && r.canal_direccion);
 
