@@ -354,8 +354,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
             const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
+            const metaAcv = Number(vnMeta?.meta_total_acv) || 0;
             acvMes = totalAcv;
-            pctCumplimiento = totalMeta > 0 ? Math.round((totalVentas / totalMeta) * 100) : 0;
+            // % cumplimiento basado en ACV (ACV logrado / Meta ACV)
+            pctCumplimiento = metaAcv > 0 ? Math.round((totalAcv / metaAcv) * 100) : 0;
 
             ejecucion = {
               ventas_fe: 0,
@@ -369,12 +371,15 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               meta_fe: Number(vnMeta?.fe) || 0,
               meta_nube: Number(vnMeta?.nube) || 0,
               meta_total: totalMeta,
+              meta_acv: metaAcv,
             };
           } else {
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             acvMes = Number(kpiData?.acv_f) || 0;
-            pctCumplimiento = Number(kpiData?.pct_cumplimiento) || 0;
+            const metaAcvFallback = Number(kpiData?.meta) || 0;
+            // % cumplimiento basado en ACV
+            pctCumplimiento = metaAcvFallback > 0 ? Math.round((acvMes / metaAcvFallback) * 100) : 0;
 
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
@@ -391,6 +396,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_fe: 0,
                 meta_nube: 0,
                 meta_total: metaTotal,
+                meta_acv: metaAcvFallback,
               };
             }
           }
