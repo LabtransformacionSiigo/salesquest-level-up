@@ -38,6 +38,7 @@ export interface MetaAsesor {
   meta_fe: number;
   meta_nube: number;
   meta_total: number;
+  meta_acv: number;
 }
 
 export interface GamificationMetrics {
