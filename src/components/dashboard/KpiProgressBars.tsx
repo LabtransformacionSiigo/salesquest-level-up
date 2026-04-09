@@ -126,7 +126,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <span className="text-primary">🎯</span> Rendimiento del Mes
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {isVN ? 'Unidades FE/Nube vs Meta' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {isVN ? 'ACV+ vs Meta ACV' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
         {isVN && ejecucion && metaAsesor ? (
