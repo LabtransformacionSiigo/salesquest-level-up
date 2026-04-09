@@ -342,14 +342,14 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
 
 const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | null }) => (
   <>
-    <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Unidades vendidas vs Meta por mes, con % de cumplimiento." />
+    <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta ACV por mes, con % de cumplimiento." />
     <motion.div className="bg-card border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
       <table className="w-full">
         <thead>
           <tr className="bg-primary text-primary-foreground text-[11px] uppercase tracking-wider font-heading">
             <th className="text-left px-4 py-3">Mes</th>
-            <th className="text-right px-4 py-3">Unidades</th>
-            <th className="text-right px-4 py-3">Meta</th>
+            <th className="text-right px-4 py-3">ACV+</th>
+            <th className="text-right px-4 py-3">Meta ACV</th>
             <th className="text-right px-4 py-3">% Cumpl.</th>
           </tr>
         </thead>
@@ -363,8 +363,8 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
             >
               <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
-              <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{m.acv}</td>
-              <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{m.meta}</td>
+              <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
+              <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(m.meta)}</td>
               <td className="px-4 py-3 text-right">
                 <span className={cn(
                   "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
