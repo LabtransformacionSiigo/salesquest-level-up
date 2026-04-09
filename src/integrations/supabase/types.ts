@@ -497,6 +497,7 @@ export type Database = {
         Row: {
           anio_mes: string
           canal_direccion: string
+          celula: string | null
           created_at: string | null
           documento_asesor: string
           id: string
@@ -509,6 +510,7 @@ export type Database = {
         Insert: {
           anio_mes: string
           canal_direccion: string
+          celula?: string | null
           created_at?: string | null
           documento_asesor: string
           id?: string
@@ -521,6 +523,7 @@ export type Database = {
         Update: {
           anio_mes?: string
           canal_direccion?: string
+          celula?: string | null
           created_at?: string | null
           documento_asesor?: string
           id?: string
