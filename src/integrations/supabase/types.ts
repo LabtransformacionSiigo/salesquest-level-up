@@ -497,34 +497,40 @@ export type Database = {
         Row: {
           anio_mes: string
           canal_direccion: string
+          celula: string | null
           created_at: string | null
           documento_asesor: string
           id: string
           meta_fe: number | null
           meta_nube: number | null
           meta_total: number | null
+          novedad: string | null
           pais: string | null
         }
         Insert: {
           anio_mes: string
           canal_direccion: string
+          celula?: string | null
           created_at?: string | null
           documento_asesor: string
           id?: string
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          novedad?: string | null
           pais?: string | null
         }
         Update: {
           anio_mes?: string
           canal_direccion?: string
+          celula?: string | null
           created_at?: string | null
           documento_asesor?: string
           id?: string
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          novedad?: string | null
           pais?: string | null
         }
         Relationships: []

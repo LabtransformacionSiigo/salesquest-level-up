@@ -82,7 +82,7 @@ ${limit}`;
   metas_asesores_sync: {
     label: "Metas Asesores (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE m_de_antiguedad LIKE '%2026%' OR m_de_antiguedad LIKE '%26' ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total, novedad FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE m_de_antiguedad LIKE '%2026%' OR m_de_antiguedad LIKE '%26' ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
@@ -684,6 +684,8 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     meta_fe: toNumber(row.meta_fe),
     meta_nube: toNumber(row.meta_nube),
     meta_total: toNumber(row.meta_total),
+    novedad: row.novedad ? String(row.novedad).trim() : null,
+    celula: row.celula ? String(row.celula).trim() : null,
     anio_mes: defaultAnioMes,
   })).filter((r) => r.documento_asesor && r.canal_direccion);
 
