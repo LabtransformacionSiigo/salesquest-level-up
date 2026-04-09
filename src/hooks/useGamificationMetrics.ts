@@ -434,6 +434,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_fe: Number(matchingMeta.meta_fe) || 0,
                 meta_nube: Number(matchingMeta.meta_nube) || 0,
                 meta_total: Number(matchingMeta.meta_total) || 0,
+                meta_acv: 0,
               };
             }
           }
