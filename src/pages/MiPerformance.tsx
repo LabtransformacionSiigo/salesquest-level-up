@@ -308,14 +308,15 @@ const RetoCard = ({ icon, label, value, progress, description, tip }: { icon: st
 );
 
 const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; ejecucion?: EjecucionAsesor | null; metaAsesor?: MetaAsesor | null }) => {
+  const acv = ejecucion?.acv_total ?? Number(kpis?.acv_f) ?? 0;
+  const metaAcv = metaAsesor?.meta_acv ?? 0;
+  const pct = metaAcv > 0 ? Math.round((acv / metaAcv) * 100) : 0;
   const ventas = ejecucion?.ventas_total ?? Number(kpis?.ventas) ?? 0;
   const meta = metaAsesor?.meta_total ?? Number(kpis?.meta) ?? 0;
-  const pct = meta > 0 ? Math.round((ventas / meta) * 100) : (Number(kpis?.pct_cumplimiento) || 0);
-  const acv = ejecucion?.acv_total ?? Number(kpis?.acv_f) ?? 0;
   const referidos = ejecucion?.cant_recomendados ?? Number(kpis?.cant_recomendados) ?? 0;
   return (
     <>
-      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(Unidades vendidas ÷ Meta unidades) × 100." />
+      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="(ACV+ logrado ÷ Meta ACV) × 100." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
         <div className="flex items-center gap-8">
           <div className="relative w-28 h-28 shrink-0">
@@ -328,9 +329,9 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-            <MetaRow label="Unidades" value={String(ventas)} />
-            <MetaRow label="Meta Und." value={String(meta)} />
             <MetaRow label="ACV+" value={formatMoney(acv)} />
+            <MetaRow label="Meta ACV" value={formatMoney(metaAcv)} />
+            <MetaRow label="Unidades" value={`${ventas} / ${meta}`} />
             <MetaRow label="Referidos" value={String(referidos)} />
           </div>
         </div>
