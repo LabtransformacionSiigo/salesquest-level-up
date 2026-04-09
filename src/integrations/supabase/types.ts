@@ -503,6 +503,7 @@ export type Database = {
           meta_fe: number | null
           meta_nube: number | null
           meta_total: number | null
+          novedad: string | null
           pais: string | null
         }
         Insert: {
@@ -514,6 +515,7 @@ export type Database = {
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          novedad?: string | null
           pais?: string | null
         }
         Update: {
@@ -525,6 +527,7 @@ export type Database = {
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          novedad?: string | null
           pais?: string | null
         }
         Relationships: []
