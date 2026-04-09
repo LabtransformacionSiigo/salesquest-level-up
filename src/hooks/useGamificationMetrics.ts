@@ -342,22 +342,27 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         } else {
           // VN gerente path: prefer productividad_asesores by celula
           const celulaRows = celulaProductividadRes?.data || [];
-          const vnMeta = vnMetasRes?.data?.[0] || null;
+          const vnMetasAsesores = vnMetasRes?.data || [];
+
+          // Calculate team meta: sum meta_total of asesores WITHOUT novedad
+          const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => !r.novedad || r.novedad === '' || r.novedad.toLowerCase() === 'sin novedad');
+          const metaEquipoUnidades = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+          const metaFe = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+          const metaNube = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
 
           // Aggregate current month from celula productividad
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
 
           if (currentMonthRows.length > 0) {
             const totalVentas = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-            const totalMeta = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
+            const totalMeta = metaEquipoUnidades || currentMonthRows.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
             const totalAcv = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.acv_f) || 0), 0);
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
             const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
-            const metaAcv = Number(vnMeta?.meta_total_acv) || 0;
             acvMes = totalAcv;
-            // % cumplimiento basado en ACV (ACV logrado / Meta ACV)
-            pctCumplimiento = metaAcv > 0 ? Math.round((totalAcv / metaAcv) * 100) : 0;
+            // % cumplimiento basado en unidades vendidas / meta unidades (asesores sin novedad)
+            pctCumplimiento = totalMeta > 0 ? Math.round((totalVentas / totalMeta) * 100) : 0;
 
             ejecucion = {
               ventas_fe: 0,
@@ -368,35 +373,34 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               productividad: totalMeta > 0 ? Math.round((totalVentas / totalMeta) * 100) : 0,
             };
             metaAsesor = {
-              meta_fe: Number(vnMeta?.fe) || 0,
-              meta_nube: Number(vnMeta?.nube) || 0,
+              meta_fe: metaFe,
+              meta_nube: metaNube,
               meta_total: totalMeta,
-              meta_acv: metaAcv,
+              meta_acv: totalAcv, // ACV logrado (no meta ACV)
             };
           } else {
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             acvMes = Number(kpiData?.acv_f) || 0;
-            const metaAcvFallback = Number(kpiData?.meta) || 0;
-            // % cumplimiento basado en ACV
-            pctCumplimiento = metaAcvFallback > 0 ? Math.round((acvMes / metaAcvFallback) * 100) : 0;
+            const metaFallback = metaEquipoUnidades || Number(kpiData?.meta) || 0;
+            // % cumplimiento basado en unidades
+            pctCumplimiento = metaFallback > 0 ? Math.round((Number(kpiData?.ventas || 0) / metaFallback) * 100) : 0;
 
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
-              const metaTotal = Number(kpiData.meta) || 0;
               ejecucion = {
                 ventas_fe: 0,
                 ventas_nube: 0,
                 ventas_total: ventasTotal,
                 acv_total: acvMes,
                 cant_recomendados: Number(kpiData.cant_recomendados) || 0,
-                productividad: metaTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0,
+                productividad: metaFallback > 0 ? Math.round((ventasTotal / metaFallback) * 100) : 0,
               };
               metaAsesor = {
-                meta_fe: 0,
-                meta_nube: 0,
-                meta_total: metaTotal,
-                meta_acv: metaAcvFallback,
+                meta_fe: metaFe,
+                meta_nube: metaNube,
+                meta_total: metaFallback,
+                meta_acv: acvMes,
               };
             }
           }
