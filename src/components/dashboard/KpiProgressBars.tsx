@@ -126,7 +126,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <span className="text-primary">🎯</span> Rendimiento del Mes
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {isVN ? 'Unidades FE/Nube vs Meta' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {isVN ? 'ACV+ vs Meta ACV' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
         {isVN && ejecucion && metaAsesor ? (
@@ -167,8 +167,11 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>💰 ACV+</span>
-                <span className="text-foreground font-scoreboard">{fmt(ejecucion.acv_total)}</span>
+                <span className="text-foreground font-scoreboard">{fmt(ejecucion.acv_total)} / {metaAsesor.meta_acv > 0 ? fmt(metaAsesor.meta_acv) : '—'}</span>
               </div>
+              {metaAsesor.meta_acv > 0 && (
+                <Progress value={Math.min(100, (ejecucion.acv_total / metaAsesor.meta_acv) * 100)} className="h-3" />
+              )}
             </div>
 
             {/* Extras: Productividad + Recomendados */}
@@ -183,14 +186,14 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               </div>
             </div>
 
-            {/* Status */}
+            {/* Status based on ACV compliance */}
             {(() => {
-              const pctTotal = metaAsesor.meta_total > 0 ? Math.round((ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0;
+              const pctAcv = metaAsesor.meta_acv > 0 ? Math.round((ejecucion.acv_total / metaAsesor.meta_acv) * 100) : 0;
               return (
                 <div className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold ${
-                  pctTotal >= 100 ? 'bg-accent/10 text-accent' : pctTotal >= 70 ? 'bg-primary/10 text-primary' : pctTotal >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
+                  pctAcv >= 100 ? 'bg-accent/10 text-accent' : pctAcv >= 70 ? 'bg-primary/10 text-primary' : pctAcv >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
                 }`}>
-                  {pctTotal >= 100 ? '🏆 ¡Meta superada!' : pctTotal >= 70 ? '🔥 ¡Buen ritmo!' : pctTotal >= 40 ? '⚡ Sigue avanzando' : '💪 ¡A por la meta!'}
+                  {pctAcv >= 100 ? '🏆 ¡Meta superada!' : pctAcv >= 70 ? '🔥 ¡Buen ritmo!' : pctAcv >= 40 ? '⚡ Sigue avanzando' : '💪 ¡A por la meta!'}
                 </div>
               );
             })()}
