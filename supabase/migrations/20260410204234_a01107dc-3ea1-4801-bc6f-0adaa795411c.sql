@@ -1,0 +1,1 @@
+ALTER TABLE public.metas_asesores ADD COLUMN IF NOT EXISTS nombre_asesor text;
