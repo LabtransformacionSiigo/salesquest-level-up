@@ -345,7 +345,6 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // VN gerente path: prefer productividad_asesores by celula
           const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
-          const metaGerenteData = metasGerentesRes?.data;
 
           // Calculate team meta units: sum meta_total of asesores WITHOUT novedad
           const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => !r.novedad || r.novedad === '' || r.novedad.toLowerCase() === 'sin novedad');
@@ -353,8 +352,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           const metaFe = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
           const metaNube = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
 
-          // Get team ACV meta from metas_gerentes
-          const metaAcvEquipo = Number(metaGerenteData?.meta_total_acv) || Number(metaGerenteData?.cuota) || 0;
+          // Calculate team ACV meta from productividad_asesores.meta (current month, same celula)
+          const currentMonthProductividad = celulaRows.filter((r: any) => r.anio_mes === mesActual);
+          const metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
 
           // Aggregate current month from celula productividad
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
