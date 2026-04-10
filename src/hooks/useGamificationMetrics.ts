@@ -463,8 +463,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
         if (isVN && !isVC) {
           const celulaRows = celulaProductividadRes?.data || [];
-          const metaGerenteData = metasGerentesRes?.data;
-          const metaAcvEquipo = Number(metaGerenteData?.meta_total_acv) || Number(metaGerenteData?.cuota) || 0;
+          // Calculate ACV meta from productividad_asesores.meta by month
+          const buildMonthMetaAcv = (period: string) =>
+            celulaRows.filter((r: any) => r.anio_mes === period).reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
 
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
