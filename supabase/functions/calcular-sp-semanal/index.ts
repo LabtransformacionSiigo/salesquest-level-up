@@ -209,17 +209,27 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          // VN channels: SP from kpis_mensuales
+          // VN channels: SP from ACV / Meta ACV (como VC)
           const kpis = (kpisByGerente.get(gerente.id) || []).filter((k) => k.canal === canal);
+          const canalNorm = canal === "VN_ALIADOS" ? "Aliados" : "Empresarios";
+          const gerenteCelula = celulaPorGerente.get(gerente.id) || "";
+          const metaAcv = metaAcvByCelula.get(`${gerenteCelula}|${canalNorm}`) || 0;
+
           for (const kpi of kpis) {
-            const metaVal = Number(kpi.meta) || 0;
-            const ventasVal = Number(kpi.ventas) || 0;
-            if (metaVal <= 0) continue;
-            const spFinal = Math.round((ventasVal / metaVal) * 100);
+            const acvVal = Number(kpi.acv_f) || 0;
+            // Use ACV / Meta ACV if available, otherwise fallback to units
+            let spFinal = 0;
+            if (metaAcv > 0 && acvVal > 0) {
+              spFinal = Math.round((acvVal / metaAcv) * 100);
+            } else {
+              const metaVal = Number(kpi.meta) || 0;
+              const ventasVal = Number(kpi.ventas) || 0;
+              if (metaVal > 0 && ventasVal > 0) spFinal = Math.round((ventasVal / metaVal) * 100);
+            }
             if (spFinal <= 0) continue;
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-              periodo: String(kpi.anio_mes), detalle: `Cumplimiento de Meta: ${spFinal}% · ${canal} · ${kpi.anio_mes}`, tipo_sp: "convencion",
+              periodo: String(kpi.anio_mes), detalle: `Cumplimiento ACV: ${spFinal}% · ${canal} · ${kpi.anio_mes}`, tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
             resumenCanal[canal].sp += spFinal;
