@@ -504,6 +504,7 @@ export type Database = {
           meta_fe: number | null
           meta_nube: number | null
           meta_total: number | null
+          nombre_asesor: string | null
           novedad: string | null
           pais: string | null
         }
@@ -517,6 +518,7 @@ export type Database = {
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          nombre_asesor?: string | null
           novedad?: string | null
           pais?: string | null
         }
@@ -530,6 +532,7 @@ export type Database = {
           meta_fe?: number | null
           meta_nube?: number | null
           meta_total?: number | null
+          nombre_asesor?: string | null
           novedad?: string | null
           pais?: string | null
         }

@@ -277,18 +277,17 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 14 – productividad_asesores aggregated by celula for VN gerente */
           isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('productividad_asesores').select('anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
                 .eq('celula', profile.celula)
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: sum meta_total of asesores sin novedad */
-          isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('metas_asesores' as any).select('documento_asesor, meta_fe, meta_nube, meta_total, novedad, celula')
-                .eq('celula', profile.celula)
+          /* 15 – metas_asesores for VN gerente: fetch by canal_direccion to get novedad + nombre_asesor */
+          isVN && profile.role !== 'asesor'
+            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula')
                 .eq('anio_mes', mesActual)
-                .limit(1000)
+                .limit(2000)
             : Promise.resolve({ data: [] }),
           /* 16 – kpis_mensuales history for VN gerente (all months this year) */
           isVN
@@ -346,17 +345,33 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
 
+          // Build set of asesor names WITH novedad (to exclude from meta calculation)
+          const asesoresConNovedad = new Set<string>();
+          vnMetasAsesores.forEach((r: any) => {
+            const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
+            if (nov && nov !== 'sin novedad' && r.nombre_asesor) {
+              asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
+            }
+          });
+
           // Calculate team meta units: sum meta_total of asesores WITHOUT novedad
-          const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => !r.novedad || r.novedad === '' || r.novedad.toLowerCase() === 'sin novedad');
+          const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => {
+            const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
+            return !nov || nov === 'sin novedad';
+          });
           const metaEquipoUnidades = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
           const metaFe = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
           const metaNube = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
 
-          // Calculate team ACV meta from productividad_asesores.meta (current month, same celula)
-          const currentMonthProductividad = celulaRows.filter((r: any) => r.anio_mes === mesActual);
+          // Calculate team ACV meta from productividad_asesores.meta (current month, same celula, excluding novedad)
+          const currentMonthProductividad = celulaRows.filter((r: any) => {
+            const period = String(r.anio_mes || '');
+            const asesorName = (r.asesor || '').trim().toLowerCase();
+            return period === mesActual && !asesoresConNovedad.has(asesorName);
+          });
           const metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
 
-          // Aggregate current month from celula productividad
+          // Aggregate current month from celula productividad (all asesores for display, filtered for meta)
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
 
           if (currentMonthRows.length > 0) {
@@ -367,8 +382,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
             acvMes = totalAcv;
-            // % cumplimiento basado en ACV / Meta ACV (como VC) para SP Convención
-            // Si no hay meta ACV, fallback a unidades
+            // % cumplimiento = ACV vendido / Meta ACV (como VC)
             if (metaAcvEquipo > 0) {
               pctCumplimiento = Math.round((totalAcv / metaAcvEquipo) * 100);
             } else {

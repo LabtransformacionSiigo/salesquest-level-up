@@ -144,18 +144,22 @@ Deno.serve(async (req) => {
     });
 
     // ── Batch load kpis_mensuales for VN gerentes (all months this year) ──
-    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes] = await Promise.all([
+    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes, metasAsesoresRes] = await Promise.all([
       supabase.from("kpis_mensuales")
         .select("gerente_id, anio_mes, ventas, meta, acv_f, canal")
         .gte("anio_mes", `${anioActual}01`)
         .lte("anio_mes", `${anioActual}12`),
       supabase.from("productividad_asesores")
-        .select("celula, anio_mes, meta, area")
+        .select("asesor, celula, anio_mes, meta, area, acv_f")
         .gte("anio_mes", `${anioActual}01`)
         .lte("anio_mes", `${anioActual}12`),
       supabase.from("gerentes")
         .select("id, celula, canal")
         .eq("activo", true),
+      supabase.from("metas_asesores")
+        .select("nombre_asesor, novedad, canal_direccion, anio_mes")
+        .gte("anio_mes", `${anioActual}01`)
+        .lte("anio_mes", `${anioActual}12`),
     ]);
 
     const allKpis = kpisAllRes.data;
@@ -169,12 +173,24 @@ Deno.serve(async (req) => {
       kpisByGerente.set(k.gerente_id, arr);
     });
 
-    // Build meta ACV map by celula+period from productividad_asesores.meta
+    // Build set of asesor names WITH novedad (to exclude from meta)
+    const asesoresConNovedad = new Set<string>();
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : "";
+      if (nov && nov !== "sin novedad" && row.nombre_asesor) {
+        asesoresConNovedad.add(String(row.nombre_asesor).trim().toLowerCase());
+      }
+    });
+
+    // Build meta ACV map by celula+period from productividad_asesores.meta (excluding novedad)
     const metaAcvByCelulaPeriod = new Map<string, number>();
     (productividadAsesoresRes.data || []).forEach((row: any) => {
       const celula = (row.celula || "").trim();
       const period = String(row.anio_mes || "");
+      const asesorName = (row.asesor || "").trim().toLowerCase();
       if (!celula) return;
+      // Skip asesores with novedad
+      if (asesoresConNovedad.has(asesorName)) return;
       const key = `${celula}|${period}`;
       metaAcvByCelulaPeriod.set(key, (metaAcvByCelulaPeriod.get(key) || 0) + (Number(row.meta) || 0));
     });

@@ -146,21 +146,33 @@ const Rankings = () => {
       const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
-        const [productividadRes, asesoresRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
+          supabase.from('metas_asesores').select('nombre_asesor, novedad').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
         ]);
+        // Build set of asesor names WITH novedad
+        const asesoresConNovedad = new Set<string>();
+        (metasAsesoresRes.data || []).forEach((r: any) => {
+          const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
+          if (nov && nov !== 'sin novedad' && r.nombre_asesor) {
+            asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
+          }
+        });
         const canjeMap = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
-        // Build meta ACV by celula from productividad_asesores.meta (current month)
+        // Build meta ACV by celula from productividad_asesores.meta (excluding novedad)
         const canalNormR = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
         const metaAcvByCelula = new Map<string, Map<string, number>>();
         (productividadRes.data || []).forEach((row: any) => {
           const celula = (row.celula || '').trim();
           const period = String(row.anio_mes || '');
+          const asesorName = (row.asesor || '').trim().toLowerCase();
           if (!celula) return;
+          // Skip asesores with novedad for meta calculation
+          if (asesoresConNovedad.has(asesorName)) return;
           const periodMap = metaAcvByCelula.get(celula) || new Map<string, number>();
           periodMap.set(period, (periodMap.get(period) || 0) + (Number(row.meta) || 0));
           metaAcvByCelula.set(celula, periodMap);
@@ -236,18 +248,30 @@ const Rankings = () => {
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
-        const [productividadRes, gerentesRes, rolesRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
+          supabase.from('metas_asesores').select('nombre_asesor, novedad').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
         ]);
+        // Build set of asesor names WITH novedad
+        const asesoresConNovedadTeam = new Set<string>();
+        (metasAsesoresRes.data || []).forEach((r: any) => {
+          const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
+          if (nov && nov !== 'sin novedad' && r.nombre_asesor) {
+            asesoresConNovedadTeam.add(String(r.nombre_asesor).trim().toLowerCase());
+          }
+        });
         const canalNormTeam = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
-        // Build meta ACV by celula+period from productividad_asesores.meta
+        // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
         (productividadRes.data || []).forEach((row: any) => {
           const celula = (row.celula || '').trim();
           const period = String(row.anio_mes || '');
+          const asesorName = (row.asesor || '').trim().toLowerCase();
           if (!celula) return;
+          // Skip asesores with novedad for meta calculation
+          if (asesoresConNovedadTeam.has(asesorName)) return;
           const periodMap = metaAcvByCelulaTeam.get(celula) || new Map<string, number>();
           periodMap.set(period, (periodMap.get(period) || 0) + (Number(row.meta) || 0));
           metaAcvByCelulaTeam.set(celula, periodMap);
