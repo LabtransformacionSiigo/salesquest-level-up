@@ -298,13 +298,6 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .lte('anio_mes', `${anioActual}12`)
                 .order('anio_mes', { ascending: false })
             : Promise.resolve({ data: [] }),
-          /* 17 – metas_gerentes for VN gerente: get meta_total_acv by celula */
-          isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('metas_gerentes').select('celula, meta_total_acv, meta_total_und, cuota, canal_direccion')
-                .eq('celula', profile.celula)
-                .eq('canal_direccion', canalNorm)
-                .maybeSingle()
-            : Promise.resolve({ data: null }),
         ];
 
         const results = await Promise.all(queries);
