@@ -456,7 +456,7 @@ async function processAsesoresConvencion(
   let procesados = 0;
   let spOtorgados = 0;
 
-  const [asesoresRes, metasRes, ventasDiariasRes, ejecRes] = await Promise.all([
+  const [asesoresRes, metasRes, ventasDiariasRes, ejecRes, metasGerentesAsesorRes, prodAsesoresRes] = await Promise.all([
     supabase.from("asesores").select("id, documento, canal_direccion, nombre, canal"),
     supabase.from("metas_asesores").select("*")
       .gte("anio_mes", `${anioActual}01`)
@@ -467,6 +467,13 @@ async function processAsesoresConvencion(
       .select("documento_asesor, canal_direccion, periodo, ventas_total, acv_total, ventas_fe, ventas_nube, cant_recomendados")
       .gte("periodo", `${anioActual}01`)
       .lte("periodo", `${anioActual}12`),
+    supabase.from("metas_gerentes")
+      .select("celula, canal_direccion, meta_total_acv, cuota, meta_total_und"),
+    supabase.from("productividad_asesores")
+      .select("asesor, anio_mes, acv_f, ventas, meta, celula, area")
+      .gte("anio_mes", `${anioActual}01`)
+      .lte("anio_mes", `${anioActual}12`)
+      .limit(5000),
   ]);
 
   const asesores = asesoresRes.data || [];
