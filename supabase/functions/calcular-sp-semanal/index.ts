@@ -218,10 +218,11 @@ Deno.serve(async (req) => {
           const kpis = (kpisByGerente.get(gerente.id) || []).filter((k) => k.canal === canal);
           const canalNorm = canal === "VN_ALIADOS" ? "Aliados" : "Empresarios";
           const gerenteCelula = celulaPorGerente.get(gerente.id) || "";
-          const metaAcv = metaAcvByCelula.get(`${gerenteCelula}|${canalNorm}`) || 0;
 
           for (const kpi of kpis) {
             const acvVal = Number(kpi.acv_f) || 0;
+            const period = String(kpi.anio_mes || "");
+            const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
             // Use ACV / Meta ACV if available, otherwise fallback to units
             let spFinal = 0;
             if (metaAcv > 0 && acvVal > 0) {
