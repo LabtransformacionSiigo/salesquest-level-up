@@ -197,18 +197,20 @@ const Rankings = () => {
         // Build ranking entries
         const entries: any[] = [];
         advisorAgg.forEach((agg, key) => {
-          const teamMetaAcv = metaAcvByCelula.get(`${agg.celula}|${canalNormR}`) || 0;
+          const celulaMetaMap = metaAcvByCelula.get(agg.celula);
           // SP Convención = sum of monthly ACV / Meta ACV (como VC)
-          const spConv = [...agg.months.values()].reduce((total, m) => {
-            if (teamMetaAcv > 0 && m.acv > 0) return total + Math.round((m.acv / teamMetaAcv) * 100);
+          const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
+            const monthMeta = celulaMetaMap?.get(period) || 0;
+            if (monthMeta > 0 && m.acv > 0) return total + Math.round((m.acv / monthMeta) * 100);
             // Fallback to units if no meta ACV
             if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
             return total;
           }, 0);
           // Current month ACV compliance
           const currentAcv = [...agg.months.entries()].filter(([p]) => p === currentMonth).reduce((s, [, m]) => s + m.acv, 0);
-          const pct = teamMetaAcv > 0 && currentAcv > 0
-            ? Math.round((currentAcv / teamMetaAcv) * 100)
+          const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
+          const pct = currentMetaAcv > 0 && currentAcv > 0
+            ? Math.round((currentAcv / currentMetaAcv) * 100)
             : (agg.meta > 0 && agg.ventas > 0 ? Math.round((agg.ventas / agg.meta) * 100) : 0);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
@@ -217,7 +219,7 @@ const Rankings = () => {
             nombre: originalName,
             gerente_nombre: agg.celula,
             kpi_value: Math.round(agg.acv),
-            meta_acv: teamMetaAcv,
+            meta_acv: currentMetaAcv,
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
