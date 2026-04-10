@@ -144,18 +144,22 @@ Deno.serve(async (req) => {
     });
 
     // ── Batch load kpis_mensuales for VN gerentes (all months this year) ──
-    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes] = await Promise.all([
+    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes, metasAsesoresRes] = await Promise.all([
       supabase.from("kpis_mensuales")
         .select("gerente_id, anio_mes, ventas, meta, acv_f, canal")
         .gte("anio_mes", `${anioActual}01`)
         .lte("anio_mes", `${anioActual}12`),
       supabase.from("productividad_asesores")
-        .select("celula, anio_mes, meta, area")
+        .select("asesor, celula, anio_mes, meta, area, acv_f")
         .gte("anio_mes", `${anioActual}01`)
         .lte("anio_mes", `${anioActual}12`),
       supabase.from("gerentes")
         .select("id, celula, canal")
         .eq("activo", true),
+      supabase.from("metas_asesores")
+        .select("nombre_asesor, novedad, canal_direccion, anio_mes")
+        .gte("anio_mes", `${anioActual}01`)
+        .lte("anio_mes", `${anioActual}12`),
     ]);
 
     const allKpis = kpisAllRes.data;
