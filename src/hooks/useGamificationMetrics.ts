@@ -484,11 +484,11 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               .map(([period, { ventas, meta, acv, referidos }]) => {
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-                // % cumplimiento basado en ACV si hay meta ACV, sino unidades
-                const pctVal = metaAcvEquipo > 0
-                  ? Math.round((acv / metaAcvEquipo) * 100)
+                const monthMetaAcv = buildMonthMetaAcv(period);
+                const pctVal = monthMetaAcv > 0
+                  ? Math.round((acv / monthMetaAcv) * 100)
                   : (meta > 0 ? Math.round((ventas / meta) * 100) : 0);
-                return { mes: mesName, acv, meta: metaAcvEquipo || meta, pct: pctVal };
+                return { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal };
               });
           } else {
             // Fallback to kpis_mensuales
@@ -500,10 +500,11 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               const ventas = Number(row.ventas) || 0;
               const meta = Number(row.meta) || 0;
               const acvF = Number(row.acv_f) || 0;
-              const pctVal = metaAcvEquipo > 0
-                ? Math.round((acvF / metaAcvEquipo) * 100)
+              const monthMetaAcv = buildMonthMetaAcv(period);
+              const pctVal = monthMetaAcv > 0
+                ? Math.round((acvF / monthMetaAcv) * 100)
                 : (meta > 0 ? Math.round((ventas / meta) * 100) : 0);
-              return { mes: mesName, acv: acvF || ventas, meta: metaAcvEquipo || meta, pct: pctVal };
+              return { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal };
             });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
