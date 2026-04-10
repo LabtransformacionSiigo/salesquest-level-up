@@ -289,15 +289,16 @@ const Rankings = () => {
         });
 
         // Aggregate by celula + month
-        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
+        const celulaAgg = new Map<string, { months: Map<string, { ventas: number; meta: number; acv: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
         (productividadRes.data || []).forEach((row: any) => {
           const celula = row.celula;
           if (!celula) return;
           const agg = celulaAgg.get(celula) || { months: new Map(), recomendados: 0, unidades: 0, acv: 0, currentVentas: 0, currentMeta: 0, currentRecomendados: 0, currentAcv: 0 };
           const period = String(row.anio_mes || '');
-          const cm = agg.months.get(period) || { ventas: 0, meta: 0 };
+          const cm = agg.months.get(period) || { ventas: 0, meta: 0, acv: 0 };
           cm.ventas += Number(row.ventas) || 0;
           cm.meta += Number(row.meta) || 0;
+          cm.acv += Number(row.acv_f) || 0;
           agg.months.set(period, cm);
           agg.unidades += Number(row.ventas) || 0;
           agg.acv += Number(row.acv_f) || 0;
@@ -311,11 +312,16 @@ const Rankings = () => {
         });
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
+          const teamMetaAcv = metaAcvByCelulaTeam.get(`${celula}|${canalNormTeam}`) || 0;
+          // SP Convención = ACV / Meta ACV (como VC)
           const spConv = [...agg.months.values()].reduce((total, m) => {
+            if (teamMetaAcv > 0 && m.acv > 0) return total + Math.round((m.acv / teamMetaAcv) * 100);
             if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
             return total;
           }, 0);
-          const pct = agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0;
+          const pct = teamMetaAcv > 0 && agg.currentAcv > 0
+            ? Math.round((agg.currentAcv / teamMetaAcv) * 100)
+            : (agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
           entries.push({
             id: celula,
