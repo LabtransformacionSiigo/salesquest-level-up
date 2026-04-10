@@ -144,11 +144,19 @@ Deno.serve(async (req) => {
     });
 
     // ── Batch load kpis_mensuales for VN gerentes (all months this year) ──
-    const { data: allKpis } = await supabase
-      .from("kpis_mensuales")
-      .select("gerente_id, anio_mes, ventas, meta, canal")
-      .gte("anio_mes", `${anioActual}01`)
-      .lte("anio_mes", `${anioActual}12`);
+    const [kpisAllRes, metasGerentesRes, gerentesFullRes] = await Promise.all([
+      supabase.from("kpis_mensuales")
+        .select("gerente_id, anio_mes, ventas, meta, acv_f, canal")
+        .gte("anio_mes", `${anioActual}01`)
+        .lte("anio_mes", `${anioActual}12`),
+      supabase.from("metas_gerentes")
+        .select("celula, canal_direccion, meta_total_acv, cuota"),
+      supabase.from("gerentes")
+        .select("id, celula, canal")
+        .eq("activo", true),
+    ]);
+
+    const allKpis = kpisAllRes.data;
 
     // Group KPIs by gerente_id
     const kpisByGerente = new Map<string, any[]>();
@@ -157,6 +165,19 @@ Deno.serve(async (req) => {
       const arr = kpisByGerente.get(k.gerente_id) || [];
       arr.push(k);
       kpisByGerente.set(k.gerente_id, arr);
+    });
+
+    // Build meta ACV map by celula+canal for VN gerentes
+    const metaAcvByCelula = new Map<string, number>();
+    (metasGerentesRes.data || []).forEach((m: any) => {
+      const key = `${(m.celula || "").trim()}|${m.canal_direccion}`;
+      metaAcvByCelula.set(key, Number(m.meta_total_acv) || Number(m.cuota) || 0);
+    });
+
+    // Build celula map for gerentes
+    const celulaPorGerente = new Map<string, string>();
+    (gerentesFullRes.data || []).forEach((g: any) => {
+      if (g.id && g.celula) celulaPorGerente.set(g.id, g.celula);
     });
 
     let totalSpOtorgados = 0;
