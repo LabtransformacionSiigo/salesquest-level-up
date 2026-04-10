@@ -321,15 +321,17 @@ const Rankings = () => {
         });
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
-          const teamMetaAcv = metaAcvByCelulaTeam.get(`${celula}|${canalNormTeam}`) || 0;
-          // SP Convención = ACV / Meta ACV (como VC)
-          const spConv = [...agg.months.values()].reduce((total, m) => {
-            if (teamMetaAcv > 0 && m.acv > 0) return total + Math.round((m.acv / teamMetaAcv) * 100);
+          const celulaMetaMap = metaAcvByCelulaTeam.get(celula);
+          // SP Convención = ACV / Meta ACV per month (como VC)
+          const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
+            const monthMeta = celulaMetaMap?.get(period) || 0;
+            if (monthMeta > 0 && m.acv > 0) return total + Math.round((m.acv / monthMeta) * 100);
             if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
             return total;
           }, 0);
-          const pct = teamMetaAcv > 0 && agg.currentAcv > 0
-            ? Math.round((agg.currentAcv / teamMetaAcv) * 100)
+          const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
+          const pct = currentMetaAcv > 0 && agg.currentAcv > 0
+            ? Math.round((agg.currentAcv / currentMetaAcv) * 100)
             : (agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
           entries.push({
