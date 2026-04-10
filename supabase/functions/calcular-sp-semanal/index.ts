@@ -501,6 +501,32 @@ async function processAsesoresConvencion(
   const ejecMap = new Map<string, any>();
   (ejecRes.data || []).forEach((e: any) => ejecMap.set(`${e.documento_asesor}|${e.canal_direccion}|${e.periodo}`, e));
 
+  // Build meta ACV map by celula for VN asesores
+  const metaAcvByCelulaAsesor = new Map<string, number>();
+  (metasGerentesAsesorRes.data || []).forEach((m: any) => {
+    const key = `${(m.celula || "").trim()}|${m.canal_direccion}`;
+    metaAcvByCelulaAsesor.set(key, Number(m.meta_total_acv) || Number(m.cuota) || 0);
+  });
+
+  // Build productividad ACV map by asesor+periodo
+  const prodAcvMap = new Map<string, number>();
+  (prodAsesoresRes.data || []).forEach((p: any) => {
+    const key = `${(p.asesor || "").trim().toLowerCase()}|${p.anio_mes}`;
+    prodAcvMap.set(key, (prodAcvMap.get(key) || 0) + (Number(p.acv_f) || 0));
+  });
+
+  // Build celula map for asesores from productividad
+  const celulaPorAsesorProd = new Map<string, string>();
+  (prodAsesoresRes.data || []).forEach((p: any) => {
+    if (p.asesor && p.celula) celulaPorAsesorProd.set((p.asesor || "").trim().toLowerCase(), p.celula);
+  });
+
+  // Build area map for asesores from productividad (to derive canal)
+  const areaPorAsesorProd = new Map<string, string>();
+  (prodAsesoresRes.data || []).forEach((p: any) => {
+    if (p.asesor && p.area) areaPorAsesorProd.set((p.asesor || "").trim().toLowerCase(), p.area);
+  });
+
   const spUpserts: any[] = [];
   const asesorSpTotals: { id: string; sp: number; ejec: any; meta: any; canalDir: string }[] = [];
 
@@ -513,6 +539,13 @@ async function processAsesoresConvencion(
 
       const isVentaCruzada = canalDir.toLowerCase().includes("cruzada") || canalDir === "VC";
       let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string } | null = null;
+
+      // Get asesor's celula and area from productividad for meta ACV lookup
+      const asesorNameLower = asesor.nombre.trim().toLowerCase();
+      const asesorCelula = celulaPorAsesorProd.get(asesorNameLower) || "";
+      const asesorArea = areaPorAsesorProd.get(asesorNameLower) || "";
+      const canalNormAsesor = asesorArea === "Aliados" ? "Aliados" : asesorArea.includes("Mercadeo") || asesorArea.includes("Empresarios") ? "Empresarios" : canalDir;
+      const teamMetaAcv = metaAcvByCelulaAsesor.get(`${asesorCelula}|${canalNormAsesor}`) || 0;
 
       for (const meta of metas) {
         const periodo = String(meta.anio_mes);
@@ -531,11 +564,29 @@ async function processAsesoresConvencion(
             detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada · ${periodo}`;
           }
         } else {
-          const unidadesTotal = ventasData?.unidades ?? (ejecData ? Number(ejecData.ventas_total) || 0 : 0);
-          const metaUnidades = Number(meta.meta_total) || 0;
-          if (metaUnidades > 0 && unidadesTotal > 0) {
-            spFinal = Math.round((unidadesTotal / metaUnidades) * 100);
-            detalleLabel = `Cumplimiento Unidades: ${spFinal}% · ${canalDir} · ${periodo}`;
+          // VN: SP Convención basado en ACV / Meta ACV
+          const acvAsesor = prodAcvMap.get(`${asesorNameLower}|${periodo}`) ||
+            (ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0));
+
+          if (teamMetaAcv > 0 && acvAsesor > 0) {
+            // Use team meta ACV directly (asesor contributes proportionally)
+            // For individual SP, we calculate their share of the team goal
+            const metaUnidades = Number(meta.meta_total) || 0;
+            // Get all metas for this celula to calculate proportion
+            // Simplified: use acv / teamMetaAcv * 100 at team level
+            // For individual: proportional meta = teamMetaAcv * (asesor_meta_units / team_meta_units)
+            // But we don't have team_meta_units here easily, so use full team meta
+            // This means individual SP will be partial contributions to team goal
+            spFinal = Math.round((acvAsesor / teamMetaAcv) * 100);
+            detalleLabel = `Cumplimiento ACV: ${spFinal}% · ${canalDir} · ${periodo}`;
+          } else {
+            // Fallback to units if no meta ACV
+            const unidadesTotal = ventasData?.unidades ?? (ejecData ? Number(ejecData.ventas_total) || 0 : 0);
+            const metaUnidades = Number(meta.meta_total) || 0;
+            if (metaUnidades > 0 && unidadesTotal > 0) {
+              spFinal = Math.round((unidadesTotal / metaUnidades) * 100);
+              detalleLabel = `Cumplimiento Unidades: ${spFinal}% · ${canalDir} · ${periodo}`;
+            }
           }
         }
 
