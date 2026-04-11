@@ -110,9 +110,17 @@ const AdminDatabricks = () => {
       await supabase.functions.invoke('sync-databricks', {
         body: { mode: 'sync', table: 'all_new' },
       });
-      // Job will appear via realtime
     } catch { /* ignore */ }
     setTimeout(() => setForceRunning(false), 3000);
+  };
+
+  const handleCleanStuck = async () => {
+    try {
+      await supabase.functions.invoke('sync-databricks', {
+        body: { mode: 'clean_stuck' },
+      });
+      fetchJobs();
+    } catch { /* ignore */ }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
