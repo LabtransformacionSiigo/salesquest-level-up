@@ -156,6 +156,16 @@ const AdminDatabricks = () => {
             </div>
             <div className="flex items-center gap-3">
               {hasRunning && (
+                <Button
+                  onClick={handleCleanStuck}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-destructive"
+                >
+                  <MI icon="cleaning_services" className="text-sm" />
+                  Limpiar atascados
+                </Button>
+              )}
                 <span className="flex items-center gap-1.5 text-xs text-primary font-semibold bg-primary/10 px-3 py-1.5 rounded-full">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
                   Sync en curso
