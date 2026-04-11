@@ -110,9 +110,17 @@ const AdminDatabricks = () => {
       await supabase.functions.invoke('sync-databricks', {
         body: { mode: 'sync', table: 'all_new' },
       });
-      // Job will appear via realtime
     } catch { /* ignore */ }
     setTimeout(() => setForceRunning(false), 3000);
+  };
+
+  const handleCleanStuck = async () => {
+    try {
+      await supabase.functions.invoke('sync-databricks', {
+        body: { mode: 'clean_stuck' },
+      });
+      fetchJobs();
+    } catch { /* ignore */ }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -148,10 +156,21 @@ const AdminDatabricks = () => {
             </div>
             <div className="flex items-center gap-3">
               {hasRunning && (
-                <span className="flex items-center gap-1.5 text-xs text-primary font-semibold bg-primary/10 px-3 py-1.5 rounded-full">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
-                  Sync en curso
-                </span>
+                <>
+                  <Button
+                    onClick={handleCleanStuck}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-destructive"
+                  >
+                    <MI icon="cleaning_services" className="text-sm" />
+                    Limpiar atascados
+                  </Button>
+                  <span className="flex items-center gap-1.5 text-xs text-primary font-semibold bg-primary/10 px-3 py-1.5 rounded-full">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
+                    Sync en curso
+                  </span>
+                </>
               )}
               <Button
                 onClick={handleForceSync}

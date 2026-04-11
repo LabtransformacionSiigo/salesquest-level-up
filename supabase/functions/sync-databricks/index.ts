@@ -225,6 +225,28 @@ Deno.serve(async (req) => {
     const mesFilter = body.mes || undefined;
     const jobId = body.jobId || undefined;
 
+    // ── clean_stuck: mark old running/pending jobs as failed ──
+    if (mode === "clean_stuck") {
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 min
+      const { data: cleaned } = await supabase
+        .from("sync_jobs")
+        .update({ status: "failed", error_message: "Limpieza: job atascado >30min", finished_at: new Date().toISOString() })
+        .in("status", ["running", "pending"])
+        .lt("created_at", cutoff)
+        .select("id");
+      return new Response(JSON.stringify({ cleaned: cleaned?.length || 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Auto-cleanup stuck jobs before starting new sync ──
+    if (mode === "sync") {
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      await supabase
+        .from("sync_jobs")
+        .update({ status: "failed", error_message: "Auto-limpieza: job atascado", finished_at: new Date().toISOString() })
+        .in("status", ["running", "pending"])
+        .lt("created_at", cutoff);
+    }
+
     // ── all_new: run each table sequentially in background ──
     if (table === "all_new" && mode === "sync") {
       const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
