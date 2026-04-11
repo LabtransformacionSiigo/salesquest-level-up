@@ -1,0 +1,1 @@
+UPDATE sync_jobs SET status = 'failed', error_message = 'Limpieza automática: job atascado', finished_at = now() WHERE status IN ('running', 'pending') AND created_at < now() - interval '1 hour';
