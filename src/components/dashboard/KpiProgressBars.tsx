@@ -38,6 +38,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
   const pct = pctCumplimiento ?? (kpis?.pct_cumplimiento ? Number(kpis.pct_cumplimiento) : 0);
   const metaValue = kpis?.meta ? Number(kpis.meta) : 0;
   const ventasValue = kpis?.ventas ? Number(kpis.ventas) : acvMes;
+  const metaAcvValue = Number(metaAsesor?.meta_acv) || 0;
 
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
 
@@ -163,12 +164,27 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               <Progress value={metaAsesor.meta_total > 0 ? Math.min(100, (ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0} className="h-3" />
             </div>
 
-            {/* ACV saldo (informational, no progress bar) */}
+            {/* ACV compliance */}
+            <div>
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                <span>🎯 Cumplimiento ACV</span>
+                <span className="text-foreground font-scoreboard">{Math.round(pct)}%</span>
+              </div>
+              <Progress value={metaAcvValue > 0 ? Math.min(100, pct) : 0} className="h-3" />
+            </div>
+
+            {/* ACV saldo + meta */}
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>💰 ACV+ Logrado</span>
                 <span className="text-foreground font-scoreboard">{fmt(ejecucion.acv_total)}</span>
               </div>
+              {metaAcvValue > 0 && (
+                <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
+                  <span>Meta ACV</span>
+                  <span className="text-foreground font-scoreboard">{fmt(metaAcvValue)}</span>
+                </div>
+              )}
             </div>
 
             {/* Extras: Productividad + Recomendados */}
@@ -185,12 +201,12 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
 
             {/* Status based on unit compliance */}
             {(() => {
-              const pctUnidades = metaAsesor.meta_total > 0 ? Math.round((ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0;
+              const pctAcv = Math.round(pct);
               return (
                 <div className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold ${
-                  pctUnidades >= 100 ? 'bg-accent/10 text-accent' : pctUnidades >= 70 ? 'bg-primary/10 text-primary' : pctUnidades >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
+                  pctAcv >= 100 ? 'bg-accent/10 text-accent' : pctAcv >= 70 ? 'bg-primary/10 text-primary' : pctAcv >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
                 }`}>
-                  {pctUnidades >= 100 ? '🏆 ¡Meta superada!' : pctUnidades >= 70 ? '🔥 ¡Buen ritmo!' : pctUnidades >= 40 ? '⚡ Sigue avanzando' : '💪 ¡A por la meta!'}
+                  {pctAcv >= 100 ? '🏆 ¡Meta ACV superada!' : pctAcv >= 70 ? '🔥 ¡Buen ritmo en ACV!' : pctAcv >= 40 ? '⚡ Sigue avanzando en ACV' : '💪 ¡A por la meta ACV!'}
                 </div>
               );
             })()}

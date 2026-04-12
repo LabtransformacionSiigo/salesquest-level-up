@@ -151,6 +151,8 @@ const toNumber = (...values: any[]) => {
   return 0;
 };
 
+const toRoundedInt = (...values: any[]) => Math.round(toNumber(...values));
+
 // ============================================================
 // Databricks query runner (reusable)
 // ============================================================
@@ -703,9 +705,9 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     documento_asesor: String(row.documento_asesor || "").trim(),
     pais: normalizeCountry(row.pais),
     canal_direccion: normalizeCanalDireccion(row.canal_direccion),
-    meta_fe: toNumber(row.meta_fe),
-    meta_nube: toNumber(row.meta_nube),
-    meta_total: toNumber(row.meta_total),
+    meta_fe: toRoundedInt(row.meta_fe),
+    meta_nube: toRoundedInt(row.meta_nube),
+    meta_total: toRoundedInt(row.meta_total),
     novedad: row.novedad ? String(row.novedad).trim() : null,
     celula: row.celula ? String(row.celula).trim() : null,
     nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
@@ -767,8 +769,8 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       equipo: String(row.Equipo || "").trim() || null,
       tipo_producto: tipoProducto || null,
       producto: producto || null,
-      unidades: toNumber(row.Unidades),
-      acv: toNumber(row.ACV),
+      unidades: toRoundedInt(row.Unidades),
+      acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Empresarios"),
@@ -826,8 +828,8 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       equipo: String(row.equipo || "").trim() || null,
       tipo_producto: tipoProducto || null,
       producto: tipoProducto || null,
-      unidades: toNumber(row.Cuenta_comercial),
-      acv: toNumber(row.ACV),
+      unidades: toRoundedInt(row.Cuenta_comercial),
+      acv: toRoundedInt(row.ACV),
       recurrencia: null,
       origen: String(row.origen || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Aliados"),
@@ -882,9 +884,9 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
       grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
     }
     const g = grouped.get(key)!;
-    const unidades = row.unidades || 0;
+    const unidades = Math.round(row.unidades || 0);
     g.ventas_total += unidades;
-    g.acv_total += row.acv || 0;
+    g.acv_total += Math.round(row.acv || 0);
     if (cat === "FE") g.ventas_fe += unidades;
     if (cat === "NUBE") g.ventas_nube += unidades;
   }
@@ -923,13 +925,13 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
     celula: String(row.CELULA || "").trim() || null,
     area: String(row.AREA || "").trim() || null,
     rango_antiguedad: String(row.RANGO_ANTIGUEDAD_SIIGO || "").trim() || null,
-    cant_recomendados: toNumber(row.CANT_RECOMENDADOS),
-    ventas_mm_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS),
-    sc_creados: toNumber(row.SC_Creados_MM),
-    ventas_mm_sql: toNumber(row.VENTAS_MM_SQL),
-    meta: toNumber(row.META),
-    ventas: toNumber(row.VENTAS),
-    acv_f: toNumber(row.ACV_F),
+    cant_recomendados: toRoundedInt(row.CANT_RECOMENDADOS),
+    ventas_mm_recomendados: toRoundedInt(row.VENTAS_MM_RECOMENDADOS),
+    sc_creados: toRoundedInt(row.SC_Creados_MM),
+    ventas_mm_sql: toRoundedInt(row.VENTAS_MM_SQL),
+    meta: toRoundedInt(row.META),
+    ventas: toRoundedInt(row.VENTAS),
+    acv_f: toRoundedInt(row.ACV_F),
     director: String(row.Director || "").trim() || null,
   })).filter((r) => r.asesor && r.anio_mes);
 
@@ -944,7 +946,7 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
   // Also update ejecucion_asesores cant_recomendados and productividad
   for (const row of upsertRows) {
     if (row.cant_recomendados > 0 || row.ventas > 0) {
-      const productividad = row.meta > 0 ? Number(((row.ventas / row.meta) * 100).toFixed(2)) : 0;
+      const productividad = row.meta > 0 ? Math.round((row.ventas / row.meta) * 100) : 0;
       await supabase.from("ejecucion_asesores").upsert({
         documento_asesor: row.asesor,
         periodo: String(row.anio_mes),
@@ -1004,8 +1006,8 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
       kpiUpdates.set(kpiKey, { gerente_id: gerente.id, anio_mes: periodo, canal, ventas: 0, acv_f: 0, meta: 0, moneda: "COP" });
     }
     const kpi = kpiUpdates.get(kpiKey)!;
-    kpi.ventas += sales.ventas;
-    kpi.acv_f += sales.acv;
+      kpi.ventas += Math.round(sales.ventas);
+      kpi.acv_f += Math.round(sales.acv);
   }
 
   // Try to fill meta from metas_gerentes
@@ -1024,7 +1026,7 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
     const gerente = gerentes.find((g: any) => g.id === kpi.gerente_id);
     if (gerente) {
       const meta = metaByCelula.get(normalizeText(gerente.nombre));
-      if (meta) kpi.meta = meta.meta_total_und || meta.meta_total_acv || 0;
+      if (meta) kpi.meta = Math.round(meta.meta_total_acv || meta.meta_total_und || 0);
     }
   }
 
@@ -1133,8 +1135,8 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     if (isNaN(fecha.getTime())) continue;
     const mes = MONTH_NAMES[fecha.getMonth() + 1] || "";
     const anio = fecha.getFullYear();
-    const acv = toNumber(row.acv || row.ACV);
-    const unidades = toNumber(row.unidades || row.Unidades || row.Cuenta_comercial) || 1;
+    const acv = toRoundedInt(row.acv || row.ACV);
+    const unidades = toRoundedInt(row.unidades || row.Unidades || row.Cuenta_comercial) || 1;
     const comercial = String(row.comercial || row.ASESOR || row.fullname || "").trim();
     const producto = String(row.producto || row.Producto || row.tipo_producto1 || "").trim();
     const tipoProducto = String(row.tipo_producto || row.TIPO_PRODUCTO || row.tipo_producto1 || "").trim();

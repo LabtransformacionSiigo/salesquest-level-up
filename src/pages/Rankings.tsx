@@ -163,28 +163,14 @@ const Rankings = () => {
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
-        // Build meta ACV by celula from productividad_asesores.meta (excluding novedad)
-        const canalNormR = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
-        const metaAcvByCelula = new Map<string, Map<string, number>>();
-        (productividadRes.data || []).forEach((row: any) => {
-          const celula = (row.celula || '').trim();
-          const period = String(row.anio_mes || '');
-          const asesorName = (row.asesor || '').trim().toLowerCase();
-          if (!celula) return;
-          // Skip asesores with novedad for meta calculation
-          if (asesoresConNovedad.has(asesorName)) return;
-          const periodMap = metaAcvByCelula.get(celula) || new Map<string, number>();
-          periodMap.set(period, (periodMap.get(period) || 0) + (Number(row.meta) || 0));
-          metaAcvByCelula.set(celula, periodMap);
-        });
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         // Aggregate by advisor
-        const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
+        const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
         (productividadRes.data || []).forEach((row: any) => {
           const name = row.asesor;
           if (!name) return;
           const key = normalizePersonName(name);
-          const agg = advisorAgg.get(key) || { ventas: 0, meta: 0, recomendados: 0, unidades: 0, acv: 0, celula: '', months: new Map() };
+          const agg = advisorAgg.get(key) || { ventas: 0, meta: 0, recomendados: 0, unidades: 0, acv: 0, currentAcv: 0, celula: '', months: new Map() };
           agg.celula = row.celula || agg.celula;
           // Monthly aggregation for SP calculation
           const period = String(row.anio_mes || '');
@@ -198,6 +184,7 @@ const Rankings = () => {
             agg.ventas += Number(row.ventas) || 0;
             agg.meta += Number(row.meta) || 0;
             agg.recomendados += Number(row.cant_recomendados) || 0;
+            agg.currentAcv += Number(row.acv_f) || 0;
           }
           // Totals across all months
           agg.unidades += Number(row.ventas) || 0;
@@ -209,33 +196,26 @@ const Rankings = () => {
         // Build ranking entries
         const entries: any[] = [];
         advisorAgg.forEach((agg, key) => {
-          const celulaMetaMap = metaAcvByCelula.get(agg.celula);
-          // SP Convención = sum of monthly ACV / Meta ACV (como VC)
           const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
-            const monthMeta = celulaMetaMap?.get(period) || 0;
-            if (monthMeta > 0 && m.acv > 0) return total + Math.round((m.acv / monthMeta) * 100);
-            // Fallback to units if no meta ACV
-            if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
+            if (m.meta > 0 && m.acv > 0) return total + Math.round((m.acv / m.meta) * 100);
             return total;
           }, 0);
-          // Current month ACV compliance
-          const currentAcv = [...agg.months.entries()].filter(([p]) => p === currentMonth).reduce((s, [, m]) => s + m.acv, 0);
-          const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
-          const pct = currentMetaAcv > 0 && currentAcv > 0
-            ? Math.round((currentAcv / currentMetaAcv) * 100)
-            : (agg.meta > 0 && agg.ventas > 0 ? Math.round((agg.ventas / agg.meta) * 100) : 0);
+          const currentAcv = agg.currentAcv;
+          const currentMetaAcv = agg.meta;
+          const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
             id: key,
             nombre: originalName,
             gerente_nombre: agg.celula,
-            kpi_value: Math.round(agg.acv),
+            kpi_value: Math.round(currentAcv || agg.acv),
             meta_acv: currentMetaAcv,
+            unidades_logradas: agg.ventas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
-            ventas_count: agg.unidades,
+            ventas_count: agg.ventas,
             posicion: 0,
             canal: profile.canal,
             pais: userPais,
@@ -350,13 +330,10 @@ const Rankings = () => {
           const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
             const monthMeta = celulaMetaMap?.get(period) || 0;
             if (monthMeta > 0 && m.acv > 0) return total + Math.round((m.acv / monthMeta) * 100);
-            if (m.meta > 0 && m.ventas > 0) return total + Math.round((m.ventas / m.meta) * 100);
             return total;
           }, 0);
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
-          const pct = currentMetaAcv > 0 && agg.currentAcv > 0
-            ? Math.round((agg.currentAcv / currentMetaAcv) * 100)
-            : (agg.currentMeta > 0 && agg.currentVentas > 0 ? Math.round((agg.currentVentas / agg.currentMeta) * 100) : 0);
+          const pct = currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0;
           const gerenteInfo = gerentesByCelula.get(celula);
           entries.push({
             id: celula,
@@ -366,7 +343,8 @@ const Rankings = () => {
             pais: userPais,
             kpi_value: Math.round(agg.currentAcv),
             acv_total_year: Math.round(agg.acv),
-            meta_total: agg.currentMeta,
+            meta_total: currentMetaAcv,
+            meta_acv: currentMetaAcv,
             unidades_logradas: agg.currentVentas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
@@ -515,7 +493,7 @@ const Rankings = () => {
                           {/* % Cumpl — always shown */}
                           <div>
                             <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                            <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl.</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
                           </div>
                           {/* VN: Unidades + Referidos */}
                           {(isGerentesVNTab || (isVN && isComercialTab)) && (
@@ -529,6 +507,11 @@ const Rankings = () => {
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
+                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta ACV</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -592,9 +575,10 @@ const Rankings = () => {
                       )}
                       {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
-                          <th className="text-right px-4 py-3">% Cumpl.</th>
+                           <th className="text-right px-4 py-3">% Cumpl. ACV</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">ACV+</th>
+                           <th className="text-right px-4 py-3">Meta ACV</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
@@ -652,6 +636,7 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}

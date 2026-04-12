@@ -239,15 +239,7 @@ Deno.serve(async (req) => {
             const acvVal = Number(kpi.acv_f) || 0;
             const period = String(kpi.anio_mes || "");
             const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
-            // Use ACV / Meta ACV if available, otherwise fallback to units
-            let spFinal = 0;
-            if (metaAcv > 0 && acvVal > 0) {
-              spFinal = Math.round((acvVal / metaAcv) * 100);
-            } else {
-              const metaVal = Number(kpi.meta) || 0;
-              const ventasVal = Number(kpi.ventas) || 0;
-              if (metaVal > 0 && ventasVal > 0) spFinal = Math.round((ventasVal / metaVal) * 100);
-            }
+            const spFinal = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
             if (spFinal <= 0) continue;
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
@@ -530,11 +522,13 @@ async function processAsesoresConvencion(
     metaAcvByCelulaAsesor.set(key, Number(m.meta_total_acv) || Number(m.cuota) || 0);
   });
 
-  // Build productividad ACV map by asesor+periodo
+  // Build productividad ACV/meta map by asesor+periodo
   const prodAcvMap = new Map<string, number>();
+  const prodMetaMap = new Map<string, number>();
   (prodAsesoresRes.data || []).forEach((p: any) => {
     const key = `${(p.asesor || "").trim().toLowerCase()}|${p.anio_mes}`;
     prodAcvMap.set(key, (prodAcvMap.get(key) || 0) + (Number(p.acv_f) || 0));
+    prodMetaMap.set(key, (prodMetaMap.get(key) || 0) + (Number(p.meta) || 0));
   });
 
   // Build celula map for asesores from productividad
@@ -590,25 +584,10 @@ async function processAsesoresConvencion(
           const acvAsesor = prodAcvMap.get(`${asesorNameLower}|${periodo}`) ||
             (ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0));
 
-          if (teamMetaAcv > 0 && acvAsesor > 0) {
-            // Use team meta ACV directly (asesor contributes proportionally)
-            // For individual SP, we calculate their share of the team goal
-            const metaUnidades = Number(meta.meta_total) || 0;
-            // Get all metas for this celula to calculate proportion
-            // Simplified: use acv / teamMetaAcv * 100 at team level
-            // For individual: proportional meta = teamMetaAcv * (asesor_meta_units / team_meta_units)
-            // But we don't have team_meta_units here easily, so use full team meta
-            // This means individual SP will be partial contributions to team goal
-            spFinal = Math.round((acvAsesor / teamMetaAcv) * 100);
+          const metaAcvAsesor = prodMetaMap.get(`${asesorNameLower}|${periodo}`) || 0;
+          if (metaAcvAsesor > 0 && acvAsesor > 0) {
+            spFinal = Math.round((acvAsesor / metaAcvAsesor) * 100);
             detalleLabel = `Cumplimiento ACV: ${spFinal}% · ${canalDir} · ${periodo}`;
-          } else {
-            // Fallback to units if no meta ACV
-            const unidadesTotal = ventasData?.unidades ?? (ejecData ? Number(ejecData.ventas_total) || 0 : 0);
-            const metaUnidades = Number(meta.meta_total) || 0;
-            if (metaUnidades > 0 && unidadesTotal > 0) {
-              spFinal = Math.round((unidadesTotal / metaUnidades) * 100);
-              detalleLabel = `Cumplimiento Unidades: ${spFinal}% · ${canalDir} · ${periodo}`;
-            }
           }
         }
 
