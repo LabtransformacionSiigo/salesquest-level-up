@@ -315,6 +315,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let upgradesCount = 0;
         let ejecucion: EjecucionAsesor | null = null;
         let metaAsesor: MetaAsesor | null = null;
+        let vnMetaAcvActual = 0;
+        let vnAsesoresConNovedad = new Set<string>();
+        let vnCelulaRows: any[] = [];
 
         if (isVC) {
           const acvRow = acvRows[0];
@@ -344,6 +347,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // VN gerente path: prefer productividad_asesores by celula
           const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
+          vnCelulaRows = celulaRows;
 
           // Build set of asesor names WITH novedad (to exclude from meta calculation)
           const asesoresConNovedad = new Set<string>();
@@ -353,6 +357,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
             }
           });
+          vnAsesoresConNovedad = asesoresConNovedad;
 
           // Calculate team meta units: sum meta_total of asesores WITHOUT novedad
           const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => {
@@ -370,6 +375,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             return period === mesActual && !asesoresConNovedad.has(asesorName);
           });
           const metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
+          vnMetaAcvActual = metaAcvEquipo;
 
           // Aggregate current month from celula productividad (all asesores for display, filtered for meta)
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
@@ -382,12 +388,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
             acvMes = totalAcv;
-            // % cumplimiento = ACV vendido / Meta ACV (como VC)
-            if (metaAcvEquipo > 0) {
-              pctCumplimiento = Math.round((totalAcv / metaAcvEquipo) * 100);
-            } else {
-              pctCumplimiento = totalMetaUnidades > 0 ? Math.round((totalVentas / totalMetaUnidades) * 100) : 0;
-            }
+            pctCumplimiento = metaAcvEquipo > 0 ? Math.round((totalAcv / metaAcvEquipo) * 100) : 0;
 
             ejecucion = {
               ventas_fe: 0,
@@ -403,17 +404,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               meta_total: totalMetaUnidades,
               meta_acv: metaAcvEquipo,
             };
+            vcCumplimiento = metaAcvEquipo > 0 ? { acv: totalAcv, meta: metaAcvEquipo, pct: pctCumplimiento } : null;
           } else {
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             acvMes = Number(kpiData?.acv_f) || 0;
             const metaFallback = metaEquipoUnidades || Number(kpiData?.meta) || 0;
-            // % cumplimiento basado en ACV si hay meta ACV
-            if (metaAcvEquipo > 0) {
-              pctCumplimiento = Math.round((acvMes / metaAcvEquipo) * 100);
-            } else {
-              pctCumplimiento = metaFallback > 0 ? Math.round((Number(kpiData?.ventas || 0) / metaFallback) * 100) : 0;
-            }
+            pctCumplimiento = metaAcvEquipo > 0 ? Math.round((acvMes / metaAcvEquipo) * 100) : 0;
 
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
@@ -432,6 +429,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_acv: metaAcvEquipo,
               };
             }
+            vcCumplimiento = metaAcvEquipo > 0 ? { acv: acvMes, meta: metaAcvEquipo, pct: pctCumplimiento } : null;
           }
         }
 
@@ -445,11 +443,20 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             .maybeSingle();
 
           if (asesorData?.documento) {
+            const { data: productividadAdvisorRows } = await supabase
+              .from('productividad_asesores')
+              .select('asesor, meta, acv_f, ventas, cant_recomendados')
+              .eq('anio_mes', mesActual)
+              .limit(2000);
+
             const matchingEjec = (ejecRes.data || []).find(
               (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
             );
             const matchingMeta = (metasRes.data || []).find(
               (m: any) => m.documento_asesor === asesorData.documento && m.canal_direccion === asesorData.canal_direccion
+            );
+            const matchingProductividad = (productividadAdvisorRows || []).find(
+              (p: any) => String(p.asesor || '').trim().toLowerCase() === String(profile.nombre || '').trim().toLowerCase()
             );
 
             if (matchingEjec) {
@@ -467,19 +474,27 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_fe: Number(matchingMeta.meta_fe) || 0,
                 meta_nube: Number(matchingMeta.meta_nube) || 0,
                 meta_total: Number(matchingMeta.meta_total) || 0,
-                meta_acv: 0,
+                meta_acv: Number(matchingProductividad?.meta) || 0,
               };
             }
+
+            const advisorAcv = Number(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
+            const advisorMetaAcv = Number(matchingProductividad?.meta) || 0;
+            if (advisorAcv > 0) acvMes = advisorAcv;
+            pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
+            vcCumplimiento = advisorMetaAcv > 0 ? { acv: advisorAcv, meta: advisorMetaAcv, pct: pctCumplimiento } : null;
           }
         }
 
         // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
         let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
         if (isVN && !isVC) {
-          const celulaRows = celulaProductividadRes?.data || [];
+          const celulaRows = vnCelulaRows;
           // Calculate ACV meta from productividad_asesores.meta by month
           const buildMonthMetaAcv = (period: string) =>
-            celulaRows.filter((r: any) => r.anio_mes === period).reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
+            celulaRows
+              .filter((r: any) => r.anio_mes === period && !vnAsesoresConNovedad.has(String(r.asesor || '').trim().toLowerCase()))
+              .reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
 
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
@@ -499,9 +514,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
                 const monthMetaAcv = buildMonthMetaAcv(period);
-                const pctVal = monthMetaAcv > 0
-                  ? Math.round((acv / monthMetaAcv) * 100)
-                  : (meta > 0 ? Math.round((ventas / meta) * 100) : 0);
+                const pctVal = monthMetaAcv > 0 ? Math.round((acv / monthMetaAcv) * 100) : 0;
                 return { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal };
               });
           } else {
@@ -515,13 +528,15 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               const meta = Number(row.meta) || 0;
               const acvF = Number(row.acv_f) || 0;
               const monthMetaAcv = buildMonthMetaAcv(period);
-              const pctVal = monthMetaAcv > 0
-                ? Math.round((acvF / monthMetaAcv) * 100)
-                : (meta > 0 ? Math.round((ventas / meta) * 100) : 0);
+              const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
               return { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal };
             });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
+        }
+
+        if (isVN && !vcCumplimiento && vnMetaAcvActual > 0) {
+          vcCumplimiento = { acv: acvMes, meta: vnMetaAcvActual, pct: pctCumplimiento };
         }
 
         // Format top ranking
