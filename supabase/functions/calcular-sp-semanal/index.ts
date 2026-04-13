@@ -40,6 +40,19 @@ const getPeriodFromDate = (dateValue?: string | null) => {
   return `${year}${month}`;
 };
 
+const normalizeVnMetaAcv = (value?: number | null) => {
+  const n = Number(value) || 0;
+  if (n <= 0) return 0;
+  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+};
+
+const normalizeStoredAcv = (value?: number | null) => {
+  const n = Number(value) || 0;
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
+  return Math.round(n);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -192,7 +205,7 @@ Deno.serve(async (req) => {
       // Skip asesores with novedad
       if (asesoresConNovedad.has(asesorName)) return;
       const key = `${celula}|${period}`;
-      metaAcvByCelulaPeriod.set(key, (metaAcvByCelulaPeriod.get(key) || 0) + (Number(row.meta) || 0));
+      metaAcvByCelulaPeriod.set(key, (metaAcvByCelulaPeriod.get(key) || 0) + normalizeVnMetaAcv(row.meta));
     });
 
     // Build celula map for gerentes
@@ -236,7 +249,7 @@ Deno.serve(async (req) => {
           const gerenteCelula = celulaPorGerente.get(gerente.id) || "";
 
           for (const kpi of kpis) {
-            const acvVal = Number(kpi.acv_f) || 0;
+            const acvVal = normalizeStoredAcv(kpi.acv_f);
             const period = String(kpi.anio_mes || "");
             const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
             const spFinal = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
