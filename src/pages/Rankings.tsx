@@ -33,6 +33,19 @@ const formatMoney = (val: number | null | undefined) => {
   return `$${n}`;
 };
 
+const normalizeVnMetaAcv = (value: number | null | undefined) => {
+  const n = Number(value) || 0;
+  if (n <= 0) return 0;
+  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+};
+
+const normalizeStoredAcv = (value: number | null | undefined) => {
+  const n = Number(value) || 0;
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
+  return Math.round(n);
+};
+
 const getCurrentConventionYear = () => new Date().getFullYear();
 
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
@@ -146,10 +159,11 @@ const Rankings = () => {
       const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
+        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, asesoresRes, metasAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total').eq('anio_mes', currentMonth).range(0, 5000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -163,7 +177,13 @@ const Rankings = () => {
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
-        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const metaUnidadesByAdvisor = new Map<string, number>();
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          const name = normalizePersonName(row.nombre_asesor);
+          const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
+          if (!name || (nov && nov !== 'sin novedad')) return;
+          metaUnidadesByAdvisor.set(name, (metaUnidadesByAdvisor.get(name) || 0) + (Number(row.meta_total) || 0));
+        });
         // Aggregate by advisor
         const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
         (productividadRes.data || []).forEach((row: any) => {
@@ -176,19 +196,19 @@ const Rankings = () => {
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0, acv: 0 };
           cm.ventas += Number(row.ventas) || 0;
-          cm.meta += Number(row.meta) || 0;
-          cm.acv += Number(row.acv_f) || 0;
+          cm.meta += normalizeVnMetaAcv(row.meta);
+          cm.acv += normalizeStoredAcv(row.acv_f);
           agg.months.set(period, cm);
           // Current month totals
           if (period === currentMonth) {
             agg.ventas += Number(row.ventas) || 0;
-            agg.meta += Number(row.meta) || 0;
+            agg.meta += normalizeVnMetaAcv(row.meta);
             agg.recomendados += Number(row.cant_recomendados) || 0;
-            agg.currentAcv += Number(row.acv_f) || 0;
+            agg.currentAcv += normalizeStoredAcv(row.acv_f);
           }
           // Totals across all months
           agg.unidades += Number(row.ventas) || 0;
-          agg.acv += Number(row.acv_f) || 0;
+          agg.acv += normalizeStoredAcv(row.acv_f);
           advisorAgg.set(key, agg);
           // Keep original name
           if (!agg.celula) agg.celula = row.celula || '';
@@ -211,6 +231,7 @@ const Rankings = () => {
             gerente_nombre: agg.celula,
             kpi_value: Math.round(currentAcv || agg.acv),
             meta_acv: currentMetaAcv,
+            meta_unidades: metaUnidadesByAdvisor.get(key) || 0,
             unidades_logradas: agg.ventas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
@@ -228,11 +249,12 @@ const Rankings = () => {
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
+        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total, celula').eq('anio_mes', currentMonth).range(0, 5000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -242,7 +264,13 @@ const Rankings = () => {
             asesoresConNovedadTeam.add(String(r.nombre_asesor).trim().toLowerCase());
           }
         });
-        const canalNormTeam = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
+        const metaUnidadesByCelula = new Map<string, number>();
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
+          const celula = String(row.celula || '').trim();
+          if (!celula || (nov && nov !== 'sin novedad')) return;
+          metaUnidadesByCelula.set(celula, (metaUnidadesByCelula.get(celula) || 0) + (Number(row.meta_total) || 0));
+        });
         // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
         (productividadRes.data || []).forEach((row: any) => {
@@ -253,10 +281,9 @@ const Rankings = () => {
           // Skip asesores with novedad for meta calculation
           if (asesoresConNovedadTeam.has(asesorName)) return;
           const periodMap = metaAcvByCelulaTeam.get(celula) || new Map<string, number>();
-          periodMap.set(period, (periodMap.get(period) || 0) + (Number(row.meta) || 0));
+          periodMap.set(period, (periodMap.get(period) || 0) + normalizeVnMetaAcv(row.meta));
           metaAcvByCelulaTeam.set(celula, periodMap);
         });
-        const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
         const asesorNames = new Set<string>();
         (productividadRes.data || []).forEach((row: any) => {
@@ -310,16 +337,16 @@ const Rankings = () => {
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0, acv: 0 };
           cm.ventas += Number(row.ventas) || 0;
-          cm.meta += Number(row.meta) || 0;
-          cm.acv += Number(row.acv_f) || 0;
+          cm.meta += normalizeVnMetaAcv(row.meta);
+          cm.acv += normalizeStoredAcv(row.acv_f);
           agg.months.set(period, cm);
           agg.unidades += Number(row.ventas) || 0;
-          agg.acv += Number(row.acv_f) || 0;
+          agg.acv += normalizeStoredAcv(row.acv_f);
           if (period === currentMonth) {
             agg.currentVentas += Number(row.ventas) || 0;
-            agg.currentMeta += Number(row.meta) || 0;
+            agg.currentMeta += normalizeVnMetaAcv(row.meta);
             agg.currentRecomendados += Number(row.cant_recomendados) || 0;
-            agg.currentAcv += Number(row.acv_f) || 0;
+            agg.currentAcv += normalizeStoredAcv(row.acv_f);
           }
           celulaAgg.set(celula, agg);
         });
@@ -345,6 +372,7 @@ const Rankings = () => {
             acv_total_year: Math.round(agg.acv),
             meta_total: currentMetaAcv,
             meta_acv: currentMetaAcv,
+            meta_unidades: metaUnidadesByCelula.get(celula) || 0,
             unidades_logradas: agg.currentVentas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
@@ -505,6 +533,11 @@ const Rankings = () => {
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
+                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{(g.meta_unidades || 0).toLocaleString()}</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta Uds</p>
+                              </div>
+                              <div className="w-px h-6 bg-border" />
+                              <div>
                                 <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
                               </div>
@@ -577,6 +610,7 @@ const Rankings = () => {
                         <>
                            <th className="text-right px-4 py-3">% Cumpl. ACV</th>
                           <th className="text-right px-4 py-3">Unidades</th>
+                          <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">ACV+</th>
                            <th className="text-right px-4 py-3">Meta ACV</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
@@ -635,6 +669,7 @@ const Rankings = () => {
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>

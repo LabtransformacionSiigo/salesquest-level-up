@@ -153,6 +153,13 @@ const toNumber = (...values: any[]) => {
 
 const toRoundedInt = (...values: any[]) => Math.round(toNumber(...values));
 
+const normalizeStoredAcvInt = (...values: any[]) => {
+  const n = toNumber(...values);
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
+  return Math.round(n);
+};
+
 // ============================================================
 // Databricks query runner (reusable)
 // ============================================================
@@ -525,11 +532,11 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
 
       kpiRows.set(`${gerente.id}|${anioMes}`, {
         gerente_id: gerente.id, anio_mes: anioMes, canal: gerente.canal || inferCanal(row), moneda: "COP",
-        ventas: toNumber(row.VENTAS, row.ventas), meta: toNumber(row.META, row.meta),
-        acv_f: toNumber(row.ACV_F, row.acv_f), cant_recomendados: toNumber(row.CANT_RECOMENDADOS),
-        ventas_recomendados: toNumber(row.VENTAS_MM_RECOMENDADOS), sa_creados: toNumber(row.SA_Creados_MM),
-        sc_creados: toNumber(row.SC_Creados_MM), ventas_sql: toNumber(row.VENTAS_MM_SQL),
-        hc_final: toNumber(row.HC_final), hc_inicial: toNumber(row.HC_inicial), terminaciones: toNumber(row.terminaciones),
+        ventas: toRoundedInt(row.VENTAS, row.ventas), meta: toRoundedInt(row.META, row.meta),
+        acv_f: normalizeStoredAcvInt(row.ACV_F, row.acv_f), cant_recomendados: toRoundedInt(row.CANT_RECOMENDADOS),
+        ventas_recomendados: toRoundedInt(row.VENTAS_MM_RECOMENDADOS), sa_creados: toRoundedInt(row.SA_Creados_MM),
+        sc_creados: toRoundedInt(row.SC_Creados_MM), ventas_sql: toRoundedInt(row.VENTAS_MM_SQL),
+        hc_final: toRoundedInt(row.HC_final), hc_inicial: toRoundedInt(row.HC_inicial), terminaciones: toRoundedInt(row.terminaciones),
       });
     } catch (err) { if (errores.length < 20) errores.push(`Row error: ${String(err)}`); }
   }
@@ -931,7 +938,7 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
     ventas_mm_sql: toRoundedInt(row.VENTAS_MM_SQL),
     meta: toRoundedInt(row.META),
     ventas: toRoundedInt(row.VENTAS),
-    acv_f: toRoundedInt(row.ACV_F),
+    acv_f: normalizeStoredAcvInt(row.ACV_F),
     director: String(row.Director || "").trim() || null,
   })).filter((r) => r.asesor && r.anio_mes);
 
@@ -1135,7 +1142,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     if (isNaN(fecha.getTime())) continue;
     const mes = MONTH_NAMES[fecha.getMonth() + 1] || "";
     const anio = fecha.getFullYear();
-    const acv = toRoundedInt(row.acv || row.ACV);
+    const acv = normalizeStoredAcvInt(row.acv || row.ACV);
     const unidades = toRoundedInt(row.unidades || row.Unidades || row.Cuenta_comercial) || 1;
     const comercial = String(row.comercial || row.ASESOR || row.fullname || "").trim();
     const producto = String(row.producto || row.Producto || row.tipo_producto1 || "").trim();

@@ -88,22 +88,35 @@ const getVcMonthlyConventionTotal = (rows: Array<{ anio?: number | null; mes?: s
   }, 0);
 };
 
-const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; ventas?: number | null; meta?: number | null }> | null | undefined) => {
-  const monthly = new Map<string, { ventas: number; meta: number }>();
+const normalizeVnMetaAcv = (value: number | null | undefined) => {
+  const n = Number(value) || 0;
+  if (n <= 0) return 0;
+  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+};
+
+const normalizeStoredAcv = (value: number | null | undefined) => {
+  const n = Number(value) || 0;
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
+  return Math.round(n);
+};
+
+const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null }> | null | undefined) => {
+  const monthly = new Map<string, { acv: number; meta: number }>();
 
   (rows || []).forEach((row) => {
     const period = String(row.anio_mes || '');
     if (!period) return;
 
-    const current = monthly.get(period) || { ventas: 0, meta: 0 };
-    current.ventas += Number(row.ventas) || 0;
-    current.meta += Number(row.meta) || 0;
+    const current = monthly.get(period) || { acv: 0, meta: 0 };
+    current.acv += normalizeStoredAcv(row.acv_f);
+    current.meta += normalizeVnMetaAcv(row.meta);
     monthly.set(period, current);
   });
 
   return [...monthly.values()].reduce((total, row) => {
-    if (row.meta <= 0 || row.ventas <= 0) return total;
-    return total + Math.round((row.ventas / row.meta) * 100);
+    if (row.meta <= 0 || row.acv <= 0) return total;
+    return total + Math.round((row.acv / row.meta) * 100);
   }, 0);
 };
 
@@ -212,7 +225,7 @@ export const useSupabaseAuth = () => {
             : (() => {
                 let query = supabase
                   .from('productividad_asesores')
-                  .select('anio_mes, ventas, meta, pais')
+                  .select('anio_mes, acv_f, meta, pais')
                   .eq('asesor', asesor.nombre)
                   .gte('anio_mes', `${currentConventionYear}01`)
                   .lte('anio_mes', `${currentConventionYear}12`);
@@ -293,7 +306,7 @@ export const useSupabaseAuth = () => {
           if (spTotales === 0 && isVnGerente && gerenteCelula) {
             const fallbackRes = await supabase
               .from('productividad_asesores')
-              .select('anio_mes, ventas, meta')
+              .select('anio_mes, acv_f, meta')
               .eq('celula', gerenteCelula)
               .gte('anio_mes', `${currentConventionYear}01`)
               .lte('anio_mes', `${currentConventionYear}12`);
