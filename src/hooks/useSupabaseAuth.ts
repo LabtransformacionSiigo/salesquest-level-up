@@ -120,6 +120,55 @@ const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv
   }, 0);
 };
 
+/**
+ * Calcula SP Convención VN incluyendo FE (1%=1SP) y Nube (1%=2SP)
+ * usando ejecucion_asesores y metas_asesores agrupados por periodo
+ */
+const getVnFeNubeConventionTotal = (
+  ejecRows: Array<{ periodo?: string; documento_asesor?: string; ventas_fe?: number; ventas_nube?: number }> | null | undefined,
+  metaRows: Array<{ anio_mes?: string; documento_asesor?: string; meta_fe?: number; meta_nube?: number; novedad?: string }> | null | undefined,
+) => {
+  // Aggregate metas by period (excluding novedades)
+  const metaByPeriod = new Map<string, { fe: number; nube: number }>();
+  (metaRows || []).forEach((m) => {
+    const nov = m.novedad ? String(m.novedad).trim().toLowerCase() : '';
+    if (nov && nov !== 'sin novedad') return;
+    const period = String(m.anio_mes || '');
+    if (!period) return;
+    const cur = metaByPeriod.get(period) || { fe: 0, nube: 0 };
+    cur.fe += Number(m.meta_fe) || 0;
+    cur.nube += Number(m.meta_nube) || 0;
+    metaByPeriod.set(period, cur);
+  });
+
+  // Aggregate ejecucion by period
+  const ejecByPeriod = new Map<string, { fe: number; nube: number }>();
+  (ejecRows || []).forEach((e) => {
+    const period = String(e.periodo || '');
+    if (!period) return;
+    const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0 };
+    cur.fe += Number(e.ventas_fe) || 0;
+    cur.nube += Number(e.ventas_nube) || 0;
+    ejecByPeriod.set(period, cur);
+  });
+
+  let totalSp = 0;
+  metaByPeriod.forEach((meta, period) => {
+    const ejec = ejecByPeriod.get(period);
+    if (!ejec) return;
+    // FE: 1% = 1 SP
+    if (meta.fe > 0 && ejec.fe > 0) {
+      totalSp += Math.round((ejec.fe / meta.fe) * 100);
+    }
+    // Nube: 1% = 2 SP
+    if (meta.nube > 0 && ejec.nube > 0) {
+      totalSp += Math.round((ejec.nube / meta.nube) * 100) * 2;
+    }
+  });
+
+  return totalSp;
+};
+
 export const useSupabaseAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
