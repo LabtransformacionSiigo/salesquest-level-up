@@ -344,15 +344,35 @@ export const useSupabaseAuth = () => {
           let spTotales = 0;
 
           if (isVnGerente && gerenteCelula) {
-            // VN: calcular desde productividad_asesores por celula
-            const vnRes = await supabase
-              .from('productividad_asesores')
-              .select('anio_mes, acv_f, meta')
-              .eq('celula', gerenteCelula)
-              .gte('anio_mes', `${currentConventionYear}01`)
-              .lte('anio_mes', `${currentConventionYear}12`);
+            // VN: calcular ACV SP desde productividad_asesores por celula
+            const [vnRes, ejecVnRes, metasVnRes] = await Promise.all([
+              supabase
+                .from('productividad_asesores')
+                .select('anio_mes, acv_f, meta')
+                .eq('celula', gerenteCelula)
+                .gte('anio_mes', `${currentConventionYear}01`)
+                .lte('anio_mes', `${currentConventionYear}12`),
+              supabase
+                .from('ejecucion_asesores')
+                .select('periodo, documento_asesor, ventas_fe, ventas_nube')
+                .gte('periodo', `${currentConventionYear}01`)
+                .lte('periodo', `${currentConventionYear}12`)
+                .limit(2000),
+              supabase
+                .from('metas_asesores')
+                .select('anio_mes, documento_asesor, meta_fe, meta_nube, novedad, celula')
+                .eq('celula', gerenteCelula)
+                .gte('anio_mes', `${currentConventionYear}01`)
+                .lte('anio_mes', `${currentConventionYear}12`)
+                .limit(2000),
+            ]);
             if (!vnRes.error) {
+              // SP from ACV (1% = 1 SP)
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP)
+            if (!ejecVnRes.error && !metasVnRes.error) {
+              spTotales += getVnFeNubeConventionTotal(ejecVnRes.data as any[], metasVnRes.data as any[]);
             }
           } else if (gerenteId) {
             // VC: calcular desde ventas SUM-
