@@ -270,6 +270,7 @@ export const useSupabaseAuth = () => {
               spTotales = getVcMonthlyConventionTotal(vcRes.data as any[]);
             }
           } else {
+            // VN asesor: ACV SP
             let vnQuery = supabase
               .from('productividad_asesores')
               .select('anio_mes, acv_f, meta, pais')
@@ -277,9 +278,28 @@ export const useSupabaseAuth = () => {
               .gte('anio_mes', `${currentConventionYear}01`)
               .lte('anio_mes', `${currentConventionYear}12`);
             if (asesor.pais) vnQuery = vnQuery.eq('pais', asesor.pais);
-            const vnRes = await vnQuery;
+
+            const ejecQuery = supabase
+              .from('ejecucion_asesores')
+              .select('periodo, documento_asesor, ventas_fe, ventas_nube')
+              .eq('documento_asesor', (asesor as any).documento || '')
+              .gte('periodo', `${currentConventionYear}01`)
+              .lte('periodo', `${currentConventionYear}12`);
+
+            const metasQuery = supabase
+              .from('metas_asesores')
+              .select('anio_mes, documento_asesor, meta_fe, meta_nube, novedad')
+              .eq('documento_asesor', (asesor as any).documento || '')
+              .gte('anio_mes', `${currentConventionYear}01`)
+              .lte('anio_mes', `${currentConventionYear}12`);
+
+            const [vnRes, ejecRes, metasRes] = await Promise.all([vnQuery, ejecQuery, metasQuery]);
             if (!vnRes.error) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+            // FE (1%=1SP) + Nube (1%=2SP)
+            if (!ejecRes.error && !metasRes.error) {
+              spTotales += getVnFeNubeConventionTotal(ejecRes.data as any[], metasRes.data as any[]);
             }
           }
 
