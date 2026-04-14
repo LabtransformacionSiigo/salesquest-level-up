@@ -218,6 +218,53 @@ Deno.serve(async (req) => {
       if (g.id && g.celula) celulaPorGerente.set(g.id, g.celula);
     });
 
+    // Build FE/Nube meta by celula+period from metas_asesores (excluding novedad)
+    const feMetaByCelulaPeriod = new Map<string, { metaFe: number; metaNube: number }>();
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : "";
+      if (nov && nov !== "sin novedad") return;
+      const celula = (row.celula || "").trim();
+      const period = String(row.anio_mes || "");
+      if (!celula || !period) return;
+      const key = `${celula}|${period}`;
+      const cur = feMetaByCelulaPeriod.get(key) || { metaFe: 0, metaNube: 0 };
+      cur.metaFe += Number(row.meta_fe) || 0;
+      cur.metaNube += Number(row.meta_nube) || 0;
+      feMetaByCelulaPeriod.set(key, cur);
+    });
+
+    // Build FE/Nube ejecucion by celula+period
+    // First build documento->celula map from metas_asesores
+    const docToCelula = new Map<string, string>();
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      if (row.nombre_asesor && row.celula) {
+        docToCelula.set(String(row.nombre_asesor).trim().toLowerCase(), (row.celula || "").trim());
+      }
+    });
+    // Also map documento_asesor to celula
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      const doc = row.documento_asesor || row.nombre_asesor;
+      if (doc && row.celula) {
+        // Map by documento for ejecucion lookup
+        const celula = (row.celula || "").trim();
+        if (celula) docToCelula.set(String(doc).trim(), celula);
+      }
+    });
+
+    const feEjecByCelulaPeriod = new Map<string, { ventasFe: number; ventasNube: number }>();
+    (ejecAsesoresRes.data || []).forEach((row: any) => {
+      const doc = String(row.documento_asesor || "").trim();
+      const period = String(row.periodo || "");
+      // Try to find celula for this document
+      const celula = docToCelula.get(doc) || "";
+      if (!celula || !period) return;
+      const key = `${celula}|${period}`;
+      const cur = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
+      cur.ventasFe += Number(row.ventas_fe) || 0;
+      cur.ventasNube += Number(row.ventas_nube) || 0;
+      feEjecByCelulaPeriod.set(key, cur);
+    });
+
     let totalSpOtorgados = 0;
     const errores: string[] = [];
     let procesados = 0;
