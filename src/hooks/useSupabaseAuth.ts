@@ -204,45 +204,49 @@ export const useSupabaseAuth = () => {
 
         if (asesorRes.data) {
           const asesor = asesorRes.data;
-          const conventionQuery = supabase
-            .from('sp_acumulados')
-            .select('sp')
-            .eq('gerente_id', asesor.id)
-            .eq('fuente', 'CUMPLIMIENTO_META')
-            .eq('tipo_sp', 'convencion')
-            .gte('periodo', `${currentConventionYear}01`)
-            .lte('periodo', `${currentConventionYear}12`);
 
-          const fallbackQuery = asesor.canal === 'VC'
-            ? supabase
-                .from('ventas')
-                .select('anio, mes, acv_plus, meta')
-                .eq('canal', 'VC')
-                .eq('anio', currentConventionYear)
-                .eq('gerente_id', asesor.gerente_id)
-                .eq('comercial', asesor.nombre)
-                .like('documento_factura', 'SUM-%')
-            : (() => {
-                let query = supabase
-                  .from('productividad_asesores')
-                  .select('anio_mes, acv_f, meta, pais')
-                  .eq('asesor', asesor.nombre)
-                  .gte('anio_mes', `${currentConventionYear}01`)
-                  .lte('anio_mes', `${currentConventionYear}12`);
+          // SIEMPRE calcular dinámicamente desde tablas de origen
+          let spTotales = 0;
 
-                if (asesor.pais) query = query.eq('pais', asesor.pais);
-                return query;
-              })();
+          if (asesor.canal === 'VC') {
+            const vcRes = await supabase
+              .from('ventas')
+              .select('anio, mes, acv_plus, meta')
+              .eq('canal', 'VC')
+              .eq('anio', currentConventionYear)
+              .eq('gerente_id', asesor.gerente_id)
+              .eq('comercial', asesor.nombre)
+              .like('documento_factura', 'SUM-%');
+            if (!vcRes.error) {
+              spTotales = getVcMonthlyConventionTotal(vcRes.data as any[]);
+            }
+          } else {
+            let vnQuery = supabase
+              .from('productividad_asesores')
+              .select('anio_mes, acv_f, meta, pais')
+              .eq('asesor', asesor.nombre)
+              .gte('anio_mes', `${currentConventionYear}01`)
+              .lte('anio_mes', `${currentConventionYear}12`);
+            if (asesor.pais) vnQuery = vnQuery.eq('pais', asesor.pais);
+            const vnRes = await vnQuery;
+            if (!vnRes.error) {
+              spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+          }
 
-          const [spRes, fallbackRes] = await Promise.all([conventionQuery, fallbackQuery]);
-          if (spRes.error) throw spRes.error;
-          if (fallbackRes.error) throw fallbackRes.error;
-
-          let spTotales = sumConventionRows(spRes.data);
+          // Fallback a sp_acumulados solo si el cálculo dinámico da 0
           if (spTotales === 0) {
-            spTotales = asesor.canal === 'VC'
-              ? getVcMonthlyConventionTotal(fallbackRes.data as any[])
-              : getVnMonthlyConventionTotal(fallbackRes.data as any[]);
+            const spRes = await supabase
+              .from('sp_acumulados')
+              .select('sp')
+              .eq('gerente_id', asesor.id)
+              .eq('fuente', 'CUMPLIMIENTO_META')
+              .eq('tipo_sp', 'convencion')
+              .gte('periodo', `${currentConventionYear}01`)
+              .lte('periodo', `${currentConventionYear}12`);
+            if (!spRes.error) {
+              spTotales = sumConventionRows(spRes.data);
+            }
           }
 
           const nivelData = getNivelData(spTotales);
@@ -287,32 +291,46 @@ export const useSupabaseAuth = () => {
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
-          const spRes = gerenteId
-            ? await supabase
-                .from('sp_acumulados')
-                .select('sp')
-                .eq('gerente_id', gerenteId)
-                .eq('fuente', 'CUMPLIMIENTO_META')
-                .eq('tipo_sp', 'convencion')
-                .gte('periodo', `${currentConventionYear}01`)
-                .lte('periodo', `${currentConventionYear}12`)
-            : { data: [], error: null };
+          // SIEMPRE calcular dinámicamente desde tablas de origen
+          let spTotales = 0;
 
-          if (spRes.error) throw spRes.error;
-
-          let spTotales = sumConventionRows(spRes.data as any[]);
-
-          // Fallback for VN gerentes: calculate from productividad_asesores by celula
-          if (spTotales === 0 && isVnGerente && gerenteCelula) {
-            const fallbackRes = await supabase
+          if (isVnGerente && gerenteCelula) {
+            // VN: calcular desde productividad_asesores por celula
+            const vnRes = await supabase
               .from('productividad_asesores')
               .select('anio_mes, acv_f, meta')
               .eq('celula', gerenteCelula)
               .gte('anio_mes', `${currentConventionYear}01`)
               .lte('anio_mes', `${currentConventionYear}12`);
+            if (!vnRes.error) {
+              spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+          } else if (gerenteId) {
+            // VC: calcular desde ventas SUM-
+            const vcRes = await supabase
+              .from('ventas')
+              .select('anio, mes, acv_plus, meta')
+              .eq('canal', 'VC')
+              .eq('anio', currentConventionYear)
+              .eq('gerente_id', gerenteId)
+              .like('documento_factura', 'SUM-%');
+            if (!vcRes.error) {
+              spTotales = getVcMonthlyConventionTotal(vcRes.data as any[]);
+            }
+          }
 
-            if (!fallbackRes.error) {
-              spTotales = getVnMonthlyConventionTotal(fallbackRes.data as any[]);
+          // Fallback a sp_acumulados solo si el cálculo dinámico da 0
+          if (spTotales === 0 && gerenteId) {
+            const spRes = await supabase
+              .from('sp_acumulados')
+              .select('sp')
+              .eq('gerente_id', gerenteId)
+              .eq('fuente', 'CUMPLIMIENTO_META')
+              .eq('tipo_sp', 'convencion')
+              .gte('periodo', `${currentConventionYear}01`)
+              .lte('periodo', `${currentConventionYear}12`);
+            if (!spRes.error) {
+              spTotales = sumConventionRows(spRes.data as any[]);
             }
           }
 
