@@ -92,12 +92,12 @@ const Reconocimientos = () => {
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
       // Only award SP Canje to the receiver (10 SP Regulares)
-      const promises: Promise<any>[] = [];
       if (paraId) {
-        promises.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}`, tipo_sp: 'canje' } as any).then());
-        promises.push(supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }).then());
+        await Promise.all([
+          supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}`, tipo_sp: 'canje' } as any),
+          supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }),
+        ]);
       }
-      await Promise.all(promises);
       toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canjeables para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
