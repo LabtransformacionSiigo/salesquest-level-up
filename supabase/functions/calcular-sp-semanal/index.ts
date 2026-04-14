@@ -252,11 +252,32 @@ Deno.serve(async (req) => {
             const acvVal = normalizeStoredAcv(kpi.acv_f);
             const period = String(kpi.anio_mes || "");
             const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
-            const spFinal = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            
+            // SP from ACV (1% = 1 SP)
+            const spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP)
+            const feNubeKey = `${gerenteCelula}|${period}`;
+            const feData = feMetaByCelulaPeriod.get(feNubeKey) || { metaFe: 0, metaNube: 0 };
+            const feEjec = feEjecByCelulaPeriod.get(feNubeKey) || { ventasFe: 0, ventasNube: 0 };
+            
+            let spFe = 0;
+            if (feData.metaFe > 0 && feEjec.ventasFe > 0) {
+              spFe = Math.round((feEjec.ventasFe / feData.metaFe) * 100);
+            }
+            let spNube = 0;
+            if (feData.metaNube > 0 && feEjec.ventasNube > 0) {
+              spNube = Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2;
+            }
+            
+            const spFinal = spAcv + spFe + spNube;
             if (spFinal <= 0) continue;
+            
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-              periodo: String(kpi.anio_mes), detalle: `Cumplimiento ACV: ${spFinal}% · ${canal} · ${kpi.anio_mes}`, tipo_sp: "convencion",
+              periodo: String(kpi.anio_mes),
+              detalle: `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canal} · ${kpi.anio_mes}`,
+              tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
             resumenCanal[canal].sp += spFinal;
