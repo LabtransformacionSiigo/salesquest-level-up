@@ -16,14 +16,12 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 );
 
 const TIPOS_RECONOCIMIENTO = [
-  { id: 'IMPULSO', nombre: 'Impulso', sp_para: 20, sp_de: 5, desc: 'Destaca cualquier logro cotidiano de un Asesor Comercial', emoji: '👏' },
-  { id: 'MANO_AMIGA', nombre: 'Mano Amiga', sp_para: 30, sp_de: 5, desc: 'Ayudó a un compañero sin que nadie se lo pidiera', emoji: '🤝' },
-  { id: 'ESPIRITU_FAMILIAR', nombre: 'Espíritu Familiar', sp_para: 30, sp_de: 5, desc: 'Cuida del equipo como si fuera su familia', emoji: '🏠' },
-  { id: 'VOZ_TRANSPARENTE', nombre: 'Voz Transparente', sp_para: 30, sp_de: 5, desc: 'Tuvo el coraje de dar feedback difícil con empatía', emoji: '🗣️' },
-  { id: 'CHISPA_INNOVACION', nombre: 'Chispa de Innovación', sp_para: 40, sp_de: 5, desc: 'Propuso una nueva forma de hacer las cosas', emoji: '💡' },
-  { id: 'LIDERAZGO', nombre: 'Liderazgo', sp_para: 40, sp_de: 5, desc: 'Tomó las riendas en un momento clave', emoji: '🌟' },
-  { id: 'EXCELENCIA', nombre: 'Excelencia', sp_para: 60, sp_de: 10, desc: 'El mejor resultado individual del mes', emoji: '💎' },
-  { id: 'CIMA', nombre: 'Cima', sp_para: 80, sp_de: 10, desc: 'El más alto honor que un gerente puede otorgar', emoji: '🏆' },
+  { id: 'NOS_APASIONA_AYUDAR', nombre: 'Nos apasiona ayudar', sp_para: 10, sp_de: 0, desc: 'Destaca la pasión por servir y ayudar a los demás', emoji: '❤️' },
+  { id: 'MENTALIDAD_GANADORA', nombre: 'Tenemos mentalidad ganadora', sp_para: 10, sp_de: 0, desc: 'Reconoce la actitud competitiva y orientada a resultados', emoji: '🏆' },
+  { id: 'ACTITUD_ALEGRIA', nombre: '100% Actitud y Alegría', sp_para: 10, sp_de: 0, desc: 'Celebra la energía positiva y el entusiasmo contagioso', emoji: '🎉' },
+  { id: 'HUMILDES_AMOROSOS', nombre: 'Somos Humildes y Amorosos', sp_para: 10, sp_de: 0, desc: 'Valora la humildad y el trato amoroso con el equipo', emoji: '🤗' },
+  { id: 'INNOVAMOS', nombre: 'Innovamos y no paramos de aprender', sp_para: 10, sp_de: 0, desc: 'Reconoce la curiosidad, innovación y aprendizaje continuo', emoji: '💡' },
+  { id: 'NOS_DECIMOS_TODO', nombre: 'Nos Decimos todo', sp_para: 10, sp_de: 0, desc: 'Celebra la transparencia y comunicación abierta', emoji: '🗣️' },
 ];
 
 
@@ -93,16 +91,14 @@ const Reconocimientos = () => {
     } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); }
     else {
-      const promises = [
-        supabase.from('sp_acumulados').insert({ gerente_id: profile.id, fuente: 'RECONOCIMIENTO_ENVIADO', sp: tipo.sp_de, periodo: periodoMes, detalle: `${tipo.nombre} enviado`, tipo_sp: 'canje' } as any).then(),
-        supabase.rpc('increment_sp_canje' as any, { p_gerente_id: profile.id, p_amount: tipo.sp_de }).then(),
-      ];
+      // Only award SP Canje to the receiver (10 SP Regulares)
       if (paraId) {
-        promises.push(supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}`, tipo_sp: 'canje' } as any).then());
-        promises.push(supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }).then());
+        await Promise.all([
+          supabase.from('sp_acumulados').insert({ gerente_id: paraId, fuente: 'RECONOCIMIENTO_RECIBIDO', sp: tipo.sp_para, periodo: periodoMes, detalle: `${tipo.nombre} de ${profile.nombre}`, tipo_sp: 'canje' } as any),
+          supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }),
+        ]);
       }
-      await Promise.all(promises);
-      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_de} canjeables para ti, +${tipo.sp_para} canjeables para tu colaborador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canjeables para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
@@ -158,7 +154,7 @@ const Reconocimientos = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-                  <motion.div className="grid grid-cols-4 gap-2" variants={staggerContainer} initial="hidden" animate="show">
+                  <motion.div className="grid grid-cols-3 gap-2" variants={staggerContainer} initial="hidden" animate="show">
                     {TIPOS_RECONOCIMIENTO.map(tipo => (
                         <motion.button
                           key={tipo.id}
@@ -171,8 +167,8 @@ const Reconocimientos = () => {
                               : "border-border bg-white text-muted-foreground hover:border-primary/50")}
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
-                          <span className="font-medium text-[10px] block">{tipo.nombre}</span>
-                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para}</span>
+                          <span className="font-medium text-[10px] block leading-tight">{tipo.nombre}</span>
+                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para} SP</span>
                         </motion.button>
                     ))}
                   </motion.div>
@@ -231,7 +227,7 @@ const Reconocimientos = () => {
                         <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
                         {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
                         <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} Canjeables</span>
+                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canjeables</span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>

@@ -120,6 +120,55 @@ const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv
   }, 0);
 };
 
+/**
+ * Calcula SP Convención VN incluyendo FE (1%=1SP) y Nube (1%=2SP)
+ * usando ejecucion_asesores y metas_asesores agrupados por periodo
+ */
+const getVnFeNubeConventionTotal = (
+  ejecRows: Array<{ periodo?: string; documento_asesor?: string; ventas_fe?: number; ventas_nube?: number }> | null | undefined,
+  metaRows: Array<{ anio_mes?: string; documento_asesor?: string; meta_fe?: number; meta_nube?: number; novedad?: string }> | null | undefined,
+) => {
+  // Aggregate metas by period (excluding novedades)
+  const metaByPeriod = new Map<string, { fe: number; nube: number }>();
+  (metaRows || []).forEach((m) => {
+    const nov = m.novedad ? String(m.novedad).trim().toLowerCase() : '';
+    if (nov && nov !== 'sin novedad') return;
+    const period = String(m.anio_mes || '');
+    if (!period) return;
+    const cur = metaByPeriod.get(period) || { fe: 0, nube: 0 };
+    cur.fe += Number(m.meta_fe) || 0;
+    cur.nube += Number(m.meta_nube) || 0;
+    metaByPeriod.set(period, cur);
+  });
+
+  // Aggregate ejecucion by period
+  const ejecByPeriod = new Map<string, { fe: number; nube: number }>();
+  (ejecRows || []).forEach((e) => {
+    const period = String(e.periodo || '');
+    if (!period) return;
+    const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0 };
+    cur.fe += Number(e.ventas_fe) || 0;
+    cur.nube += Number(e.ventas_nube) || 0;
+    ejecByPeriod.set(period, cur);
+  });
+
+  let totalSp = 0;
+  metaByPeriod.forEach((meta, period) => {
+    const ejec = ejecByPeriod.get(period);
+    if (!ejec) return;
+    // FE: 1% = 1 SP
+    if (meta.fe > 0 && ejec.fe > 0) {
+      totalSp += Math.round((ejec.fe / meta.fe) * 100);
+    }
+    // Nube: 1% = 2 SP
+    if (meta.nube > 0 && ejec.nube > 0) {
+      totalSp += Math.round((ejec.nube / meta.nube) * 100) * 2;
+    }
+  });
+
+  return totalSp;
+};
+
 export const useSupabaseAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -221,6 +270,7 @@ export const useSupabaseAuth = () => {
               spTotales = getVcMonthlyConventionTotal(vcRes.data as any[]);
             }
           } else {
+            // VN asesor: ACV SP
             let vnQuery = supabase
               .from('productividad_asesores')
               .select('anio_mes, acv_f, meta, pais')
@@ -228,9 +278,28 @@ export const useSupabaseAuth = () => {
               .gte('anio_mes', `${currentConventionYear}01`)
               .lte('anio_mes', `${currentConventionYear}12`);
             if (asesor.pais) vnQuery = vnQuery.eq('pais', asesor.pais);
-            const vnRes = await vnQuery;
+
+            const ejecQuery = supabase
+              .from('ejecucion_asesores')
+              .select('periodo, documento_asesor, ventas_fe, ventas_nube')
+              .eq('documento_asesor', (asesor as any).documento || '')
+              .gte('periodo', `${currentConventionYear}01`)
+              .lte('periodo', `${currentConventionYear}12`);
+
+            const metasQuery = supabase
+              .from('metas_asesores')
+              .select('anio_mes, documento_asesor, meta_fe, meta_nube, novedad')
+              .eq('documento_asesor', (asesor as any).documento || '')
+              .gte('anio_mes', `${currentConventionYear}01`)
+              .lte('anio_mes', `${currentConventionYear}12`);
+
+            const [vnRes, ejecRes, metasRes] = await Promise.all([vnQuery, ejecQuery, metasQuery]);
             if (!vnRes.error) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+            // FE (1%=1SP) + Nube (1%=2SP)
+            if (!ejecRes.error && !metasRes.error) {
+              spTotales += getVnFeNubeConventionTotal(ejecRes.data as any[], metasRes.data as any[]);
             }
           }
 
@@ -295,15 +364,35 @@ export const useSupabaseAuth = () => {
           let spTotales = 0;
 
           if (isVnGerente && gerenteCelula) {
-            // VN: calcular desde productividad_asesores por celula
-            const vnRes = await supabase
-              .from('productividad_asesores')
-              .select('anio_mes, acv_f, meta')
-              .eq('celula', gerenteCelula)
-              .gte('anio_mes', `${currentConventionYear}01`)
-              .lte('anio_mes', `${currentConventionYear}12`);
+            // VN: calcular ACV SP desde productividad_asesores por celula
+            const [vnRes, ejecVnRes, metasVnRes] = await Promise.all([
+              supabase
+                .from('productividad_asesores')
+                .select('anio_mes, acv_f, meta')
+                .eq('celula', gerenteCelula)
+                .gte('anio_mes', `${currentConventionYear}01`)
+                .lte('anio_mes', `${currentConventionYear}12`),
+              supabase
+                .from('ejecucion_asesores')
+                .select('periodo, documento_asesor, ventas_fe, ventas_nube')
+                .gte('periodo', `${currentConventionYear}01`)
+                .lte('periodo', `${currentConventionYear}12`)
+                .limit(2000),
+              supabase
+                .from('metas_asesores')
+                .select('anio_mes, documento_asesor, meta_fe, meta_nube, novedad, celula')
+                .eq('celula', gerenteCelula)
+                .gte('anio_mes', `${currentConventionYear}01`)
+                .lte('anio_mes', `${currentConventionYear}12`)
+                .limit(2000),
+            ]);
             if (!vnRes.error) {
+              // SP from ACV (1% = 1 SP)
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+            }
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP)
+            if (!ejecVnRes.error && !metasVnRes.error) {
+              spTotales += getVnFeNubeConventionTotal(ejecVnRes.data as any[], metasVnRes.data as any[]);
             }
           } else if (gerenteId) {
             // VC: calcular desde ventas SUM-

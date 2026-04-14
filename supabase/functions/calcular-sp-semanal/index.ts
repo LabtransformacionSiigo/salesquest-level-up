@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     });
 
     // ── Batch load kpis_mensuales for VN gerentes (all months this year) ──
-    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes, metasAsesoresRes] = await Promise.all([
+    const [kpisAllRes, productividadAsesoresRes, gerentesFullRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
       supabase.from("kpis_mensuales")
         .select("gerente_id, anio_mes, ventas, meta, acv_f, canal")
         .gte("anio_mes", `${anioActual}01`)
@@ -170,9 +170,13 @@ Deno.serve(async (req) => {
         .select("id, celula, canal")
         .eq("activo", true),
       supabase.from("metas_asesores")
-        .select("nombre_asesor, novedad, canal_direccion, anio_mes")
+        .select("nombre_asesor, novedad, canal_direccion, anio_mes, celula, meta_fe, meta_nube")
         .gte("anio_mes", `${anioActual}01`)
         .lte("anio_mes", `${anioActual}12`),
+      supabase.from("ejecucion_asesores")
+        .select("documento_asesor, canal_direccion, periodo, ventas_fe, ventas_nube")
+        .gte("periodo", `${anioActual}01`)
+        .lte("periodo", `${anioActual}12`),
     ]);
 
     const allKpis = kpisAllRes.data;
@@ -214,6 +218,53 @@ Deno.serve(async (req) => {
       if (g.id && g.celula) celulaPorGerente.set(g.id, g.celula);
     });
 
+    // Build FE/Nube meta by celula+period from metas_asesores (excluding novedad)
+    const feMetaByCelulaPeriod = new Map<string, { metaFe: number; metaNube: number }>();
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : "";
+      if (nov && nov !== "sin novedad") return;
+      const celula = (row.celula || "").trim();
+      const period = String(row.anio_mes || "");
+      if (!celula || !period) return;
+      const key = `${celula}|${period}`;
+      const cur = feMetaByCelulaPeriod.get(key) || { metaFe: 0, metaNube: 0 };
+      cur.metaFe += Number(row.meta_fe) || 0;
+      cur.metaNube += Number(row.meta_nube) || 0;
+      feMetaByCelulaPeriod.set(key, cur);
+    });
+
+    // Build FE/Nube ejecucion by celula+period
+    // First build documento->celula map from metas_asesores
+    const docToCelula = new Map<string, string>();
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      if (row.nombre_asesor && row.celula) {
+        docToCelula.set(String(row.nombre_asesor).trim().toLowerCase(), (row.celula || "").trim());
+      }
+    });
+    // Also map documento_asesor to celula
+    (metasAsesoresRes.data || []).forEach((row: any) => {
+      const doc = row.documento_asesor || row.nombre_asesor;
+      if (doc && row.celula) {
+        // Map by documento for ejecucion lookup
+        const celula = (row.celula || "").trim();
+        if (celula) docToCelula.set(String(doc).trim(), celula);
+      }
+    });
+
+    const feEjecByCelulaPeriod = new Map<string, { ventasFe: number; ventasNube: number }>();
+    (ejecAsesoresRes.data || []).forEach((row: any) => {
+      const doc = String(row.documento_asesor || "").trim();
+      const period = String(row.periodo || "");
+      // Try to find celula for this document
+      const celula = docToCelula.get(doc) || "";
+      if (!celula || !period) return;
+      const key = `${celula}|${period}`;
+      const cur = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
+      cur.ventasFe += Number(row.ventas_fe) || 0;
+      cur.ventasNube += Number(row.ventas_nube) || 0;
+      feEjecByCelulaPeriod.set(key, cur);
+    });
+
     let totalSpOtorgados = 0;
     const errores: string[] = [];
     let procesados = 0;
@@ -252,11 +303,32 @@ Deno.serve(async (req) => {
             const acvVal = normalizeStoredAcv(kpi.acv_f);
             const period = String(kpi.anio_mes || "");
             const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
-            const spFinal = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            
+            // SP from ACV (1% = 1 SP)
+            const spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP)
+            const feNubeKey = `${gerenteCelula}|${period}`;
+            const feData = feMetaByCelulaPeriod.get(feNubeKey) || { metaFe: 0, metaNube: 0 };
+            const feEjec = feEjecByCelulaPeriod.get(feNubeKey) || { ventasFe: 0, ventasNube: 0 };
+            
+            let spFe = 0;
+            if (feData.metaFe > 0 && feEjec.ventasFe > 0) {
+              spFe = Math.round((feEjec.ventasFe / feData.metaFe) * 100);
+            }
+            let spNube = 0;
+            if (feData.metaNube > 0 && feEjec.ventasNube > 0) {
+              spNube = Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2;
+            }
+            
+            const spFinal = spAcv + spFe + spNube;
             if (spFinal <= 0) continue;
+            
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-              periodo: String(kpi.anio_mes), detalle: `Cumplimiento ACV: ${spFinal}% · ${canal} · ${kpi.anio_mes}`, tipo_sp: "convencion",
+              periodo: String(kpi.anio_mes),
+              detalle: `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canal} · ${kpi.anio_mes}`,
+              tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
             resumenCanal[canal].sp += spFinal;
