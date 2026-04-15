@@ -476,12 +476,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
               ejecucion = {
-                ventas_fe: 0,
-                ventas_nube: 0,
-                ventas_total: ventasTotal,
+                ventas_fe: teamVentasFe || 0,
+                ventas_nube: teamVentasNube || 0,
+                ventas_total: teamVentasTotal || ventasTotal,
                 acv_total: acvMes,
                 cant_recomendados: Number(kpiData.cant_recomendados) || 0,
-                productividad: metaFallback > 0 ? Math.round((ventasTotal / metaFallback) * 100) : 0,
+                productividad: metaFallback > 0 ? Math.round((teamVentasTotal || ventasTotal) / metaFallback * 100) : 0,
               };
               metaAsesor = {
                 meta_fe: metaFe,
