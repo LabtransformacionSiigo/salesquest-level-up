@@ -280,9 +280,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 11 */
           supabase.from('gerentes').select('id, sp_canje'),
-          /* 12 – ejecucion_asesores for VN asesor role */
-          isVN && profile.role === 'asesor'
-            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(1000)
+          /* 12 – ejecucion_asesores for VN (gerente OR asesor) */
+          isVN
+            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(2000)
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
@@ -296,9 +296,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: fetch by canal_direccion to get novedad + nombre_asesor */
-          isVN && profile.role !== 'asesor'
-            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula')
+          /* 15 – metas_asesores for VN gerente: fetch by gerente name for team aggregation */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
                 .eq('anio_mes', mesActual)
                 .limit(2000)
             : Promise.resolve({ data: [] }),
@@ -310,6 +310,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .lte('anio_mes', `${anioActual}12`)
                 .order('anio_mes', { ascending: false })
             : Promise.resolve({ data: [] }),
+          /* 17 – metas_gerentes for VN gerente: meta_total_acv */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase.from('metas_gerentes' as any).select('meta_total_acv, meta_total_und, fe, nube, celula')
+                .eq('celula', profile.celula)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
         ];
 
         const results = await Promise.all(queries);
