@@ -500,6 +500,7 @@ export type Database = {
           celula: string | null
           created_at: string | null
           documento_asesor: string
+          gerente: string | null
           id: string
           meta_fe: number | null
           meta_nube: number | null
@@ -514,6 +515,7 @@ export type Database = {
           celula?: string | null
           created_at?: string | null
           documento_asesor: string
+          gerente?: string | null
           id?: string
           meta_fe?: number | null
           meta_nube?: number | null
@@ -528,6 +530,7 @@ export type Database = {
           celula?: string | null
           created_at?: string | null
           documento_asesor?: string
+          gerente?: string | null
           id?: string
           meta_fe?: number | null
           meta_nube?: number | null

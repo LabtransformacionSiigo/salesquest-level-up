@@ -280,9 +280,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 11 */
           supabase.from('gerentes').select('id, sp_canje'),
-          /* 12 – ejecucion_asesores for VN asesor role */
-          isVN && profile.role === 'asesor'
-            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(1000)
+          /* 12 – ejecucion_asesores for VN (gerente OR asesor) */
+          isVN
+            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(2000)
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
@@ -296,9 +296,9 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: fetch by canal_direccion to get novedad + nombre_asesor */
-          isVN && profile.role !== 'asesor'
-            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula')
+          /* 15 – metas_asesores for VN gerente: fetch by gerente name for team aggregation */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
                 .eq('anio_mes', mesActual)
                 .limit(2000)
             : Promise.resolve({ data: [] }),
@@ -310,12 +310,18 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 .lte('anio_mes', `${anioActual}12`)
                 .order('anio_mes', { ascending: false })
             : Promise.resolve({ data: [] }),
+          /* 17 – metas_gerentes for VN gerente: meta_total_acv */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase.from('metas_gerentes' as any).select('meta_total_acv, meta_total_und, fe, nube, celula')
+                .eq('celula', profile.celula)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -362,35 +368,77 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           const vnMetasAsesores = vnMetasRes?.data || [];
           vnCelulaRows = celulaRows;
 
+          // Build team asesor names from productividad_asesores (celula)
+          const teamAsesorNames = new Set<string>();
+          celulaRows.filter((r: any) => r.anio_mes === mesActual).forEach((r: any) => {
+            if (r.asesor) teamAsesorNames.add(String(r.asesor).trim().toLowerCase());
+          });
+
+          // Filter metas_asesores to only this gerente's team
+          // Strategy 1: match by gerente name (new field)
+          // Strategy 2: match by nombre_asesor matching team names from productividad
+          // Strategy 3: match by ejecucion_asesores names matching team names
+          const gerenteNombre = (profile.nombre || '').trim().toLowerCase();
+          let teamMetas = vnMetasAsesores.filter((r: any) => {
+            const g = r.gerente ? String(r.gerente).trim().toLowerCase() : '';
+            return g && g === gerenteNombre;
+          });
+
+          // Fallback: if gerente field not populated, try matching by nombre_asesor in team
+          if (teamMetas.length === 0 && teamAsesorNames.size > 0) {
+            teamMetas = vnMetasAsesores.filter((r: any) => {
+              const nombre = r.nombre_asesor ? String(r.nombre_asesor).trim().toLowerCase() : '';
+              return nombre && teamAsesorNames.has(nombre);
+            });
+          }
+
           // Build set of asesor names WITH novedad (to exclude from meta calculation)
           const asesoresConNovedad = new Set<string>();
-          vnMetasAsesores.forEach((r: any) => {
+          teamMetas.forEach((r: any) => {
             const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
-            if (nov && nov !== 'sin novedad' && r.nombre_asesor) {
-              asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
+            if (nov && nov !== 'sin novedad') {
+              if (r.nombre_asesor) asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
+              if (r.documento_asesor) asesoresConNovedad.add(String(r.documento_asesor).trim().toLowerCase());
             }
           });
           vnAsesoresConNovedad = asesoresConNovedad;
 
-          // Calculate team meta units: sum meta_total of asesores WITHOUT novedad
-          const asesoresSinNovedad = vnMetasAsesores.filter((r: any) => {
+          // Calculate team metas from filtered team records (excluding novedad)
+          const teamMetasSinNovedad = teamMetas.filter((r: any) => {
             const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
             return !nov || nov === 'sin novedad';
           });
-          const metaEquipoUnidades = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
-          const metaFe = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
-          const metaNube = asesoresSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+          const metaFe = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+          const metaNube = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+          const metaEquipoUnidades = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
 
-          // Calculate team ACV meta from productividad_asesores.meta (current month, same celula, excluding novedad)
-          const currentMonthProductividad = celulaRows.filter((r: any) => {
-            const period = String(r.anio_mes || '');
-            const asesorName = (r.asesor || '').trim().toLowerCase();
-            return period === mesActual && !asesoresConNovedad.has(asesorName);
-          });
-          const metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+          // Meta ACV: prefer metas_gerentes.meta_total_acv, fallback to productividad_asesores.meta
+          const metaGerenteData = metasGerentesRes?.data;
+          let metaAcvEquipo = 0;
+          if (metaGerenteData && Number(metaGerenteData.meta_total_acv) > 0) {
+            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
+          } else {
+            // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
+            const currentMonthProductividad = celulaRows.filter((r: any) => {
+              const period = String(r.anio_mes || '');
+              const asesorName = (r.asesor || '').trim().toLowerCase();
+              return period === mesActual && !asesoresConNovedad.has(asesorName);
+            });
+            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+          }
           vnMetaAcvActual = metaAcvEquipo;
 
-          // Aggregate current month from celula productividad (all asesores for display, filtered for meta)
+          // Aggregate ejecucion from ejecucion_asesores matched by team names
+          const allEjecRows = ejecRes?.data || [];
+          const teamEjecRows = allEjecRows.filter((e: any) => {
+            const nombre = (e.documento_asesor || '').trim().toLowerCase();
+            return teamAsesorNames.has(nombre);
+          });
+          const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          const teamVentasNube = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+          const teamVentasTotal = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+
+          // Aggregate current month from celula productividad
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
 
           if (currentMonthRows.length > 0) {
@@ -398,23 +446,23 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             const totalMetaUnidades = metaEquipoUnidades || currentMonthRows.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
             const totalAcv = currentMonthRows.reduce((s: number, r: any) => s + normalizeStoredAcv(r.acv_f), 0);
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
-            const totalSC = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.sc_creados) || 0), 0);
 
             acvMes = totalAcv;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((totalAcv / metaAcvEquipo) * 100) : 0;
 
+            // Use ejecucion_asesores for FE/Nube, productividad for totals
             ejecucion = {
-              ventas_fe: 0,
-              ventas_nube: 0,
-              ventas_total: totalVentas,
+              ventas_fe: teamVentasFe || 0,
+              ventas_nube: teamVentasNube || 0,
+              ventas_total: teamVentasTotal || totalVentas,
               acv_total: totalAcv,
               cant_recomendados: totalReferidos,
-              productividad: totalMetaUnidades > 0 ? Math.round((totalVentas / totalMetaUnidades) * 100) : 0,
+              productividad: totalMetaUnidades > 0 ? Math.round((teamVentasTotal || totalVentas) / totalMetaUnidades * 100) : 0,
             };
             metaAsesor = {
               meta_fe: metaFe,
               meta_nube: metaNube,
-              meta_total: totalMetaUnidades,
+              meta_total: metaEquipoUnidades || totalMetaUnidades,
               meta_acv: metaAcvEquipo,
             };
             vcCumplimiento = metaAcvEquipo > 0 ? { acv: totalAcv, meta: metaAcvEquipo, pct: pctCumplimiento } : null;
@@ -428,12 +476,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
               const ventasTotal = Number(kpiData.ventas) || 0;
               ejecucion = {
-                ventas_fe: 0,
-                ventas_nube: 0,
-                ventas_total: ventasTotal,
+                ventas_fe: teamVentasFe || 0,
+                ventas_nube: teamVentasNube || 0,
+                ventas_total: teamVentasTotal || ventasTotal,
                 acv_total: acvMes,
                 cant_recomendados: Number(kpiData.cant_recomendados) || 0,
-                productividad: metaFallback > 0 ? Math.round((ventasTotal / metaFallback) * 100) : 0,
+                productividad: metaFallback > 0 ? Math.round((teamVentasTotal || ventasTotal) / metaFallback * 100) : 0,
               };
               metaAsesor = {
                 meta_fe: metaFe,
