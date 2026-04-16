@@ -244,6 +244,10 @@ const Rankings = () => {
           const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
+          const mFe = metaFeByAdvisor.get(key) || 0;
+          const mNube = metaNubeByAdvisor.get(key) || 0;
+          const eFe = ejecFeByAdvisor.get(key) || 0;
+          const eNube = ejecNubeByAdvisor.get(key) || 0;
           entries.push({
             id: key,
             nombre: originalName,
@@ -255,6 +259,8 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
+            pct_fe: mFe > 0 ? Math.round((eFe / mFe) * 100) : 0,
+            pct_nube: mNube > 0 ? Math.round((eNube / mNube) * 100) : 0,
             ventas_count: agg.ventas,
             posicion: 0,
             canal: profile.canal,
