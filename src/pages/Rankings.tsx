@@ -291,11 +291,27 @@ const Rankings = () => {
           }
         });
         const metaUnidadesByCelula = new Map<string, number>();
+        const metaFeByCelula = new Map<string, number>();
+        const metaNubeByCelula = new Map<string, number>();
+        const docToCelula = new Map<string, string>();
         (metasAsesoresRes.data || []).forEach((row: any) => {
           const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
           const celula = String(row.celula || '').trim();
+          if (row.documento_asesor && celula) docToCelula.set(String(row.documento_asesor).trim().toLowerCase(), celula);
           if (!celula || (nov && nov !== 'sin novedad')) return;
           metaUnidadesByCelula.set(celula, (metaUnidadesByCelula.get(celula) || 0) + (Number(row.meta_total) || 0));
+          metaFeByCelula.set(celula, (metaFeByCelula.get(celula) || 0) + (Number(row.meta_fe) || 0));
+          metaNubeByCelula.set(celula, (metaNubeByCelula.get(celula) || 0) + (Number(row.meta_nube) || 0));
+        });
+        // Build ejecucion FE/Nube by celula
+        const ejecFeByCelula = new Map<string, number>();
+        const ejecNubeByCelula = new Map<string, number>();
+        (ejecAsesoresGerenteRes.data || []).forEach((row: any) => {
+          const doc = String(row.documento_asesor || '').trim().toLowerCase();
+          const celula = docToCelula.get(doc);
+          if (!celula) return;
+          ejecFeByCelula.set(celula, (ejecFeByCelula.get(celula) || 0) + (Number(row.ventas_fe) || 0));
+          ejecNubeByCelula.set(celula, (ejecNubeByCelula.get(celula) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
