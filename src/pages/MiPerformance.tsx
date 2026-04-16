@@ -336,26 +336,22 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             percentage={pctTotal}
             formatValue={(value) => `${value.toLocaleString()} uds`}
           />
-          {metaNube > 0 && (
-            <ProgressMetricRow
-              icon="cloud"
-              label="Nube"
-              currentValue={ventasNube}
-              goalValue={metaNube}
-              percentage={pctNube}
-              formatValue={(value) => `${value.toLocaleString()} uds`}
-            />
-          )}
-          {metaFe > 0 && (
-            <ProgressMetricRow
-              icon="receipt_long"
-              label="FE"
-              currentValue={ventasFe}
-              goalValue={metaFe}
-              percentage={pctFe}
-              formatValue={(value) => `${value.toLocaleString()} uds`}
-            />
-          )}
+          <ProgressMetricRow
+            icon="receipt_long"
+            label="FE"
+            currentValue={ventasFe}
+            goalValue={metaFe}
+            percentage={pctFe}
+            formatValue={(value) => `${value.toLocaleString()} uds`}
+          />
+          <ProgressMetricRow
+            icon="cloud"
+            label="Nube"
+            currentValue={ventasNube}
+            goalValue={metaNube}
+            percentage={pctNube}
+            formatValue={(value) => `${value.toLocaleString()} uds`}
+          />
           <ProgressMetricRow
             icon="trending_up"
             label="ACV+"
