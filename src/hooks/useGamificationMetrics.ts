@@ -23,6 +23,15 @@ interface MonthlyCumplimiento {
   acv: number;
   meta: number;
   pct: number;
+  ventas_fe?: number;
+  ventas_nube?: number;
+  ventas_total?: number;
+  meta_fe?: number;
+  meta_nube?: number;
+  meta_total?: number;
+  pct_fe?: number;
+  pct_nube?: number;
+  pct_total?: number;
 }
 
 export interface EjecucionAsesor {
