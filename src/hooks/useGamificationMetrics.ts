@@ -349,6 +349,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let vnMetaAcvActual = 0;
         let vnAsesoresConNovedad = new Set<string>();
         let vnCelulaRows: any[] = [];
+        let vnTeamEjecAll: any[] = [];
+        let vnCurrentMetaFe = 0;
+        let vnCurrentMetaNube = 0;
+        let vnCurrentMetaTotal = 0;
 
         if (isVC) {
           const acvRow = acvRows[0];
