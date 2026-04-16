@@ -118,6 +118,14 @@ function getISOWeekStartDate(week: number, year: number): Date {
 
 const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+const normalizeComparableText = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
 const normalizeVnMetaAcv = (value: number | null | undefined) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
@@ -310,9 +318,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 15 – metas_asesores for VN gerente: fetch by gerente name for team aggregation */
           isVN && profile.role !== 'asesor' && profile.nombre
-            ? supabase.from('metas_asesores' as any).select('documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
-                .eq('anio_mes', mesActual)
-                .limit(2000)
+            ? supabase.from('metas_asesores' as any).select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .limit(5000)
             : Promise.resolve({ data: [] }),
           /* 16 – kpis_mensuales history for VN gerente (all months this year) */
           isVN
@@ -353,6 +362,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
         let vnCurrentMetaTotal = 0;
+        let getMetaContextForPeriod = (_period: string) => ({
+          rows: [] as any[],
+          asesoresConNovedad: new Set<string>(),
+          metaFe: 0,
+          metaNube: 0,
+          metaTotal: 0,
+        });
 
         if (isVC) {
           const acvRow = acvRows[0];
@@ -386,47 +402,78 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
 
           // Build team asesor names from productividad_asesores (celula)
           const teamAsesorNames = new Set<string>();
-          celulaRows.filter((r: any) => r.anio_mes === mesActual).forEach((r: any) => {
+          celulaRows.forEach((r: any) => {
             if (r.asesor) teamAsesorNames.add(String(r.asesor).trim().toLowerCase());
           });
 
-          // Filter metas_asesores to only this gerente's team
-          // Strategy 1: match by gerente name (new field)
-          // Strategy 2: match by nombre_asesor matching team names from productividad
-          // Strategy 3: match by ejecucion_asesores names matching team names
-          const gerenteNombre = (profile.nombre || '').trim().toLowerCase();
-          let teamMetas = vnMetasAsesores.filter((r: any) => {
-            const g = r.gerente ? String(r.gerente).trim().toLowerCase() : '';
-            return g && g === gerenteNombre;
-          });
+          const gerenteNombre = normalizeComparableText(profile.nombre);
+          const celulaGerente = normalizeComparableText(profile.celula);
 
-          // Fallback: if gerente field not populated, try matching by nombre_asesor in team
-          if (teamMetas.length === 0 && teamAsesorNames.size > 0) {
-            teamMetas = vnMetasAsesores.filter((r: any) => {
-              const nombre = r.nombre_asesor ? String(r.nombre_asesor).trim().toLowerCase() : '';
-              return nombre && teamAsesorNames.has(nombre);
-            });
-          }
+          const getTeamMetaRowsForPeriod = (period: string) => {
+            const periodRows = vnMetasAsesores.filter((row: any) => String(row.anio_mes || '') === period);
+            const rowsByCelula = celulaGerente
+              ? periodRows.filter((row: any) => normalizeComparableText(row.celula) === celulaGerente)
+              : [];
 
-          // Build set of asesor names WITH novedad (to exclude from meta calculation)
-          const asesoresConNovedad = new Set<string>();
-          teamMetas.forEach((r: any) => {
-            const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
-            if (nov && nov !== 'sin novedad') {
-              if (r.nombre_asesor) asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
-              if (r.documento_asesor) asesoresConNovedad.add(String(r.documento_asesor).trim().toLowerCase());
+            const gerenteNamesFromCelula = new Set(
+              rowsByCelula
+                .map((row: any) => normalizeComparableText(row.gerente))
+                .filter(Boolean)
+            );
+
+            if (gerenteNamesFromCelula.size > 0) {
+              return periodRows.filter((row: any) => gerenteNamesFromCelula.has(normalizeComparableText(row.gerente)));
             }
-          });
-          vnAsesoresConNovedad = asesoresConNovedad;
 
-          // Calculate team metas from filtered team records (excluding novedad)
-          const teamMetasSinNovedad = teamMetas.filter((r: any) => {
-            const nov = r.novedad ? String(r.novedad).trim().toLowerCase() : '';
-            return !nov || nov === 'sin novedad';
-          });
-          const metaFe = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
-          const metaNube = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
-          const metaEquipoUnidades = teamMetasSinNovedad.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+            if (rowsByCelula.length > 0) {
+              return rowsByCelula;
+            }
+
+            if (gerenteNombre) {
+              const rowsByGerente = periodRows.filter((row: any) => normalizeComparableText(row.gerente) === gerenteNombre);
+              if (rowsByGerente.length > 0) return rowsByGerente;
+            }
+
+            if (teamAsesorNames.size > 0) {
+              return periodRows.filter((row: any) => teamAsesorNames.has(normalizeComparableText(row.nombre_asesor)));
+            }
+
+            return [];
+          };
+
+          getMetaContextForPeriod = (period: string) => {
+            const rows = getTeamMetaRowsForPeriod(period);
+            const asesoresConNovedad = new Set<string>();
+
+            rows.forEach((row: any) => {
+              const novedad = normalizeComparableText(row.novedad);
+              if (novedad && novedad !== 'sin novedad') {
+                const nombre = normalizeComparableText(row.nombre_asesor);
+                const documento = normalizeComparableText(row.documento_asesor);
+                if (nombre) asesoresConNovedad.add(nombre);
+                if (documento) asesoresConNovedad.add(documento);
+              }
+            });
+
+            const rowsSinNovedad = rows.filter((row: any) => {
+              const novedad = normalizeComparableText(row.novedad);
+              return !novedad || novedad === 'sin novedad';
+            });
+
+            return {
+              rows,
+              asesoresConNovedad,
+              metaFe: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_fe) || 0), 0),
+              metaNube: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_nube) || 0), 0),
+              metaTotal: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_total) || 0), 0),
+            };
+          };
+
+          const metaContextActual = getMetaContextForPeriod(mesActual);
+          const metaFe = metaContextActual.metaFe;
+          const metaNube = metaContextActual.metaNube;
+          const metaEquipoUnidades = metaContextActual.metaTotal;
+          vnAsesoresConNovedad = metaContextActual.asesoresConNovedad;
 
           // Meta ACV: prefer metas_gerentes.meta_total_acv, fallback to productividad_asesores.meta
           const metaGerenteData = metasGerentesRes?.data;
@@ -435,10 +482,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
-            const currentMonthProductividad = celulaRows.filter((r: any) => {
+             const currentMonthProductividad = celulaRows.filter((r: any) => {
               const period = String(r.anio_mes || '');
-              const asesorName = (r.asesor || '').trim().toLowerCase();
-              return period === mesActual && !asesoresConNovedad.has(asesorName);
+               const asesorName = normalizeComparableText(r.asesor);
+               return period === mesActual && !metaContextActual.asesoresConNovedad.has(asesorName);
             });
             metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
           }
@@ -582,7 +629,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // Calculate ACV meta from productividad_asesores.meta by month
           const buildMonthMetaAcv = (period: string) =>
             celulaRows
-              .filter((r: any) => r.anio_mes === period && !vnAsesoresConNovedad.has(String(r.asesor || '').trim().toLowerCase()))
+              .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
               .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
 
           // Aggregate FE/Nube/Total per month from team ejecucion rows
@@ -598,10 +645,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
 
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
             const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
-            // Only the current month has metas; for other months use 0 (no metas history)
-            const mFe = period === mesActual ? vnCurrentMetaFe : 0;
-            const mNube = period === mesActual ? vnCurrentMetaNube : 0;
-            const mTotal = period === mesActual ? vnCurrentMetaTotal : 0;
+            const metaContext = getMetaContextForPeriod(period);
+            const mFe = metaContext.metaFe;
+            const mNube = metaContext.metaNube;
+            const mTotal = metaContext.metaTotal;
             return {
               ...base,
               ventas_fe: ej.fe,
