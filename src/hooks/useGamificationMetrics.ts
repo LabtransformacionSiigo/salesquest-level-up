@@ -362,6 +362,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
         let vnCurrentMetaTotal = 0;
+        let getMetaContextForPeriod = (_period: string) => ({
+          rows: [] as any[],
+          asesoresConNovedad: new Set<string>(),
+          metaFe: 0,
+          metaNube: 0,
+          metaTotal: 0,
+        });
 
         if (isVC) {
           const acvRow = acvRows[0];
@@ -434,7 +441,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             return [];
           };
 
-          const getMetaContextForPeriod = (period: string) => {
+          getMetaContextForPeriod = (period: string) => {
             const rows = getTeamMetaRowsForPeriod(period);
             const asesoresConNovedad = new Set<string>();
 
