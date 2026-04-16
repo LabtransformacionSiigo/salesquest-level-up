@@ -524,7 +524,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               .limit(2000);
 
             const matchingEjec = (ejecRes.data || []).find(
-              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
+              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion && String(e.periodo) === mesActual
             );
             const matchingMeta = (metasRes.data || []).find(
               (m: any) => m.documento_asesor === asesorData.documento && m.canal_direccion === asesorData.canal_direccion
