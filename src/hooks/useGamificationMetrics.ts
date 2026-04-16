@@ -558,7 +558,14 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_total: Number(matchingMeta.meta_total) || 0,
                 meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta),
               };
+              vnCurrentMetaFe = Number(matchingMeta.meta_fe) || 0;
+              vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
+              vnCurrentMetaTotal = Number(matchingMeta.meta_total) || 0;
             }
+            // Populate per-month ejec rows for this advisor (history)
+            vnTeamEjecAll = (ejecRes.data || []).filter(
+              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
+            );
 
             const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
