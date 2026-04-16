@@ -675,6 +675,8 @@ const Rankings = () => {
                       {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
                            <th className="text-right px-4 py-3">% Cumpl. ACV</th>
+                           <th className="text-right px-4 py-3">% FE</th>
+                           <th className="text-right px-4 py-3">% Nube</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">ACV+</th>
@@ -734,6 +736,8 @@ const Rankings = () => {
                         {(isGerentesVNTab || (isVN && isComercialTab)) && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_fe != null ? `${g.pct_fe}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_nube != null ? `${g.pct_nube}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
