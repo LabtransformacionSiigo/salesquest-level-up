@@ -76,13 +76,13 @@ ${limit}`;
   metas_gerentes: {
     label: "Metas Gerentes (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE m LIKE '%2026%' OR m LIKE '%26' ${limit}`,
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
   },
   // ── NEW: Metas Asesores ──
   metas_asesores_sync: {
     label: "Metas Asesores (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total, novedad FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE m_de_antiguedad LIKE '%2026%' OR m_de_antiguedad LIKE '%26' ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total, novedad FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE documento_asesor IS NOT NULL AND TRIM(documento_asesor) <> '' AND nombre_asesor IS NOT NULL AND TRIM(nombre_asesor) <> '' AND celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
