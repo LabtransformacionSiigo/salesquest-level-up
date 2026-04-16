@@ -138,7 +138,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>📦 Ventas FE</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_fe} / {metaAsesor.meta_fe}</span>
+                <span className="text-foreground font-scoreboard">{ejecucion.ventas_fe} / {metaAsesor.meta_fe} · <span className="text-primary">{Math.round((ejecucion.ventas_fe / metaAsesor.meta_fe) * 100)}%</span></span>
               </div>
               <Progress value={Math.min(100, (ejecucion.ventas_fe / metaAsesor.meta_fe) * 100)} className="h-3" />
             </div>
@@ -149,7 +149,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>☁️ Ventas Nube</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_nube} / {metaAsesor.meta_nube}</span>
+                <span className="text-foreground font-scoreboard">{ejecucion.ventas_nube} / {metaAsesor.meta_nube} · <span className="text-primary">{Math.round((ejecucion.ventas_nube / metaAsesor.meta_nube) * 100)}%</span></span>
               </div>
               <Progress value={Math.min(100, (ejecucion.ventas_nube / metaAsesor.meta_nube) * 100)} className="h-3" />
             </div>
@@ -159,7 +159,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div>
               <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>📊 Total Unidades</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_total} / {metaAsesor.meta_total}</span>
+                <span className="text-foreground font-scoreboard">{ejecucion.ventas_total} / {metaAsesor.meta_total} · <span className="text-primary">{metaAsesor.meta_total > 0 ? Math.round((ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0}%</span></span>
               </div>
               <Progress value={metaAsesor.meta_total > 0 ? Math.min(100, (ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0} className="h-3" />
             </div>
