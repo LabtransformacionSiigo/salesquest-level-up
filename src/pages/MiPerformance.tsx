@@ -358,46 +358,60 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
   );
 };
 
-const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | null }) => (
-  <>
-    <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta ACV por mes, con % de cumplimiento." />
-    <motion.div className="bg-card border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
-      <table className="w-full">
-        <thead>
-          <tr className="bg-primary text-primary-foreground text-[11px] uppercase tracking-wider font-heading">
-            <th className="text-left px-4 py-3">Mes</th>
-            <th className="text-right px-4 py-3">ACV+</th>
-            <th className="text-right px-4 py-3">Meta ACV</th>
-            <th className="text-right px-4 py-3">% Cumpl.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((m, i) => (
-            <motion.tr
-              key={m.mes}
-              className="border-b border-border hover:bg-primary/5 transition-colors"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
-            >
-              <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
-              <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
-              <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(m.meta)}</td>
-              <td className="px-4 py-3 text-right">
-                <span className={cn(
-                  "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
-                  m.pct >= 100 ? "bg-accent/10 text-accent" : m.pct >= 70 ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                )}>
-                  {m.pct}%
-                </span>
-              </td>
-            </motion.tr>
-          ))}
-        </tbody>
-      </table>
-    </motion.div>
-  </>
-);
+const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | null }) => {
+  const pctClass = (p: number) =>
+    p >= 100 ? 'bg-accent/10 text-accent' : p >= 70 ? 'bg-primary/10 text-primary' : p > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground';
+  const fmtPct = (p?: number, hasMeta?: boolean) => (hasMeta && p != null ? `${p}%` : '—');
+  return (
+    <>
+      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento (cuando hay meta)." />
+      <motion.div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-smooth-sm" variants={fadeUpItem}>
+        <table className="w-full min-w-[760px]">
+          <thead>
+            <tr className="bg-primary text-primary-foreground text-[11px] uppercase tracking-wider font-heading">
+              <th className="text-left px-4 py-3">Mes</th>
+              <th className="text-right px-4 py-3">Unidades</th>
+              <th className="text-right px-4 py-3">% Uds</th>
+              <th className="text-right px-4 py-3">FE</th>
+              <th className="text-right px-4 py-3">% FE</th>
+              <th className="text-right px-4 py-3">Nube</th>
+              <th className="text-right px-4 py-3">% Nube</th>
+              <th className="text-right px-4 py-3">ACV+</th>
+              <th className="text-right px-4 py-3">% ACV</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((m, i) => {
+              const hasMetaTotal = (m.meta_total ?? 0) > 0;
+              const hasMetaFe = (m.meta_fe ?? 0) > 0;
+              const hasMetaNube = (m.meta_nube ?? 0) > 0;
+              const hasMetaAcv = (m.meta ?? 0) > 0;
+              return (
+                <motion.tr
+                  key={m.mes}
+                  className="border-b border-border hover:bg-primary/5 transition-colors"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
+                >
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
+                  <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_total ?? 0}{hasMetaTotal ? ` / ${m.meta_total}` : ''}</td>
+                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_total ?? 0))}>{fmtPct(m.pct_total, hasMetaTotal)}</span></td>
+                  <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_fe ?? 0}{hasMetaFe ? ` / ${m.meta_fe}` : ''}</td>
+                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_fe ?? 0))}>{fmtPct(m.pct_fe, hasMetaFe)}</span></td>
+                  <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_nube ?? 0}{hasMetaNube ? ` / ${m.meta_nube}` : ''}</td>
+                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_nube ?? 0))}>{fmtPct(m.pct_nube, hasMetaNube)}</span></td>
+                  <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
+                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct ?? 0))}>{fmtPct(m.pct, hasMetaAcv)}</span></td>
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </motion.div>
+    </>
+  );
+};
 
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>

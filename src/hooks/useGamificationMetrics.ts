@@ -23,6 +23,15 @@ interface MonthlyCumplimiento {
   acv: number;
   meta: number;
   pct: number;
+  ventas_fe?: number;
+  ventas_nube?: number;
+  ventas_total?: number;
+  meta_fe?: number;
+  meta_nube?: number;
+  meta_total?: number;
+  pct_fe?: number;
+  pct_nube?: number;
+  pct_total?: number;
 }
 
 export interface EjecucionAsesor {
@@ -280,9 +289,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 11 */
           supabase.from('gerentes').select('id, sp_canje'),
-          /* 12 – ejecucion_asesores for VN (gerente OR asesor) */
+          /* 12 – ejecucion_asesores for VN (gerente OR asesor) - ALL months this year */
           isVN
-            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(2000)
+            ? supabase.from('ejecucion_asesores').select('*')
+                .gte('periodo', `${anioActual}01`)
+                .lte('periodo', `${anioActual}12`)
+                .limit(10000)
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
@@ -337,6 +349,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
         let vnMetaAcvActual = 0;
         let vnAsesoresConNovedad = new Set<string>();
         let vnCelulaRows: any[] = [];
+        let vnTeamEjecAll: any[] = [];
+        let vnCurrentMetaFe = 0;
+        let vnCurrentMetaNube = 0;
+        let vnCurrentMetaTotal = 0;
 
         if (isVC) {
           const acvRow = acvRows[0];
@@ -428,15 +444,20 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           }
           vnMetaAcvActual = metaAcvEquipo;
 
-          // Aggregate ejecucion from ejecucion_asesores matched by team names
+          // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
           const allEjecRows = ejecRes?.data || [];
-          const teamEjecRows = allEjecRows.filter((e: any) => {
+          const teamEjecRowsAll = allEjecRows.filter((e: any) => {
             const nombre = (e.documento_asesor || '').trim().toLowerCase();
             return teamAsesorNames.has(nombre);
           });
+          const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
           const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
           const teamVentasNube = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
           const teamVentasTotal = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+          vnTeamEjecAll = teamEjecRowsAll;
+          vnCurrentMetaFe = metaFe;
+          vnCurrentMetaNube = metaNube;
+          vnCurrentMetaTotal = metaEquipoUnidades;
 
           // Aggregate current month from celula productividad
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
@@ -511,7 +532,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               .limit(2000);
 
             const matchingEjec = (ejecRes.data || []).find(
-              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
+              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion && String(e.periodo) === mesActual
             );
             const matchingMeta = (metasRes.data || []).find(
               (m: any) => m.documento_asesor === asesorData.documento && m.canal_direccion === asesorData.canal_direccion
@@ -537,7 +558,14 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
                 meta_total: Number(matchingMeta.meta_total) || 0,
                 meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta),
               };
+              vnCurrentMetaFe = Number(matchingMeta.meta_fe) || 0;
+              vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
+              vnCurrentMetaTotal = Number(matchingMeta.meta_total) || 0;
             }
+            // Populate per-month ejec rows for this advisor (history)
+            vnTeamEjecAll = (ejecRes.data || []).filter(
+              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
+            );
 
             const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
@@ -557,6 +585,37 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               .filter((r: any) => r.anio_mes === period && !vnAsesoresConNovedad.has(String(r.asesor || '').trim().toLowerCase()))
               .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
 
+          // Aggregate FE/Nube/Total per month from team ejecucion rows
+          const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
+          vnTeamEjecAll.forEach((e: any) => {
+            const period = String(e.periodo || '');
+            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            cur.fe += Number(e.ventas_fe) || 0;
+            cur.nube += Number(e.ventas_nube) || 0;
+            cur.total += Number(e.ventas_total) || 0;
+            ejecByPeriod.set(period, cur);
+          });
+
+          const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
+            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            // Only the current month has metas; for other months use 0 (no metas history)
+            const mFe = period === mesActual ? vnCurrentMetaFe : 0;
+            const mNube = period === mesActual ? vnCurrentMetaNube : 0;
+            const mTotal = period === mesActual ? vnCurrentMetaTotal : 0;
+            return {
+              ...base,
+              ventas_fe: ej.fe,
+              ventas_nube: ej.nube,
+              ventas_total: ej.total,
+              meta_fe: mFe,
+              meta_nube: mNube,
+              meta_total: mTotal,
+              pct_fe: mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0,
+              pct_nube: mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0,
+              pct_total: mTotal > 0 ? Math.round((ej.total / mTotal) * 100) : 0,
+            };
+          };
+
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
             const monthAgg = new Map<string, { ventas: number; meta: number; acv: number; referidos: number }>();
@@ -565,33 +624,41 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               const cur = monthAgg.get(period) || { ventas: 0, meta: 0, acv: 0, referidos: 0 };
               cur.ventas += Number(row.ventas) || 0;
               cur.meta += Number(row.meta) || 0;
-                cur.acv += normalizeStoredAcv(row.acv_f);
+              cur.acv += normalizeStoredAcv(row.acv_f);
               cur.referidos += Number(row.cant_recomendados) || 0;
               monthAgg.set(period, cur);
             });
+            // Include any periods present in ejecucion but missing from productividad
+            ejecByPeriod.forEach((_, period) => {
+              if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
+            });
             vnMonthlyCumpl = [...monthAgg.entries()]
               .sort((a, b) => b[0].localeCompare(a[0]))
-              .map(([period, { ventas, meta, acv, referidos }]) => {
+              .map(([period, { ventas, meta, acv }]) => {
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
                 const monthMetaAcv = buildMonthMetaAcv(period);
                 const pctVal = monthMetaAcv > 0 ? Math.round((acv / monthMetaAcv) * 100) : 0;
-                return { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal };
+                return enrich(period, { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal });
               });
           } else {
-            // Fallback to kpis_mensuales
+            // Fallback to kpis_mensuales (also enrich with team ejec data)
             const vnHistoryRows = vnHistoryRes?.data || [];
-            vnMonthlyCumpl = vnHistoryRows.map((row: any) => {
-              const period = String(row.anio_mes || '');
-              const monthNum = parseInt(period.slice(4), 10);
-              const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-              const ventas = Number(row.ventas) || 0;
-              const meta = Number(row.meta) || 0;
-              const acvF = normalizeStoredAcv(row.acv_f);
-              const monthMetaAcv = buildMonthMetaAcv(period);
-              const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
-              return { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal };
-            });
+            const periodSet = new Set<string>(vnHistoryRows.map((r: any) => String(r.anio_mes || '')));
+            ejecByPeriod.forEach((_, period) => periodSet.add(period));
+            vnMonthlyCumpl = [...periodSet]
+              .sort((a, b) => b.localeCompare(a))
+              .map((period) => {
+                const row = vnHistoryRows.find((r: any) => String(r.anio_mes) === period) || {};
+                const monthNum = parseInt(period.slice(4), 10);
+                const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
+                const ventas = Number(row.ventas) || 0;
+                const meta = Number(row.meta) || 0;
+                const acvF = normalizeStoredAcv(row.acv_f);
+                const monthMetaAcv = buildMonthMetaAcv(period);
+                const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
+                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal });
+              });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
         }
