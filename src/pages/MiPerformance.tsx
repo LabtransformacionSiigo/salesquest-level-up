@@ -3,6 +3,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
@@ -321,42 +322,89 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
   const metaNube = metaAsesor?.meta_nube ?? 0;
   const pctNube = metaNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
   const pctTotal = meta > 0 ? Math.round((ventas / meta) * 100) : 0;
+
   return (
     <>
-      <SectionTitle icon="donut_large" title="Cumplimiento de Meta" tip="Porcentaje de cumplimiento por ACV+, FE, Nube y Total Unidades." />
+      <SectionTitle icon="donut_large" title="Rendimiento del Mes" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV+." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
-        <div className="flex items-center gap-8">
-          <div className="relative w-28 h-28 shrink-0">
-            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-              <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--primary))" strokeWidth="10" strokeDasharray={`${Math.min(100, pctAcv) * 3.14} 314`} strokeLinecap="round" className="transition-all duration-1000" />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xl font-bold font-scoreboard text-primary">{pctAcv}%</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-            <MetaRow label="ACV+" value={formatMoney(acv)} />
-            <MetaRow label="Meta ACV" value={formatMoney(metaAcv)} />
-            <MetaRow label="% Cumpl. ACV" value={`${pctAcv}%`} />
+        <div className="space-y-5">
+          <ProgressMetricRow
+            icon="inventory_2"
+            label="Total Unidades"
+            currentValue={ventas}
+            goalValue={meta}
+            percentage={pctTotal}
+            formatValue={(value) => `${value.toLocaleString()} uds`}
+          />
+          {metaNube > 0 && (
+            <ProgressMetricRow
+              icon="cloud"
+              label="Nube"
+              currentValue={ventasNube}
+              goalValue={metaNube}
+              percentage={pctNube}
+              formatValue={(value) => `${value.toLocaleString()} uds`}
+            />
+          )}
+          {metaFe > 0 && (
+            <ProgressMetricRow
+              icon="receipt_long"
+              label="FE"
+              currentValue={ventasFe}
+              goalValue={metaFe}
+              percentage={pctFe}
+              formatValue={(value) => `${value.toLocaleString()} uds`}
+            />
+          )}
+          <ProgressMetricRow
+            icon="trending_up"
+            label="ACV+"
+            currentValue={acv}
+            goalValue={metaAcv}
+            percentage={pctAcv}
+            formatValue={formatMoney}
+          />
+
+          <div className="pt-4 border-t border-border flex items-center justify-between gap-4 text-sm">
             <MetaRow label="Referidos" value={String(referidos)} />
+            <span className="text-xs text-muted-foreground">Cada barra muestra logrado, meta y % de cumplimiento actual.</span>
           </div>
         </div>
-      </motion.div>
-
-      {/* FE / Nube / Total compliance cards */}
-      <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-        {metaFe > 0 && (
-          <KPICard icon="receipt_long" label="% Cumpl. FE" value={`${pctFe}%`} sub={`${ventasFe} / ${metaFe} uds`} color={pctFe >= 100 ? 'text-accent' : 'text-primary'} tip="(Ventas FE ÷ Meta FE) × 100. Cada 1% = 1 SP Convención." />
-        )}
-        {metaNube > 0 && (
-          <KPICard icon="cloud" label="% Cumpl. Nube" value={`${pctNube}%`} sub={`${ventasNube} / ${metaNube} uds`} color={pctNube >= 100 ? 'text-accent' : 'text-primary'} tip="(Ventas Nube ÷ Meta Nube) × 100. Cada 1% = 2 SP Convención." />
-        )}
-        <KPICard icon="inventory_2" label="% Cumpl. Total Uds" value={`${pctTotal}%`} sub={`${ventas} / ${meta} uds`} color={pctTotal >= 100 ? 'text-accent' : 'text-primary'} tip="(Ventas Totales ÷ Meta Total) × 100." />
       </motion.div>
     </>
   );
 };
+
+const ProgressMetricRow = ({
+  icon,
+  label,
+  currentValue,
+  goalValue,
+  percentage,
+  formatValue,
+}: {
+  icon: string;
+  label: string;
+  currentValue: number;
+  goalValue: number;
+  percentage: number;
+  formatValue: (value: number) => string;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+      <span className="flex items-center gap-2 text-foreground">
+        <MI icon={icon} className="text-primary !text-base" />
+        <span>{label}</span>
+      </span>
+      <span className="text-primary font-scoreboard text-sm">{Math.round(percentage)}%</span>
+    </div>
+    <Progress value={Math.min(100, Math.max(0, percentage))} className="h-3" />
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="text-foreground font-scoreboard">{formatValue(currentValue || 0)}</span>
+      <span className="text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatValue(goalValue || 0)}</span></span>
+    </div>
+  </div>
+);
 
 const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | null }) => {
   const pctClass = (p: number) =>
