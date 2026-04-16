@@ -160,10 +160,11 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total').eq('periodo', currentMonth).limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -178,11 +179,29 @@ const Rankings = () => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
         const metaUnidadesByAdvisor = new Map<string, number>();
+        const metaFeByAdvisor = new Map<string, number>();
+        const metaNubeByAdvisor = new Map<string, number>();
         (metasAsesoresRes.data || []).forEach((row: any) => {
           const name = normalizePersonName(row.nombre_asesor);
           const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
           if (!name || (nov && nov !== 'sin novedad')) return;
           metaUnidadesByAdvisor.set(name, (metaUnidadesByAdvisor.get(name) || 0) + (Number(row.meta_total) || 0));
+          metaFeByAdvisor.set(name, (metaFeByAdvisor.get(name) || 0) + (Number(row.meta_fe) || 0));
+          metaNubeByAdvisor.set(name, (metaNubeByAdvisor.get(name) || 0) + (Number(row.meta_nube) || 0));
+        });
+        // Build ejecucion FE/Nube by documento_asesor -> map to advisor name
+        const docToName = new Map<string, string>();
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          if (row.documento_asesor && row.nombre_asesor) docToName.set(String(row.documento_asesor).trim().toLowerCase(), normalizePersonName(row.nombre_asesor));
+        });
+        const ejecFeByAdvisor = new Map<string, number>();
+        const ejecNubeByAdvisor = new Map<string, number>();
+        (ejecAsesoresRes.data || []).forEach((row: any) => {
+          const doc = String(row.documento_asesor || '').trim().toLowerCase();
+          const name = docToName.get(doc);
+          if (!name) return;
+          ejecFeByAdvisor.set(name, (ejecFeByAdvisor.get(name) || 0) + (Number(row.ventas_fe) || 0));
+          ejecNubeByAdvisor.set(name, (ejecNubeByAdvisor.get(name) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Aggregate by advisor
         const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
