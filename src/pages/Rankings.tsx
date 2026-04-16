@@ -571,9 +571,27 @@ const Rankings = () => {
                             <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
                           </div>
-                          {/* VN: Unidades + Referidos */}
+                          {/* VN: FE% + Nube% + Unidades + Referidos */}
                           {(isGerentesVNTab || (isVN && isComercialTab)) && (
                             <>
+                              {g.pct_fe > 0 && (
+                                <>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_fe}%</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. FE</p>
+                                  </div>
+                                </>
+                              )}
+                              {g.pct_nube > 0 && (
+                                <>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_nube}%</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. Nube</p>
+                                  </div>
+                                </>
+                              )}
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-foreground">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</p>
