@@ -578,6 +578,37 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               .filter((r: any) => r.anio_mes === period && !vnAsesoresConNovedad.has(String(r.asesor || '').trim().toLowerCase()))
               .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
 
+          // Aggregate FE/Nube/Total per month from team ejecucion rows
+          const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
+          vnTeamEjecAll.forEach((e: any) => {
+            const period = String(e.periodo || '');
+            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            cur.fe += Number(e.ventas_fe) || 0;
+            cur.nube += Number(e.ventas_nube) || 0;
+            cur.total += Number(e.ventas_total) || 0;
+            ejecByPeriod.set(period, cur);
+          });
+
+          const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
+            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            // Only the current month has metas; for other months use 0 (no metas history)
+            const mFe = period === mesActual ? vnCurrentMetaFe : 0;
+            const mNube = period === mesActual ? vnCurrentMetaNube : 0;
+            const mTotal = period === mesActual ? vnCurrentMetaTotal : 0;
+            return {
+              ...base,
+              ventas_fe: ej.fe,
+              ventas_nube: ej.nube,
+              ventas_total: ej.total,
+              meta_fe: mFe,
+              meta_nube: mNube,
+              meta_total: mTotal,
+              pct_fe: mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0,
+              pct_nube: mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0,
+              pct_total: mTotal > 0 ? Math.round((ej.total / mTotal) * 100) : 0,
+            };
+          };
+
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
             const monthAgg = new Map<string, { ventas: number; meta: number; acv: number; referidos: number }>();
@@ -586,33 +617,41 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               const cur = monthAgg.get(period) || { ventas: 0, meta: 0, acv: 0, referidos: 0 };
               cur.ventas += Number(row.ventas) || 0;
               cur.meta += Number(row.meta) || 0;
-                cur.acv += normalizeStoredAcv(row.acv_f);
+              cur.acv += normalizeStoredAcv(row.acv_f);
               cur.referidos += Number(row.cant_recomendados) || 0;
               monthAgg.set(period, cur);
             });
+            // Include any periods present in ejecucion but missing from productividad
+            ejecByPeriod.forEach((_, period) => {
+              if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
+            });
             vnMonthlyCumpl = [...monthAgg.entries()]
               .sort((a, b) => b[0].localeCompare(a[0]))
-              .map(([period, { ventas, meta, acv, referidos }]) => {
+              .map(([period, { ventas, meta, acv }]) => {
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
                 const monthMetaAcv = buildMonthMetaAcv(period);
                 const pctVal = monthMetaAcv > 0 ? Math.round((acv / monthMetaAcv) * 100) : 0;
-                return { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal };
+                return enrich(period, { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal });
               });
           } else {
-            // Fallback to kpis_mensuales
+            // Fallback to kpis_mensuales (also enrich with team ejec data)
             const vnHistoryRows = vnHistoryRes?.data || [];
-            vnMonthlyCumpl = vnHistoryRows.map((row: any) => {
-              const period = String(row.anio_mes || '');
-              const monthNum = parseInt(period.slice(4), 10);
-              const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-              const ventas = Number(row.ventas) || 0;
-              const meta = Number(row.meta) || 0;
-              const acvF = normalizeStoredAcv(row.acv_f);
-              const monthMetaAcv = buildMonthMetaAcv(period);
-              const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
-              return { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal };
-            });
+            const periodSet = new Set<string>(vnHistoryRows.map((r: any) => String(r.anio_mes || '')));
+            ejecByPeriod.forEach((_, period) => periodSet.add(period));
+            vnMonthlyCumpl = [...periodSet]
+              .sort((a, b) => b.localeCompare(a))
+              .map((period) => {
+                const row = vnHistoryRows.find((r: any) => String(r.anio_mes) === period) || {};
+                const monthNum = parseInt(period.slice(4), 10);
+                const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
+                const ventas = Number(row.ventas) || 0;
+                const meta = Number(row.meta) || 0;
+                const acvF = normalizeStoredAcv(row.acv_f);
+                const monthMetaAcv = buildMonthMetaAcv(period);
+                const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
+                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal });
+              });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
         }
