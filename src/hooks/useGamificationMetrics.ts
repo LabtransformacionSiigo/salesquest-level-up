@@ -454,6 +454,10 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
           const teamVentasNube = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
           const teamVentasTotal = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+          vnTeamEjecAll = teamEjecRowsAll;
+          vnCurrentMetaFe = metaFe;
+          vnCurrentMetaNube = metaNube;
+          vnCurrentMetaTotal = metaEquipoUnidades;
 
           // Aggregate current month from celula productividad
           const currentMonthRows = celulaRows.filter((r: any) => r.anio_mes === mesActual);
