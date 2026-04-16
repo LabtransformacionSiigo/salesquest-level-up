@@ -28,6 +28,40 @@ interface KpiProgressBarsProps {
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
 
+const getSafePercentage = (current: number, goal: number) => {
+  if (goal <= 0) return 0;
+  return Math.round((current / goal) * 100);
+};
+
+const VnProgressRow = ({
+  label,
+  current,
+  goal,
+  prefix,
+  formatter,
+}: {
+  label: string;
+  current: number;
+  goal: number;
+  prefix: string;
+  formatter?: (value: number) => string;
+}) => {
+  const pct = getSafePercentage(current, goal);
+  const formatValue = formatter ?? ((value: number) => value.toLocaleString());
+
+  return (
+    <div>
+      <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5 gap-3">
+        <span>{prefix} {label}</span>
+        <span className="text-foreground font-scoreboard text-right">
+          {formatValue(current)} / {formatValue(goal)} · <span className="text-primary">{pct}%</span>
+        </span>
+      </div>
+      <Progress value={Math.min(100, Math.max(0, pct))} className="h-3" />
+    </div>
+  );
+};
+
 const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor }: KpiProgressBarsProps) => {
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
@@ -131,61 +165,12 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         </p>
 
         {isVN && ejecucion && metaAsesor ? (
-          /* ── VN: FE/Nube progress bars + extras ── */
+          /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
-            {/* FE progress - only show if meta_fe > 0 */}
-            {metaAsesor.meta_fe > 0 && (
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>📦 Ventas FE</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_fe} / {metaAsesor.meta_fe} · <span className="text-primary">{Math.round((ejecucion.ventas_fe / metaAsesor.meta_fe) * 100)}%</span></span>
-              </div>
-              <Progress value={Math.min(100, (ejecucion.ventas_fe / metaAsesor.meta_fe) * 100)} className="h-3" />
-            </div>
-            )}
-
-            {/* Nube progress - only show if meta_nube > 0 */}
-            {metaAsesor.meta_nube > 0 && (
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>☁️ Ventas Nube</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_nube} / {metaAsesor.meta_nube} · <span className="text-primary">{Math.round((ejecucion.ventas_nube / metaAsesor.meta_nube) * 100)}%</span></span>
-              </div>
-              <Progress value={Math.min(100, (ejecucion.ventas_nube / metaAsesor.meta_nube) * 100)} className="h-3" />
-            </div>
-            )}
-
-            {/* Total progress */}
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>📊 Total Unidades</span>
-                <span className="text-foreground font-scoreboard">{ejecucion.ventas_total} / {metaAsesor.meta_total} · <span className="text-primary">{metaAsesor.meta_total > 0 ? Math.round((ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0}%</span></span>
-              </div>
-              <Progress value={metaAsesor.meta_total > 0 ? Math.min(100, (ejecucion.ventas_total / metaAsesor.meta_total) * 100) : 0} className="h-3" />
-            </div>
-
-            {/* ACV compliance */}
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>🎯 Cumplimiento ACV</span>
-                <span className="text-foreground font-scoreboard">{Math.round(pct)}%</span>
-              </div>
-              <Progress value={metaAcvValue > 0 ? Math.min(100, pct) : 0} className="h-3" />
-            </div>
-
-            {/* ACV saldo + meta */}
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                <span>💰 ACV+ Logrado</span>
-                <span className="text-foreground font-scoreboard">{fmt(ejecucion.acv_total)}</span>
-              </div>
-              {metaAcvValue > 0 && (
-                <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
-                  <span>Meta ACV</span>
-                  <span className="text-foreground font-scoreboard">{fmt(metaAcvValue)}</span>
-                </div>
-              )}
-            </div>
+            <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} prefix="📊" />
+            <VnProgressRow label="FE" current={ejecucion.ventas_fe} goal={metaAsesor.meta_fe} prefix="📦" />
+            <VnProgressRow label="Nube" current={ejecucion.ventas_nube} goal={metaAsesor.meta_nube} prefix="☁️" />
+            <VnProgressRow label="ACV+" current={ejecucion.acv_total} goal={metaAcvValue} prefix="💰" formatter={fmt} />
 
             {/* Extras: Productividad + Recomendados */}
             <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
@@ -201,7 +186,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
 
             {/* Status based on unit compliance */}
             {(() => {
-              const pctAcv = Math.round(pct);
+              const pctAcv = getSafePercentage(ejecucion.acv_total, metaAcvValue);
               return (
                 <div className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold ${
                   pctAcv >= 100 ? 'bg-accent/10 text-accent' : pctAcv >= 70 ? 'bg-primary/10 text-primary' : pctAcv >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
