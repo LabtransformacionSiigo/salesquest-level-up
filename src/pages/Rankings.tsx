@@ -275,11 +275,12 @@ const Rankings = () => {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total, celula').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').eq('periodo', currentMonth).limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
