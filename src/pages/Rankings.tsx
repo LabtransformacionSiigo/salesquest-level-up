@@ -404,6 +404,10 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0;
           const gerenteInfo = gerentesByCelula.get(celula);
+          const mFeCel = metaFeByCelula.get(celula) || 0;
+          const mNubeCel = metaNubeByCelula.get(celula) || 0;
+          const eFeCel = ejecFeByCelula.get(celula) || 0;
+          const eNubeCel = ejecNubeByCelula.get(celula) || 0;
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || celula,
@@ -419,6 +423,8 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
+            pct_fe: mFeCel > 0 ? Math.round((eFeCel / mFeCel) * 100) : 0,
+            pct_nube: mNubeCel > 0 ? Math.round((eNubeCel / mNubeCel) * 100) : 0,
             sp_totales: spConv,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
