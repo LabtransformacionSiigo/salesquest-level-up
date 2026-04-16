@@ -37,27 +37,32 @@ const VnProgressRow = ({
   label,
   current,
   goal,
-  prefix,
+  icon,
   formatter,
 }: {
   label: string;
   current: number;
   goal: number;
-  prefix: string;
+  icon: string;
   formatter?: (value: number) => string;
 }) => {
   const pct = getSafePercentage(current, goal);
   const formatValue = formatter ?? ((value: number) => value.toLocaleString());
 
   return (
-    <div>
-      <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5 gap-3">
-        <span>{prefix} {label}</span>
-        <span className="text-foreground font-scoreboard text-right">
-          {formatValue(current)} / {formatValue(goal)} · <span className="text-primary">{pct}%</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+        <span className="flex items-center gap-2 text-foreground">
+          <span className="material-icons-round text-primary !text-base">{icon}</span>
+          <span>{label}</span>
         </span>
+        <span className="text-primary font-scoreboard text-sm">{pct}%</span>
       </div>
       <Progress value={Math.min(100, Math.max(0, pct))} className="h-3" />
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="text-foreground font-scoreboard">{formatValue(current || 0)}</span>
+        <span className="text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatValue(goal || 0)}</span></span>
+      </div>
     </div>
   );
 };
@@ -167,10 +172,10 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         {isVN && ejecucion && metaAsesor ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
-            <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} prefix="📊" />
-            <VnProgressRow label="FE" current={ejecucion.ventas_fe} goal={metaAsesor.meta_fe} prefix="📦" />
-            <VnProgressRow label="Nube" current={ejecucion.ventas_nube} goal={metaAsesor.meta_nube} prefix="☁️" />
-            <VnProgressRow label="ACV+" current={ejecucion.acv_total} goal={metaAcvValue} prefix="💰" formatter={fmt} />
+            <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="FE" current={ejecucion.ventas_fe} goal={metaAsesor.meta_fe} icon="receipt_long" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="Nube" current={ejecucion.ventas_nube} goal={metaAsesor.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="ACV+" current={ejecucion.acv_total} goal={metaAcvValue} icon="trending_up" formatter={fmt} />
 
             {/* Extras: Productividad + Recomendados */}
             <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
