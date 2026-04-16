@@ -440,12 +440,13 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           }
           vnMetaAcvActual = metaAcvEquipo;
 
-          // Aggregate ejecucion from ejecucion_asesores matched by team names
+          // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
           const allEjecRows = ejecRes?.data || [];
-          const teamEjecRows = allEjecRows.filter((e: any) => {
+          const teamEjecRowsAll = allEjecRows.filter((e: any) => {
             const nombre = (e.documento_asesor || '').trim().toLowerCase();
             return teamAsesorNames.has(nombre);
           });
+          const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
           const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
           const teamVentasNube = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
           const teamVentasTotal = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
