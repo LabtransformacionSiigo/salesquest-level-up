@@ -289,9 +289,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             : Promise.resolve({ data: [] }),
           /* 11 */
           supabase.from('gerentes').select('id, sp_canje'),
-          /* 12 – ejecucion_asesores for VN (gerente OR asesor) */
+          /* 12 – ejecucion_asesores for VN (gerente OR asesor) - ALL months this year */
           isVN
-            ? supabase.from('ejecucion_asesores').select('*').eq('periodo', mesActual).limit(2000)
+            ? supabase.from('ejecucion_asesores').select('*')
+                .gte('periodo', `${anioActual}01`)
+                .lte('periodo', `${anioActual}12`)
+                .limit(10000)
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
