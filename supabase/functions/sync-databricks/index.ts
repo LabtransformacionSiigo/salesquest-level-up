@@ -708,6 +708,15 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   const now = new Date();
   const defaultAnioMes = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+  // DIAGNOSTIC: log sample of incoming raw rows + key field counts
+  const sample = rows.slice(0, 2);
+  const conGerente = rows.filter((r) => r.gerente).length;
+  const conCelula = rows.filter((r) => r.celula).length;
+  const conNombre = rows.filter((r) => r.nombre_asesor).length;
+  console.log(`[metas_asesores] Total: ${rows.length} | con_gerente: ${conGerente} | con_celula: ${conCelula} | con_nombre: ${conNombre}`);
+  console.log(`[metas_asesores] Sample row keys:`, Object.keys(rows[0] || {}));
+  console.log(`[metas_asesores] Sample row[0]:`, JSON.stringify(sample[0] || {}));
+
   const upsertRows = rows.map((row) => ({
     documento_asesor: String(row.documento_asesor || "").trim(),
     pais: normalizeCountry(row.pais),
@@ -740,7 +749,77 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     }
   }
 
-  return { total_rows: rows.length, metas_asesores_sincronizadas: synced, errores: errores.slice(0, 20) };
+  // ============================================================
+  // POST-PROCESS: Auto-agregar metas_gerentes desde metas_asesores
+  // Suma por (celula, canal_direccion) los meta_fe, meta_nube, meta_total
+  // ============================================================
+  let metasGerentesAgregadas = 0;
+  try {
+    const aggMap = new Map<string, { celula: string; canal_direccion: string; pais_gestion: string | null; fe: number; nube: number; meta_total_und: number; gerente_nombre: string | null }>();
+    for (const r of upsertRows) {
+      if (!r.celula) continue;
+      const key = `${r.celula}|${r.canal_direccion}`;
+      const cur = aggMap.get(key) || { celula: r.celula, canal_direccion: r.canal_direccion, pais_gestion: r.pais, fe: 0, nube: 0, meta_total_und: 0, gerente_nombre: r.gerente || null };
+      cur.fe += r.meta_fe || 0;
+      cur.nube += r.meta_nube || 0;
+      cur.meta_total_und += r.meta_total || 0;
+      if (!cur.gerente_nombre && r.gerente) cur.gerente_nombre = r.gerente;
+      aggMap.set(key, cur);
+    }
+    const aggRows = Array.from(aggMap.values()).map((a) => ({
+      celula: a.celula,
+      canal_direccion: a.canal_direccion,
+      pais_gestion: a.pais_gestion,
+      fe: a.fe,
+      nube: a.nube,
+      meta_total_und: a.meta_total_und,
+      director: a.gerente_nombre, // store gerente name as director fallback
+    }));
+    if (aggRows.length > 0) {
+      const { error: aggErr, count: aggCount } = await supabase.from("metas_gerentes").upsert(aggRows, { onConflict: "celula,canal_direccion", count: "exact" });
+      if (aggErr) errores.push(`metas_gerentes auto-agregado: ${aggErr.message}`);
+      else metasGerentesAgregadas = aggCount || aggRows.length;
+    }
+    console.log(`[metas_asesores] Auto-agregado metas_gerentes: ${metasGerentesAgregadas} celulas`);
+  } catch (e) {
+    errores.push(`Auto-agregado metas_gerentes falló: ${String(e)}`);
+  }
+
+  // ============================================================
+  // POST-PROCESS: Enriquecer gerentes.celula desde metas_asesores
+  // Si un gerente VN tiene celula NULL pero su nombre aparece en metas_asesores.gerente,
+  // poblar gerentes.celula con la primera celula encontrada.
+  // ============================================================
+  let gerentesEnriquecidos = 0;
+  try {
+    const gerenteCelulaMap = new Map<string, string>();
+    for (const r of upsertRows) {
+      if (r.gerente && r.celula && !gerenteCelulaMap.has(r.gerente.toLowerCase())) {
+        gerenteCelulaMap.set(r.gerente.toLowerCase(), r.celula);
+      }
+    }
+    const { data: gerentes } = await supabase.from("gerentes").select("id, nombre, celula, canal").in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
+    for (const g of gerentes || []) {
+      if (g.celula) continue;
+      const cel = gerenteCelulaMap.get(String(g.nombre || "").toLowerCase().trim());
+      if (cel) {
+        await supabase.from("gerentes").update({ celula: cel }).eq("id", g.id);
+        gerentesEnriquecidos++;
+      }
+    }
+    console.log(`[metas_asesores] Gerentes con celula enriquecida: ${gerentesEnriquecidos}`);
+  } catch (e) {
+    errores.push(`Enriquecimiento gerentes.celula falló: ${String(e)}`);
+  }
+
+  return {
+    total_rows: rows.length,
+    metas_asesores_sincronizadas: synced,
+    metas_gerentes_auto_agregadas: metasGerentesAgregadas,
+    gerentes_celula_enriquecida: gerentesEnriquecidos,
+    diagnostico: { con_gerente: conGerente, con_celula: conCelula, con_nombre: conNombre },
+    errores: errores.slice(0, 20),
+  };
 }
 
 // ============================================================
