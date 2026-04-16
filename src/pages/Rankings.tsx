@@ -160,10 +160,11 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total').eq('periodo', currentMonth).limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -178,11 +179,29 @@ const Rankings = () => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
         });
         const metaUnidadesByAdvisor = new Map<string, number>();
+        const metaFeByAdvisor = new Map<string, number>();
+        const metaNubeByAdvisor = new Map<string, number>();
         (metasAsesoresRes.data || []).forEach((row: any) => {
           const name = normalizePersonName(row.nombre_asesor);
           const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
           if (!name || (nov && nov !== 'sin novedad')) return;
           metaUnidadesByAdvisor.set(name, (metaUnidadesByAdvisor.get(name) || 0) + (Number(row.meta_total) || 0));
+          metaFeByAdvisor.set(name, (metaFeByAdvisor.get(name) || 0) + (Number(row.meta_fe) || 0));
+          metaNubeByAdvisor.set(name, (metaNubeByAdvisor.get(name) || 0) + (Number(row.meta_nube) || 0));
+        });
+        // Build ejecucion FE/Nube by documento_asesor -> map to advisor name
+        const docToName = new Map<string, string>();
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          if (row.documento_asesor && row.nombre_asesor) docToName.set(String(row.documento_asesor).trim().toLowerCase(), normalizePersonName(row.nombre_asesor));
+        });
+        const ejecFeByAdvisor = new Map<string, number>();
+        const ejecNubeByAdvisor = new Map<string, number>();
+        (ejecAsesoresRes.data || []).forEach((row: any) => {
+          const doc = String(row.documento_asesor || '').trim().toLowerCase();
+          const name = docToName.get(doc);
+          if (!name) return;
+          ejecFeByAdvisor.set(name, (ejecFeByAdvisor.get(name) || 0) + (Number(row.ventas_fe) || 0));
+          ejecNubeByAdvisor.set(name, (ejecNubeByAdvisor.get(name) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Aggregate by advisor
         const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
@@ -225,6 +244,10 @@ const Rankings = () => {
           const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
+          const mFe = metaFeByAdvisor.get(key) || 0;
+          const mNube = metaNubeByAdvisor.get(key) || 0;
+          const eFe = ejecFeByAdvisor.get(key) || 0;
+          const eNube = ejecNubeByAdvisor.get(key) || 0;
           entries.push({
             id: key,
             nombre: originalName,
@@ -236,6 +259,8 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
+            pct_fe: mFe > 0 ? Math.round((eFe / mFe) * 100) : 0,
+            pct_nube: mNube > 0 ? Math.round((eNube / mNube) * 100) : 0,
             ventas_count: agg.ventas,
             posicion: 0,
             canal: profile.canal,
@@ -250,11 +275,12 @@ const Rankings = () => {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('nombre_asesor, novedad, meta_total, celula').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').eq('anio_mes', currentMonth).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').eq('periodo', currentMonth).limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -265,11 +291,27 @@ const Rankings = () => {
           }
         });
         const metaUnidadesByCelula = new Map<string, number>();
+        const metaFeByCelula = new Map<string, number>();
+        const metaNubeByCelula = new Map<string, number>();
+        const docToCelula = new Map<string, string>();
         (metasAsesoresRes.data || []).forEach((row: any) => {
           const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
           const celula = String(row.celula || '').trim();
+          if (row.documento_asesor && celula) docToCelula.set(String(row.documento_asesor).trim().toLowerCase(), celula);
           if (!celula || (nov && nov !== 'sin novedad')) return;
           metaUnidadesByCelula.set(celula, (metaUnidadesByCelula.get(celula) || 0) + (Number(row.meta_total) || 0));
+          metaFeByCelula.set(celula, (metaFeByCelula.get(celula) || 0) + (Number(row.meta_fe) || 0));
+          metaNubeByCelula.set(celula, (metaNubeByCelula.get(celula) || 0) + (Number(row.meta_nube) || 0));
+        });
+        // Build ejecucion FE/Nube by celula
+        const ejecFeByCelula = new Map<string, number>();
+        const ejecNubeByCelula = new Map<string, number>();
+        (ejecAsesoresGerenteRes.data || []).forEach((row: any) => {
+          const doc = String(row.documento_asesor || '').trim().toLowerCase();
+          const celula = docToCelula.get(doc);
+          if (!celula) return;
+          ejecFeByCelula.set(celula, (ejecFeByCelula.get(celula) || 0) + (Number(row.ventas_fe) || 0));
+          ejecNubeByCelula.set(celula, (ejecNubeByCelula.get(celula) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
@@ -362,6 +404,10 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0;
           const gerenteInfo = gerentesByCelula.get(celula);
+          const mFeCel = metaFeByCelula.get(celula) || 0;
+          const mNubeCel = metaNubeByCelula.get(celula) || 0;
+          const eFeCel = ejecFeByCelula.get(celula) || 0;
+          const eNubeCel = ejecNubeByCelula.get(celula) || 0;
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || celula,
@@ -377,6 +423,8 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
+            pct_fe: mFeCel > 0 ? Math.round((eFeCel / mFeCel) * 100) : 0,
+            pct_nube: mNubeCel > 0 ? Math.round((eNubeCel / mNubeCel) * 100) : 0,
             sp_totales: spConv,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
@@ -523,9 +571,27 @@ const Rankings = () => {
                             <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
                           </div>
-                          {/* VN: Unidades + Referidos */}
+                          {/* VN: FE% + Nube% + Unidades + Referidos */}
                           {(isGerentesVNTab || (isVN && isComercialTab)) && (
                             <>
+                              {g.pct_fe > 0 && (
+                                <>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_fe}%</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. FE</p>
+                                  </div>
+                                </>
+                              )}
+                              {g.pct_nube > 0 && (
+                                <>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_nube}%</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. Nube</p>
+                                  </div>
+                                </>
+                              )}
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-foreground">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</p>
@@ -609,6 +675,8 @@ const Rankings = () => {
                       {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
                            <th className="text-right px-4 py-3">% Cumpl. ACV</th>
+                           <th className="text-right px-4 py-3">% FE</th>
+                           <th className="text-right px-4 py-3">% Nube</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">ACV+</th>
@@ -668,6 +736,8 @@ const Rankings = () => {
                         {(isGerentesVNTab || (isVN && isComercialTab)) && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_fe != null ? `${g.pct_fe}%` : '—'}</td>
+                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_nube != null ? `${g.pct_nube}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
