@@ -72,17 +72,45 @@ GROUP BY comercial, lider, Anio, mes, categoria_producto_Venta, bloque_venta
 ${limit}`;
     },
   },
-  // ── NEW: Metas Gerentes ──
+  // ── Metas Gerentes (Aliados + Empresarios, todos los países) ──
   metas_gerentes: {
-    label: "Metas Gerentes (tbl_brz_gerentes)",
+    label: "Metas Gerentes Aliados+Empresarios (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad,
+              CONCAT('$ ', FORMAT_NUMBER(CAST(meta_total_acv AS BIGINT), 0)) AS meta_total_acv_formato
+       FROM hive_metastore.db_stage.tbl_brz_gerentes
+       WHERE celula IS NOT NULL AND TRIM(celula) <> ''
+         AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
+       ${limit}`,
   },
-  // ── NEW: Metas Asesores ──
+  // ── Metas Asesores (Aliados + Empresarios, todos los países, con bonos trimestrales) ──
   metas_asesores_sync: {
-    label: "Metas Asesores (cuotas_asesores)",
+    label: "Metas Asesores Aliados+Empresarios (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total, novedad FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE documento_asesor IS NOT NULL AND TRIM(documento_asesor) <> '' AND nombre_asesor IS NOT NULL AND TRIM(nombre_asesor) <> '' AND celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula,
+              proyecto, fecha_ingreso_asesor, m_de_antiguedad,
+              COALESCE(novedad, 'No aplica') AS novedad,
+              CAST(dias_habiles_de_novedad_comisiones_peopleretiro_intrames AS INT) AS dias_novedad,
+              COALESCE(reingreso, 'No aplica') AS reingreso,
+              CAST(dias_habiles_softlanding AS INT) AS dias_softlanding,
+              COALESCE(caso_salud_ocupacional, 'No aplica') AS caso_salud_ocupacional,
+              CAST(meta_fe AS INT) AS meta_fe,
+              CAST(meta_nube AS INT) AS meta_nube,
+              CAST(meta_total AS INT) AS meta_total,
+              COALESCE(aplica_a_cuota_lider, 'No aplica') AS aplica_cuota_lider,
+              COALESCE(aplica_a_ejecucion_lider, 'No aplica') AS aplica_ejecucion_lider,
+              COALESCE(aplica_a_hc_minimo, 'No aplica') AS aplica_hc_minimo,
+              CAST(meta_sql_bono_trimestral_categorizacion_marzo AS INT) AS meta_sql_bono,
+              CAST(meta_recomendados_bono_trimestral_categorizacion_marzo AS INT) AS meta_recomendados_bono,
+              CAST(fe_bono_trimestral_categorizacion AS INT) AS fe_bono,
+              CAST(nube_bono_trimestral_categorizacion AS INT) AS nube_bono,
+              CAST(total_bono_trimestral_categorizacion AS INT) AS total_bono
+       FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+       WHERE documento_asesor IS NOT NULL AND TRIM(documento_asesor) <> ''
+         AND nombre_asesor IS NOT NULL AND TRIM(nombre_asesor) <> ''
+         AND celula IS NOT NULL AND TRIM(celula) <> ''
+         AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
+       ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
@@ -681,6 +709,7 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     siigo_fiscal: toNumber(row.siigo_fiscal),
     meta_total_und: toNumber(row.meta_total_und),
     meta_total_acv: toNumber(row.meta_total_acv),
+    meta_total_acv_formato: row.meta_total_acv_formato ? String(row.meta_total_acv_formato).trim() : null,
     recomendados: toNumber(row.recomendados),
     efectividad_sql: toNumber(row.efectividad_sql),
     productividad: toNumber(row.productividad),
@@ -717,19 +746,38 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   console.log(`[metas_asesores] Sample row keys:`, Object.keys(rows[0] || {}));
   console.log(`[metas_asesores] Sample row[0]:`, JSON.stringify(sample[0] || {}));
 
-  const upsertRows = rows.map((row) => ({
-    documento_asesor: String(row.documento_asesor || "").trim(),
-    pais: normalizeCountry(row.pais),
-    canal_direccion: normalizeCanalDireccion(row.canal_direccion),
-    meta_fe: toRoundedInt(row.meta_fe),
-    meta_nube: toRoundedInt(row.meta_nube),
-    meta_total: toRoundedInt(row.meta_total),
-    novedad: row.novedad ? String(row.novedad).trim() : null,
-    celula: row.celula ? String(row.celula).trim() : null,
-    nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
-    gerente: row.gerente ? String(row.gerente).trim() : null,
-    anio_mes: defaultAnioMes,
-  })).filter((r) => r.documento_asesor && r.canal_direccion);
+  const upsertRows = rows.map((row) => {
+    const fechaIngreso = row.fecha_ingreso_asesor ? String(row.fecha_ingreso_asesor).trim().split('T')[0] : null;
+    return {
+      documento_asesor: String(row.documento_asesor || "").trim(),
+      pais: normalizeCountry(row.pais),
+      canal_direccion: normalizeCanalDireccion(row.canal_direccion),
+      meta_fe: toRoundedInt(row.meta_fe),
+      meta_nube: toRoundedInt(row.meta_nube),
+      meta_total: toRoundedInt(row.meta_total),
+      novedad: row.novedad ? String(row.novedad).trim() : null,
+      celula: row.celula ? String(row.celula).trim() : null,
+      nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
+      gerente: row.gerente ? String(row.gerente).trim() : null,
+      anio_mes: defaultAnioMes,
+      // Nuevos campos extendidos
+      proyecto: row.proyecto ? String(row.proyecto).trim() : null,
+      fecha_ingreso_asesor: fechaIngreso && /^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso) ? fechaIngreso : null,
+      m_de_antiguedad: toNumber(row.m_de_antiguedad),
+      dias_novedad: toRoundedInt(row.dias_novedad),
+      reingreso: row.reingreso ? String(row.reingreso).trim() : null,
+      dias_softlanding: toRoundedInt(row.dias_softlanding),
+      caso_salud_ocupacional: row.caso_salud_ocupacional ? String(row.caso_salud_ocupacional).trim() : null,
+      aplica_cuota_lider: row.aplica_cuota_lider ? String(row.aplica_cuota_lider).trim() : null,
+      aplica_ejecucion_lider: row.aplica_ejecucion_lider ? String(row.aplica_ejecucion_lider).trim() : null,
+      aplica_hc_minimo: row.aplica_hc_minimo ? String(row.aplica_hc_minimo).trim() : null,
+      meta_sql_bono: toRoundedInt(row.meta_sql_bono),
+      meta_recomendados_bono: toRoundedInt(row.meta_recomendados_bono),
+      fe_bono: toRoundedInt(row.fe_bono),
+      nube_bono: toRoundedInt(row.nube_bono),
+      total_bono: toRoundedInt(row.total_bono),
+    };
+  }).filter((r) => r.documento_asesor && r.canal_direccion);
 
   const BATCH = 500;
   for (let i = 0; i < upsertRows.length; i += BATCH) {
