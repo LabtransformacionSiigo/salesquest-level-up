@@ -746,19 +746,38 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   console.log(`[metas_asesores] Sample row keys:`, Object.keys(rows[0] || {}));
   console.log(`[metas_asesores] Sample row[0]:`, JSON.stringify(sample[0] || {}));
 
-  const upsertRows = rows.map((row) => ({
-    documento_asesor: String(row.documento_asesor || "").trim(),
-    pais: normalizeCountry(row.pais),
-    canal_direccion: normalizeCanalDireccion(row.canal_direccion),
-    meta_fe: toRoundedInt(row.meta_fe),
-    meta_nube: toRoundedInt(row.meta_nube),
-    meta_total: toRoundedInt(row.meta_total),
-    novedad: row.novedad ? String(row.novedad).trim() : null,
-    celula: row.celula ? String(row.celula).trim() : null,
-    nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
-    gerente: row.gerente ? String(row.gerente).trim() : null,
-    anio_mes: defaultAnioMes,
-  })).filter((r) => r.documento_asesor && r.canal_direccion);
+  const upsertRows = rows.map((row) => {
+    const fechaIngreso = row.fecha_ingreso_asesor ? String(row.fecha_ingreso_asesor).trim().split('T')[0] : null;
+    return {
+      documento_asesor: String(row.documento_asesor || "").trim(),
+      pais: normalizeCountry(row.pais),
+      canal_direccion: normalizeCanalDireccion(row.canal_direccion),
+      meta_fe: toRoundedInt(row.meta_fe),
+      meta_nube: toRoundedInt(row.meta_nube),
+      meta_total: toRoundedInt(row.meta_total),
+      novedad: row.novedad ? String(row.novedad).trim() : null,
+      celula: row.celula ? String(row.celula).trim() : null,
+      nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
+      gerente: row.gerente ? String(row.gerente).trim() : null,
+      anio_mes: defaultAnioMes,
+      // Nuevos campos extendidos
+      proyecto: row.proyecto ? String(row.proyecto).trim() : null,
+      fecha_ingreso_asesor: fechaIngreso && /^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso) ? fechaIngreso : null,
+      m_de_antiguedad: toNumber(row.m_de_antiguedad),
+      dias_novedad: toRoundedInt(row.dias_novedad),
+      reingreso: row.reingreso ? String(row.reingreso).trim() : null,
+      dias_softlanding: toRoundedInt(row.dias_softlanding),
+      caso_salud_ocupacional: row.caso_salud_ocupacional ? String(row.caso_salud_ocupacional).trim() : null,
+      aplica_cuota_lider: row.aplica_cuota_lider ? String(row.aplica_cuota_lider).trim() : null,
+      aplica_ejecucion_lider: row.aplica_ejecucion_lider ? String(row.aplica_ejecucion_lider).trim() : null,
+      aplica_hc_minimo: row.aplica_hc_minimo ? String(row.aplica_hc_minimo).trim() : null,
+      meta_sql_bono: toRoundedInt(row.meta_sql_bono),
+      meta_recomendados_bono: toRoundedInt(row.meta_recomendados_bono),
+      fe_bono: toRoundedInt(row.fe_bono),
+      nube_bono: toRoundedInt(row.nube_bono),
+      total_bono: toRoundedInt(row.total_bono),
+    };
+  }).filter((r) => r.documento_asesor && r.canal_direccion);
 
   const BATCH = 500;
   for (let i = 0; i < upsertRows.length; i += BATCH) {
