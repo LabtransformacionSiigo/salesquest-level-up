@@ -199,17 +199,24 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Build meta ACV map by celula+period from productividad_asesores.meta (excluding novedad)
+    // Build meta ACV + ACV ejecutado map by celula+period from productividad_asesores (excluding novedad)
+    // SAME source as UI (Mi Performance - Histórico Mensual) to ensure SP matches what users see
     const metaAcvByCelulaPeriod = new Map<string, number>();
+    const acvByCelulaPeriod = new Map<string, number>();
+    const periodsByCelula = new Map<string, Set<string>>();
     (productividadAsesoresRes.data || []).forEach((row: any) => {
       const celula = (row.celula || "").trim();
       const period = String(row.anio_mes || "");
       const asesorName = (row.asesor || "").trim().toLowerCase();
-      if (!celula) return;
-      // Skip asesores with novedad
+      if (!celula || !period) return;
+      // Track all periods that have data for this celula (so we calculate SP even when kpis_mensuales is missing)
+      if (!periodsByCelula.has(celula)) periodsByCelula.set(celula, new Set());
+      periodsByCelula.get(celula)!.add(period);
+      // Skip asesores with novedad for both meta and acv (UI does the same)
       if (asesoresConNovedad.has(asesorName)) return;
       const key = `${celula}|${period}`;
       metaAcvByCelulaPeriod.set(key, (metaAcvByCelulaPeriod.get(key) || 0) + normalizeVnMetaAcv(row.meta));
+      acvByCelulaPeriod.set(key, (acvByCelulaPeriod.get(key) || 0) + normalizeStoredAcv(row.acv_f));
     });
 
     // Build celula map for gerentes
@@ -233,31 +240,41 @@ Deno.serve(async (req) => {
       feMetaByCelulaPeriod.set(key, cur);
     });
 
-    // Build FE/Nube ejecucion by celula+period
-    // First build documento->celula map from metas_asesores
-    const docToCelula = new Map<string, string>();
-    (metasAsesoresRes.data || []).forEach((row: any) => {
-      if (row.nombre_asesor && row.celula) {
-        docToCelula.set(String(row.nombre_asesor).trim().toLowerCase(), (row.celula || "").trim());
-      }
+    // Build name->celula map from productividad_asesores (asesor name) — most reliable since
+    // ejecucion_asesores.documento_asesor often contains the asesor NAME (truncated to ~30 chars).
+    const nameToCelula = new Map<string, string>();
+    (productividadAsesoresRes.data || []).forEach((row: any) => {
+      const name = (row.asesor || "").trim().toLowerCase();
+      const celula = (row.celula || "").trim();
+      if (name && celula) nameToCelula.set(name, celula);
     });
-    // Also map documento_asesor to celula
+    // Also include metas_asesores names/documentos
     (metasAsesoresRes.data || []).forEach((row: any) => {
-      const doc = row.documento_asesor || row.nombre_asesor;
-      if (doc && row.celula) {
-        // Map by documento for ejecucion lookup
-        const celula = (row.celula || "").trim();
-        if (celula) docToCelula.set(String(doc).trim(), celula);
-      }
+      const celula = (row.celula || "").trim();
+      if (!celula) return;
+      if (row.nombre_asesor) nameToCelula.set(String(row.nombre_asesor).trim().toLowerCase(), celula);
     });
+
+    // Match ejecucion_asesores rows by name with truncation tolerance (first 28 chars)
+    const findCelulaForEjecKey = (rawKey: string) => {
+      const key = rawKey.trim().toLowerCase();
+      if (!key) return "";
+      const direct = nameToCelula.get(key);
+      if (direct) return direct;
+      // Try truncated match (databricks truncates names to ~30 chars)
+      const truncated = key.slice(0, 28);
+      for (const [name, celula] of nameToCelula.entries()) {
+        if (name.startsWith(truncated) || truncated.startsWith(name.slice(0, 28))) return celula;
+      }
+      return "";
+    };
 
     const feEjecByCelulaPeriod = new Map<string, { ventasFe: number; ventasNube: number }>();
     (ejecAsesoresRes.data || []).forEach((row: any) => {
-      const doc = String(row.documento_asesor || "").trim();
       const period = String(row.periodo || "");
-      // Try to find celula for this document
-      const celula = docToCelula.get(doc) || "";
-      if (!celula || !period) return;
+      if (!period) return;
+      const celula = findCelulaForEjecKey(String(row.documento_asesor || ""));
+      if (!celula) return;
       const key = `${celula}|${period}`;
       const cur = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
       cur.ventasFe += Number(row.ventas_fe) || 0;
