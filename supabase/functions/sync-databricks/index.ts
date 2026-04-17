@@ -709,6 +709,7 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     siigo_fiscal: toNumber(row.siigo_fiscal),
     meta_total_und: toNumber(row.meta_total_und),
     meta_total_acv: toNumber(row.meta_total_acv),
+    meta_total_acv_formato: row.meta_total_acv_formato ? String(row.meta_total_acv_formato).trim() : null,
     recomendados: toNumber(row.recomendados),
     efectividad_sql: toNumber(row.efectividad_sql),
     productividad: toNumber(row.productividad),
