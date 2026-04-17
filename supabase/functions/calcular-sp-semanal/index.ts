@@ -311,40 +311,44 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          // VN channels: SP from ACV / Meta ACV (como VC)
-          const kpis = (kpisByGerente.get(gerente.id) || []).filter((k) => k.canal === canal);
-          const canalNorm = canal === "VN_ALIADOS" ? "Aliados" : "Empresarios";
+          // VN channels: SP per month from productividad_asesores by celula (SAME source as UI Mi Performance).
+          // Rule: ACV %=1SP, FE %=1SP, Nube %=2SP — sum across all months with data.
           const gerenteCelula = celulaPorGerente.get(gerente.id) || "";
+          if (!gerenteCelula) {
+            procesados++; resumenCanal[canal].procesados++; continue;
+          }
 
-          for (const kpi of kpis) {
-            const acvVal = normalizeStoredAcv(kpi.acv_f);
-            const period = String(kpi.anio_mes || "");
-            const metaAcv = metaAcvByCelulaPeriod.get(`${gerenteCelula}|${period}`) || 0;
-            
-            // SP from ACV (1% = 1 SP)
+          // Iterate every period that has productividad data for this celula
+          const periods = [...(periodsByCelula.get(gerenteCelula) || new Set<string>())].sort();
+
+          for (const period of periods) {
+            const key = `${gerenteCelula}|${period}`;
+            const acvVal = acvByCelulaPeriod.get(key) || 0;
+            const metaAcv = metaAcvByCelulaPeriod.get(key) || 0;
+
+            // SP from ACV (1% = 1 SP) — only when meta exists
             const spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
-            
-            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP)
-            const feNubeKey = `${gerenteCelula}|${period}`;
-            const feData = feMetaByCelulaPeriod.get(feNubeKey) || { metaFe: 0, metaNube: 0 };
-            const feEjec = feEjecByCelulaPeriod.get(feNubeKey) || { ventasFe: 0, ventasNube: 0 };
-            
-            let spFe = 0;
-            if (feData.metaFe > 0 && feEjec.ventasFe > 0) {
-              spFe = Math.round((feEjec.ventasFe / feData.metaFe) * 100);
-            }
-            let spNube = 0;
-            if (feData.metaNube > 0 && feEjec.ventasNube > 0) {
-              spNube = Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2;
-            }
-            
+
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP) — only when both meta & ejecucion exist
+            const feData = feMetaByCelulaPeriod.get(key) || { metaFe: 0, metaNube: 0 };
+            const feEjec = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
+
+            const spFe = feData.metaFe > 0 && feEjec.ventasFe > 0
+              ? Math.round((feEjec.ventasFe / feData.metaFe) * 100)
+              : 0;
+            const spNube = feData.metaNube > 0 && feEjec.ventasNube > 0
+              ? Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2
+              : 0;
+
             const spFinal = spAcv + spFe + spNube;
             if (spFinal <= 0) continue;
-            
+
+            const monthNum = parseInt(period.slice(4), 10);
+            const mesName = SPANISH_MONTHS[monthNum] || period;
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-              periodo: String(kpi.anio_mes),
-              detalle: `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canal} · ${kpi.anio_mes}`,
+              periodo: period,
+              detalle: `ACV:${spAcv}% · FE:${spFe} · Nube:${spNube} · ${canal} · ${mesName}`,
               tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
