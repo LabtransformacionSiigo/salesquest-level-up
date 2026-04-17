@@ -136,12 +136,26 @@ Deno.serve(async (req) => {
       supabase.from("catalogo_medallas").select("*").eq("activo", true),
     ]);
 
-    const gerentes = gerentesRes.data || [];
+    const gerentes = (gerentesRes.data || []).filter((g) => !targetCanal || normalizeCanal(g.canal) === targetCanal);
     if (gerentes.length === 0) {
       return new Response(
         JSON.stringify({ procesados: 0, sp_otorgados: 0, errores: ["No hay gerentes activos"] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (resetExistingConvencion) {
+      const gerenteIds = gerentes.map((g) => g.id);
+      for (let i = 0; i < gerenteIds.length; i += 500) {
+        const chunkIds = gerenteIds.slice(i, i + 500);
+        const { error: deleteErr } = await supabase
+          .from("sp_acumulados")
+          .delete()
+          .in("gerente_id", chunkIds)
+          .eq("tipo_sp", "convencion")
+          .eq("fuente", "CUMPLIMIENTO_META");
+        if (deleteErr) errores.push(`Batch delete SP convención: ${deleteErr.message}`);
+      }
     }
 
     const umbralMap: Record<string, number> = {};
@@ -393,6 +407,19 @@ Deno.serve(async (req) => {
           errores.push(`Batch SP upsert error: ${batchErr.message}`);
         }
       }
+    }
+
+    if (onlyConvencion) {
+      return new Response(JSON.stringify({
+        procesados,
+        sp_otorgados: totalSpOtorgados,
+        semana: periodoSemana,
+        canal_objetivo: targetCanal,
+        por_canal: resumenCanal,
+        errores,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── Rachas: batch load weekly ventas + last rachas ──
