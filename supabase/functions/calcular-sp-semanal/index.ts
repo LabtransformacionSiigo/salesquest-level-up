@@ -53,12 +53,28 @@ const normalizeStoredAcv = (value?: number | null) => {
   return Math.round(n);
 };
 
+const normalizeCanal = (value?: string | null) => {
+  const raw = (value || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (raw === "vc" || raw.includes("cruzada")) return "VC";
+  if (raw.includes("aliad")) return "VN_ALIADOS";
+  if (raw.includes("empres") || raw.includes("mercadeo") || raw.includes("digital") || raw.includes("lead")) return "VN_EMPRESARIOS";
+  return value || "";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    let requestBody: Record<string, unknown> = {};
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = {};
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -109,6 +125,9 @@ Deno.serve(async (req) => {
     const nextMonthStart = now.getMonth() === 11
       ? `${anioActual + 1}-01-01`
       : `${anioActual}-${String(now.getMonth() + 2).padStart(2, "0")}-01`;
+    const targetCanal = normalizeCanal(typeof requestBody.canal === "string" ? requestBody.canal : null) || null;
+    const resetExistingConvencion = requestBody.reset_existing_convencion === true;
+    const onlyConvencion = requestBody.only_convencion === true;
 
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
