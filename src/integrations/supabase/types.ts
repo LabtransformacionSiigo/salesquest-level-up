@@ -496,48 +496,93 @@ export type Database = {
       metas_asesores: {
         Row: {
           anio_mes: string
+          aplica_cuota_lider: string | null
+          aplica_ejecucion_lider: string | null
+          aplica_hc_minimo: string | null
           canal_direccion: string
+          caso_salud_ocupacional: string | null
           celula: string | null
           created_at: string | null
+          dias_novedad: number | null
+          dias_softlanding: number | null
           documento_asesor: string
+          fe_bono: number | null
+          fecha_ingreso_asesor: string | null
           gerente: string | null
           id: string
+          m_de_antiguedad: number | null
           meta_fe: number | null
           meta_nube: number | null
+          meta_recomendados_bono: number | null
+          meta_sql_bono: number | null
           meta_total: number | null
           nombre_asesor: string | null
           novedad: string | null
+          nube_bono: number | null
           pais: string | null
+          proyecto: string | null
+          reingreso: string | null
+          total_bono: number | null
         }
         Insert: {
           anio_mes: string
+          aplica_cuota_lider?: string | null
+          aplica_ejecucion_lider?: string | null
+          aplica_hc_minimo?: string | null
           canal_direccion: string
+          caso_salud_ocupacional?: string | null
           celula?: string | null
           created_at?: string | null
+          dias_novedad?: number | null
+          dias_softlanding?: number | null
           documento_asesor: string
+          fe_bono?: number | null
+          fecha_ingreso_asesor?: string | null
           gerente?: string | null
           id?: string
+          m_de_antiguedad?: number | null
           meta_fe?: number | null
           meta_nube?: number | null
+          meta_recomendados_bono?: number | null
+          meta_sql_bono?: number | null
           meta_total?: number | null
           nombre_asesor?: string | null
           novedad?: string | null
+          nube_bono?: number | null
           pais?: string | null
+          proyecto?: string | null
+          reingreso?: string | null
+          total_bono?: number | null
         }
         Update: {
           anio_mes?: string
+          aplica_cuota_lider?: string | null
+          aplica_ejecucion_lider?: string | null
+          aplica_hc_minimo?: string | null
           canal_direccion?: string
+          caso_salud_ocupacional?: string | null
           celula?: string | null
           created_at?: string | null
+          dias_novedad?: number | null
+          dias_softlanding?: number | null
           documento_asesor?: string
+          fe_bono?: number | null
+          fecha_ingreso_asesor?: string | null
           gerente?: string | null
           id?: string
+          m_de_antiguedad?: number | null
           meta_fe?: number | null
           meta_nube?: number | null
+          meta_recomendados_bono?: number | null
+          meta_sql_bono?: number | null
           meta_total?: number | null
           nombre_asesor?: string | null
           novedad?: string | null
+          nube_bono?: number | null
           pais?: string | null
+          proyecto?: string | null
+          reingreso?: string | null
+          total_bono?: number | null
         }
         Relationships: []
       }
@@ -555,6 +600,7 @@ export type Database = {
           id: string
           m: string | null
           meta_total_acv: number | null
+          meta_total_acv_formato: string | null
           meta_total_und: number | null
           noi: number | null
           nube: number | null
@@ -576,6 +622,7 @@ export type Database = {
           id?: string
           m?: string | null
           meta_total_acv?: number | null
+          meta_total_acv_formato?: string | null
           meta_total_und?: number | null
           noi?: number | null
           nube?: number | null
@@ -597,6 +644,7 @@ export type Database = {
           id?: string
           m?: string | null
           meta_total_acv?: number | null
+          meta_total_acv_formato?: string | null
           meta_total_und?: number | null
           noi?: number | null
           nube?: number | null
