@@ -581,7 +581,14 @@ Deno.serve(async (req) => {
 
     // ── Process asesores SP Convención ──
     const asesoresConvResult = await processAsesoresConvencion(
-      supabase, anioActual, mesActual, yearStartDate, nextYearStartDate, medalsByCanal
+      supabase,
+      anioActual,
+      mesActual,
+      yearStartDate,
+      nextYearStartDate,
+      medalsByCanal,
+      targetCanal,
+      resetExistingConvencion,
     );
 
     // ── Process asesores SP Canje ──
@@ -616,7 +623,9 @@ async function processAsesoresConvencion(
   mesActual: string,
   yearStartDate: string,
   nextYearStartDate: string,
-  medalsByCanal: Record<string, any[]>
+  medalsByCanal: Record<string, any[]>,
+  targetCanal: string | null,
+  resetExistingConvencion: boolean,
 ) {
   const errores: string[] = [];
   let procesados = 0;
