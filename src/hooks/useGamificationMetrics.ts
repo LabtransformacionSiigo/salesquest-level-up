@@ -222,9 +222,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             entry.meta += Number(v.meta) || 0;
             monthlyMap.set(mes, entry);
           });
-          const monthlyCumpl = [...monthlyMap.entries()].map(([mes, { acv, meta }]) => ({
-            mes, acv, meta, pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
-          }));
+          const monthOrderAdv = [...MONTH_NAMES_ES];
+          const monthlyCumpl = [...monthlyMap.entries()]
+            .map(([mes, { acv, meta }]) => ({
+              mes, acv, meta, pct: meta > 0 ? Math.round((acv / meta) * 100) : 0,
+            }))
+            .sort((a, b) => monthOrderAdv.indexOf(a.mes) - monthOrderAdv.indexOf(b.mes));
           const totalAcv = monthlyCumpl.reduce((s, m) => s + m.acv, 0);
           const totalMeta = monthlyCumpl.reduce((s, m) => s + m.meta, 0);
 
