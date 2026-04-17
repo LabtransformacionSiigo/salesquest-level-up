@@ -72,17 +72,45 @@ GROUP BY comercial, lider, Anio, mes, categoria_producto_Venta, bloque_venta
 ${limit}`;
     },
   },
-  // ── NEW: Metas Gerentes ──
+  // ── Metas Gerentes (Aliados + Empresarios, todos los países) ──
   metas_gerentes: {
-    label: "Metas Gerentes (tbl_brz_gerentes)",
+    label: "Metas Gerentes Aliados+Empresarios (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad FROM hive_metastore.db_stage.tbl_brz_gerentes WHERE celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad,
+              CONCAT('$ ', FORMAT_NUMBER(CAST(meta_total_acv AS BIGINT), 0)) AS meta_total_acv_formato
+       FROM hive_metastore.db_stage.tbl_brz_gerentes
+       WHERE celula IS NOT NULL AND TRIM(celula) <> ''
+         AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
+       ${limit}`,
   },
-  // ── NEW: Metas Asesores ──
+  // ── Metas Asesores (Aliados + Empresarios, todos los países, con bonos trimestrales) ──
   metas_asesores_sync: {
-    label: "Metas Asesores (cuotas_asesores)",
+    label: "Metas Asesores Aliados+Empresarios (cuotas_asesores)",
     sql: (limit: string) =>
-      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula, m_de_antiguedad, meta_fe, meta_nube, meta_total, novedad FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores WHERE documento_asesor IS NOT NULL AND TRIM(documento_asesor) <> '' AND nombre_asesor IS NOT NULL AND TRIM(nombre_asesor) <> '' AND celula IS NOT NULL AND TRIM(celula) <> '' ${limit}`,
+      `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula,
+              proyecto, fecha_ingreso_asesor, m_de_antiguedad,
+              COALESCE(novedad, 'No aplica') AS novedad,
+              CAST(dias_habiles_de_novedad_comisiones_peopleretiro_intrames AS INT) AS dias_novedad,
+              COALESCE(reingreso, 'No aplica') AS reingreso,
+              CAST(dias_habiles_softlanding AS INT) AS dias_softlanding,
+              COALESCE(caso_salud_ocupacional, 'No aplica') AS caso_salud_ocupacional,
+              CAST(meta_fe AS INT) AS meta_fe,
+              CAST(meta_nube AS INT) AS meta_nube,
+              CAST(meta_total AS INT) AS meta_total,
+              COALESCE(aplica_a_cuota_lider, 'No aplica') AS aplica_cuota_lider,
+              COALESCE(aplica_a_ejecucion_lider, 'No aplica') AS aplica_ejecucion_lider,
+              COALESCE(aplica_a_hc_minimo, 'No aplica') AS aplica_hc_minimo,
+              CAST(meta_sql_bono_trimestral_categorizacion_marzo AS INT) AS meta_sql_bono,
+              CAST(meta_recomendados_bono_trimestral_categorizacion_marzo AS INT) AS meta_recomendados_bono,
+              CAST(fe_bono_trimestral_categorizacion AS INT) AS fe_bono,
+              CAST(nube_bono_trimestral_categorizacion AS INT) AS nube_bono,
+              CAST(total_bono_trimestral_categorizacion AS INT) AS total_bono
+       FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+       WHERE documento_asesor IS NOT NULL AND TRIM(documento_asesor) <> ''
+         AND nombre_asesor IS NOT NULL AND TRIM(nombre_asesor) <> ''
+         AND celula IS NOT NULL AND TRIM(celula) <> ''
+         AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
+       ${limit}`,
   },
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
