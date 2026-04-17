@@ -53,12 +53,28 @@ const normalizeStoredAcv = (value?: number | null) => {
   return Math.round(n);
 };
 
+const normalizeCanal = (value?: string | null) => {
+  const raw = (value || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (raw === "vc" || raw.includes("cruzada")) return "VC";
+  if (raw.includes("aliad")) return "VN_ALIADOS";
+  if (raw.includes("empres") || raw.includes("mercadeo") || raw.includes("digital") || raw.includes("lead")) return "VN_EMPRESARIOS";
+  return value || "";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    let requestBody: Record<string, unknown> = {};
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = {};
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -109,6 +125,9 @@ Deno.serve(async (req) => {
     const nextMonthStart = now.getMonth() === 11
       ? `${anioActual + 1}-01-01`
       : `${anioActual}-${String(now.getMonth() + 2).padStart(2, "0")}-01`;
+    const targetCanal = normalizeCanal(typeof requestBody.canal === "string" ? requestBody.canal : null) || null;
+    const resetExistingConvencion = requestBody.reset_existing_convencion === true;
+    const onlyConvencion = requestBody.only_convencion === true;
 
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
@@ -117,12 +136,26 @@ Deno.serve(async (req) => {
       supabase.from("catalogo_medallas").select("*").eq("activo", true),
     ]);
 
-    const gerentes = gerentesRes.data || [];
+    const gerentes = (gerentesRes.data || []).filter((g) => !targetCanal || normalizeCanal(g.canal) === targetCanal);
     if (gerentes.length === 0) {
       return new Response(
         JSON.stringify({ procesados: 0, sp_otorgados: 0, errores: ["No hay gerentes activos"] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (resetExistingConvencion) {
+      const gerenteIds = gerentes.map((g) => g.id);
+      for (let i = 0; i < gerenteIds.length; i += 500) {
+        const chunkIds = gerenteIds.slice(i, i + 500);
+        const { error: deleteErr } = await supabase
+          .from("sp_acumulados")
+          .delete()
+          .in("gerente_id", chunkIds)
+          .eq("tipo_sp", "convencion")
+          .eq("fuente", "CUMPLIMIENTO_META");
+        if (deleteErr) errores.push(`Batch delete SP convención: ${deleteErr.message}`);
+      }
     }
 
     const umbralMap: Record<string, number> = {};
@@ -376,6 +409,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (onlyConvencion) {
+      return new Response(JSON.stringify({
+        procesados,
+        sp_otorgados: totalSpOtorgados,
+        semana: periodoSemana,
+        canal_objetivo: targetCanal,
+        por_canal: resumenCanal,
+        errores,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Rachas: batch load weekly ventas + last rachas ──
     const weekStartDate = getISOWeekStartDate(semanaActual, anioActual);
     const weekEndDate = new Date(weekStartDate);
@@ -535,7 +581,14 @@ Deno.serve(async (req) => {
 
     // ── Process asesores SP Convención ──
     const asesoresConvResult = await processAsesoresConvencion(
-      supabase, anioActual, mesActual, yearStartDate, nextYearStartDate, medalsByCanal
+      supabase,
+      anioActual,
+      mesActual,
+      yearStartDate,
+      nextYearStartDate,
+      medalsByCanal,
+      targetCanal,
+      resetExistingConvencion,
     );
 
     // ── Process asesores SP Canje ──
@@ -570,7 +623,9 @@ async function processAsesoresConvencion(
   mesActual: string,
   yearStartDate: string,
   nextYearStartDate: string,
-  medalsByCanal: Record<string, any[]>
+  medalsByCanal: Record<string, any[]>,
+  targetCanal: string | null,
+  resetExistingConvencion: boolean,
 ) {
   const errores: string[] = [];
   let procesados = 0;
@@ -596,8 +651,25 @@ async function processAsesoresConvencion(
       .limit(5000),
   ]);
 
-  const asesores = asesoresRes.data || [];
+  const asesores = (asesoresRes.data || []).filter((asesor: any) => {
+    if (!targetCanal) return true;
+    return normalizeCanal(asesor.canal || asesor.canal_direccion) === targetCanal;
+  });
   if (asesores.length === 0) return { procesados: 0, sp_otorgados: 0, errores: [] };
+
+  if (resetExistingConvencion) {
+    const asesorIds = asesores.map((a: any) => a.id);
+    for (let i = 0; i < asesorIds.length; i += 500) {
+      const chunkIds = asesorIds.slice(i, i + 500);
+      const { error: deleteErr } = await supabase
+        .from("sp_acumulados")
+        .delete()
+        .in("gerente_id", chunkIds)
+        .eq("tipo_sp", "convencion")
+        .eq("fuente", "CUMPLIMIENTO_META");
+      if (deleteErr) errores.push(`Batch delete asesor SP convención: ${deleteErr.message}`);
+    }
+  }
 
   const metasByAsesor = new Map<string, any[]>();
   (metasRes.data || []).forEach((m: any) => {
@@ -685,16 +757,23 @@ async function processAsesoresConvencion(
             spFinal = Math.round((acvTotal / metaAcv) * 100);
             detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada · ${periodo}`;
           }
-        } else {
-          // VN: SP Convención basado en ACV / Meta ACV
+         } else {
+           // VN: ACV%=1SP, FE%=1SP, Nube%=2SP
           const acvAsesor = prodAcvMap.get(`${asesorNameLower}|${periodo}`) ||
             (ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0));
 
           const metaAcvAsesor = prodMetaMap.get(`${asesorNameLower}|${periodo}`) || 0;
-          if (metaAcvAsesor > 0 && acvAsesor > 0) {
-            spFinal = Math.round((acvAsesor / metaAcvAsesor) * 100);
-            detalleLabel = `Cumplimiento ACV: ${spFinal}% · ${canalDir} · ${periodo}`;
-          }
+           const spAcv = metaAcvAsesor > 0 && acvAsesor > 0
+             ? Math.round((acvAsesor / metaAcvAsesor) * 100)
+             : 0;
+           const ventasFe = Number(ejecData?.ventas_fe) || 0;
+           const ventasNube = Number(ejecData?.ventas_nube) || 0;
+           const metaFe = Number(meta.meta_fe) || 0;
+           const metaNube = Number(meta.meta_nube) || 0;
+           const spFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
+           const spNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) * 2 : 0;
+           spFinal = spAcv + spFe + spNube;
+           detalleLabel = `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canalDir} · ${periodo}`;
         }
 
         if (spFinal <= 0) continue;
