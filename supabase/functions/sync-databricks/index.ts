@@ -167,6 +167,7 @@ const normalizeCountry = (value: unknown) => {
   if (["COL", "CO", "COLOMBIA"].includes(country)) return "COL";
   if (["MEX", "MX", "MEXICO", "MEXICO DF"].includes(country)) return "MEX";
   if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
+  if (["URU", "UY", "URUGUAY"].includes(country)) return "URU";
   return "COL";
 };
 
@@ -871,14 +872,82 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
 }
 
 // ============================================================
-// Product normalization for Empresarios/Aliados
+// Product family normalization by country
+// For tbl_gld_Ventas_SA (Aliados): use tipo_producto1 directly (already "FE" or "NUBE")
+// For tbl_gld_Ventas_MX (Empresarios): pass Producto + asesor's country
 // ============================================================
-function normalizeProductCategory(tipoProducto: string): "FE" | "NUBE" | "COI" | "NOI" | "OTRO" {
-  const p = (tipoProducto || "").toUpperCase().trim();
-  if (p.includes("FE") || p.includes("FACTURACION ELECTRONICA") || p.includes("FACTURACIÓN")) return "FE";
-  if (p.includes("NUBE") || p.includes("CLOUD") || p.includes("SIIGO NUBE")) return "NUBE";
-  if (p.includes("COI") || p.includes("ASPEL COI") || p.includes("CONTABILIDAD")) return "COI";
-  if (p.includes("NOI") || p.includes("ASPEL NOI") || p.includes("NOMINA") || p.includes("NÓMINA")) return "NOI";
+const FE_PRODUCTS_BY_COUNTRY: Record<string, string[]> = {
+  COL: [
+    "FE (24 Doc)", "FE (24 Doc) WP", "FE (60 Doc)", "FE (80 Doc)", "FE (100 Doc)",
+    "FE (120 Doc)", "FE (120 Doc) WP", "FE (260 Doc)", "FE (300 Doc)", "FE (1500 Doc)",
+    "FE PRO", "Nomina Base", "Nomina Lite 2 (24 Doc)", "Nomina Lite 10 (120 Doc)",
+    "Nomina Lite 25 (300 Doc)", "Nomina Plus", "Nomina Pro", "POS", "POS INICIO",
+    "POS AVANZADO", "POS ESENCIAL", "Pos Gastrobar PRO", "Siigo POS"
+  ],
+  ECU: [
+    "FE (10 Doc)", "FE (20 Doc)", "FE (48 Doc)", "FE (50 Doc)", "FE (96 Doc)",
+    "FE (100 Doc)", "FE (120 Doc)", "FE (240 Doc)", "FE (480 Doc)", "FE (600 Doc)",
+    "FE (1200 Doc)", "FE (2400 Doc)", "FE ILI", "POS",
+    "Contador 3", "Contador 5", "Contador 10", "Contador 15", "Contador Ilimitado"
+  ],
+  MEX: [
+    "ADM Basica", "ADM Basica (20 Tim)", "ADM Basica (50 Tim)", "ADM Basica (100 Tim)",
+    "Aspel BANCO", "Aspel CAJA", "Aspel Fact 1 Emp", "Aspel Fact 2 a 99 Emp",
+    "NOI Asist (6 a 25 Emp)", "NOI Asist (26 a 50 Emp)", "NOI Asist (51 a 100 Emp)",
+    "NOI Asist (101 a 200 Emp)", "NOI Asist (201 a 500 Emp)", "NOI Asist (501 a 1000 Emp)",
+    "NOI Asist (+1000 Emp)", "Nube Facturacion", "Nube Facturacion Duo"
+  ],
+  URU: [
+    "API", "FE (5 Doc)", "FE (5 Doc 2023)", "FE (50 Doc)", "FE (100 Doc)",
+    "FE (Geocom)", "FE (Libre)", "FE (Literal E) POS", "FE (Monotributo)",
+    "FE (PRO)", "FE (Resonance)", "POS", "POS Movil"
+  ],
+};
+
+const NUBE_PRODUCTS_BY_COUNTRY: Record<string, string[]> = {
+  COL: [
+    "Contai Ili", "Mto", "Nomina Ili", "Nuevo Siigo Nube", "Nuevo Siigo Nube Emprendedor",
+    "Nuevo Siigo Nube Premium", "Nube Profesional Independiente", "SCI Ili",
+    "SCI - Fusionado Ili", "Siigo Nube Lite", "Siigo Pyme"
+  ],
+  ECU: ["Esencial", "Gestion Plus", "Nube", "Plus", "Premium"],
+  MEX: [
+    "ADM Premium", "Aspel COI", "Aspel NOI", "Aspel SAE", "Gestion Avanzado",
+    "Gestion Inicio", "Gestion Premium", "Gestion Total Avanzado", "Gestion Total Inicio",
+    "Gestion Total Premium", "Fiscal Corporativo", "Fiscal Descargas", "Fiscal Despachos",
+    "Fiscal Empresarial", "Fiscal Pyme"
+  ],
+  URU: [
+    "Emprendedor", "Figaro", "Figaro + FE", "Figaro Educativo", "POS", "Premium",
+    "Pyme", "Recibos SE", "Recibos SE 1 a 15", "Recibos SE 16 a 30",
+    "Recibos SE 31 a 60", "Recibos SE 60 a 120", "Worky", "Worky Educativo",
+    "Contador", "Conty Educativo", "Conty Educativo(Inst)", "Conty Full"
+  ],
+};
+
+function normalizeProductFamily(productName: string, pais: string): "FE" | "NUBE" | "OTRO" {
+  const name = (productName || "").trim();
+  if (!name) return "OTRO";
+  const country = normalizeCountry(pais);
+
+  const feList = FE_PRODUCTS_BY_COUNTRY[country] || [];
+  const nubeList = NUBE_PRODUCTS_BY_COUNTRY[country] || [];
+
+  const nameLower = name.toLowerCase();
+  // Exact match first (case-insensitive) — wins over fuzzy
+  if (feList.some((p) => p.toLowerCase() === nameLower)) return "FE";
+  if (nubeList.some((p) => p.toLowerCase() === nameLower)) return "NUBE";
+
+  // Fuzzy fallback: STARTS WITH or CONTAINS
+  if (feList.some((p) => {
+    const lp = p.toLowerCase();
+    return nameLower.startsWith(lp) || nameLower.includes(lp);
+  })) return "FE";
+  if (nubeList.some((p) => {
+    const lp = p.toLowerCase();
+    return nameLower.startsWith(lp) || nameLower.includes(lp);
+  })) return "NUBE";
+
   return "OTRO";
 }
 
@@ -892,9 +961,12 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   const upsertRows: any[] = [];
   for (const row of rows) {
     const asesor = String(row.ASESOR || "").trim();
-    const tipoProducto = String(row.TIPO_PRODUCTO || "").trim();
     const producto = String(row.Producto || "").trim();
     if (!asesor) continue;
+
+    const pais = normalizeCountry(row.pais || row.PAIS || "MEX");
+    // For Empresarios (MX): infer family from product name + country
+    const familiaCanon = normalizeProductFamily(producto, pais);
 
     upsertRows.push({
       fecha: row.FECHA ? String(row.FECHA).trim() : null,
@@ -902,14 +974,14 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       celula: String(row.CELULA || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.Equipo || "").trim() || null,
-      tipo_producto: tipoProducto || null,
+      tipo_producto: familiaCanon, // canonical family (FE/NUBE/OTRO) for ejecucion aggregation
       producto: producto || null,
       unidades: toRoundedInt(row.Unidades),
       acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Empresarios"),
-      pais: normalizeCountry("MEX"),
+      pais,
     });
   }
 
@@ -952,8 +1024,12 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   const upsertRows: any[] = [];
   for (const row of rows) {
     const asesor = String(row.fullname || "").trim();
-    const tipoProducto = String(row.tipo_producto1 || "").trim();
     if (!asesor) continue;
+
+    // Aliados (tbl_gld_Ventas_SA): tipo_producto1 IS the family ("FE"/"NUBE") — use directly
+    const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
+    const familiaCanon: "FE" | "NUBE" | "OTRO" =
+      familiaRaw === "FE" ? "FE" : familiaRaw === "NUBE" ? "NUBE" : "OTRO";
 
     upsertRows.push({
       fecha: row.fecha ? String(row.fecha).trim() : null,
@@ -961,8 +1037,8 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       celula: String(row.celula || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.equipo || "").trim() || null,
-      tipo_producto: tipoProducto || null,
-      producto: tipoProducto || null,
+      tipo_producto: familiaCanon, // canonical family for ejecucion aggregation
+      producto: String(row.tipo_producto1 || "").trim() || null,
       unidades: toRoundedInt(row.Cuenta_comercial),
       acv: toRoundedInt(row.ACV),
       recurrencia: null,
@@ -1013,7 +1089,9 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     // Ensure periodo is 6 chars (YYYYMM)
     const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
     const key = `${row.asesor}|${periodoClean}`;
-    const cat = normalizeProductCategory(row.tipo_producto || "");
+    // tipo_producto already holds the canonical family ("FE" | "NUBE" | "OTRO")
+    // set by syncVentasAliados / syncVentasEmpresarios
+    const cat = String(row.tipo_producto || "").trim().toUpperCase();
 
     if (!grouped.has(key)) {
       grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
