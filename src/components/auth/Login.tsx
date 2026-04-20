@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 
@@ -36,6 +36,17 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthenticated, signIn } = useSupabaseAuthContext();
   const navigate = useNavigate();
+
+  // Preload LCP background image to reduce resource load delay
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = bannerPrincipal;
+    link.setAttribute('fetchpriority', 'high');
+    document.head.appendChild(link);
+    return () => { document.head.removeChild(link); };
+  }, []);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
