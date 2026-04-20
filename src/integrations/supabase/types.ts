@@ -161,6 +161,7 @@ export type Database = {
           emoji: string | null
           id: string
           nombre: string
+          pais: string | null
           producto: string | null
           sp: number
         }
@@ -174,6 +175,7 @@ export type Database = {
           emoji?: string | null
           id?: string
           nombre: string
+          pais?: string | null
           producto?: string | null
           sp?: number
         }
@@ -187,6 +189,7 @@ export type Database = {
           emoji?: string | null
           id?: string
           nombre?: string
+          pais?: string | null
           producto?: string | null
           sp?: number
         }
@@ -1697,6 +1700,8 @@ export type Database = {
           cant_recomendados: number | null
           gerente_id: string | null
           mes_periodo: string | null
+          meta_fe: number | null
+          meta_nube: number | null
           meta_unidades: number | null
           nombre: string | null
           pais: string | null
@@ -1704,6 +1709,8 @@ export type Database = {
           posicion: number | null
           sc_creados: number | null
           unidades_logradas: number | null
+          ventas_fe: number | null
+          ventas_nube: number | null
         }
         Relationships: []
       }
