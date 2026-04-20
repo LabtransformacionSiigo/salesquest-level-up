@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
+import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -163,8 +164,8 @@ const Rankings = () => {
         const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
-          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').eq('anio_mes', currentMonth).range(0, 5000),
-          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total').eq('periodo', currentMonth).limit(2000),
+          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -177,31 +178,6 @@ const Rankings = () => {
         const canjeMap = new Map<string, number>();
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
-        });
-        const metaUnidadesByAdvisor = new Map<string, number>();
-        const metaFeByAdvisor = new Map<string, number>();
-        const metaNubeByAdvisor = new Map<string, number>();
-        (metasAsesoresRes.data || []).forEach((row: any) => {
-          const name = normalizePersonName(row.nombre_asesor);
-          const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
-          if (!name || (nov && nov !== 'sin novedad')) return;
-          metaUnidadesByAdvisor.set(name, (metaUnidadesByAdvisor.get(name) || 0) + (Number(row.meta_total) || 0));
-          metaFeByAdvisor.set(name, (metaFeByAdvisor.get(name) || 0) + (Number(row.meta_fe) || 0));
-          metaNubeByAdvisor.set(name, (metaNubeByAdvisor.get(name) || 0) + (Number(row.meta_nube) || 0));
-        });
-        // Build ejecucion FE/Nube by documento_asesor -> map to advisor name
-        const docToName = new Map<string, string>();
-        (metasAsesoresRes.data || []).forEach((row: any) => {
-          if (row.documento_asesor && row.nombre_asesor) docToName.set(String(row.documento_asesor).trim().toLowerCase(), normalizePersonName(row.nombre_asesor));
-        });
-        const ejecFeByAdvisor = new Map<string, number>();
-        const ejecNubeByAdvisor = new Map<string, number>();
-        (ejecAsesoresRes.data || []).forEach((row: any) => {
-          const doc = String(row.documento_asesor || '').trim().toLowerCase();
-          const name = docToName.get(doc);
-          if (!name) return;
-          ejecFeByAdvisor.set(name, (ejecFeByAdvisor.get(name) || 0) + (Number(row.ventas_fe) || 0));
-          ejecNubeByAdvisor.set(name, (ejecNubeByAdvisor.get(name) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Aggregate by advisor
         const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
@@ -235,32 +211,31 @@ const Rankings = () => {
         // Build ranking entries
         const entries: any[] = [];
         advisorAgg.forEach((agg, key) => {
-          const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
-            if (m.meta > 0 && m.acv > 0) return total + Math.round((m.acv / m.meta) * 100);
-            return total;
-          }, 0);
+          const monthlyRows = buildVnConventionMonthlyRows({
+            productivityRows: (productividadRes.data || []).filter((row: any) => normalizePersonName(row.asesor) === key),
+            metaRows: (metasAsesoresRes.data || []).filter((row: any) => normalizePersonName(row.nombre_asesor) === key),
+            ejecRows: ejecAsesoresRes.data || [],
+          });
+          const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
+          const spConv = sumVnConventionMonthlyRows(monthlyRows);
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
-          const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
+          const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
-          const mFe = metaFeByAdvisor.get(key) || 0;
-          const mNube = metaNubeByAdvisor.get(key) || 0;
-          const eFe = ejecFeByAdvisor.get(key) || 0;
-          const eNube = ejecNubeByAdvisor.get(key) || 0;
           entries.push({
             id: key,
             nombre: originalName,
             gerente_nombre: agg.celula,
             kpi_value: Math.round(currentAcv || agg.acv),
             meta_acv: currentMetaAcv,
-            meta_unidades: metaUnidadesByAdvisor.get(key) || 0,
+            meta_unidades: currentMonthly?.metaTotal || 0,
             unidades_logradas: agg.ventas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
-            pct_fe: mFe > 0 ? Math.round((eFe / mFe) * 100) : 0,
-            pct_nube: mNube > 0 ? Math.round((eNube / mNube) * 100) : 0,
+            pct_fe: currentMonthly?.pctFe || 0,
+            pct_nube: currentMonthly?.pctNube || 0,
             ventas_count: agg.ventas,
             posicion: 0,
             canal: profile.canal,
@@ -279,8 +254,8 @@ const Rankings = () => {
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').eq('anio_mes', currentMonth).range(0, 5000),
-          supabase.from('ejecucion_asesores').select('documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').eq('periodo', currentMonth).limit(2000),
+          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -289,29 +264,6 @@ const Rankings = () => {
           if (nov && nov !== 'sin novedad' && r.nombre_asesor) {
             asesoresConNovedadTeam.add(String(r.nombre_asesor).trim().toLowerCase());
           }
-        });
-        const metaUnidadesByCelula = new Map<string, number>();
-        const metaFeByCelula = new Map<string, number>();
-        const metaNubeByCelula = new Map<string, number>();
-        const docToCelula = new Map<string, string>();
-        (metasAsesoresRes.data || []).forEach((row: any) => {
-          const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : '';
-          const celula = String(row.celula || '').trim();
-          if (row.documento_asesor && celula) docToCelula.set(String(row.documento_asesor).trim().toLowerCase(), celula);
-          if (!celula || (nov && nov !== 'sin novedad')) return;
-          metaUnidadesByCelula.set(celula, (metaUnidadesByCelula.get(celula) || 0) + (Number(row.meta_total) || 0));
-          metaFeByCelula.set(celula, (metaFeByCelula.get(celula) || 0) + (Number(row.meta_fe) || 0));
-          metaNubeByCelula.set(celula, (metaNubeByCelula.get(celula) || 0) + (Number(row.meta_nube) || 0));
-        });
-        // Build ejecucion FE/Nube by celula
-        const ejecFeByCelula = new Map<string, number>();
-        const ejecNubeByCelula = new Map<string, number>();
-        (ejecAsesoresGerenteRes.data || []).forEach((row: any) => {
-          const doc = String(row.documento_asesor || '').trim().toLowerCase();
-          const celula = docToCelula.get(doc);
-          if (!celula) return;
-          ejecFeByCelula.set(celula, (ejecFeByCelula.get(celula) || 0) + (Number(row.ventas_fe) || 0));
-          ejecNubeByCelula.set(celula, (ejecNubeByCelula.get(celula) || 0) + (Number(row.ventas_nube) || 0));
         });
         // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
@@ -394,20 +346,17 @@ const Rankings = () => {
         });
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
+          const monthlyRows = buildVnConventionMonthlyRows({
+            productivityRows: (productividadRes.data || []).filter((row: any) => row.celula === celula),
+            metaRows: (metasAsesoresRes.data || []).filter((row: any) => row.celula === celula),
+            ejecRows: ejecAsesoresGerenteRes.data || [],
+          });
+          const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
           const celulaMetaMap = metaAcvByCelulaTeam.get(celula);
-          // SP Convención = ACV / Meta ACV per month (como VC)
-          const spConv = [...agg.months.entries()].reduce((total, [period, m]) => {
-            const monthMeta = celulaMetaMap?.get(period) || 0;
-            if (monthMeta > 0 && m.acv > 0) return total + Math.round((m.acv / monthMeta) * 100);
-            return total;
-          }, 0);
+          const spConv = sumVnConventionMonthlyRows(monthlyRows);
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
-          const pct = currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0;
+          const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          const mFeCel = metaFeByCelula.get(celula) || 0;
-          const mNubeCel = metaNubeByCelula.get(celula) || 0;
-          const eFeCel = ejecFeByCelula.get(celula) || 0;
-          const eNubeCel = ejecNubeByCelula.get(celula) || 0;
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || celula,
@@ -418,13 +367,13 @@ const Rankings = () => {
             acv_total_year: Math.round(agg.acv),
             meta_total: currentMetaAcv,
             meta_acv: currentMetaAcv,
-            meta_unidades: metaUnidadesByCelula.get(celula) || 0,
+            meta_unidades: currentMonthly?.metaTotal || 0,
             unidades_logradas: agg.currentVentas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
-            pct_fe: mFeCel > 0 ? Math.round((eFeCel / mFeCel) * 100) : 0,
-            pct_nube: mNubeCel > 0 ? Math.round((eNubeCel / mNubeCel) * 100) : 0,
+            pct_fe: currentMonthly?.pctFe || 0,
+            pct_nube: currentMonthly?.pctNube || 0,
             sp_totales: spConv,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
