@@ -124,6 +124,14 @@ const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv
  * Calcula SP Convención VN incluyendo FE (1%=1SP) y Nube (1%=2SP)
  * usando ejecucion_asesores y metas_asesores agrupados por periodo
  */
+const normalizeComparableText = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
 const getVnFeNubeConventionTotal = (
   ejecRows: Array<{ periodo?: string; documento_asesor?: string; ventas_fe?: number; ventas_nube?: number }> | null | undefined,
   metaRows: Array<{ anio_mes?: string; documento_asesor?: string; meta_fe?: number; meta_nube?: number; novedad?: string }> | null | undefined,
