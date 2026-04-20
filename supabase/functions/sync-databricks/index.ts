@@ -421,11 +421,7 @@ async function runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode }: {
     }
   }
 
-  if (mode === "sync") {
-    const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "all_new");
-    results.sp_recalculo = spResult;
-  }
-
+  // SP recalculation is decoupled — admin triggers it manually from /admin/calculos after all syncs complete.
   return { ...results, errors };
 }
 
