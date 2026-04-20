@@ -25,7 +25,9 @@ import AdminRachas from '@/pages/admin/AdminRachas';
 import AdminCalculoSP from '@/pages/admin/AdminCalculoSP';
 import AdminDatabricks from '@/pages/admin/AdminDatabricks';
 import AdminPremios from '@/pages/admin/AdminPremios';
+import AdminEspecialista from '@/pages/admin/AdminEspecialista';
 import AdminRoute from '@/components/auth/AdminRoute';
+import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 
 function App() {
   return (
@@ -51,6 +53,7 @@ function App() {
             <Route path="/admin/calculos" element={<AdminRoute><AdminCalculoSP /></AdminRoute>} />
             <Route path="/admin/databricks" element={<AdminRoute><AdminDatabricks /></AdminRoute>} />
             <Route path="/admin/premios" element={<AdminRoute><AdminPremios /></AdminRoute>} />
+            <Route path="/admin/especialista" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

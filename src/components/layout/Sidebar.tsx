@@ -24,11 +24,16 @@ const menuItems = [
 const adminItems = [
   { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
-  { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas' },
-  { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },
+  { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
+  { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas (legacy)' },
+  { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
   { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
+];
+
+const especialistaItems = [
+  { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
 ];
 
 const Sidebar = () => {
@@ -43,6 +48,7 @@ const Sidebar = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
+  const isEspecialista = profile?.role === 'especialista';
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
@@ -65,14 +71,14 @@ const Sidebar = () => {
       >
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
-            <MI icon={isAdmin ? 'admin_panel_settings' : 'person'} className="text-sidebar-primary text-xl" />
+            <MI icon={isAdmin ? 'admin_panel_settings' : isEspecialista ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : (profile?.nivel || 'Nivel 1')}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
-        {!isAdmin && (
+        {!isAdmin && !isEspecialista && (
           <>
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
@@ -103,7 +109,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {!isAdmin && menuItems.map((item) => (
+        {!isAdmin && !isEspecialista && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
@@ -122,12 +128,12 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {isAdmin && (
+        {(isAdmin || isEspecialista) && (
           <>
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
-              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">⚙️ Administración</p>
+              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : '🛡️ Especialista'}</p>
             </motion.div>
-            {adminItems.map((item) => (
+            {(isAdmin ? adminItems : especialistaItems).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}
