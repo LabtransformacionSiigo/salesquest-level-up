@@ -109,7 +109,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {!isAdmin && menuItems.map((item) => (
+        {!isAdmin && !isEspecialista && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
