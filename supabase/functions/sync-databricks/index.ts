@@ -315,6 +315,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ queued: true, launched: tables, jobIds, message: `${tables.length} syncs iniciados en paralelo (workers aislados)` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Dispatched worker: incoming jobId means this is a fresh worker for one table ──
+    if (mode === "sync" && jobId) {
+      EdgeRuntime.waitUntil(processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, jobId }));
+      return new Response(JSON.stringify({ queued: true, jobId, table, message: "Worker iniciado" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ── Background job creation ──
     if (mode === "sync" && !jobId) {
       const { data: job, error: jobError } = await supabase
