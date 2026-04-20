@@ -25,6 +25,7 @@ const AdminCalculoSP = () => {
   const [result, setResult] = useState<any>(null);
   const [historial, setHistorial] = useState<any[]>([]);
   const [histLoading, setHistLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<{ running: number; lastCompleted: string | null }>({ running: 0, lastCompleted: null });
 
   const semana = getISOWeek(new Date());
   const anio = new Date().getFullYear();
@@ -41,8 +42,29 @@ const AdminCalculoSP = () => {
     setHistLoading(false);
   };
 
+  const fetchSyncStatus = async () => {
+    const { count } = await supabase
+      .from('sync_jobs')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['running', 'pending']);
+    const { data: lastDone } = await supabase
+      .from('sync_jobs')
+      .select('finished_at')
+      .eq('status', 'completed')
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setSyncStatus({
+      running: count ?? 0,
+      lastCompleted: lastDone?.finished_at ?? null,
+    });
+  };
+
   useEffect(() => {
     fetchHistorial();
+    fetchSyncStatus();
+    const iv = setInterval(fetchSyncStatus, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   const handleExecute = async () => {
@@ -79,6 +101,28 @@ const AdminCalculoSP = () => {
             <p className="text-sm text-muted-foreground mt-1">
               Ejecuta el cálculo de Siigo Points para la semana actual. Normalmente esto ocurre automáticamente cada viernes a las 6PM.
             </p>
+          </div>
+
+          {/* Sync status banner */}
+          <div className={cn(
+            "rounded-xl p-3 flex items-start gap-2 text-xs border",
+            syncStatus.running > 0
+              ? "bg-destructive/5 border-destructive/30 text-destructive"
+              : "bg-secondary/5 border-secondary/30 text-foreground"
+          )}>
+            <MI icon={syncStatus.running > 0 ? "sync" : "check_circle"} className={cn("text-base", syncStatus.running > 0 && "animate-spin")} />
+            <div className="flex-1">
+              {syncStatus.running > 0 ? (
+                <p><strong>Espera:</strong> {syncStatus.running} sincronización(es) de Databricks en curso. Ejecutar el motor ahora puede dar resultados incompletos.</p>
+              ) : (
+                <p>
+                  <strong>Listo para ejecutar.</strong> No hay sincronizaciones activas.
+                  {syncStatus.lastCompleted && (
+                    <> Última sync completada: {new Date(syncStatus.lastCompleted).toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}.</>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">

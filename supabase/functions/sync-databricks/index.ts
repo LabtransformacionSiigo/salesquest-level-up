@@ -285,7 +285,8 @@ Deno.serve(async (req) => {
         .lt("created_at", cutoff);
     }
 
-    // ── all_new: run each table sequentially in background ──
+    // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
+    // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
     if (table === "all_new" && mode === "sync") {
       const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
@@ -296,14 +297,28 @@ Deno.serve(async (req) => {
           .select("id").single();
         if (job) jobIds[t] = job.id;
       }
-      // Process all sequentially in background (single waitUntil, one table at a time)
+      // Dispatch one HTTP call per table — each lands on a fresh worker with its own CPU budget.
+      const selfUrl = `${supabaseUrl}/functions/v1/sync-databricks`;
       EdgeRuntime.waitUntil((async () => {
-        for (const t of tables) {
-          if (!jobIds[t]) continue;
-          await processSyncJob({ supabaseUrl, serviceRoleKey, table: t, jobId: jobIds[t] });
-        }
+        await Promise.all(tables.map((t) =>
+          fetch(selfUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey,
+            },
+            body: JSON.stringify({ mode: "sync", table: t, jobId: jobIds[t] }),
+          }).catch((e) => console.error(`[all_new] dispatch ${t} failed:`, e))
+        ));
       })());
-      return new Response(JSON.stringify({ queued: true, launched: tables, message: `${tables.length} syncs iniciados secuencialmente` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ queued: true, launched: tables, jobIds, message: `${tables.length} syncs iniciados en paralelo (workers aislados)` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Dispatched worker: incoming jobId means this is a fresh worker for one table ──
+    if (mode === "sync" && jobId) {
+      EdgeRuntime.waitUntil(processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, jobId }));
+      return new Response(JSON.stringify({ queued: true, jobId, table, message: "Worker iniciado" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ── Background job creation ──
@@ -406,11 +421,7 @@ async function runAllNewSyncs({ supabase, supabaseUrl, serviceRoleKey, mode }: {
     }
   }
 
-  if (mode === "sync") {
-    const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "all_new");
-    results.sp_recalculo = spResult;
-  }
-
+  // SP recalculation is decoupled — admin triggers it manually from /admin/calculos after all syncs complete.
   return { ...results, errors };
 }
 
@@ -438,8 +449,8 @@ async function runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesF
     syncVentasVCProducto(supabase, prodRows),
   ]);
 
-  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vc_completo");
-  return { ventas_vc: vcResult, ventas_vc_producto: prodResult, sp_recalculo: spResult };
+  // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
+  return { ventas_vc: vcResult, ventas_vc_producto: prodResult };
 }
 
 // ============================================================
@@ -483,8 +494,8 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
   if (!syncFn) throw new Error(`No sync function for table: ${table}`);
 
   const syncResult = await syncFn(supabase, rows);
-  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, table);
-  return { ...syncResult, sp_recalculo: spResult };
+  // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
+  return syncResult;
 }
 
 // ============================================================
@@ -1256,8 +1267,8 @@ async function runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesF
     syncVentasVN(supabase, empRows, "VN_EMPRESARIOS"),
   ]);
 
-  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vn_completo");
-  return { ventas_vn_aliados: aliResult, ventas_vn_empresarios: empResult, sp_recalculo: spResult };
+  // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
+  return { ventas_vn_aliados: aliResult, ventas_vn_empresarios: empResult };
 }
 
 // ============================================================
