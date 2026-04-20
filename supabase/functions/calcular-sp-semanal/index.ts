@@ -754,7 +754,7 @@ async function processAsesoresConvencion(
   });
 
   const spUpserts: any[] = [];
-  const asesorSpTotals: { id: string; sp: number; ejec: any; meta: any; canalDir: string }[] = [];
+  const asesorSpTotals: { id: string; sp: number; ejec: any; meta: any; canalDir: string; pais: string }[] = [];
 
   for (const asesor of asesores) {
     try {
@@ -822,7 +822,7 @@ async function processAsesoresConvencion(
             acv_total: ventasData?.acv || 0,
             cant_recomendados: 0, ventas_fe: 0, ventas_nube: 0,
           };
-          currentMonthSummary = { id: asesor.id, sp: spFinal, ejec, meta, canalDir };
+          currentMonthSummary = { id: asesor.id, sp: spFinal, ejec, meta, canalDir, pais: (asesor as any).pais || meta?.pais || "" };
         }
         procesados++;
       }
@@ -867,8 +867,9 @@ async function processAsesoresConvencion(
     const existingSet = new Set<string>();
     (existingMedals || []).forEach((m: any) => existingSet.add(`${m.gerente_id}|${m.medalla}`));
 
-    for (const { id, ejec, meta, canalDir } of asesorSpTotals) {
-      const medals = medalsByCanal[canalDir] || [];
+    for (const { id, ejec, meta, canalDir, pais } of asesorSpTotals) {
+      const allMedals = medalsByCanal[canalDir] || [];
+      const medals = allMedals.filter((m: any) => !m.pais || m.pais === pais);
       for (const medal of medals) {
         if (existingSet.has(`${id}|${medal.nombre}`)) continue;
         try {
@@ -880,9 +881,15 @@ async function processAsesoresConvencion(
               earned = (ejec.ventas_fe || 0) >= (meta.meta_fe || 0) &&
                 (ejec.ventas_nube || 0) >= (meta.meta_nube || 0) && meta.meta_fe > 0 && meta.meta_nube > 0; break;
             case "primera_venta":
-              earned = (ejec.ventas_total || 0) >= 1; break;
+              if (medal.producto === "FE") earned = (ejec.ventas_fe || 0) >= 1;
+              else if (medal.producto === "NUBE") earned = (ejec.ventas_nube || 0) >= 1;
+              else earned = (ejec.ventas_total || 0) >= 1;
+              break;
             case "cantidad":
-              earned = (ejec.ventas_total || 0) >= (medal.cantidad_requerida || 1); break;
+              if (medal.producto === "FE") earned = (ejec.ventas_fe || 0) >= (medal.cantidad_requerida || 1);
+              else if (medal.producto === "NUBE") earned = (ejec.ventas_nube || 0) >= (medal.cantidad_requerida || 1);
+              else earned = (ejec.ventas_total || 0) >= (medal.cantidad_requerida || 1);
+              break;
             case "cumplimiento": {
               const pct = meta.meta_total > 0 ? Math.round((ejec.ventas_total / meta.meta_total) * 100) : 0;
               earned = pct >= (medal.cantidad_requerida || 100); break;
