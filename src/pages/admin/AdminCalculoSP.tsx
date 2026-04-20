@@ -25,6 +25,7 @@ const AdminCalculoSP = () => {
   const [result, setResult] = useState<any>(null);
   const [historial, setHistorial] = useState<any[]>([]);
   const [histLoading, setHistLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<{ running: number; lastCompleted: string | null }>({ running: 0, lastCompleted: null });
 
   const semana = getISOWeek(new Date());
   const anio = new Date().getFullYear();
@@ -41,8 +42,29 @@ const AdminCalculoSP = () => {
     setHistLoading(false);
   };
 
+  const fetchSyncStatus = async () => {
+    const { data: running } = await supabase
+      .from('sync_jobs')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['running', 'pending']);
+    const { data: lastDone } = await supabase
+      .from('sync_jobs')
+      .select('finished_at')
+      .eq('status', 'completed')
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setSyncStatus({
+      running: (running as any)?.length ?? 0,
+      lastCompleted: lastDone?.finished_at ?? null,
+    });
+  };
+
   useEffect(() => {
     fetchHistorial();
+    fetchSyncStatus();
+    const iv = setInterval(fetchSyncStatus, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   const handleExecute = async () => {
