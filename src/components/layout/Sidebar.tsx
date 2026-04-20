@@ -78,7 +78,7 @@ const Sidebar = () => {
             <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
-        {!isAdmin && (
+        {!isAdmin && !isEspecialista && (
           <>
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
