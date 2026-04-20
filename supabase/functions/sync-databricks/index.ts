@@ -491,15 +491,18 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
 // SP recalculation trigger
 // ============================================================
 async function triggerSpRecalculation(supabaseUrl: string, serviceRoleKey: string, context: string) {
+  // Fire-and-forget: do not await the response to avoid blocking the sync
   try {
     const spUrl = `${supabaseUrl}/functions/v1/calcular-sp-semanal`;
-    const spResponse = await fetch(spUrl, {
+    fetch(spUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+    }).then(() => {
+      console.log(`[${context}] SP recalculation dispatched`);
+    }).catch((err) => {
+      console.error(`[${context}] SP recalculation dispatch error:`, err);
     });
-    const spResult = await spResponse.json();
-    console.log(`[${context}] SP recalculation triggered:`, JSON.stringify(spResult));
-    return spResult;
+    return { dispatched: true };
   } catch (spErr) {
     console.error(`[${context}] SP recalculation error:`, spErr);
     return { error: String(spErr) };
