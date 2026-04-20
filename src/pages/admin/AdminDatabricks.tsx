@@ -74,6 +74,8 @@ const AdminDatabricks = () => {
   const [jobs, setJobs] = useState<SyncJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [forceRunning, setForceRunning] = useState(false);
+  const [recalcRunning, setRecalcRunning] = useState(false);
+  const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
@@ -121,6 +123,24 @@ const AdminDatabricks = () => {
       });
       fetchJobs();
     } catch { /* ignore */ }
+  };
+
+  const handleRecalcConvencionVN = async () => {
+    if (!confirm('Esto borrará y recalculará TODOS los SP Convención (gerentes y asesores VN). Úsalo cuando hayas actualizado las metas FE/NUBE en metas_asesores. ¿Continuar?')) return;
+    setRecalcRunning(true);
+    setRecalcMsg(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('calcular-sp-semanal', {
+        body: { only_convencion: true, reset_existing_convencion: true },
+      });
+      if (error) throw error;
+      const sp = (data as any)?.sp_otorgados ?? 0;
+      const proc = (data as any)?.procesados ?? 0;
+      setRecalcMsg(`✓ Recalculado: ${proc} gerentes, ${sp.toLocaleString()} SP otorgados`);
+    } catch (err: any) {
+      setRecalcMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    }
+    setRecalcRunning(false);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -192,6 +212,49 @@ const AdminDatabricks = () => {
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Recalcular SP Convención VN */}
+        <div className="bg-gradient-to-br from-accent/10 to-primary/5 border border-accent/30 rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <MI icon="calculate" className="text-accent" />
+                Recalcular SP Convención VN
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                <strong className="text-foreground">⚠️ Úsalo cuando se actualicen metas FE/NUBE</strong> en <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>.
+                Borra y recalcula todos los SP Convención (gerentes y asesores VN) usando la fórmula oficial:
+              </p>
+              <p className="text-[11px] text-muted-foreground font-mono mt-2 bg-muted/50 rounded-lg px-3 py-2">
+                SP_mes = round(ACV/meta × 100) <span className="text-accent">[1%=1SP]</span> + round(FE/metaFE × 100) <span className="text-accent">[1%=1SP]</span> + round(Nube/metaNube × 100) × 2 <span className="text-accent">[1%=2SP]</span>
+              </p>
+              {recalcMsg && (
+                <p className={cn("text-xs font-semibold mt-2", recalcMsg.startsWith('✓') ? 'text-secondary' : 'text-destructive')}>
+                  {recalcMsg}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleRecalcConvencionVN}
+              disabled={recalcRunning}
+              variant="default"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+            >
+              {recalcRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
+                  Recalculando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MI icon="refresh" className="text-sm" />
+                  Recalcular SP VN
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
