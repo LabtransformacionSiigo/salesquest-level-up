@@ -1267,8 +1267,8 @@ async function runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesF
     syncVentasVN(supabase, empRows, "VN_EMPRESARIOS"),
   ]);
 
-  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, "ventas_vn_completo");
-  return { ventas_vn_aliados: aliResult, ventas_vn_empresarios: empResult, sp_recalculo: spResult };
+  // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
+  return { ventas_vn_aliados: aliResult, ventas_vn_empresarios: empResult };
 }
 
 // ============================================================
