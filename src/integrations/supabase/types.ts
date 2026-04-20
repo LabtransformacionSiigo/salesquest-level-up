@@ -799,6 +799,8 @@ export type Database = {
           id: string
           imagen_url: string | null
           nombre: string
+          operacion: string | null
+          pais: string | null
           stock: number
         }
         Insert: {
@@ -809,6 +811,8 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           nombre: string
+          operacion?: string | null
+          pais?: string | null
           stock?: number
         }
         Update: {
@@ -819,6 +823,8 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           nombre?: string
+          operacion?: string | null
+          pais?: string | null
           stock?: number
         }
         Relationships: []

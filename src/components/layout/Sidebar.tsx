@@ -34,6 +34,7 @@ const adminItems = [
 
 const especialistaItems = [
   { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
+  { path: '/admin/especialista/premios', icon: 'storefront', label: 'Premios' },
 ];
 
 const Sidebar = () => {
