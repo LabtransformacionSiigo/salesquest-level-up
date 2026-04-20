@@ -26,6 +26,7 @@ import AdminCalculoSP from '@/pages/admin/AdminCalculoSP';
 import AdminDatabricks from '@/pages/admin/AdminDatabricks';
 import AdminPremios from '@/pages/admin/AdminPremios';
 import AdminEspecialista from '@/pages/admin/AdminEspecialista';
+import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 
