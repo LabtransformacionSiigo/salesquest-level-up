@@ -606,13 +606,7 @@ async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
   }
 
   const uniqueKpiRows = [...kpiRows.values()];
-  const BATCH = 500;
-  for (let i = 0; i < uniqueKpiRows.length; i += BATCH) {
-    const chunk = uniqueKpiRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("kpis_mensuales").upsert(chunk, { onConflict: "gerente_id,anio_mes", count: "exact" });
-    if (error) errores.push(`KPI batch ${i}: ${error.message}`);
-    else insertedKpis += count || chunk.length;
-  }
+  insertedKpis += await parallelUpsert(supabase, "kpis_mensuales", uniqueKpiRows, { onConflict: "gerente_id,anio_mes", count: "exact" }, errores, "KPI");
 
   return { total_rows: rows.length, participantes_creados: createdGerentes, kpis_sincronizados: insertedKpis, filas_unicas: uniqueKpiRows.length, errores: errores.slice(0, 20) };
 }
