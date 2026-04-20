@@ -656,13 +656,7 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
   }
   const uniqueRows = [...deduped.values()];
 
-  const BATCH = 500;
-  for (let i = 0; i < uniqueRows.length; i += BATCH) {
-    const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas").upsert(chunk, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" });
-    if (error) errores.push(`Batch ${i}: ${error.message}`);
-    else insertedVentas += (count || chunk.length);
-  }
+  insertedVentas += await parallelUpsert(supabase, "ventas", uniqueRows, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" }, errores, "ventas VC");
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
@@ -706,13 +700,7 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
   }
   const uniqueRows = [...deduped.values()];
 
-  const BATCH = 500;
-  for (let i = 0; i < uniqueRows.length; i += BATCH) {
-    const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas").upsert(chunk, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" });
-    if (error) errores.push(`Batch ${i}: ${error.message}`);
-    else insertedVentas += (count || chunk.length);
-  }
+  insertedVentas += await parallelUpsert(supabase, "ventas", uniqueRows, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" }, errores, "ventas VC producto");
 
   return { total_rows: rows.length, ventas_producto_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
@@ -745,13 +733,7 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     productividad: toNumber(row.productividad),
   })).filter((r) => r.celula && r.canal_direccion);
 
-  const BATCH = 500;
-  for (let i = 0; i < upsertRows.length; i += BATCH) {
-    const chunk = upsertRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("metas_gerentes").upsert(chunk, { onConflict: "celula,canal_direccion", count: "exact" });
-    if (error) errores.push(`metas_gerentes batch ${i}: ${error.message}`);
-    else synced += count || chunk.length;
-  }
+  synced += await parallelUpsert(supabase, "metas_gerentes", upsertRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
 
   return { total_rows: rows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
 }
@@ -809,13 +791,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     };
   }).filter((r) => r.documento_asesor && r.canal_direccion);
 
-  const BATCH = 500;
-  for (let i = 0; i < upsertRows.length; i += BATCH) {
-    const chunk = upsertRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("metas_asesores").upsert(chunk, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" });
-    if (error) errores.push(`metas_asesores batch ${i}: ${error.message}`);
-    else synced += count || chunk.length;
-  }
+  synced += await parallelUpsert(supabase, "metas_asesores", upsertRows, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" }, errores, "metas_asesores");
 
   // Also update asesores table with documento and canal_direccion
   for (const row of rows) {
@@ -1028,13 +1004,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   }
   const uniqueRows = [...deduped.values()];
 
-  const BATCH = 500;
-  for (let i = 0; i < uniqueRows.length; i += BATCH) {
-    const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas_diarias").upsert(chunk, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" });
-    if (error) errores.push(`ventas_diarias empresarios batch ${i}: ${error.message}`);
-    else synced += count || chunk.length;
-  }
+  synced += await parallelUpsert(supabase, "ventas_diarias", uniqueRows, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" }, errores, "ventas_diarias empresarios");
 
   // Also update ejecucion_asesores (summarize by asesor + month)
   await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Empresarios", errores);
@@ -1091,13 +1061,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   }
   const uniqueRows = [...deduped.values()];
 
-  const BATCH = 500;
-  for (let i = 0; i < uniqueRows.length; i += BATCH) {
-    const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas_diarias").upsert(chunk, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" });
-    if (error) errores.push(`ventas_diarias aliados batch ${i}: ${error.message}`);
-    else synced += count || chunk.length;
-  }
+  synced += await parallelUpsert(supabase, "ventas_diarias", uniqueRows, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" }, errores, "ventas_diarias aliados");
 
   await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Aliados", errores);
   await aggregateVentasDiariasToKpis(supabase, uniqueRows, "VN_ALIADOS", errores);
@@ -1144,12 +1108,7 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
   }));
 
   if (ejRows.length > 0) {
-    const BATCH = 500;
-    for (let i = 0; i < ejRows.length; i += BATCH) {
-      const chunk = ejRows.slice(i, i + BATCH);
-      const { error } = await supabase.from("ejecucion_asesores").upsert(chunk, { onConflict: "documento_asesor,canal_direccion,periodo" });
-      if (error) errores.push(`ejecucion_asesores batch ${i}: ${error.message}`);
-    }
+    await parallelUpsert(supabase, "ejecucion_asesores", ejRows, { onConflict: "documento_asesor,canal_direccion,periodo" }, errores, "ejecucion_asesores");
   }
 }
 
@@ -1177,13 +1136,7 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
     director: String(row.Director || "").trim() || null,
   })).filter((r) => r.asesor && r.anio_mes);
 
-  const BATCH = 500;
-  for (let i = 0; i < upsertRows.length; i += BATCH) {
-    const chunk = upsertRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("productividad_asesores").upsert(chunk, { onConflict: "asesor,anio_mes", count: "exact" });
-    if (error) errores.push(`productividad_asesores batch ${i}: ${error.message}`);
-    else synced += count || chunk.length;
-  }
+  synced += await parallelUpsert(supabase, "productividad_asesores", upsertRows, { onConflict: "asesor,anio_mes", count: "exact" }, errores, "productividad_asesores");
 
   // Also update ejecucion_asesores cant_recomendados and productividad
   for (const row of upsertRows) {
@@ -1275,12 +1228,7 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
   // Upsert to kpis_mensuales
   const kpiRows = [...kpiUpdates.values()];
   if (kpiRows.length > 0) {
-    const BATCH = 500;
-    for (let i = 0; i < kpiRows.length; i += BATCH) {
-      const chunk = kpiRows.slice(i, i + BATCH);
-      const { error } = await supabase.from("kpis_mensuales").upsert(chunk, { onConflict: "gerente_id,anio_mes" });
-      if (error) errores.push(`kpis_mensuales VN batch ${i}: ${error.message}`);
-    }
+    await parallelUpsert(supabase, "kpis_mensuales", kpiRows, { onConflict: "gerente_id,anio_mes" }, errores, "kpis_mensuales VN");
   }
 }
 
@@ -1429,16 +1377,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
   }
   const uniqueRows = [...deduped.values()];
 
-  const BATCH = 500;
-  for (let i = 0; i < uniqueRows.length; i += BATCH) {
-    const chunk = uniqueRows.slice(i, i + BATCH);
-    const { error, count } = await supabase.from("ventas").upsert(chunk, {
-      onConflict: "documento_factura,producto,fecha_facturacion",
-      count: "exact",
-    });
-    if (error) errores.push(`ventas VN batch ${i}: ${error.message}`);
-    else insertedVentas += count || chunk.length;
-  }
+  insertedVentas += await parallelUpsert(supabase, "ventas", uniqueRows, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" }, errores, "ventas VN");
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
