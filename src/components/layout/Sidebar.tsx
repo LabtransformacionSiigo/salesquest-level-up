@@ -71,11 +71,11 @@ const Sidebar = () => {
       >
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
-            <MI icon={isAdmin ? 'admin_panel_settings' : 'person'} className="text-sidebar-primary text-xl" />
+            <MI icon={isAdmin ? 'admin_panel_settings' : isEspecialista ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : (profile?.nivel || 'Nivel 1')}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
         {!isAdmin && (
