@@ -1024,8 +1024,12 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   const upsertRows: any[] = [];
   for (const row of rows) {
     const asesor = String(row.fullname || "").trim();
-    const tipoProducto = String(row.tipo_producto1 || "").trim();
     if (!asesor) continue;
+
+    // Aliados (tbl_gld_Ventas_SA): tipo_producto1 IS the family ("FE"/"NUBE") — use directly
+    const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
+    const familiaCanon: "FE" | "NUBE" | "OTRO" =
+      familiaRaw === "FE" ? "FE" : familiaRaw === "NUBE" ? "NUBE" : "OTRO";
 
     upsertRows.push({
       fecha: row.fecha ? String(row.fecha).trim() : null,
@@ -1033,8 +1037,8 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       celula: String(row.celula || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.equipo || "").trim() || null,
-      tipo_producto: tipoProducto || null,
-      producto: tipoProducto || null,
+      tipo_producto: familiaCanon, // canonical family for ejecucion aggregation
+      producto: String(row.tipo_producto1 || "").trim() || null,
       unidades: toRoundedInt(row.Cuenta_comercial),
       acv: toRoundedInt(row.ACV),
       recurrencia: null,
@@ -1085,7 +1089,9 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     // Ensure periodo is 6 chars (YYYYMM)
     const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
     const key = `${row.asesor}|${periodoClean}`;
-    const cat = normalizeProductCategory(row.tipo_producto || "");
+    // tipo_producto already holds the canonical family ("FE" | "NUBE" | "OTRO")
+    // set by syncVentasAliados / syncVentasEmpresarios
+    const cat = String(row.tipo_producto || "").trim().toUpperCase();
 
     if (!grouped.has(key)) {
       grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
