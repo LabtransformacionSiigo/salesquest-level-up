@@ -494,8 +494,8 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
   if (!syncFn) throw new Error(`No sync function for table: ${table}`);
 
   const syncResult = await syncFn(supabase, rows);
-  const spResult = await triggerSpRecalculation(supabaseUrl, serviceRoleKey, table);
-  return { ...syncResult, sp_recalculo: spResult };
+  // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
+  return syncResult;
 }
 
 // ============================================================
