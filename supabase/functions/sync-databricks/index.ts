@@ -285,7 +285,8 @@ Deno.serve(async (req) => {
         .lt("created_at", cutoff);
     }
 
-    // ── all_new: run each table sequentially in background ──
+    // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
+    // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
     if (table === "all_new" && mode === "sync") {
       const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
@@ -296,14 +297,22 @@ Deno.serve(async (req) => {
           .select("id").single();
         if (job) jobIds[t] = job.id;
       }
-      // Process all sequentially in background (single waitUntil, one table at a time)
+      // Dispatch one HTTP call per table — each lands on a fresh worker with its own CPU budget.
+      const selfUrl = `${supabaseUrl}/functions/v1/sync-databricks`;
       EdgeRuntime.waitUntil((async () => {
-        for (const t of tables) {
-          if (!jobIds[t]) continue;
-          await processSyncJob({ supabaseUrl, serviceRoleKey, table: t, jobId: jobIds[t] });
-        }
+        await Promise.all(tables.map((t) =>
+          fetch(selfUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey,
+            },
+            body: JSON.stringify({ mode: "sync", table: t, jobId: jobIds[t] }),
+          }).catch((e) => console.error(`[all_new] dispatch ${t} failed:`, e))
+        ));
       })());
-      return new Response(JSON.stringify({ queued: true, launched: tables, message: `${tables.length} syncs iniciados secuencialmente` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ queued: true, launched: tables, jobIds, message: `${tables.length} syncs iniciados en paralelo (workers aislados)` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ── Background job creation ──
