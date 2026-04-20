@@ -50,6 +50,25 @@ export interface MetaAsesor {
   meta_acv: number;
 }
 
+export interface AsesorPerformance {
+  nombre: string;
+  documento: string;
+  pct_acv: number;
+  pct_fe: number;
+  pct_nube: number;
+  pct_total: number;
+  acv: number;
+  meta_acv: number;
+  ventas_fe: number;
+  meta_fe: number;
+  ventas_nube: number;
+  meta_nube: number;
+  ventas_total: number;
+  meta_total: number;
+  recomendados: number;
+  tiene_novedad: boolean;
+}
+
 export interface GamificationMetrics {
   /* shared */
   loading: boolean;
@@ -93,6 +112,9 @@ export interface GamificationMetrics {
 
   /* VN product breakdown */
   vnProductBreakdown: ProductBreakdownItem[];
+
+  /* VN team performance dashboard (only gerentes VN) */
+  teamAsesorPerformance: AsesorPerformance[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -166,6 +188,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     ejecucion: null,
     metaAsesor: null,
     vnProductBreakdown: [],
+    teamAsesorPerformance: [],
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
