@@ -73,6 +73,7 @@ const Dashboard = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role === 'admin') return <Navigate to="/admin/gerentes" replace />;
+  if (profile?.role === 'especialista') return <Navigate to="/admin/especialista" replace />;
 
   return (
     <Layout title="Panel General">
