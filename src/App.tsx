@@ -55,6 +55,7 @@ function App() {
             <Route path="/admin/databricks" element={<AdminRoute><AdminDatabricks /></AdminRoute>} />
             <Route path="/admin/premios" element={<AdminRoute><AdminPremios /></AdminRoute>} />
             <Route path="/admin/especialista" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
+            <Route path="/admin/especialista/premios" element={<EspecialistaRoute><AdminEspecialistaPremios /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
