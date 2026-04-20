@@ -48,6 +48,7 @@ const Sidebar = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
+  const isEspecialista = profile?.role === 'especialista';
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
