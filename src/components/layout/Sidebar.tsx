@@ -128,12 +128,12 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {isAdmin && (
+        {(isAdmin || isEspecialista) && (
           <>
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
-              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">⚙️ Administración</p>
+              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : '🛡️ Especialista'}</p>
             </motion.div>
-            {adminItems.map((item) => (
+            {(isAdmin ? adminItems : especialistaItems).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}
