@@ -43,7 +43,7 @@ const AdminCalculoSP = () => {
   };
 
   const fetchSyncStatus = async () => {
-    const { data: running } = await supabase
+    const { count } = await supabase
       .from('sync_jobs')
       .select('id', { count: 'exact', head: true })
       .in('status', ['running', 'pending']);
@@ -55,7 +55,7 @@ const AdminCalculoSP = () => {
       .limit(1)
       .maybeSingle();
     setSyncStatus({
-      running: (running as any)?.length ?? 0,
+      running: count ?? 0,
       lastCompleted: lastDone?.finished_at ?? null,
     });
   };
