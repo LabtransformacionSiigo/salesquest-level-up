@@ -282,9 +282,10 @@ const PremioDrawer = ({ data, permisos, isAdmin, onClose, onSave }: any) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col"
+        className="bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full my-auto flex flex-col"
+        style={{ maxHeight: 'calc(100vh - 1rem)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
