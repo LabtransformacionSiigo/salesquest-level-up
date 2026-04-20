@@ -398,26 +398,31 @@ export const useSupabaseAuth = () => {
               // SP from ACV (1% = 1 SP)
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
             }
-            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP), only for real team advisors
+            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP), only for real team advisors.
+            // ejecucion_asesores.documento_asesor stores NAMES (not document numbers),
+            // so we match by normalized nombre_asesor from metas_asesores.
             if (!metasVnRes.error) {
               const metaRows = (metasVnRes.data as any[]) || [];
-              const advisorDocuments = [...new Set(
+              const teamNames = [...new Set(
                 metaRows
-                  .map((row) => normalizeComparableText(row.documento_asesor))
+                  .map((row) => normalizeComparableText(row.nombre_asesor))
                   .filter(Boolean)
               )];
 
-              if (advisorDocuments.length > 0) {
+              if (teamNames.length > 0) {
                 const { data: ejecVnRows, error: ejecVnError } = await supabase
                   .from('ejecucion_asesores')
                   .select('periodo, documento_asesor, ventas_fe, ventas_nube')
-                  .in('documento_asesor', advisorDocuments)
                   .gte('periodo', `${currentConventionYear}01`)
                   .lte('periodo', `${currentConventionYear}12`)
-                  .limit(10000);
+                  .limit(20000);
 
                 if (!ejecVnError) {
-                  spTotales += getVnFeNubeConventionTotal(ejecVnRows as any[], metaRows);
+                  const teamNameSet = new Set(teamNames);
+                  const teamEjec = (ejecVnRows as any[]).filter((row) =>
+                    teamNameSet.has(normalizeComparableText(row.documento_asesor))
+                  );
+                  spTotales += getVnFeNubeConventionTotal(teamEjec, metaRows);
                 }
               }
             }
