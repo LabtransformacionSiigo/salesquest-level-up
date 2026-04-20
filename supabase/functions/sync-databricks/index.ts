@@ -961,9 +961,12 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   const upsertRows: any[] = [];
   for (const row of rows) {
     const asesor = String(row.ASESOR || "").trim();
-    const tipoProducto = String(row.TIPO_PRODUCTO || "").trim();
     const producto = String(row.Producto || "").trim();
     if (!asesor) continue;
+
+    const pais = normalizeCountry(row.pais || row.PAIS || "MEX");
+    // For Empresarios (MX): infer family from product name + country
+    const familiaCanon = normalizeProductFamily(producto, pais);
 
     upsertRows.push({
       fecha: row.FECHA ? String(row.FECHA).trim() : null,
@@ -971,14 +974,14 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       celula: String(row.CELULA || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.Equipo || "").trim() || null,
-      tipo_producto: tipoProducto || null,
+      tipo_producto: familiaCanon, // canonical family (FE/NUBE/OTRO) for ejecucion aggregation
       producto: producto || null,
       unidades: toRoundedInt(row.Unidades),
       acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Empresarios"),
-      pais: normalizeCountry("MEX"),
+      pais,
     });
   }
 
