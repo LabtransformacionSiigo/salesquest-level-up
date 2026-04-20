@@ -207,10 +207,16 @@ export const useSupabaseAuth = () => {
       const currentConventionYear = getCurrentConventionYear();
       const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId);
       const roles = (roleRes.data || []).map((r: any) => r.role);
-      const userRole = roles.includes('admin') ? 'admin' : roles.includes('gerente') ? 'gerente' : roles[0] ?? 'gerente';
+      const userRole = roles.includes('admin')
+        ? 'admin'
+        : roles.includes('especialista')
+          ? 'especialista'
+          : roles.includes('gerente')
+            ? 'gerente'
+            : roles[0] ?? 'gerente';
 
-      // Admins don't compete — simplified profile
-      if (userRole === 'admin') {
+      // Admins y Especialistas no compiten — perfil simplificado
+      if (userRole === 'admin' || userRole === 'especialista') {
         const { data: gerenteData } = await supabase
           .from('gerentes')
           .select('*')
