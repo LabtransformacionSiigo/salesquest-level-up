@@ -161,9 +161,12 @@ export type Database = {
           emoji: string | null
           id: string
           nombre: string
+          objetivo_descripcion: string | null
+          operacion: string | null
           pais: string | null
           producto: string | null
           sp: number
+          tipo_evento: string | null
         }
         Insert: {
           activo?: boolean | null
@@ -175,9 +178,12 @@ export type Database = {
           emoji?: string | null
           id?: string
           nombre: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
           pais?: string | null
           producto?: string | null
           sp?: number
+          tipo_evento?: string | null
         }
         Update: {
           activo?: boolean | null
@@ -189,9 +195,60 @@ export type Database = {
           emoji?: string | null
           id?: string
           nombre?: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
           pais?: string | null
           producto?: string | null
           sp?: number
+          tipo_evento?: string | null
+        }
+        Relationships: []
+      }
+      catalogo_retos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          emoji: string | null
+          familia: string | null
+          id: string
+          nombre: string
+          objetivo_descripcion: string | null
+          operacion: string | null
+          pais: string | null
+          sp_otorgados: number
+          tipo_metrica: string
+          umbral: number
+          ventana_tiempo: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          emoji?: string | null
+          familia?: string | null
+          id?: string
+          nombre: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
+          pais?: string | null
+          sp_otorgados?: number
+          tipo_metrica: string
+          umbral?: number
+          ventana_tiempo: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          emoji?: string | null
+          familia?: string | null
+          id?: string
+          nombre?: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
+          pais?: string | null
+          sp_otorgados?: number
+          tipo_metrica?: string
+          umbral?: number
+          ventana_tiempo?: string
         }
         Relationships: []
       }
@@ -202,8 +259,13 @@ export type Database = {
           condicion_tipo: string
           created_at: string | null
           descripcion: string | null
+          dias_requeridos: number | null
           id: string
+          multiplicador_sp: number | null
           nombre: string
+          objetivo_descripcion: string | null
+          operacion: string | null
+          pais: string | null
           umbral_verde: number | null
         }
         Insert: {
@@ -212,8 +274,13 @@ export type Database = {
           condicion_tipo?: string
           created_at?: string | null
           descripcion?: string | null
+          dias_requeridos?: number | null
           id?: string
+          multiplicador_sp?: number | null
           nombre: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
+          pais?: string | null
           umbral_verde?: number | null
         }
         Update: {
@@ -222,8 +289,13 @@ export type Database = {
           condicion_tipo?: string
           created_at?: string | null
           descripcion?: string | null
+          dias_requeridos?: number | null
           id?: string
+          multiplicador_sp?: number | null
           nombre?: string
+          objetivo_descripcion?: string | null
+          operacion?: string | null
+          pais?: string | null
           umbral_verde?: number | null
         }
         Relationships: []
@@ -270,6 +342,36 @@ export type Database = {
           ventas_fe?: number | null
           ventas_nube?: number | null
           ventas_total?: number | null
+        }
+        Relationships: []
+      }
+      especialista_permisos: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          operaciones: string[]
+          paises: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          nombre: string
+          operaciones?: string[]
+          paises?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          operaciones?: string[]
+          paises?: string[]
+          user_id?: string
         }
         Relationships: []
       }
@@ -1749,6 +1851,10 @@ export type Database = {
       canjear_premio: {
         Args: { p_gerente_id: string; p_premio_id: string }
         Returns: Json
+      }
+      especialista_puede: {
+        Args: { _operacion: string; _pais: string }
+        Returns: boolean
       }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
