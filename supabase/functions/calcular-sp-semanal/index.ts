@@ -664,7 +664,7 @@ async function processAsesoresConvencion(
   let spOtorgados = 0;
 
   const [asesoresRes, metasRes, ventasDiariasRes, ejecRes, metasGerentesAsesorRes, prodAsesoresRes] = await Promise.all([
-    supabase.from("asesores").select("id, documento, canal_direccion, nombre, canal"),
+    supabase.from("asesores").select("id, documento, canal_direccion, nombre, canal, pais"),
     supabase.from("metas_asesores").select("*")
       .gte("anio_mes", `${anioActual}01`)
       .lte("anio_mes", `${anioActual}12`),
