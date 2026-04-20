@@ -941,6 +941,12 @@ const NUBE_PRODUCTS_BY_COUNTRY: Record<string, string[]> = {
   ],
 };
 
+// Strip accents + lowercase, normalize common Databricks typos
+const stripAccents = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const fixCommonTypos = (s: string) =>
+  s.replace(/premiun/g, "premium").replace(/\s+/g, " ");
+
 function normalizeProductFamily(productName: string, pais: string): "FE" | "NUBE" | "OTRO" {
   const name = (productName || "").trim();
   if (!name) return "OTRO";
@@ -949,19 +955,20 @@ function normalizeProductFamily(productName: string, pais: string): "FE" | "NUBE
   const feList = FE_PRODUCTS_BY_COUNTRY[country] || [];
   const nubeList = NUBE_PRODUCTS_BY_COUNTRY[country] || [];
 
-  const nameLower = name.toLowerCase();
-  // Exact match first (case-insensitive) — wins over fuzzy
-  if (feList.some((p) => p.toLowerCase() === nameLower)) return "FE";
-  if (nubeList.some((p) => p.toLowerCase() === nameLower)) return "NUBE";
+  const nameNorm = fixCommonTypos(stripAccents(name));
+
+  // Exact match (accent-insensitive + typo-tolerant)
+  if (feList.some((p) => fixCommonTypos(stripAccents(p)) === nameNorm)) return "FE";
+  if (nubeList.some((p) => fixCommonTypos(stripAccents(p)) === nameNorm)) return "NUBE";
 
   // Fuzzy fallback: STARTS WITH or CONTAINS
   if (feList.some((p) => {
-    const lp = p.toLowerCase();
-    return nameLower.startsWith(lp) || nameLower.includes(lp);
+    const lp = fixCommonTypos(stripAccents(p));
+    return nameNorm.startsWith(lp) || nameNorm.includes(lp);
   })) return "FE";
   if (nubeList.some((p) => {
-    const lp = p.toLowerCase();
-    return nameLower.startsWith(lp) || nameLower.includes(lp);
+    const lp = fixCommonTypos(stripAccents(p));
+    return nameNorm.startsWith(lp) || nameNorm.includes(lp);
   })) return "NUBE";
 
   return "OTRO";
