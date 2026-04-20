@@ -24,11 +24,16 @@ const menuItems = [
 const adminItems = [
   { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
-  { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas' },
-  { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas' },
+  { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
+  { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas (legacy)' },
+  { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
   { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
+];
+
+const especialistaItems = [
+  { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
 ];
 
 const Sidebar = () => {
