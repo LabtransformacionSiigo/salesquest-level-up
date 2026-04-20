@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 
 export interface Gerente {
   id: string;
@@ -287,7 +288,7 @@ export const useSupabaseAuth = () => {
             // VN asesor: ACV SP
             let vnQuery = supabase
               .from('productividad_asesores')
-              .select('anio_mes, acv_f, meta, pais')
+              .select('anio_mes, asesor, acv_f, meta, pais')
               .eq('asesor', asesor.nombre)
               .gte('anio_mes', `${currentConventionYear}01`)
               .lte('anio_mes', `${currentConventionYear}12`);
@@ -296,24 +297,28 @@ export const useSupabaseAuth = () => {
             const ejecQuery = supabase
               .from('ejecucion_asesores')
               .select('periodo, documento_asesor, ventas_fe, ventas_nube')
-              .eq('documento_asesor', (asesor as any).documento || '')
               .gte('periodo', `${currentConventionYear}01`)
-              .lte('periodo', `${currentConventionYear}12`);
+              .lte('periodo', `${currentConventionYear}12`)
+              .limit(20000);
 
             const metasQuery = supabase
               .from('metas_asesores')
-              .select('anio_mes, documento_asesor, meta_fe, meta_nube, novedad')
-              .eq('documento_asesor', (asesor as any).documento || '')
+              .select('anio_mes, nombre_asesor, documento_asesor, meta_fe, meta_nube, meta_total, novedad')
               .gte('anio_mes', `${currentConventionYear}01`)
-              .lte('anio_mes', `${currentConventionYear}12`);
+              .lte('anio_mes', `${currentConventionYear}12`)
+              .limit(5000);
 
             const [vnRes, ejecRes, metasRes] = await Promise.all([vnQuery, ejecQuery, metasQuery]);
-            if (!vnRes.error) {
+            if (!vnRes.error && !ejecRes.error && !metasRes.error) {
+              const advisorName = normalizeComparableText(asesor.nombre);
+              const monthlyRows = buildVnConventionMonthlyRows({
+                productivityRows: (vnRes.data as any[]).filter((row) => normalizeComparableText((row as any).asesor) === advisorName),
+                metaRows: (metasRes.data as any[]).filter((row) => normalizeComparableText((row as any).nombre_asesor) === advisorName),
+                ejecRows: ejecRes.data as any[],
+              });
+              spTotales = sumVnConventionMonthlyRows(monthlyRows);
+            } else if (!vnRes.error) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
-            }
-            // FE (1%=1SP) + Nube (1%=2SP)
-            if (!ejecRes.error && !metasRes.error) {
-              spTotales += getVnFeNubeConventionTotal(ejecRes.data as any[], metasRes.data as any[]);
             }
           }
 
@@ -382,7 +387,7 @@ export const useSupabaseAuth = () => {
             const [vnRes, metasVnRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
-                .select('anio_mes, acv_f, meta')
+                .select('anio_mes, asesor, acv_f, meta')
                 .eq('celula', gerenteCelula)
                 .gte('anio_mes', `${currentConventionYear}01`)
                 .lte('anio_mes', `${currentConventionYear}12`),
@@ -394,37 +399,26 @@ export const useSupabaseAuth = () => {
                 .lte('anio_mes', `${currentConventionYear}12`)
                 .limit(2000),
             ]);
-            if (!vnRes.error) {
-              // SP from ACV (1% = 1 SP)
-              spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
-            }
-            // SP from FE (1% = 1 SP) + Nube (1% = 2 SP), only for real team advisors.
-            // ejecucion_asesores.documento_asesor stores NAMES (not document numbers),
-            // so we match by normalized nombre_asesor from metas_asesores.
-            if (!metasVnRes.error) {
-              const metaRows = (metasVnRes.data as any[]) || [];
-              const teamNames = [...new Set(
-                metaRows
-                  .map((row) => normalizeComparableText(row.nombre_asesor))
-                  .filter(Boolean)
-              )];
+            if (!vnRes.error && !metasVnRes.error) {
+              const { data: ejecVnRows, error: ejecVnError } = await supabase
+                .from('ejecucion_asesores')
+                .select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total')
+                .gte('periodo', `${currentConventionYear}01`)
+                .lte('periodo', `${currentConventionYear}12`)
+                .limit(20000);
 
-              if (teamNames.length > 0) {
-                const { data: ejecVnRows, error: ejecVnError } = await supabase
-                  .from('ejecucion_asesores')
-                  .select('periodo, documento_asesor, ventas_fe, ventas_nube')
-                  .gte('periodo', `${currentConventionYear}01`)
-                  .lte('periodo', `${currentConventionYear}12`)
-                  .limit(20000);
-
-                if (!ejecVnError) {
-                  const teamNameSet = new Set(teamNames);
-                  const teamEjec = (ejecVnRows as any[]).filter((row) =>
-                    teamNameSet.has(normalizeComparableText(row.documento_asesor))
-                  );
-                  spTotales += getVnFeNubeConventionTotal(teamEjec, metaRows);
-                }
+              if (!ejecVnError) {
+                const monthlyRows = buildVnConventionMonthlyRows({
+                  productivityRows: vnRes.data as any[],
+                  metaRows: metasVnRes.data as any[],
+                  ejecRows: ejecVnRows as any[],
+                });
+                spTotales = sumVnConventionMonthlyRows(monthlyRows);
+              } else {
+                spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
               }
+            } else if (!vnRes.error) {
+              spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
             }
           } else if (gerenteId) {
             // VC: calcular desde ventas SUM-
