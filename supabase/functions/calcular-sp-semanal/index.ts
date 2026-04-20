@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
 
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
-      supabase.from("gerentes").select("id, canal, nombre").eq("activo", true),
+      supabase.from("gerentes").select("id, canal, nombre, pais").eq("activo", true),
       supabase.from("config_rachas").select("canal, umbral_verde").eq("condicion_tipo", "ventas_semanales").eq("activo", true),
       supabase.from("catalogo_medallas").select("*").eq("activo", true),
     ]);
@@ -522,11 +522,34 @@ Deno.serve(async (req) => {
       const kpiMap = new Map<string, any>();
       (kpisMesActual || []).forEach((k) => { if (k.gerente_id) kpiMap.set(k.gerente_id, k); });
 
+      // Batch load ejecucion_asesores for current month (for VN family medals)
+      const { data: ejecCurrent } = await supabase
+        .from("ejecucion_asesores")
+        .select("documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total")
+        .eq("periodo", mesActual);
+      // Map by gerente celula via name lookup (use existing nameToCelula + celulaPorGerente from earlier scope)
+      const ejecByCelula = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number }>();
+      (ejecCurrent || []).forEach((row: any) => {
+        const celula = findCelulaForEjecKey(String(row.documento_asesor || ""));
+        if (!celula) return;
+        const cur = ejecByCelula.get(celula) || { ventas_fe: 0, ventas_nube: 0, ventas_total: 0 };
+        cur.ventas_fe += Number(row.ventas_fe) || 0;
+        cur.ventas_nube += Number(row.ventas_nube) || 0;
+        cur.ventas_total += Number(row.ventas_total) || 0;
+        ejecByCelula.set(celula, cur);
+      });
+
       for (const gerente of gerentesWithMedals) {
         const canal = gerente.canal || "VC";
-        const medals = medalsByCanal[canal] || [];
+        const allMedals = medalsByCanal[canal] || [];
+        // Filter by country: NULL pais applies to all; otherwise must match gerente.pais
+        const medals = allMedals.filter((m: any) => !m.pais || m.pais === gerente.pais);
         const gVentas = ventasByGerente.get(gerente.id) || [];
         const gKpi = kpiMap.get(gerente.id);
+        const gerenteCel = celulaPorGerente.get(gerente.id) || "";
+        const gEjec = (canal === "VN_ALIADOS" || canal === "VN_EMPRESARIOS")
+          ? (ejecByCelula.get(gerenteCel) || { ventas_fe: 0, ventas_nube: 0, ventas_total: 0 })
+          : null;
 
         for (const medal of medals) {
           const medalKey = `${gerente.id}|${medal.nombre}`;
@@ -536,14 +559,23 @@ Deno.serve(async (req) => {
             let earned = false;
             switch (medal.condicion_tipo) {
               case "primera_venta": {
-                const count = gVentas.filter((v) =>
-                  v.canal === canal && v.producto?.toLowerCase().includes((medal.producto || "").toLowerCase())
-                ).length;
-                earned = count >= 1;
+                if (gEjec && (medal.producto === "FE" || medal.producto === "NUBE")) {
+                  // VN family medal: read from ejecucion_asesores aggregated by celula
+                  const v = medal.producto === "FE" ? gEjec.ventas_fe : gEjec.ventas_nube;
+                  earned = v >= 1;
+                } else {
+                  const count = gVentas.filter((v) =>
+                    v.canal === canal && v.producto?.toLowerCase().includes((medal.producto || "").toLowerCase())
+                  ).length;
+                  earned = count >= 1;
+                }
                 break;
               }
               case "cantidad": {
-                if (medal.producto) {
+                if (gEjec && (medal.producto === "FE" || medal.producto === "NUBE")) {
+                  const v = medal.producto === "FE" ? gEjec.ventas_fe : gEjec.ventas_nube;
+                  earned = v >= (medal.cantidad_requerida || 1);
+                } else if (medal.producto) {
                   const count = gVentas.filter((v) =>
                     v.canal === canal && v.producto?.toLowerCase().includes((medal.producto || "").toLowerCase())
                   ).length;
