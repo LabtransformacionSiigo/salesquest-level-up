@@ -50,6 +50,25 @@ export interface MetaAsesor {
   meta_acv: number;
 }
 
+export interface AsesorPerformance {
+  nombre: string;
+  documento: string;
+  pct_acv: number;
+  pct_fe: number;
+  pct_nube: number;
+  pct_total: number;
+  acv: number;
+  meta_acv: number;
+  ventas_fe: number;
+  meta_fe: number;
+  ventas_nube: number;
+  meta_nube: number;
+  ventas_total: number;
+  meta_total: number;
+  recomendados: number;
+  tiene_novedad: boolean;
+}
+
 export interface GamificationMetrics {
   /* shared */
   loading: boolean;
@@ -93,6 +112,9 @@ export interface GamificationMetrics {
 
   /* VN product breakdown */
   vnProductBreakdown: ProductBreakdownItem[];
+
+  /* VN team performance dashboard (only gerentes VN) */
+  teamAsesorPerformance: AsesorPerformance[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -166,6 +188,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     ejecucion: null,
     metaAsesor: null,
     vnProductBreakdown: [],
+    teamAsesorPerformance: [],
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
@@ -259,6 +282,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             ejecucion: null,
             metaAsesor: null,
             vnProductBreakdown: [],
+            teamAsesorPerformance: [],
           });
           return;
         }
@@ -717,6 +741,71 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           vcCumplimiento = { acv: acvMes, meta: vnMetaAcvActual, pct: pctCumplimiento };
         }
 
+        // Build VN team asesor performance dashboard (only for gerentes VN)
+        let teamAsesorPerformance: AsesorPerformance[] = [];
+        if (isVN && profile.role !== 'asesor' && vnCelulaRows.length > 0) {
+          const metaContextActual = getMetaContextForPeriod(mesActual);
+          const teamMetaRows = metaContextActual.rows;
+
+          // Map metas by normalized asesor name
+          const metasPorAsesor = new Map<string, any>();
+          const docPorNombre = new Map<string, string>();
+          teamMetaRows.forEach((m: any) => {
+            if (!m.nombre_asesor) return;
+            const key = normalizeComparableText(m.nombre_asesor);
+            metasPorAsesor.set(key, m);
+            if (m.documento_asesor) {
+              docPorNombre.set(key, String(m.documento_asesor).trim().toLowerCase());
+            }
+          });
+
+          // Map ejecucion by documento_asesor for current month
+          const ejecPorDoc = new Map<string, any>();
+          (ejecRes?.data || []).forEach((e: any) => {
+            if (String(e.periodo) !== mesActual) return;
+            const doc = String(e.documento_asesor || '').trim().toLowerCase();
+            if (doc) ejecPorDoc.set(doc, e);
+          });
+
+          const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
+
+          for (const prodRow of currentMonthProd) {
+            const asesorNorm = normalizeComparableText(prodRow.asesor);
+            const meta = metasPorAsesor.get(asesorNorm);
+            const doc = docPorNombre.get(asesorNorm) || '';
+            const ejec = ejecPorDoc.get(doc) || null;
+            const tiene_novedad = !!(meta?.novedad && normalizeComparableText(meta.novedad) !== 'sin novedad');
+
+            const acv = normalizeStoredAcv(prodRow.acv_f);
+            const meta_acv = normalizeVnMetaAcv(prodRow.meta);
+            const ventas_fe = Number(ejec?.ventas_fe) || 0;
+            const meta_fe = meta ? (Number(meta.meta_fe) || 0) : 0;
+            const ventas_nube = Number(ejec?.ventas_nube) || 0;
+            const meta_nube = meta ? (Number(meta.meta_nube) || 0) : 0;
+            const ventas_total = Number(ejec?.ventas_total) || Number(prodRow.ventas) || 0;
+            const meta_total = meta ? (Number(meta.meta_total) || 0) : 0;
+
+            teamAsesorPerformance.push({
+              nombre: prodRow.asesor,
+              documento: doc,
+              pct_acv: meta_acv > 0 ? Math.round((acv / meta_acv) * 100) : 0,
+              pct_fe: meta_fe > 0 ? Math.round((ventas_fe / meta_fe) * 100) : 0,
+              pct_nube: meta_nube > 0 ? Math.round((ventas_nube / meta_nube) * 100) : 0,
+              pct_total: meta_total > 0 ? Math.round((ventas_total / meta_total) * 100) : 0,
+              acv, meta_acv, ventas_fe, meta_fe, ventas_nube, meta_nube,
+              ventas_total, meta_total,
+              recomendados: Number(prodRow.cant_recomendados) || 0,
+              tiene_novedad,
+            });
+          }
+
+          teamAsesorPerformance.sort((a, b) => {
+            if (a.tiene_novedad && !b.tiene_novedad) return 1;
+            if (!a.tiene_novedad && b.tiene_novedad) return -1;
+            return b.pct_acv - a.pct_acv;
+          });
+        }
+
         // Format top ranking
         const canjeablesMap = new Map<string, number>();
         (canjeablesRes.data || []).forEach((row: any) => {
@@ -759,6 +848,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           ejecucion,
           metaAsesor,
           vnProductBreakdown: [],
+          teamAsesorPerformance,
         });
       } catch (err: any) {
         if (!cancelled) {

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, slideInRight, popIn, shimmerLine } from '@/lib/animations';
-import { useGamificationMetrics, type EjecucionAsesor, type MetaAsesor } from '@/hooks/useGamificationMetrics';
+import { useGamificationMetrics, type EjecucionAsesor, type MetaAsesor, type AsesorPerformance } from '@/hooks/useGamificationMetrics';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
@@ -163,6 +163,9 @@ const MiPerformance = () => {
                     <RetoCard icon="speed" label="Productividad" value={formatMoney(kpis?.productividad_por_asesor)} progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)} description="Ventas / HC activo" tip="Ventas totales ÷ Headcount activo." />
                   </motion.div>
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
+                  {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
@@ -180,6 +183,9 @@ const MiPerformance = () => {
                     <RetoCard icon="handshake" label="Efectividad Referidos" value={`${kpis?.efectividad_referidos_pct || 0}%`} progress={Number(kpis?.efectividad_referidos_pct || 0)} description="% referidos convertidos" />
                   </motion.div>
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
+                  {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
@@ -408,9 +414,9 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   const fmtPct = (p?: number, hasMeta?: boolean) => (hasMeta && p != null ? `${p}%` : '—');
   return (
     <>
-      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento (cuando hay meta)." />
+      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
       <motion.div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-smooth-sm" variants={fadeUpItem}>
-        <table className="w-full min-w-[760px]">
+        <table className="w-full min-w-[820px]">
           <thead>
             <tr className="bg-primary text-primary-foreground text-[11px] uppercase tracking-wider font-heading">
               <th className="text-left px-4 py-3">Mes</th>
@@ -422,6 +428,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               <th className="text-right px-4 py-3">% Nube</th>
               <th className="text-right px-4 py-3">ACV+</th>
               <th className="text-right px-4 py-3">% ACV</th>
+              <th className="text-right px-4 py-3">⚡ SP</th>
             </tr>
           </thead>
           <tbody>
@@ -430,6 +437,10 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               const hasMetaFe = (m.meta_fe ?? 0) > 0;
               const hasMetaNube = (m.meta_nube ?? 0) > 0;
               const hasMetaAcv = (m.meta ?? 0) > 0;
+              const spAcv = hasMetaAcv ? Math.round(m.pct || 0) : 0;
+              const spFe = hasMetaFe ? Math.round(m.pct_fe || 0) : 0;
+              const spNube = hasMetaNube ? Math.round(m.pct_nube || 0) * 2 : 0;
+              const spTotal = spAcv + spFe + spNube;
               return (
                 <motion.tr
                   key={m.mes}
@@ -447,6 +458,11 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_nube ?? 0))}>{fmtPct(m.pct_nube, hasMetaNube)}</span></td>
                   <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct ?? 0))}>{fmtPct(m.pct, hasMetaAcv)}</span></td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-sm font-bold font-scoreboard text-primary">
+                      {spTotal > 0 ? `+${spTotal}` : '—'}
+                    </span>
+                  </td>
                 </motion.tr>
               );
             })}
@@ -456,6 +472,214 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
     </>
   );
 };
+
+const EquipoRendimientoSection = ({
+  asesores,
+  canal,
+}: {
+  asesores: AsesorPerformance[];
+  canal?: string | null;
+}) => {
+  const [sortBy, setSortBy] = useState<'acv' | 'fe' | 'nube' | 'total'>('acv');
+  const referidosLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
+
+  const getEstado = (a: AsesorPerformance): 'verde' | 'amarillo' | 'rojo' | 'novedad' => {
+    if (a.tiene_novedad) return 'novedad';
+    const pct = a.pct_acv || a.pct_total;
+    if (pct >= 90) return 'verde';
+    if (pct >= 60) return 'amarillo';
+    return 'rojo';
+  };
+
+  const ESTADO_CONFIG = {
+    verde:    { color: 'text-accent', bg: 'bg-accent/10', border: 'border-l-accent', emoji: '🟢', label: 'En meta' },
+    amarillo: { color: 'text-orange-600', bg: 'bg-orange-100', border: 'border-l-orange-500', emoji: '🟡', label: 'En riesgo' },
+    rojo:     { color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-l-destructive', emoji: '🔴', label: 'Bajo meta' },
+    novedad:  { color: 'text-muted-foreground', bg: 'bg-muted/50', border: 'border-l-muted-foreground', emoji: '⚪', label: 'Con novedad' },
+  } as const;
+
+  const verdes = asesores.filter(a => getEstado(a) === 'verde').length;
+  const amarillos = asesores.filter(a => getEstado(a) === 'amarillo').length;
+  const rojos = asesores.filter(a => getEstado(a) === 'rojo').length;
+  const novedades = asesores.filter(a => getEstado(a) === 'novedad').length;
+
+  const sorted = [...asesores].sort((a, b) => {
+    if (a.tiene_novedad && !b.tiene_novedad) return 1;
+    if (!a.tiene_novedad && b.tiene_novedad) return -1;
+    if (sortBy === 'acv') return b.pct_acv - a.pct_acv;
+    if (sortBy === 'fe') return b.pct_fe - a.pct_fe;
+    if (sortBy === 'nube') return b.pct_nube - a.pct_nube;
+    return b.pct_total - a.pct_total;
+  });
+
+  const semaforoItems = [
+    { key: 'verde',    label: 'En meta',    count: verdes,    cfg: ESTADO_CONFIG.verde },
+    { key: 'amarillo', label: 'En riesgo',  count: amarillos, cfg: ESTADO_CONFIG.amarillo },
+    { key: 'rojo',     label: 'Bajo meta',  count: rojos,     cfg: ESTADO_CONFIG.rojo },
+    { key: 'novedad',  label: 'Novedad',    count: novedades, cfg: ESTADO_CONFIG.novedad },
+  ];
+
+  const sortOptions = [
+    { key: 'acv', label: 'ACV%' },
+    { key: 'fe', label: 'FE%' },
+    { key: 'nube', label: 'Nube%' },
+    { key: 'total', label: 'Unidades%' },
+  ] as const;
+
+  return (
+    <motion.div variants={fadeUpItem} className="space-y-4">
+      <SectionTitle
+        icon="groups"
+        title={`Rendimiento del Equipo (${asesores.length} asesores)`}
+        tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV+."
+      />
+
+      {/* Resumen tipo semáforo */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {semaforoItems.map(item => (
+          <motion.div
+            key={item.key}
+            className={cn(item.cfg.bg, 'rounded-2xl p-4 text-center border border-border shadow-smooth-sm')}
+            variants={popIn}
+            whileHover={{ scale: 1.03 }}
+          >
+            <span className="text-2xl block mb-1">{item.cfg.emoji}</span>
+            <span className={cn('text-3xl font-black font-scoreboard', item.cfg.color)}>{item.count}</span>
+            <p className="text-[10px] text-muted-foreground uppercase font-heading mt-1">{item.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Selector ordenamiento */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground font-semibold">Ordenar por:</span>
+        {sortOptions.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSortBy(opt.key)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+              sortBy === opt.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card border-border text-muted-foreground hover:border-primary/40'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Lista de asesores */}
+      <div className="space-y-2">
+        {sorted.map((asesor, i) => {
+          const estado = getEstado(asesor);
+          const cfg = ESTADO_CONFIG[estado];
+
+          const pctColorClass = (p: number, hasMeta: boolean) => {
+            if (!hasMeta) return 'text-muted-foreground';
+            if (p >= 90) return 'text-accent font-bold';
+            if (p >= 60) return 'text-orange-600 font-bold';
+            return 'text-destructive font-bold';
+          };
+
+          return (
+            <motion.div
+              key={asesor.documento || asesor.nombre}
+              className={cn('bg-card border border-border rounded-2xl p-4 border-l-4 shadow-smooth-sm', cfg.border)}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              {/* Fila principal */}
+              <div className="flex items-center gap-3">
+                <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0', cfg.bg)}>
+                  <span>{cfg.emoji}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{asesor.nombre}</p>
+                  {asesor.tiene_novedad && (
+                    <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Con novedad</span>
+                  )}
+                </div>
+                <span className={cn('text-base font-black font-scoreboard px-3 py-1 rounded-full', cfg.bg, cfg.color)}>
+                  {asesor.meta_acv > 0 ? `${asesor.pct_acv}% ACV` : '— ACV'}
+                </span>
+              </div>
+
+              {/* Métricas en 4 columnas */}
+              {!asesor.tiene_novedad && (
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* FE */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span>FE</span>
+                      <span className={pctColorClass(asesor.pct_fe, asesor.meta_fe > 0)}>
+                        {asesor.meta_fe > 0 ? `${asesor.pct_fe}%` : '—'}
+                      </span>
+                    </div>
+                    <Progress value={Math.min(100, asesor.pct_fe)} className="h-1.5" />
+                    <p className="text-[10px] text-muted-foreground mt-1 font-scoreboard">
+                      {asesor.ventas_fe}{asesor.meta_fe > 0 ? ` / ${asesor.meta_fe}` : ''}
+                    </p>
+                  </div>
+
+                  {/* Nube */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span>Nube</span>
+                      <span className={pctColorClass(asesor.pct_nube, asesor.meta_nube > 0)}>
+                        {asesor.meta_nube > 0 ? `${asesor.pct_nube}%` : '—'}
+                      </span>
+                    </div>
+                    <Progress value={Math.min(100, asesor.pct_nube)} className="h-1.5" />
+                    <p className="text-[10px] text-muted-foreground mt-1 font-scoreboard">
+                      {asesor.ventas_nube}{asesor.meta_nube > 0 ? ` / ${asesor.meta_nube}` : ''}
+                    </p>
+                  </div>
+
+                  {/* Unidades total */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span>Uds</span>
+                      <span className={pctColorClass(asesor.pct_total, asesor.meta_total > 0)}>
+                        {asesor.meta_total > 0 ? `${asesor.pct_total}%` : '—'}
+                      </span>
+                    </div>
+                    <Progress value={Math.min(100, asesor.pct_total)} className="h-1.5" />
+                    <p className="text-[10px] text-muted-foreground mt-1 font-scoreboard">
+                      {asesor.ventas_total}{asesor.meta_total > 0 ? ` / ${asesor.meta_total}` : ''}
+                    </p>
+                  </div>
+
+                  {/* Referidos */}
+                  <div>
+                    <div className="text-[10px] text-muted-foreground mb-1">{referidosLabel}</div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1">
+                      <div
+                        className="h-full bg-primary rounded-full"
+                        style={{ width: `${Math.min(100, (asesor.recomendados / 5) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] font-bold font-scoreboard text-primary">
+                      {asesor.recomendados}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {sorted.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-2xl">
+          No hay datos de asesores para este mes todavía
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 
 const CumplimientoSection = ({ kpis }: { kpis: any }) => (
   <>
