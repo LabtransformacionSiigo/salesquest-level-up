@@ -263,7 +263,7 @@ const ItemList = ({
                 <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{it.operacion}</span>
               )}
               {!it.pais && !it.operacion && (
-                <span className="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-semibold">
+                <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-semibold">
                   Genérico (sin país/op)
                 </span>
               )}
