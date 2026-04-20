@@ -227,6 +227,7 @@ const AdminEspecialistaPremios = () => {
 };
 
 const PremioDrawer = ({ data, permisos, isAdmin, onClose, onSave }: any) => {
+  const { toast } = useToast();
   const paisesPerm = isAdmin ? ['COL', 'ECU', 'URU', 'MEX'] : permisos.paises;
   const opsPerm = isAdmin ? OPERACIONES : permisos.operaciones;
 
@@ -240,6 +241,32 @@ const PremioDrawer = ({ data, permisos, isAdmin, onClose, onSave }: any) => {
     operacion: data.operacion || (opsPerm[0] ?? ''),
     activo: data.activo ?? false,
   });
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Archivo muy grande', description: 'Máximo 5MB', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('premios-images').upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+    if (error) {
+      toast({ title: 'Error al subir', description: error.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('premios-images').getPublicUrl(fileName);
+    setForm({ ...form, imagen_url: urlData.publicUrl });
+    setUploading(false);
+    toast({ title: 'Imagen subida ✅' });
+  };
 
   const handleSave = () => {
     onSave({
@@ -255,95 +282,148 @@ const PremioDrawer = ({ data, permisos, isAdmin, onClose, onSave }: any) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-foreground">{data.id ? 'Editar premio' : 'Nuevo premio'}</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+              <MI icon={data.id ? 'edit' : 'add_circle'} className="text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-foreground">{data.id ? 'Editar premio' : 'Nuevo premio'}</h3>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted">
             <MI icon="close" className="text-lg" />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-foreground">Nombre</label>
-            <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="mt-1" />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-foreground">Descripción</label>
-            <Input
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-foreground">URL imagen (opcional)</label>
-            <Input
-              value={form.imagen_url}
-              onChange={(e) => setForm({ ...form, imagen_url: e.target.value })}
-              className="mt-1"
-              placeholder="https://..."
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-foreground">País</label>
-            <select value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} className={cn(inputClass, 'mt-1')}>
-              <option value="">— Sin país —</option>
-              {paisesPerm.map((p: string) => (
-                <option key={p} value={p}>
-                  {PAISES_LABEL[p] || p}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-foreground">Operación</label>
-            <select
-              value={form.operacion}
-              onChange={(e) => setForm({ ...form, operacion: e.target.value })}
-              className={cn(inputClass, 'mt-1')}
-            >
-              <option value="">— Sin operación —</option>
-              {opsPerm.map((o: string) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-foreground">Costo (SP)</label>
-            <Input
-              type="number"
-              value={form.costo_puntos}
-              onChange={(e) => setForm({ ...form, costo_puntos: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-foreground">Stock</label>
-            <Input
-              type="number"
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div className="col-span-2 flex items-center gap-2">
-            <Switch checked={!!form.activo} onCheckedChange={(v) => setForm({ ...form, activo: v })} />
-            <span className="text-sm text-foreground font-medium">Activo en la tienda</span>
-          </div>
+        {/* Body scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Section: Imagen */}
+          <section>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <MI icon="image" className="text-sm" /> Imagen del premio
+            </p>
+            <div className="flex items-start gap-4">
+              <div className="w-28 h-28 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                {form.imagen_url ? (
+                  <img src={form.imagen_url} alt="preview" className="w-full h-full object-cover" />
+                ) : (
+                  <MI icon="redeem" className="text-muted-foreground text-3xl" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="block">
+                  <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" id="premio-file" />
+                  <span className={cn(
+                    "inline-flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors",
+                    uploading && "opacity-60 pointer-events-none"
+                  )}>
+                    <MI icon={uploading ? 'hourglass_empty' : 'upload'} className="text-sm" />
+                    {uploading ? 'Subiendo...' : 'Subir desde computador'}
+                  </span>
+                </label>
+                <label htmlFor="premio-file" className="block text-[10px] text-muted-foreground">
+                  PNG, JPG o WEBP · Máx 5MB
+                </label>
+                <div className="pt-1">
+                  <label className="text-[10px] text-muted-foreground">O pega una URL</label>
+                  <Input
+                    value={form.imagen_url}
+                    onChange={(e) => setForm({ ...form, imagen_url: e.target.value })}
+                    placeholder="https://..."
+                    className="mt-1 h-9 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Información */}
+          <section>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <MI icon="info" className="text-sm" /> Información
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="text-xs font-semibold text-foreground">Nombre del premio</label>
+                <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="mt-1.5" placeholder="Ej: Audífonos inalámbricos" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-semibold text-foreground">Descripción</label>
+                <textarea
+                  value={form.descripcion}
+                  onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                  rows={2}
+                  className={cn(inputClass, 'mt-1.5 py-2 h-auto resize-none')}
+                  placeholder="Detalles del premio..."
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Alcance */}
+          <section>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <MI icon="public" className="text-sm" /> Alcance
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground">País</label>
+                <select value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} className={cn(inputClass, 'mt-1.5')}>
+                  <option value="">— Sin país —</option>
+                  {paisesPerm.map((p: string) => (
+                    <option key={p} value={p}>{PAISES_LABEL[p] || p}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-foreground">Operación</label>
+                <select value={form.operacion} onChange={(e) => setForm({ ...form, operacion: e.target.value })} className={cn(inputClass, 'mt-1.5')}>
+                  <option value="">— Sin operación —</option>
+                  {opsPerm.map((o: string) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Valores */}
+          <section>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <MI icon="paid" className="text-sm" /> Valores
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground">Costo en SP</label>
+                <Input type="number" value={form.costo_puntos} onChange={(e) => setForm({ ...form, costo_puntos: e.target.value })} className="mt-1.5" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-foreground">Stock disponible</label>
+                <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="mt-1.5" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between bg-muted/40 border border-border rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Activo en la tienda</p>
+                <p className="text-[11px] text-muted-foreground">Los usuarios podrán verlo y canjearlo</p>
+              </div>
+              <Switch checked={!!form.activo} onCheckedChange={(v) => setForm({ ...form, activo: v })} />
+            </div>
+          </section>
         </div>
 
-        <div className="flex gap-2 mt-6 pt-4 border-t border-border">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
+        {/* Footer */}
+        <div className="flex gap-2 justify-end px-6 py-4 border-t border-border bg-muted/20">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={uploading || !form.nombre}>
+            <MI icon="save" className="text-sm mr-1" />
+            {data.id ? 'Guardar Cambios' : 'Crear premio'}
           </Button>
-          <Button onClick={handleSave}>{data.id ? 'Guardar Cambios' : 'Crear premio'}</Button>
         </div>
       </div>
     </div>
