@@ -103,6 +103,28 @@ const AdminCalculoSP = () => {
             </p>
           </div>
 
+          {/* Sync status banner */}
+          <div className={cn(
+            "rounded-xl p-3 flex items-start gap-2 text-xs border",
+            syncStatus.running > 0
+              ? "bg-destructive/5 border-destructive/30 text-destructive"
+              : "bg-secondary/5 border-secondary/30 text-foreground"
+          )}>
+            <MI icon={syncStatus.running > 0 ? "sync" : "check_circle"} className={cn("text-base", syncStatus.running > 0 && "animate-spin")} />
+            <div className="flex-1">
+              {syncStatus.running > 0 ? (
+                <p><strong>Espera:</strong> {syncStatus.running} sincronización(es) de Databricks en curso. Ejecutar el motor ahora puede dar resultados incompletos.</p>
+              ) : (
+                <p>
+                  <strong>Listo para ejecutar.</strong> No hay sincronizaciones activas.
+                  {syncStatus.lastCompleted && (
+                    <> Última sync completada: {new Date(syncStatus.lastCompleted).toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}.</>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-4">
             <div className="bg-muted/50 rounded-xl px-5 py-3 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Semana ISO</p>
