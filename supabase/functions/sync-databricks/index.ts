@@ -510,6 +510,38 @@ async function triggerSpRecalculation(supabaseUrl: string, serviceRoleKey: strin
 }
 
 // ============================================================
+// Helper: parallel upsert in large batches (4-way concurrency)
+// ============================================================
+async function parallelUpsert(
+  supabase: any,
+  table: string,
+  rows: any[],
+  options: { onConflict?: string; count?: "exact" } = {},
+  errores: string[] = [],
+  label = table,
+): Promise<number> {
+  if (!rows.length) return 0;
+  const BATCH = 2000;
+  const CONCURRENCY = 4;
+  const chunks: any[][] = [];
+  for (let i = 0; i < rows.length; i += BATCH) chunks.push(rows.slice(i, i + BATCH));
+  let total = 0;
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const slice = chunks.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      slice.map((c, idx) =>
+        supabase.from(table).upsert(c, options).then((r: any) => ({ r, idx: i + idx, len: c.length })),
+      ),
+    );
+    for (const { r, idx, len } of results) {
+      if (r.error) errores.push(`${label} batch ${idx * BATCH}: ${r.error.message}`);
+      else total += r.count ?? len;
+    }
+  }
+  return total;
+}
+
+// ============================================================
 // SYNC: Productividad Progresiva → kpis_mensuales (existing)
 // ============================================================
 async function syncProductividad(supabase: any, rows: Record<string, any>[]) {
