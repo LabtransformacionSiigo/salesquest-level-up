@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, slideInRight, popIn, shimmerLine } from '@/lib/animations';
-import { useGamificationMetrics, type EjecucionAsesor, type MetaAsesor } from '@/hooks/useGamificationMetrics';
+import { useGamificationMetrics, type EjecucionAsesor, type MetaAsesor, type AsesorPerformance } from '@/hooks/useGamificationMetrics';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
@@ -163,6 +163,9 @@ const MiPerformance = () => {
                     <RetoCard icon="speed" label="Productividad" value={formatMoney(kpis?.productividad_por_asesor)} progress={Math.min(100, ((kpis?.productividad_por_asesor || 0) / 5_000_000) * 100)} description="Ventas / HC activo" tip="Ventas totales ÷ Headcount activo." />
                   </motion.div>
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
+                  {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
@@ -180,6 +183,9 @@ const MiPerformance = () => {
                     <RetoCard icon="handshake" label="Efectividad Referidos" value={`${kpis?.efectividad_referidos_pct || 0}%`} progress={Number(kpis?.efectividad_referidos_pct || 0)} description="% referidos convertidos" />
                   </motion.div>
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
+                  {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
