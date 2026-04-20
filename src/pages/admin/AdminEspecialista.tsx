@@ -128,21 +128,55 @@ const AdminEspecialista = () => {
     <Layout title="Panel Especialista">
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-border rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
               <MI icon="shield_person" className="text-primary text-xl" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-lg font-bold text-foreground">Configuración de Gamificación</h2>
               <p className="text-xs text-muted-foreground">
                 {isAdmin
-                  ? 'Acceso total como Administrador.'
-                  : `Tus permisos: ${permisos?.paises.map((p) => PAISES_LABEL[p] || p).join(', ') || 'ninguno'} · ${
-                      permisos?.operaciones.join(', ') || 'ninguna operación'
-                    }`}
+                  ? 'Acceso total como Administrador. Puedes configurar retos, rachas y medallas para cualquier país u operación.'
+                  : 'Solo puedes crear, editar y activar retos, rachas y medallas dentro del siguiente alcance:'}
               </p>
             </div>
           </div>
+          {!isAdmin && permisos && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+              <div className="bg-card/60 border border-border rounded-xl p-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <MI icon="public" className="text-xs" /> Países asignados
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {permisos.paises.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Sin países</span>
+                  ) : (
+                    permisos.paises.map((p) => (
+                      <span key={p} className="text-xs font-semibold bg-primary/15 text-primary px-2.5 py-1 rounded-full">
+                        {PAISES_LABEL[p] || p}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="bg-card/60 border border-border rounded-xl p-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <MI icon="business_center" className="text-xs" /> Operaciones asignadas
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {permisos.operaciones.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Sin operaciones</span>
+                  ) : (
+                    permisos.operaciones.map((o) => (
+                      <span key={o} className="text-xs font-semibold bg-accent/15 text-accent px-2.5 py-1 rounded-full">
+                        {o}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {dataLoading ? (
