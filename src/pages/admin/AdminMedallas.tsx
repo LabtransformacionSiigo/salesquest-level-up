@@ -236,24 +236,56 @@ const AdminMedallas = () => {
             <div className="bg-muted/30 rounded-xl p-4 space-y-4">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reglas de Desbloqueo</p>
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label="Canal">
                     <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className={inputClass}>
                       {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </Field>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
+                  <Field label="País" hint="Define qué SKUs aplican">
+                    <select
+                      value={form.pais}
+                      onChange={e => {
+                        const nuevoPais = e.target.value as CountryCode;
+                        const familias = getFamiliesForCountry(nuevoPais);
+                        const nuevaFamilia = familias.includes(form.familia) ? form.familia : (familias[0] || 'FE');
+                        setForm(f => ({ ...f, pais: nuevoPais, familia: nuevaFamilia, producto: '' }));
+                      }}
+                      className={inputClass}
+                    >
+                      {SUPPORTED_COUNTRIES.map(p => <option key={p} value={p}>{COUNTRY_LABELS[p]}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <div className="col-span-3">
+                  <Field label="Familia" hint="Agrupa SKUs por categoría">
+                    <select
+                      value={form.familia}
+                      onChange={e => setForm(f => ({ ...f, familia: e.target.value as ProductFamily, producto: '' }))}
+                      className={inputClass}
+                    >
+                      {getFamiliesForCountry(form.pais).map(fa => (
+                        <option key={fa} value={fa}>{FAMILY_LABELS[fa]}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="col-span-3">
                   <Field label="Tipo de condición" hint={selectedCondicion?.desc}>
                     <select value={form.condicion_tipo} onChange={e => setForm(f => ({ ...f, condicion_tipo: e.target.value }))} className={inputClass}>
                       {CONDICIONES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </Field>
                 </div>
-                <div className="col-span-4">
-                  <Field label="Producto">
+                <div className="col-span-12">
+                  <Field label="Producto / SKU" hint={`SKUs oficiales de ${COUNTRY_LABELS[form.pais]} · ${FAMILY_LABELS[form.familia]}. Deja vacío para aplicar a toda la familia.`}>
                     <select value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} className={inputClass}>
-                      {PRODUCTOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      <option value="">Toda la familia {form.familia}</option>
+                      {getSkusForCountry(form.pais, form.familia).map(sku => (
+                        <option key={sku} value={sku}>{sku}</option>
+                      ))}
                     </select>
                   </Field>
                 </div>
