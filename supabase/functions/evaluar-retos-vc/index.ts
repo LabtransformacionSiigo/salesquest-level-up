@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
         retosInsert: retosInsert.length,
         spInsert: spInsert.length,
         rachasInsert: rachasInsert.length,
+        detalle: detalleSimulacion,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
