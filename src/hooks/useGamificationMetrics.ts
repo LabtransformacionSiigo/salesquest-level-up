@@ -646,10 +646,12 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
               vnCurrentMetaTotal = Number(matchingMeta.meta_total) || 0;
             }
-            // Populate per-month ejec rows for this advisor (history)
-            vnTeamEjecAll = (ejecRes.data || []).filter(
-              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion
-            );
+            // Populate per-month ejec rows for this advisor (history) — match by doc OR by normalized name
+            vnTeamEjecAll = (ejecRes.data || []).filter((e: any) => {
+              if (canalAsesor && e.canal_direccion !== canalAsesor) return false;
+              if (docAsesor && e.documento_asesor === docAsesor) return true;
+              return nombreNorm && normalizeComparableText(e.documento_asesor) === nombreNorm;
+            });
 
             const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
