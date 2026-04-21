@@ -1,52 +1,73 @@
 
 
-## Plan: Acelerar sync de Databricks y arreglar Motor de SP
+# Parametrización de Retos y Rachas para Venta Cruzada (VC)
 
-### Diagnóstico real (de los logs)
+## Objetivo
+Habilitar en el backend y en los formularios de admin la creación de los retos diarios, semanales, mensuales y rachas definidos para VC, con sus KPIs (ACV+, Upgrades, Conversiones, Cumplimiento), familias (Nube / Legacy), y multiplicadores.
 
-1. **`CPU Time exceeded`** en `sync-databricks` — el límite real que están golpeando NO es el timeout de 150s de red, es el **límite de CPU por worker** (~150s de CPU wall-clock acumulado). Procesar 33,140 filas + 3,154 filas + clasificar familias + upserts en un solo worker excede ese presupuesto.
-2. **Queries duplicadas**: en los logs se ve `[ventas_aliados] Querying Databricks` ejecutándose **3 veces seguidas** porque el loop secuencial dentro de un único `EdgeRuntime.waitUntil` reintenta cuando el worker es matado por CPU.
-3. **Motor SP roto**: `calcular-sp-semanal` no responde porque depende de `ejecucion_asesores` que nunca termina de poblarse.
+## Cambios de Base de Datos
 
-### Solución
+### 1. Tabla `catalogo_retos` — nuevas columnas
+- `canal text` (default `'VC'`) → para filtrar retos por canal igual que medallas/rachas.
+- `kpi text` → valores: `acv_plus`, `upgrades`, `conversiones`, `cumplimiento_pct`.
+- `familia_vc text` → valores: `NUBE`, `LEGACY`, `AMBAS` (Legacy = Pyme + Ilimitada).
+- `umbral_secundario numeric` (nullable) → para retos con dos umbrales (ej. Nube vs Legacy en el mismo reto, si se decide unificar; opcional).
+- `dias_consecutivos integer` (nullable) → no aplica aquí pero se reserva.
+- Índice por `(canal, ventana_tiempo, activo)`.
 
-#### 1. Aislar cada tabla en su propio worker (paraleliza CPU)
-En lugar de un solo `waitUntil` que itera 6 tablas en serie (consume CPU acumulada del mismo worker → matado), dispatch **una invocación HTTP fire-and-forget por tabla**. Cada tabla corre en un worker fresco con su propio presupuesto de CPU.
+### 2. Tabla `config_rachas` — nuevas columnas
+- `kpi text` (default `acv_plus`).
+- `familia_vc text` → `NUBE`, `LEGACY`, `AMBAS`.
+- `umbral_legacy numeric` (nullable) → permite definir el umbral diferenciado Legacy en la misma racha.
+- `dias_lun_mie boolean` (default false) → marca la condición "lunes a miércoles consecutivos".
+- El `multiplicador_sp` ya existe (se usará 2.0 para "El artillero").
 
-```text
-all_new (orquestador, responde 202 inmediato)
-   ├─ POST self → metas_gerentes        (worker 1, fresh CPU)
-   ├─ POST self → metas_asesores_sync   (worker 2)
-   ├─ POST self → ventas_empresarios    (worker 3)
-   ├─ POST self → ventas_aliados        (worker 4) ← ya no muere por CPU
-   ├─ POST self → ventas_vn_completo    (worker 5)
-   └─ POST self → productividad_asesores(worker 6)
-```
+### 3. Seed de catálogo VC (insert tool, no migración)
+Insertar los retos y racha pedidos:
+- **Día — "El golazo del día"** × 2 registros (Nube $15M / Legacy $75M), `ventana_tiempo='diario'`, `kpi='acv_plus'`, `sp_otorgados=2`.
+- **Semana — "La Jugada de la semana"**, `ventana_tiempo='semanal'`, `kpi='upgrades'`, `umbral=20`, `sp=5`, `familia_vc='AMBAS'`.
+- **Mes — "La bota de oro"**, `ventana_tiempo='mensual'`, `kpi='cumplimiento_pct'`, `umbral=120`, `sp=20`, `familia_vc='AMBAS'`.
+- **Mes — "Contraataque"**, `ventana_tiempo='mensual'`, `kpi='conversiones'`, `umbral=33`, `sp=10`, `familia_vc='NUBE'`.
+- **Racha — "El artillero"**, `kpi='acv_plus'`, `umbral_verde=12000000`, `umbral_legacy=70000000`, `dias_lun_mie=true`, `multiplicador_sp=2.0`, `canal='VC'`.
 
-#### 2. Eliminar reintentos accidentales
-Quitar el patrón `for...of` dentro del `waitUntil` único. Cada tabla recibe su propio job independiente, así si una falla las demás siguen.
+> Nota: "TV" es un reconocimiento de fin de ciclo (no se gestiona como reto recurrente); se documenta como regla pero no se inserta en `catalogo_retos`.
 
-#### 3. Hacer `updateEjecucionFromVentasDiarias` más liviano
-Esta función procesa fila por fila las 33k ventas de aliados después del upsert. Optimizar a:
-- Agregar en memoria con `Map` por `(documento_asesor, periodo)` → 1 sola pasada
-- Un solo `parallelUpsert` con todos los registros agregados (vs uno por asesor)
+## Cambios en Frontend
 
-#### 4. Motor de SP independiente del sync
-- Quitar el trigger automático desde `sync-databricks` (`triggerSpRecalculation`).
-- El admin lo dispara manualmente desde `/admin/calculos` cuando ve que el sync ya completó (los 6 jobs en estado `completed` en la tabla `sync_jobs`).
-- En `calcular-sp-semanal`, agregar response inmediato 202 + `EdgeRuntime.waitUntil` (ya está hecho), pero también dividir el procesamiento por **país** en workers separados si sigue excediendo CPU.
+### `src/pages/admin/AdminEspecialista.tsx` (form de retos)
+- Agregar selector **Canal** (VC / VN_ALIADOS / VN_EMPRESARIOS).
+- Agregar selector **KPI de medición**: ACV+, Upgrades, Conversiones, % Cumplimiento.
+- Agregar selector **Familia VC**: Nube / Legacy / Ambas (visible solo si `canal='VC'`).
+- Renombrar dinámicamente la etiqueta del campo "Valor" según KPI:
+  - ACV+ → "Monto ACV+ requerido (COP)"
+  - Upgrades → "Upgrades requeridos"
+  - Conversiones → "% conversión sobre cuota"
+  - Cumplimiento → "% de cumplimiento"
+- Mostrar chips de canal + KPI + familia en la lista de retos.
 
-### Archivos a modificar
+### `src/pages/admin/AdminRachas.tsx` (form de rachas)
+- Agregar selector **Familia VC** (Nube / Legacy / Ambas).
+- Agregar campo **Umbral Legacy** (visible si familia = Ambas o Legacy).
+- Agregar toggle **"Lunes a miércoles consecutivos"** (`dias_lun_mie`).
+- Mostrar el multiplicador como destacado (`2x`, `1.75x`, etc.).
 
-| Archivo | Cambio |
-|---|---|
-| `supabase/functions/sync-databricks/index.ts` | (a) Reemplazar el bloque `all_new` para hacer 6 fetch fire-and-forget al mismo endpoint en lugar del loop con un solo `waitUntil`. (b) Eliminar la llamada a `triggerSpRecalculation` desde `runAllNewSyncs` y `runVentasVcCompleto` y `runVentasVnCompleto`. (c) Refactorizar `updateEjecucionFromVentasDiarias` para agregar en memoria y hacer un solo upsert masivo. |
-| `supabase/functions/calcular-sp-semanal/index.ts` | Validar que ya responde 202 inmediato (ya lo hace). Sin cambios estructurales. |
-| `src/pages/admin/AdminCalculoSP.tsx` | Agregar mensaje claro: "Asegúrate de que la sincronización de Databricks haya completado antes de ejecutar." + un check rápido del último `sync_jobs` exitoso. |
+### `src/lib/vc-advisor-metrics.ts` (referencia)
+- Documentar en código (comentarios) que `upgrades` y `conversiones` se leen desde `ventas` (campos `recurrencia` / `bloque_venta`) — sin cambio funcional en este plan; el motor de evaluación se ajusta en una segunda fase.
 
-### Resultado esperado
+## Detalles Técnicos
+- Migración SQL para añadir columnas (idempotente con `IF NOT EXISTS`).
+- RLS existente en `catalogo_retos` y `config_rachas` ya cubre admin + especialista por país/operación → no se modifica.
+- Memoria a guardar: `mem://features/retos-vc-catalog-2026` con la definición exacta de los retos VC.
 
-- **Sync**: cada tabla termina en 30-60s aislada en su propio worker. Las 6 corren en paralelo → tiempo total ~60-90s en lugar de >5 min con timeouts.
-- **No más `CPU Time exceeded`**.
-- **Motor de SP**: el admin lo ejecuta cuando vea los 6 jobs verdes; corre limpio en background y responde instantáneo.
+## Archivos a editar
+1. Migración SQL (nuevas columnas en `catalogo_retos` y `config_rachas`).
+2. Insert seed (5 retos + 1 racha VC).
+3. `src/pages/admin/AdminEspecialista.tsx`.
+4. `src/pages/admin/AdminRachas.tsx`.
+5. `mem://features/retos-vc-catalog-2026` (nueva).
+6. `mem://index.md` (referencia a la nueva memoria).
+
+## Fuera de alcance (siguiente iteración)
+- Motor de evaluación automática de retos VC (cron + edge function que lee `ventas` y otorga SP).
+- Vista de retos para el usuario VC (`Retos.tsx`) — actualmente lee `catalogo_retos`; se adaptará al nuevo schema cuando se conecte el motor.
 
