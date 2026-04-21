@@ -372,6 +372,16 @@ export const useGamificationMetrics = (
                 .eq('celula', profile.celula)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
+          /* 18 – VC team per-comercial ACV+ vs meta for selected month */
+          isVC
+            ? supabase.from('ventas')
+                .select('comercial, acv_plus, meta')
+                .eq('gerente_id', profile.id)
+                .eq('canal', 'VC')
+                .eq('anio', anioActual)
+                .eq('mes', currentMonthName)
+                .like('documento_factura', 'SUM-%')
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
