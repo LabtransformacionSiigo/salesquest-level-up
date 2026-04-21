@@ -49,6 +49,18 @@ const RETOS_MENSUALES: RetoConfig[] = [
   { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 10, desc: 'Cumple al 150% de la meta de ACV+', umbral: 150, tipo: 'mensual', emoji: '🌟' },
 ];
 
+interface VcCatalogReto {
+  id: string;
+  nombre: string;
+  emoji: string | null;
+  ventana_tiempo: string;
+  kpi: string | null;
+  familia_vc: string | null;
+  umbral: number;
+  sp_otorgados: number;
+  objetivo_descripcion: string | null;
+}
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
@@ -56,8 +68,11 @@ const Retos = () => {
   const [ventasHoy, setVentasHoy] = useState(0);
   const [ventasSemana, setVentasSemana] = useState(0);
   const [pctCumplimiento, setPctCumplimiento] = useState(0);
+  const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const isVcAdvisor = isVcAdvisorProfile(profile);
+  const isVcGerente = (profile?.canal === 'VC') && profile?.role !== 'admin';
+  const useVcCatalog = isVcAdvisor || isVcGerente;
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -74,27 +89,21 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      if (isVcAdvisor) {
-        const [{ data: retosData, error: retosError }, snapshot] = await Promise.all([
+
+      if (useVcCatalog) {
+        const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
+          supabase.from('catalogo_retos').select('*').eq('activo', true).eq('canal', 'VC'),
           supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
-          getVcAdvisorSnapshot(profile),
+          isVcAdvisor ? getVcAdvisorSnapshot(profile) : Promise.resolve(null as any),
         ]);
-        if (retosError) throw retosError;
         if (cancelled) return;
-        const metrics = snapshot?.metrics;
-        const auto = new Set<string>();
-        auto.add(`siempre_en_la_jugada::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`sin_irme_en_0::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 5) auto.add(`jornada_redonda::${periodoHoy}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
-        if (snapshot?.sales && hasVcAdvisorSalesEveryDaySoFar(snapshot.sales)) auto.add(`sin_semana_roja::${periodoSemana}`);
+        setVcCatalog((catalog || []) as VcCatalogReto[]);
         setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-        setAutoCompletados(auto);
-        setVentasHoy(metrics?.todaySalesCount || 0);
-        setVentasSemana(metrics?.currentWeekRevenue || 0);
-        setPctCumplimiento(0);
+        if (snapshot?.metrics) {
+          setVentasHoy(snapshot.metrics.todaySalesCount || 0);
+          setVentasSemana(snapshot.metrics.currentWeekRevenue || 0);
+        }
+        setAutoCompletados(new Set());
         setDataLoading(false);
         return;
       }
@@ -128,7 +137,7 @@ const Retos = () => {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
+  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, profile?.canal, isVcAdvisor, useVcCatalog, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -220,6 +229,70 @@ const Retos = () => {
     );
   };
 
+  const kpiLabel = (kpi?: string | null) => {
+    switch (kpi) {
+      case 'acv_plus': return 'ACV+';
+      case 'upgrades': return 'Upgrades';
+      case 'conversiones': return 'Conversiones';
+      case 'cumplimiento_pct': return '% Cumplimiento';
+      default: return 'Meta';
+    }
+  };
+
+  const familiaLabel = (fam?: string | null) => {
+    if (!fam || fam === 'AMBAS') return 'Nube + Legacy';
+    if (fam === 'NUBE') return 'Nube';
+    if (fam === 'LEGACY') return 'Legacy';
+    return fam;
+  };
+
+  const formatUmbral = (reto: VcCatalogReto) => {
+    if (reto.kpi === 'acv_plus') return `$${(reto.umbral / 1_000_000).toFixed(0)}M`;
+    if (reto.kpi === 'cumplimiento_pct' || reto.kpi === 'conversiones') return `${reto.umbral}%`;
+    return String(reto.umbral);
+  };
+
+  const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
+    const completed = completados.has(`${reto.nombre}::${periodo}`);
+    return (
+      <motion.div
+        key={reto.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
+            {reto.ventana_tiempo === 'diario' ? 'DIARIO' : reto.ventana_tiempo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
+          </span>
+          {completed && (
+            <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mb-3 mt-2">
+          <span className="text-3xl">{completed ? '✅' : (reto.emoji || '🎯')}</span>
+          <div className="flex-1">
+            <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
+            <p className="text-xs text-muted-foreground">
+              {reto.objetivo_descripcion || `Logra ${formatUmbral(reto)} de ${kpiLabel(reto.kpi)}`}
+            </p>
+            <div className="flex gap-1 mt-1.5">
+              <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{kpiLabel(reto.kpi)}</span>
+              <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{familiaLabel(reto.familia_vc)}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span
+              className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}
+              title="Se suman a puntos canjeables"
+            >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
@@ -235,21 +308,53 @@ const Retos = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : (
           <>
-            <TabsContent value="diarios">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="semanales">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="mensuales">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
-              </motion.div>
-            </TabsContent>
+            {useVcCatalog && (
+              <>
+                <TabsContent value="diarios">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').map((r) => renderVcCard(r, periodoHoy))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos diarios activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="semanales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').map((r) => renderVcCard(r, periodoSemana))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos semanales activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="mensuales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').map((r) => renderVcCard(r, periodoMes))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos mensuales activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+              </>
+            )}
+            {!useVcCatalog && (
+              <>
+                <TabsContent value="diarios">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="semanales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="mensuales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
+                  </motion.div>
+                </TabsContent>
+              </>
+            )}
           </>
         )}
       </Tabs>

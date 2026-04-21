@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.validar-consistencia-familias]
 verify_jwt = false
+
+[functions.evaluar-retos-vc]
+verify_jwt = false
