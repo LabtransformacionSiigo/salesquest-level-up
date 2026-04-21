@@ -70,7 +70,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento }: KpiProgressBarsProps) => {
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
   const nivelSiguiente = NIVELES[nivelIdx + 1];
@@ -78,11 +78,12 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
   const pctNivel = nivelSiguiente ? Math.min(100, ((sp - nivelActual.min) / (spParaSiguiente - nivelActual.min)) * 100) : 100;
 
   const pct = pctCumplimiento ?? (kpis?.pct_cumplimiento ? Number(kpis.pct_cumplimiento) : 0);
-  const metaValue = kpis?.meta ? Number(kpis.meta) : 0;
-  const ventasValue = kpis?.ventas ? Number(kpis.ventas) : acvMes;
+  const metaValue = vcCumplimiento?.meta ?? (kpis?.meta ? Number(kpis.meta) : 0);
+  const ventasValue = vcCumplimiento?.acv ?? (kpis?.ventas ? Number(kpis.ventas) : acvMes);
   const metaAcvValue = Number(metaAsesor?.meta_acv) || 0;
 
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
+  const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
   if (loading) {
     return (
