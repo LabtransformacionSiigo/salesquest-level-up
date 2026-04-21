@@ -49,6 +49,18 @@ const RETOS_MENSUALES: RetoConfig[] = [
   { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 10, desc: 'Cumple al 150% de la meta de ACV+', umbral: 150, tipo: 'mensual', emoji: '🌟' },
 ];
 
+interface VcCatalogReto {
+  id: string;
+  nombre: string;
+  emoji: string | null;
+  ventana_tiempo: string;
+  kpi: string | null;
+  familia_vc: string | null;
+  umbral: number;
+  sp_otorgados: number;
+  objetivo_descripcion: string | null;
+}
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
@@ -56,8 +68,11 @@ const Retos = () => {
   const [ventasHoy, setVentasHoy] = useState(0);
   const [ventasSemana, setVentasSemana] = useState(0);
   const [pctCumplimiento, setPctCumplimiento] = useState(0);
+  const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const isVcAdvisor = isVcAdvisorProfile(profile);
+  const isVcGerente = (profile?.canal === 'VC') && profile?.role !== 'admin';
+  const useVcCatalog = isVcAdvisor || isVcGerente;
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -74,27 +89,21 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      if (isVcAdvisor) {
-        const [{ data: retosData, error: retosError }, snapshot] = await Promise.all([
+
+      if (useVcCatalog) {
+        const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
+          supabase.from('catalogo_retos').select('*').eq('activo', true).eq('canal', 'VC'),
           supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
-          getVcAdvisorSnapshot(profile),
+          isVcAdvisor ? getVcAdvisorSnapshot(profile) : Promise.resolve(null as any),
         ]);
-        if (retosError) throw retosError;
         if (cancelled) return;
-        const metrics = snapshot?.metrics;
-        const auto = new Set<string>();
-        auto.add(`siempre_en_la_jugada::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 1) auto.add(`sin_irme_en_0::${periodoHoy}`);
-        if ((metrics?.todaySalesCount || 0) >= 5) auto.add(`jornada_redonda::${periodoHoy}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 50_000_000) auto.add(`semana_ejecutada::${periodoSemana}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 80_000_000) auto.add(`semana_en_fuego::${periodoSemana}`);
-        if ((metrics?.currentWeekRevenue || 0) >= 100_000_000) auto.add(`semana_elite::${periodoSemana}`);
-        if (snapshot?.sales && hasVcAdvisorSalesEveryDaySoFar(snapshot.sales)) auto.add(`sin_semana_roja::${periodoSemana}`);
+        setVcCatalog((catalog || []) as VcCatalogReto[]);
         setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-        setAutoCompletados(auto);
-        setVentasHoy(metrics?.todaySalesCount || 0);
-        setVentasSemana(metrics?.currentWeekRevenue || 0);
-        setPctCumplimiento(0);
+        if (snapshot?.metrics) {
+          setVentasHoy(snapshot.metrics.todaySalesCount || 0);
+          setVentasSemana(snapshot.metrics.currentWeekRevenue || 0);
+        }
+        setAutoCompletados(new Set());
         setDataLoading(false);
         return;
       }
@@ -128,7 +137,7 @@ const Retos = () => {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, isVcAdvisor, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
+  }, [profile?.id, profile?.nombre, profile?.gerente_id, profile?.role, profile?.canal, isVcAdvisor, useVcCatalog, periodoHoy, periodoSemana, anio, semanaISO, todayStr]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
