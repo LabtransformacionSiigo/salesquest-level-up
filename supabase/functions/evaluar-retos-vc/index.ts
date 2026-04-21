@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
     const retosInsert: any[] = [];
     const spInsert: any[] = [];
     const rachasInsert: any[] = [];
+    const detalleSimulacion: any[] = []; // para dry-run
     let totalRetos = 0;
     let totalSp = 0;
 
@@ -216,6 +217,22 @@ Deno.serve(async (req) => {
             cumplido = valorAlcanzado >= umbral;
           }
         }
+
+        // Registrar siempre en simulación (cumplido o no)
+        detalleSimulacion.push({
+          gerente_id: gerente.id,
+          gerente_nombre: gerente.nombre,
+          reto: reto.nombre,
+          ventana,
+          kpi,
+          familia,
+          umbral,
+          valor_alcanzado: Math.round(valorAlcanzado * 100) / 100,
+          cumplido,
+          sp_otorgables: sp,
+          periodo,
+          ya_completado: completadosSet.has(`${gerente.id}::${reto.nombre}::${periodo}`),
+        });
 
         if (!cumplido) continue;
         const key = `${gerente.id}::${reto.nombre}::${periodo}`;
@@ -311,6 +328,7 @@ Deno.serve(async (req) => {
         retosInsert: retosInsert.length,
         spInsert: spInsert.length,
         rachasInsert: rachasInsert.length,
+        detalle: detalleSimulacion,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
