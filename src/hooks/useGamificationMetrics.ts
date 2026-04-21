@@ -430,7 +430,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // Build team asesor names from productividad_asesores (celula)
           const teamAsesorNames = new Set<string>();
           celulaRows.forEach((r: any) => {
-            if (r.asesor) teamAsesorNames.add(String(r.asesor).trim().toLowerCase());
+            if (r.asesor) teamAsesorNames.add(normalizeComparableText(r.asesor));
           });
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
