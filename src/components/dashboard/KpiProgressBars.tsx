@@ -3,7 +3,7 @@ import { fadeUpItem, popIn } from '@/lib/animations';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import DonutChart from './DonutChart';
-import type { EjecucionAsesor, MetaAsesor } from '@/hooks/useGamificationMetrics';
+import type { EjecucionAsesor, MetaAsesor, AsesorPerformance } from '@/hooks/useGamificationMetrics';
 
 const NIVELES = [
   { nombre: 'Cuarzo', emoji: '🪨', min: 0, max: 1500 },
@@ -24,6 +24,9 @@ interface KpiProgressBarsProps {
   canal?: string | null;
   ejecucion?: EjecucionAsesor | null;
   metaAsesor?: MetaAsesor | null;
+  isVCGerente?: boolean;
+  teamAsesorPerformance?: AsesorPerformance[];
+  vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
@@ -67,7 +70,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento }: KpiProgressBarsProps) => {
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
   const nivelSiguiente = NIVELES[nivelIdx + 1];
@@ -75,11 +78,12 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
   const pctNivel = nivelSiguiente ? Math.min(100, ((sp - nivelActual.min) / (spParaSiguiente - nivelActual.min)) * 100) : 100;
 
   const pct = pctCumplimiento ?? (kpis?.pct_cumplimiento ? Number(kpis.pct_cumplimiento) : 0);
-  const metaValue = kpis?.meta ? Number(kpis.meta) : 0;
-  const ventasValue = kpis?.ventas ? Number(kpis.ventas) : acvMes;
+  const metaValue = vcCumplimiento?.meta ?? (kpis?.meta ? Number(kpis.meta) : 0);
+  const ventasValue = vcCumplimiento?.acv ?? (kpis?.ventas ? Number(kpis.ventas) : acvMes);
   const metaAcvValue = Number(metaAsesor?.meta_acv) || 0;
 
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
+  const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
   if (loading) {
     return (
@@ -156,20 +160,50 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         </div>
       </motion.div>
 
-      {/* ── RIGHT: Rendimiento del Mes ── */}
+      {/* ── RIGHT: Rendimiento del Mes / Equipo ── */}
       <motion.div
         className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col"
         variants={popIn}
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
       >
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">🎯</span> Rendimiento del Mes
+          <span className="text-primary">🎯</span> {showVCTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
-        {isVN && ejecucion && metaAsesor ? (
+        {showVCTeam ? (
+          /* ── VC Gerente: ACV+ por comercial ── */
+          <div className="flex flex-col gap-4 flex-1">
+            {/* Resumen total del equipo */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo</p>
+                <p className="text-xl font-black font-scoreboard text-foreground">{fmt(ventasValue)}</p>
+                <p className="text-[11px] text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{fmt(metaValue)}</span></p>
+              </div>
+              <div className="text-right">
+                <p className={`text-3xl font-black font-scoreboard ${pct >= 100 ? 'text-accent' : pct >= 70 ? 'text-primary' : 'text-orange'}`}>{Math.round(pct)}%</p>
+                <p className="text-[10px] uppercase font-heading text-muted-foreground">Cumplimiento</p>
+              </div>
+            </div>
+
+            {/* Lista de comerciales con barras */}
+            <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 max-h-[360px]">
+              {teamAsesorPerformance!.map((a) => (
+                <VnProgressRow
+                  key={a.nombre}
+                  label={a.nombre}
+                  current={a.acv}
+                  goal={a.meta_acv}
+                  icon="trending_up"
+                  formatter={fmt}
+                />
+              ))}
+            </div>
+          </div>
+        ) : isVN && ejecucion && metaAsesor ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
             <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />

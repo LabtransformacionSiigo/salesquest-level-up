@@ -33,15 +33,17 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
+  const isVCGerente = profile?.canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
+  const showPeriodoSelector = isVN || isVCGerente;
 
   const now = new Date();
   const currentPeriodo = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [periodo, setPeriodo] = useState<string>(currentPeriodo);
-  const periodoActivo = isVN ? periodo : undefined;
+  const periodoActivo = showPeriodoSelector ? periodo : undefined;
   const metrics = useGamificationMetrics(profile, periodoActivo);
 
   const sp = profile?.sp_totales || 0;
-  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
+  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
   // Period options: current year months + last 3 months of previous year
   const periodoOptions = (() => {
@@ -144,14 +146,14 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* Period selector (only VN Aliados/Empresarios) */}
-        {isVN && (
+        {/* Period selector (VN Aliados/Empresarios + VC Gerente) */}
+        {showPeriodoSelector && (
           <motion.div className="flex items-center justify-end gap-3" variants={fadeUpItem}>
-            <label htmlFor="periodo-vn" className="text-xs font-bold uppercase text-muted-foreground">
+            <label htmlFor="periodo-sel" className="text-xs font-bold uppercase text-muted-foreground">
               📅 Periodo
             </label>
             <select
-              id="periodo-vn"
+              id="periodo-sel"
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value)}
               className="h-9 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -173,7 +175,7 @@ const Dashboard = () => {
         )}
 
         {/* KPIs del Mes */}
-        <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
+        <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} isVCGerente={isVCGerente} teamAsesorPerformance={teamAsesorPerformance} vcCumplimiento={metrics.vcCumplimiento} />
 
         {/* Racha + Top Pointers */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
