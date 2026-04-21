@@ -15,11 +15,19 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
 );
 
-const PAISES_LABEL: Record<string, string> = { COL: 'Colombia', ECU: 'Ecuador', URU: 'Uruguay', MEX: 'México' };
+import {
+  COUNTRY_LABELS,
+  SUPPORTED_COUNTRIES,
+  getFamiliesForCountry,
+  getSkusForCountry,
+  type CountryCode,
+  type ProductFamily,
+} from '@/lib/product-families';
+
+const PAISES_LABEL: Record<string, string> = COUNTRY_LABELS;
 const OPERACIONES = ['Venta Cruzada', 'Venta Nueva (Empresarios)', 'Venta Nueva (Aliados)'];
 const VENTANAS = ['DIARIO', 'SEMANAL', 'MENSUAL'];
 const TIPO_METRICA = ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'];
-const FAMILIAS = ['NUBE', 'FE', 'CONTADOR'];
 const TIPO_EVENTO_MEDALLA = ['PRIMERA_VENTA', 'PRIMER_RECONOCIMIENTO', 'CUMPLIMIENTO_TEMPRANO_UNIDADES', 'CANTIDAD_VENTAS_FAMILIA'];
 
 interface Permisos {
@@ -478,14 +486,14 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)">
+              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
                 <select
                   value={form.familia}
                   onChange={(e) => setForm({ ...form, familia: e.target.value })}
                   className={inputClass}
                 >
                   <option value="">— N/A —</option>
-                  {FAMILIAS.map((f) => (
+                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>
@@ -579,14 +587,14 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)">
+              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
                 <select
                   value={form.familia}
                   onChange={(e) => setForm({ ...form, familia: e.target.value })}
                   className={inputClass}
                 >
                   <option value="">— N/A —</option>
-                  {FAMILIAS.map((f) => (
+                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>

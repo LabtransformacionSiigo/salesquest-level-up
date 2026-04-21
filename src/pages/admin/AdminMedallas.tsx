@@ -7,6 +7,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  COUNTRY_LABELS,
+  SUPPORTED_COUNTRIES,
+  getFamiliesForCountry,
+  getSkusForCountry,
+  type CountryCode,
+  type ProductFamily,
+} from '@/lib/product-families';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
@@ -18,16 +26,11 @@ const CANALES = [
   { value: 'VC', label: 'Venta Cruzada' },
 ];
 
-const PRODUCTOS = [
-  { value: '', label: 'General (sin producto)' },
-  { value: 'Nube', label: 'Nube' },
-  { value: 'FE', label: 'Facturación Electrónica (FE)' },
-  { value: 'Nómina-e', label: 'Nómina-e' },
-  { value: 'Conversiones', label: 'Conversiones' },
-  { value: 'ACV+', label: 'ACV+' },
-  { value: 'POS', label: 'POS' },
-  { value: 'Contabilidad', label: 'Contabilidad' },
-];
+const FAMILY_LABELS: Record<ProductFamily, string> = {
+  FE: 'Familia FE (Facturación)',
+  NUBE: 'Familia Nube',
+  CONTADOR: 'Familia Contador',
+};
 
 const CONDICIONES = [
   { value: 'primera_venta', label: 'Primera Venta', desc: 'Se otorga al realizar la primera venta del producto' },
@@ -54,7 +57,19 @@ const AdminMedallas = () => {
   const [filterCanal, setFilterCanal] = useState('TODOS');
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'primera_venta', producto: '', cantidad_requerida: 1, sp: 100, emoji: '🏅', activo: true });
+  const [form, setForm] = useState({
+    canal: 'VN_ALIADOS',
+    pais: 'COL' as CountryCode,
+    familia: 'FE' as ProductFamily,
+    nombre: '',
+    descripcion: '',
+    condicion_tipo: 'primera_venta',
+    producto: '',
+    cantidad_requerida: 1,
+    sp: 100,
+    emoji: '🏅',
+    activo: true,
+  });
 
   const isAdmin = profile?.role === 'admin';
 
@@ -74,7 +89,9 @@ const AdminMedallas = () => {
       toast({ title: 'Campo requerido', description: 'El nombre de la medalla es obligatorio', variant: 'destructive' });
       return;
     }
-    const payload = { ...form, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
+    // `familia` no se persiste (la familia se infiere del producto + país vía product-families.ts).
+    const { familia: _familia, ...persistable } = form;
+    const payload = { ...persistable, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
     if (editing) {
       const { error } = await supabase.from('catalogo_medallas').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
@@ -89,11 +106,39 @@ const AdminMedallas = () => {
     fetchCatalogo();
   };
 
-  const resetForm = () => setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'primera_venta', producto: '', cantidad_requerida: 1, sp: 100, emoji: '🏅', activo: true });
+  const resetForm = () => setForm({
+    canal: 'VN_ALIADOS',
+    pais: 'COL',
+    familia: 'FE',
+    nombre: '',
+    descripcion: '',
+    condicion_tipo: 'primera_venta',
+    producto: '',
+    cantidad_requerida: 1,
+    sp: 100,
+    emoji: '🏅',
+    activo: true,
+  });
 
   const startEdit = (m: any) => {
     setEditing(m.id);
-    setForm({ canal: m.canal, nombre: m.nombre, descripcion: m.descripcion || '', condicion_tipo: m.condicion_tipo, producto: m.producto || '', cantidad_requerida: m.cantidad_requerida, sp: m.sp, emoji: m.emoji || '🏅', activo: m.activo });
+    const familiasDisponibles = getFamiliesForCountry((m.pais || 'COL') as CountryCode);
+    const familiaInicial: ProductFamily = familiasDisponibles.includes((m.familia || 'FE') as ProductFamily)
+      ? (m.familia || 'FE') as ProductFamily
+      : (familiasDisponibles[0] || 'FE');
+    setForm({
+      canal: m.canal,
+      pais: ((m.pais || 'COL') as CountryCode),
+      familia: familiaInicial,
+      nombre: m.nombre,
+      descripcion: m.descripcion || '',
+      condicion_tipo: m.condicion_tipo,
+      producto: m.producto || '',
+      cantidad_requerida: m.cantidad_requerida,
+      sp: m.sp,
+      emoji: m.emoji || '🏅',
+      activo: m.activo,
+    });
     setShowAdd(true);
   };
 
@@ -191,24 +236,56 @@ const AdminMedallas = () => {
             <div className="bg-muted/30 rounded-xl p-4 space-y-4">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reglas de Desbloqueo</p>
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label="Canal">
                     <select value={form.canal} onChange={e => setForm(f => ({ ...f, canal: e.target.value }))} className={inputClass}>
                       {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </Field>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
+                  <Field label="País" hint="Define qué SKUs aplican">
+                    <select
+                      value={form.pais}
+                      onChange={e => {
+                        const nuevoPais = e.target.value as CountryCode;
+                        const familias = getFamiliesForCountry(nuevoPais);
+                        const nuevaFamilia = familias.includes(form.familia) ? form.familia : (familias[0] || 'FE');
+                        setForm(f => ({ ...f, pais: nuevoPais, familia: nuevaFamilia, producto: '' }));
+                      }}
+                      className={inputClass}
+                    >
+                      {SUPPORTED_COUNTRIES.map(p => <option key={p} value={p}>{COUNTRY_LABELS[p]}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <div className="col-span-3">
+                  <Field label="Familia" hint="Agrupa SKUs por categoría">
+                    <select
+                      value={form.familia}
+                      onChange={e => setForm(f => ({ ...f, familia: e.target.value as ProductFamily, producto: '' }))}
+                      className={inputClass}
+                    >
+                      {getFamiliesForCountry(form.pais).map(fa => (
+                        <option key={fa} value={fa}>{FAMILY_LABELS[fa]}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="col-span-3">
                   <Field label="Tipo de condición" hint={selectedCondicion?.desc}>
                     <select value={form.condicion_tipo} onChange={e => setForm(f => ({ ...f, condicion_tipo: e.target.value }))} className={inputClass}>
                       {CONDICIONES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </Field>
                 </div>
-                <div className="col-span-4">
-                  <Field label="Producto">
+                <div className="col-span-12">
+                  <Field label="Producto / SKU" hint={`SKUs oficiales de ${COUNTRY_LABELS[form.pais]} · ${FAMILY_LABELS[form.familia]}. Deja vacío para aplicar a toda la familia.`}>
                     <select value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} className={inputClass}>
-                      {PRODUCTOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      <option value="">Toda la familia {form.familia}</option>
+                      {getSkusForCountry(form.pais, form.familia).map(sku => (
+                        <option key={sku} value={sku}>{sku}</option>
+                      ))}
                     </select>
                   </Field>
                 </div>
@@ -245,8 +322,10 @@ const AdminMedallas = () => {
                 <div>
                   <p className="text-sm font-bold text-foreground">{form.nombre || 'Nombre de medalla'}</p>
                   <p className="text-[10px] text-muted-foreground">{form.descripcion || 'Descripción'}</p>
-                  <div className="flex gap-1.5 mt-1">
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
                     <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{CANALES.find(c => c.value === form.canal)?.label}</span>
+                    <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{COUNTRY_LABELS[form.pais]}</span>
+                    <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-full">{form.familia}</span>
                     {form.producto && <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-full">{form.producto}</span>}
                     <span className="text-[9px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-full">+{form.sp} SP</span>
                   </div>
