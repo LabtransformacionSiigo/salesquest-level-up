@@ -886,7 +886,7 @@ export const useGamificationMetrics = (
     setState(prev => ({ ...prev, loading: true, error: null }));
     fetchAll();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN]);
+  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
 
   return { ...state, isVcAdvisor, isVC, isVN };
 };
