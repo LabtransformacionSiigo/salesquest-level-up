@@ -165,7 +165,10 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */
 
-export const useGamificationMetrics = (profile: GamificationProfile | null | undefined) => {
+export const useGamificationMetrics = (
+  profile: GamificationProfile | null | undefined,
+  periodoOverride?: string,
+) => {
   const [state, setState] = useState<GamificationMetrics>({
     loading: true,
     error: null,
@@ -200,13 +203,18 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
 
     let cancelled = false;
     const now = new Date();
-    const anioActual = now.getFullYear();
+    // Resolve periodo (YYYYMM). Defaults to current month if no override provided.
+    const periodoSel = periodoOverride && /^\d{6}$/.test(periodoOverride)
+      ? periodoOverride
+      : `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const anioActual = parseInt(periodoSel.slice(0, 4), 10);
+    const mesIdx = parseInt(periodoSel.slice(4), 10) - 1;
     const semanaISO = getISOWeek(now);
     const weekStart = getISOWeekStartDate(semanaISO, anioActual);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
-    const currentMonthName = MONTH_NAMES_ES[now.getMonth()];
-    const mesActual = `${anioActual}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthName = MONTH_NAMES_ES[mesIdx];
+    const mesActual = periodoSel;
 
     const fetchAll = async () => {
       try {
@@ -299,8 +307,8 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
           /* 4 */ supabase.from('ventas').select('id', { count: 'exact', head: true })
             .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
-            .lt('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 2).padStart(2, '0')}-01`),
+            .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
+            .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`),
           /* 5 */ supabase.from('ventas').select('valor_producto')
             .eq('gerente_id', profile.id)
             .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
@@ -878,7 +886,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
     setState(prev => ({ ...prev, loading: true, error: null }));
     fetchAll();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN]);
+  }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
 
   return { ...state, isVcAdvisor, isVC, isVN };
 };
