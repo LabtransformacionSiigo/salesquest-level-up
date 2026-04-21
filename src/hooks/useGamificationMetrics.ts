@@ -319,22 +319,6 @@ export const useGamificationMetrics = (
           /* 7 */ isVC
             ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
-        ];
-
-        // VC team performance fetch (per-comercial ACV+ vs meta for selected month)
-        const vcTeamQueries = isVC
-          ? [
-              supabase.from('ventas')
-                .select('comercial, acv_plus, meta')
-                .eq('gerente_id', profile.id)
-                .eq('canal', 'VC')
-                .eq('anio', anioActual)
-                .eq('mes', currentMonthName)
-                .like('documento_factura', 'SUM-%'),
-            ]
-          : [];
-
-        const _restQueries = [
           /* 8 */
           supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
           /* 9 */
