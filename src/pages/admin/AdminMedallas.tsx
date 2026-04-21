@@ -322,8 +322,10 @@ const AdminMedallas = () => {
                 <div>
                   <p className="text-sm font-bold text-foreground">{form.nombre || 'Nombre de medalla'}</p>
                   <p className="text-[10px] text-muted-foreground">{form.descripcion || 'Descripción'}</p>
-                  <div className="flex gap-1.5 mt-1">
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
                     <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{CANALES.find(c => c.value === form.canal)?.label}</span>
+                    <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{COUNTRY_LABELS[form.pais]}</span>
+                    <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-full">{form.familia}</span>
                     {form.producto && <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-full">{form.producto}</span>}
                     <span className="text-[9px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-full">+{form.sp} SP</span>
                   </div>
