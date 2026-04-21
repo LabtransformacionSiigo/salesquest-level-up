@@ -36,6 +36,7 @@ const MiPerformance = () => {
   const canal = profile?.canal;
   const isAliados = canal === 'VN_ALIADOS';
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
+  const isVCGerente = canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
   const canalLabel = metrics.isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
   // Celebration for meta cumplida
@@ -218,6 +219,10 @@ const MiPerformance = () => {
                         ))}
                       </motion.div>
                     </>
+                  )}
+
+                  {isVCGerente && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoVCSection asesores={metrics.teamAsesorPerformance} />
                   )}
 
                   {/* Historial Mensual: ACV vs Meta */}
@@ -674,6 +679,153 @@ const EquipoRendimientoSection = ({
       {sorted.length === 0 && (
         <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-2xl">
           No hay datos de asesores para este mes todavía
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+
+const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[] }) => {
+  const [sortBy, setSortBy] = useState<'acv' | 'pct'>('acv');
+
+  const getEstado = (a: AsesorPerformance): 'verde' | 'amarillo' | 'rojo' => {
+    const pct = a.pct_acv;
+    if (pct >= 90) return 'verde';
+    if (pct >= 60) return 'amarillo';
+    return 'rojo';
+  };
+
+  const ESTADO_CONFIG = {
+    verde:    { color: 'text-accent', bg: 'bg-accent/10', border: 'border-l-accent', emoji: '🟢', label: 'En meta' },
+    amarillo: { color: 'text-orange-600', bg: 'bg-orange-100', border: 'border-l-orange-500', emoji: '🟡', label: 'En riesgo' },
+    rojo:     { color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-l-destructive', emoji: '🔴', label: 'Bajo meta' },
+  } as const;
+
+  const verdes = asesores.filter(a => getEstado(a) === 'verde').length;
+  const amarillos = asesores.filter(a => getEstado(a) === 'amarillo').length;
+  const rojos = asesores.filter(a => getEstado(a) === 'rojo').length;
+
+  const totalAcv = asesores.reduce((s, a) => s + (a.acv || 0), 0);
+  const totalMeta = asesores.reduce((s, a) => s + (a.meta_acv || 0), 0);
+  const pctEquipo = totalMeta > 0 ? Math.round((totalAcv / totalMeta) * 100) : 0;
+
+  const sorted = [...asesores].sort((a, b) => {
+    if (sortBy === 'acv') return b.acv - a.acv;
+    return b.pct_acv - a.pct_acv;
+  });
+
+  const semaforoItems = [
+    { key: 'verde',    label: 'En meta',   count: verdes,    cfg: ESTADO_CONFIG.verde },
+    { key: 'amarillo', label: 'En riesgo', count: amarillos, cfg: ESTADO_CONFIG.amarillo },
+    { key: 'rojo',     label: 'Bajo meta', count: rojos,     cfg: ESTADO_CONFIG.rojo },
+  ];
+
+  const sortOptions = [
+    { key: 'acv', label: 'ACV+' },
+    { key: 'pct', label: '% Cumpl.' },
+  ] as const;
+
+  return (
+    <motion.div variants={fadeUpItem} className="space-y-4">
+      <SectionTitle
+        icon="groups"
+        title={`Rendimiento del Equipo (${asesores.length} comerciales)`}
+        tip="Vista de semáforo de tu equipo VC: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV+ vs Meta."
+      />
+
+      {/* Resumen total */}
+      <motion.div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-smooth-sm" variants={popIn}>
+        <div>
+          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV+</p>
+          <p className="text-2xl font-black font-scoreboard text-foreground">{formatMoney(totalAcv)}</p>
+          <p className="text-xs text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatMoney(totalMeta)}</span></p>
+        </div>
+        <div className="text-right">
+          <p className={cn('text-4xl font-black font-scoreboard', pctEquipo >= 100 ? 'text-accent' : pctEquipo >= 70 ? 'text-primary' : 'text-orange-600')}>
+            {pctEquipo}%
+          </p>
+          <p className="text-[10px] uppercase font-heading text-muted-foreground">Cumplimiento</p>
+        </div>
+      </motion.div>
+
+      {/* Semáforo */}
+      <div className="grid grid-cols-3 gap-3">
+        {semaforoItems.map(item => (
+          <motion.div
+            key={item.key}
+            className={cn(item.cfg.bg, 'rounded-2xl p-4 text-center border border-border shadow-smooth-sm')}
+            variants={popIn}
+            whileHover={{ scale: 1.03 }}
+          >
+            <span className="text-2xl block mb-1">{item.cfg.emoji}</span>
+            <span className={cn('text-3xl font-black font-scoreboard', item.cfg.color)}>{item.count}</span>
+            <p className="text-[10px] text-muted-foreground uppercase font-heading mt-1">{item.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Selector */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground font-semibold">Ordenar por:</span>
+        {sortOptions.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSortBy(opt.key)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+              sortBy === opt.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card border-border text-muted-foreground hover:border-primary/40'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Lista comerciales */}
+      <div className="space-y-2">
+        {sorted.map((asesor, i) => {
+          const estado = getEstado(asesor);
+          const cfg = ESTADO_CONFIG[estado];
+          const hasMeta = asesor.meta_acv > 0;
+
+          return (
+            <motion.div
+              key={asesor.nombre}
+              className={cn('bg-card border border-border rounded-2xl p-4 border-l-4 shadow-smooth-sm', cfg.border)}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0', cfg.bg)}>
+                  <span>{cfg.emoji}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{asesor.nombre}</p>
+                  <p className="text-[10px] text-muted-foreground font-scoreboard">
+                    {formatMoney(asesor.acv)}{hasMeta ? ` / ${formatMoney(asesor.meta_acv)}` : ''}
+                  </p>
+                </div>
+                <span className={cn('text-base font-black font-scoreboard px-3 py-1 rounded-full', cfg.bg, cfg.color)}>
+                  {hasMeta ? `${asesor.pct_acv}%` : '—'}
+                </span>
+              </div>
+              {hasMeta && (
+                <div className="mt-3">
+                  <Progress value={Math.min(100, asesor.pct_acv)} className="h-2" />
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {sorted.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-2xl">
+          No hay datos del equipo para este mes todavía
         </div>
       )}
     </motion.div>
