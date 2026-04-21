@@ -112,7 +112,7 @@ export default function AdminSimulacion() {
   }
 
   return (
-    <Layout>
+    <Layout title="Simulación Motor VC">
       <div className="p-6 max-w-[1400px] mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
