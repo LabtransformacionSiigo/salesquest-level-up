@@ -307,8 +307,8 @@ export const useGamificationMetrics = (
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
           /* 4 */ supabase.from('ventas').select('id', { count: 'exact', head: true })
             .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
-            .lt('fecha_facturacion', `${anioActual}-${String(now.getMonth() + 2).padStart(2, '0')}-01`),
+            .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
+            .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`),
           /* 5 */ supabase.from('ventas').select('valor_producto')
             .eq('gerente_id', profile.id)
             .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
