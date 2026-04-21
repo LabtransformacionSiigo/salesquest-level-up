@@ -218,6 +218,22 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Registrar siempre en simulación (cumplido o no)
+        detalleSimulacion.push({
+          gerente_id: gerente.id,
+          gerente_nombre: gerente.nombre,
+          reto: reto.nombre,
+          ventana,
+          kpi,
+          familia,
+          umbral,
+          valor_alcanzado: Math.round(valorAlcanzado * 100) / 100,
+          cumplido,
+          sp_otorgables: sp,
+          periodo,
+          ya_completado: completadosSet.has(`${gerente.id}::${reto.nombre}::${periodo}`),
+        });
+
         if (!cumplido) continue;
         const key = `${gerente.id}::${reto.nombre}::${periodo}`;
         if (completadosSet.has(key)) continue;
