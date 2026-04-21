@@ -244,21 +244,53 @@ const Retos = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : (
           <>
-            <TabsContent value="diarios">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="semanales">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="mensuales">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
-              </motion.div>
-            </TabsContent>
+            {useVcCatalog && (
+              <>
+                <TabsContent value="diarios">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').map((r) => renderVcCard(r, periodoHoy))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos diarios activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="semanales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').map((r) => renderVcCard(r, periodoSemana))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos semanales activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="mensuales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').map((r) => renderVcCard(r, periodoMes))}
+                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos mensuales activos.</p>
+                    )}
+                  </motion.div>
+                </TabsContent>
+              </>
+            )}
+            {!useVcCatalog && (
+              <>
+                <TabsContent value="diarios">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="semanales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
+                  </motion.div>
+                </TabsContent>
+                <TabsContent value="mensuales">
+                  <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
+                  </motion.div>
+                </TabsContent>
+              </>
+            )}
           </>
         )}
       </Tabs>
