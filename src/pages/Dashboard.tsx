@@ -28,12 +28,35 @@ const RETOS_SEMANALES = [
   { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
 ];
 
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
 const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const metrics = useGamificationMetrics(profile);
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
+
+  const now = new Date();
+  const currentPeriodo = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [periodo, setPeriodo] = useState<string>(currentPeriodo);
+  const periodoActivo = isVN ? periodo : undefined;
+  const metrics = useGamificationMetrics(profile, periodoActivo);
 
   const sp = profile?.sp_totales || 0;
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
+
+  // Period options: current year months + last 3 months of previous year
+  const periodoOptions = (() => {
+    const opts: { value: string; label: string }[] = [];
+    const yearNow = now.getFullYear();
+    for (let m = 11; m >= 0; m--) {
+      const value = `${yearNow}${String(m + 1).padStart(2, '0')}`;
+      opts.push({ value, label: `${MESES[m]} ${yearNow}` });
+    }
+    for (let m = 11; m >= 9; m--) {
+      const value = `${yearNow - 1}${String(m + 1).padStart(2, '0')}`;
+      opts.push({ value, label: `${MESES[m]} ${yearNow - 1}` });
+    }
+    return opts;
+  })();
 
   // Celebration state
   const [celebration, setCelebration] = useState<{ show: boolean; type: 'level_up' | 'meta_cumplida'; title?: string; subtitle?: string }>({ show: false, type: 'level_up' });
