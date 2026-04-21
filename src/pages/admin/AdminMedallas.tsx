@@ -57,7 +57,19 @@ const AdminMedallas = () => {
   const [filterCanal, setFilterCanal] = useState('TODOS');
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'primera_venta', producto: '', cantidad_requerida: 1, sp: 100, emoji: '🏅', activo: true });
+  const [form, setForm] = useState({
+    canal: 'VN_ALIADOS',
+    pais: 'COL' as CountryCode,
+    familia: 'FE' as ProductFamily,
+    nombre: '',
+    descripcion: '',
+    condicion_tipo: 'primera_venta',
+    producto: '',
+    cantidad_requerida: 1,
+    sp: 100,
+    emoji: '🏅',
+    activo: true,
+  });
 
   const isAdmin = profile?.role === 'admin';
 
