@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.validar-cruce-asesores]
 verify_jwt = false
+
+[functions.validar-consistencia-familias]
+verify_jwt = false
