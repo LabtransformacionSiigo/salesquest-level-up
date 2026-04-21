@@ -42,7 +42,7 @@ const AdminRachas = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true });
+  const [form, setForm] = useState<any>({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 });
 
   const isAdmin = profile?.role === 'admin';
 
@@ -62,7 +62,14 @@ const AdminRachas = () => {
       toast({ title: 'Campo requerido', description: 'El nombre es obligatorio', variant: 'destructive' });
       return;
     }
-    const payload = { ...form, umbral_verde: Number(form.umbral_verde) };
+    const payload = {
+      ...form,
+      umbral_verde: Number(form.umbral_verde),
+      umbral_legacy: form.umbral_legacy != null && form.umbral_legacy !== '' ? Number(form.umbral_legacy) : null,
+      multiplicador_sp: Number(form.multiplicador_sp) || 1.0,
+      familia_vc: form.canal === 'VC' ? form.familia_vc : null,
+      dias_lun_mie: !!form.dias_lun_mie,
+    };
     if (editing) {
       const { error } = await supabase.from('config_rachas').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
@@ -79,7 +86,14 @@ const AdminRachas = () => {
 
   const startEdit = (c: any) => {
     setEditing(c.id);
-    setForm({ canal: c.canal, nombre: c.nombre, descripcion: c.descripcion || '', condicion_tipo: c.condicion_tipo, umbral_verde: c.umbral_verde, activo: c.activo });
+    setForm({
+      canal: c.canal, nombre: c.nombre, descripcion: c.descripcion || '', condicion_tipo: c.condicion_tipo,
+      umbral_verde: c.umbral_verde ?? 0, activo: c.activo,
+      familia_vc: c.familia_vc || 'AMBAS',
+      umbral_legacy: c.umbral_legacy ?? 0,
+      dias_lun_mie: !!c.dias_lun_mie,
+      multiplicador_sp: c.multiplicador_sp ?? 1.0,
+    });
     setShowAdd(true);
   };
 
@@ -98,7 +112,7 @@ const AdminRachas = () => {
             <h2 className="text-lg font-bold text-foreground">Configuración de Rachas</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Define los umbrales semanales por canal para activar rachas</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true }); }}>
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 }); }}>
             <MI icon="add_circle" className="text-sm mr-1" /> Nueva Racha
           </Button>
         </div>
@@ -130,16 +144,37 @@ const AdminRachas = () => {
                   {CONDICION_TIPOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </Field>
-              <Field label="Valor (mínimo semanal)" hint="Valor mínimo para mantener semana verde">
+              <Field label="Valor (mínimo diario/semanal)" hint={form.familia_vc === 'AMBAS' || form.familia_vc === 'NUBE' ? 'Umbral para Nube' : 'Umbral principal'}>
                 <input type="number" value={form.umbral_verde} onChange={e => setForm(f => ({ ...f, umbral_verde: Number(e.target.value) }))} className={inputClass} />
+              </Field>
+              {form.canal === 'VC' && (
+                <Field label="Familia VC">
+                  <select value={form.familia_vc} onChange={e => setForm(f => ({ ...f, familia_vc: e.target.value }))} className={inputClass}>
+                    <option value="NUBE">Nube</option>
+                    <option value="LEGACY">Legacy (Pyme + Ilimitada)</option>
+                    <option value="AMBAS">Ambas</option>
+                  </select>
+                </Field>
+              )}
+              {form.canal === 'VC' && (form.familia_vc === 'AMBAS' || form.familia_vc === 'LEGACY') && (
+                <Field label="Umbral Legacy" hint="Umbral diferenciado para Pyme/Ilimitada">
+                  <input type="number" value={form.umbral_legacy} onChange={e => setForm(f => ({ ...f, umbral_legacy: Number(e.target.value) }))} className={inputClass} />
+                </Field>
+              )}
+              <Field label="Multiplicador SP" hint="Ej: 2.0 = duplica los SP de la semana">
+                <input type="number" step="0.1" value={form.multiplicador_sp} onChange={e => setForm(f => ({ ...f, multiplicador_sp: Number(e.target.value) }))} className={inputClass} />
               </Field>
               <Field label="Descripción">
                 <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" className={inputClass} />
               </Field>
-              <div className="flex items-end">
+              <div className="flex items-end gap-4 col-span-2">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
                   <span className="font-medium text-foreground">Racha activa</span>
+                </label>
+                <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
+                  <input type="checkbox" checked={!!form.dias_lun_mie} onChange={e => setForm(f => ({ ...f, dias_lun_mie: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
+                  <span className="font-medium text-foreground">Lunes a miércoles consecutivos</span>
                 </label>
               </div>
             </div>
@@ -177,9 +212,23 @@ const AdminRachas = () => {
                         <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                           {CONDICION_TIPOS.find(ct => ct.value === c.condicion_tipo)?.label || c.condicion_tipo}
                         </span>
+                        {c.familia_vc && (
+                          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{c.familia_vc}</span>
+                        )}
                         <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-semibold">
                           Valor: ${(c.umbral_verde / 1_000_000).toFixed(0)}M
                         </span>
+                        {c.umbral_legacy ? (
+                          <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-semibold">
+                            Legacy: ${(c.umbral_legacy / 1_000_000).toFixed(0)}M
+                          </span>
+                        ) : null}
+                        {c.multiplicador_sp && c.multiplicador_sp !== 1 && (
+                          <span className="text-[10px] bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-bold">{c.multiplicador_sp}x</span>
+                        )}
+                        {c.dias_lun_mie && (
+                          <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Lun-Mié</span>
+                        )}
                         {!c.activo && <span className="text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">Inactiva</span>}
                       </div>
                       <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">

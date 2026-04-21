@@ -30,6 +30,23 @@ const VENTANAS = ['DIARIO', 'SEMANAL', 'MENSUAL'];
 const TIPO_METRICA = ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'];
 const TIPO_EVENTO_MEDALLA = ['PRIMERA_VENTA', 'PRIMER_RECONOCIMIENTO', 'CUMPLIMIENTO_TEMPRANO_UNIDADES', 'CANTIDAD_VENTAS_FAMILIA'];
 
+const CANALES_RETOS = [
+  { value: 'VC', label: 'Venta Cruzada' },
+  { value: 'VN_ALIADOS', label: 'VN Aliados' },
+  { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
+];
+const KPIS_RETOS = [
+  { value: 'acv_plus', label: 'ACV+', valorLabel: 'Monto ACV+ requerido (COP)' },
+  { value: 'upgrades', label: 'Upgrades', valorLabel: 'Upgrades requeridos' },
+  { value: 'conversiones', label: 'Conversiones', valorLabel: '% conversión sobre cuota' },
+  { value: 'cumplimiento_pct', label: '% Cumplimiento', valorLabel: '% de cumplimiento' },
+];
+const FAMILIAS_VC = [
+  { value: 'NUBE', label: 'Nube' },
+  { value: 'LEGACY', label: 'Legacy (Pyme + Ilimitada)' },
+  { value: 'AMBAS', label: 'Ambas' },
+];
+
 interface Permisos {
   paises: string[];
   operaciones: string[];
@@ -298,6 +315,17 @@ const ItemList = ({
               {it.familia && (
                 <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">{it.familia}</span>
               )}
+              {it.canal && tipo === 'reto' && (
+                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{it.canal}</span>
+              )}
+              {it.kpi && (
+                <span className="text-[10px] bg-accent/15 text-accent px-2 py-0.5 rounded-full font-semibold">
+                  {KPIS_RETOS.find(k => k.value === it.kpi)?.label || it.kpi}
+                </span>
+              )}
+              {it.familia_vc && (
+                <span className="text-[10px] bg-secondary/15 text-secondary px-2 py-0.5 rounded-full">{it.familia_vc}</span>
+              )}
               {it.pais && (
                 <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{it.pais}</span>
               )}
@@ -342,6 +370,8 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
     tipo_metrica: data.tipo_metrica || 'UNIDADES',
     familia: data.familia || '',
     umbral: data.umbral ?? 0,
+    kpi: data.kpi || 'acv_plus',
+    familia_vc: data.familia_vc || 'AMBAS',
     // racha
     canal: data.canal || 'VC',
     condicion_tipo: data.condicion_tipo || 'VENTA_DIARIA_CONSECUTIVA',
@@ -368,9 +398,12 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
     if (tipo === 'reto') {
       payload = {
         ...payload,
+        canal: form.canal,
         ventana_tiempo: form.ventana_tiempo,
         tipo_metrica: form.tipo_metrica,
         familia: form.familia || null,
+        kpi: form.kpi,
+        familia_vc: form.canal === 'VC' ? form.familia_vc : null,
         umbral: Number(form.umbral),
         sp_otorgados: Number(form.sp_otorgados),
       };
@@ -460,6 +493,28 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
 
           {tipo === 'reto' && (
             <>
+              <Field label="Canal">
+                <select
+                  value={form.canal}
+                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
+                  className={inputClass}
+                >
+                  {CANALES_RETOS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="KPI de medición">
+                <select
+                  value={form.kpi}
+                  onChange={(e) => setForm({ ...form, kpi: e.target.value })}
+                  className={inputClass}
+                >
+                  {KPIS_RETOS.map((k) => (
+                    <option key={k.value} value={k.value}>{k.label}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Ventana de tiempo">
                 <select
                   value={form.ventana_tiempo}
@@ -486,6 +541,19 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
+              {form.canal === 'VC' && (
+                <Field label="Familia VC" hint="Aplica solo para Venta Cruzada">
+                  <select
+                    value={form.familia_vc}
+                    onChange={(e) => setForm({ ...form, familia_vc: e.target.value })}
+                    className={inputClass}
+                  >
+                    {FAMILIAS_VC.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
                 <select
                   value={form.familia}
@@ -500,7 +568,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Valor">
+              <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
                 <Input
                   type="number"
                   value={form.umbral}
