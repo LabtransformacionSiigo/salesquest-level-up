@@ -160,20 +160,50 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         </div>
       </motion.div>
 
-      {/* ── RIGHT: Rendimiento del Mes ── */}
+      {/* ── RIGHT: Rendimiento del Mes / Equipo ── */}
       <motion.div
         className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm flex flex-col"
         variants={popIn}
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
       >
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">🎯</span> Rendimiento del Mes
+          <span className="text-primary">🎯</span> {showVCTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
-        {isVN && ejecucion && metaAsesor ? (
+        {showVCTeam ? (
+          /* ── VC Gerente: ACV+ por comercial ── */
+          <div className="flex flex-col gap-4 flex-1">
+            {/* Resumen total del equipo */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo</p>
+                <p className="text-xl font-black font-scoreboard text-foreground">{fmt(ventasValue)}</p>
+                <p className="text-[11px] text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{fmt(metaValue)}</span></p>
+              </div>
+              <div className="text-right">
+                <p className={`text-3xl font-black font-scoreboard ${pct >= 100 ? 'text-accent' : pct >= 70 ? 'text-primary' : 'text-orange'}`}>{Math.round(pct)}%</p>
+                <p className="text-[10px] uppercase font-heading text-muted-foreground">Cumplimiento</p>
+              </div>
+            </div>
+
+            {/* Lista de comerciales con barras */}
+            <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 max-h-[360px]">
+              {teamAsesorPerformance!.map((a) => (
+                <VnProgressRow
+                  key={a.nombre}
+                  label={a.nombre}
+                  current={a.acv}
+                  goal={a.meta_acv}
+                  icon="trending_up"
+                  formatter={fmt}
+                />
+              ))}
+            </div>
+          </div>
+        ) : isVN && ejecucion && metaAsesor ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
             <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
