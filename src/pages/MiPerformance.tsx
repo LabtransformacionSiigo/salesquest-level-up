@@ -221,6 +221,10 @@ const MiPerformance = () => {
                     </>
                   )}
 
+                  {isVCGerente && metrics.teamAsesorPerformance?.length > 0 && (
+                    <EquipoRendimientoVCSection asesores={metrics.teamAsesorPerformance} />
+                  )}
+
                   {/* Historial Mensual: ACV vs Meta */}
                   {vcMonthlyCumplimiento.length > 0 && (
                     <>
