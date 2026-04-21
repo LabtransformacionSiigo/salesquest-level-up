@@ -33,15 +33,17 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const Dashboard = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
+  const isVCGerente = profile?.canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
+  const showPeriodoSelector = isVN || isVCGerente;
 
   const now = new Date();
   const currentPeriodo = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [periodo, setPeriodo] = useState<string>(currentPeriodo);
-  const periodoActivo = isVN ? periodo : undefined;
+  const periodoActivo = showPeriodoSelector ? periodo : undefined;
   const metrics = useGamificationMetrics(profile, periodoActivo);
 
   const sp = profile?.sp_totales || 0;
-  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor } = metrics;
+  const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
   // Period options: current year months + last 3 months of previous year
   const periodoOptions = (() => {
