@@ -62,6 +62,14 @@ const Dashboard = () => {
   useEffect(() => {
     if (dataLoading || celebrationShown.current) return;
 
+    const thresholds = getNivelThresholds(profile?.canal);
+    const getNivelIndex = (s: number) => {
+      for (let i = thresholds.length - 1; i >= 0; i--) {
+        if (s >= thresholds[i]) return i;
+      }
+      return 0;
+    };
+
     // Check level up
     if (prevSpRef.current !== null && prevSpRef.current !== sp) {
       const oldLevel = getNivelIndex(prevSpRef.current);
