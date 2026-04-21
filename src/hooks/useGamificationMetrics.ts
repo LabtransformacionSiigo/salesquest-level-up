@@ -521,7 +521,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
           const allEjecRows = ejecRes?.data || [];
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
-            const nombre = (e.documento_asesor || '').trim().toLowerCase();
+            const nombre = normalizeComparableText(e.documento_asesor);
             return teamAsesorNames.has(nombre);
           });
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
