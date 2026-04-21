@@ -229,6 +229,70 @@ const Retos = () => {
     );
   };
 
+  const kpiLabel = (kpi?: string | null) => {
+    switch (kpi) {
+      case 'acv_plus': return 'ACV+';
+      case 'upgrades': return 'Upgrades';
+      case 'conversiones': return 'Conversiones';
+      case 'cumplimiento_pct': return '% Cumplimiento';
+      default: return 'Meta';
+    }
+  };
+
+  const familiaLabel = (fam?: string | null) => {
+    if (!fam || fam === 'AMBAS') return 'Nube + Legacy';
+    if (fam === 'NUBE') return 'Nube';
+    if (fam === 'LEGACY') return 'Legacy';
+    return fam;
+  };
+
+  const formatUmbral = (reto: VcCatalogReto) => {
+    if (reto.kpi === 'acv_plus') return `$${(reto.umbral / 1_000_000).toFixed(0)}M`;
+    if (reto.kpi === 'cumplimiento_pct' || reto.kpi === 'conversiones') return `${reto.umbral}%`;
+    return String(reto.umbral);
+  };
+
+  const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
+    const completed = completados.has(`${reto.nombre}::${periodo}`);
+    return (
+      <motion.div
+        key={reto.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
+            {reto.ventana_tiempo === 'diario' ? 'DIARIO' : reto.ventana_tiempo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
+          </span>
+          {completed && (
+            <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mb-3 mt-2">
+          <span className="text-3xl">{completed ? '✅' : (reto.emoji || '🎯')}</span>
+          <div className="flex-1">
+            <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
+            <p className="text-xs text-muted-foreground">
+              {reto.objetivo_descripcion || `Logra ${formatUmbral(reto)} de ${kpiLabel(reto.kpi)}`}
+            </p>
+            <div className="flex gap-1 mt-1.5">
+              <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{kpiLabel(reto.kpi)}</span>
+              <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{familiaLabel(reto.familia_vc)}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span
+              className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}
+              title="Se suman a puntos canjeables"
+            >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
