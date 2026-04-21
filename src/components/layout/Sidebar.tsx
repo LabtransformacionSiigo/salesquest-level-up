@@ -28,6 +28,7 @@ const adminItems = [
   { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas (legacy)' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
+  { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
   { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
 ];
