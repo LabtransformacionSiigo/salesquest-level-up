@@ -165,7 +165,10 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */
 
-export const useGamificationMetrics = (profile: GamificationProfile | null | undefined) => {
+export const useGamificationMetrics = (
+  profile: GamificationProfile | null | undefined,
+  periodoOverride?: string,
+) => {
   const [state, setState] = useState<GamificationMetrics>({
     loading: true,
     error: null,
