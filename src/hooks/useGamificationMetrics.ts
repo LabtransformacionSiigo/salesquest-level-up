@@ -622,7 +622,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
               return nombreNorm && normalizeComparableText(m.nombre_asesor) === nombreNorm;
             });
             const matchingProductividad = (productividadAdvisorRows || []).find(
-              (p: any) => String(p.asesor || '').trim().toLowerCase() === String(profile.nombre || '').trim().toLowerCase()
+              (p: any) => normalizeComparableText(p.asesor) === nombreNorm
             );
 
             if (matchingEjec) {
