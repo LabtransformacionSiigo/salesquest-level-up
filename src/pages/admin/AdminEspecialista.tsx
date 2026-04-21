@@ -500,7 +500,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Umbral">
+              <Field label="Valor">
                 <Input
                   type="number"
                   value={form.umbral}
@@ -551,7 +551,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   onChange={(e) => setForm({ ...form, multiplicador_sp: e.target.value })}
                 />
               </Field>
-              <Field label="Umbral verde">
+              <Field label="Valor">
                 <Input
                   type="number"
                   value={form.umbral_verde}

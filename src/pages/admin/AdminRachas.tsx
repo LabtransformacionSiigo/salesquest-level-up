@@ -130,7 +130,7 @@ const AdminRachas = () => {
                   {CONDICION_TIPOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </Field>
-              <Field label="Umbral verde (mínimo semanal)" hint="Valor mínimo para mantener semana verde">
+              <Field label="Valor (mínimo semanal)" hint="Valor mínimo para mantener semana verde">
                 <input type="number" value={form.umbral_verde} onChange={e => setForm(f => ({ ...f, umbral_verde: Number(e.target.value) }))} className={inputClass} />
               </Field>
               <Field label="Descripción">
@@ -178,7 +178,7 @@ const AdminRachas = () => {
                           {CONDICION_TIPOS.find(ct => ct.value === c.condicion_tipo)?.label || c.condicion_tipo}
                         </span>
                         <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-semibold">
-                          Umbral: ${(c.umbral_verde / 1_000_000).toFixed(0)}M
+                          Valor: ${(c.umbral_verde / 1_000_000).toFixed(0)}M
                         </span>
                         {!c.activo && <span className="text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">Inactiva</span>}
                       </div>
