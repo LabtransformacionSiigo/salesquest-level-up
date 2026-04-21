@@ -841,7 +841,40 @@ export const useGamificationMetrics = (
           });
         }
 
-        // Format top ranking
+        // Build VC team performance dashboard (only for gerentes VC) — only ACV+
+        if (isVC && profile.role !== 'asesor') {
+          const ventasRows = (vcTeamRes?.data || []) as any[];
+          const porComercial = new Map<string, { acv: number; meta: number }>();
+          ventasRows.forEach((v: any) => {
+            const nombre = String(v.comercial || '').trim();
+            if (!nombre) return;
+            const cur = porComercial.get(nombre) || { acv: 0, meta: 0 };
+            cur.acv += Number(v.acv_plus) || 0;
+            cur.meta += Number(v.meta) || 0;
+            porComercial.set(nombre, cur);
+          });
+
+          teamAsesorPerformance = [...porComercial.entries()].map(([nombre, { acv, meta }]) => ({
+            nombre,
+            documento: '',
+            pct_acv: meta > 0 ? Math.round((acv / meta) * 100) : 0,
+            pct_fe: 0,
+            pct_nube: 0,
+            pct_total: 0,
+            acv,
+            meta_acv: meta,
+            ventas_fe: 0,
+            meta_fe: 0,
+            ventas_nube: 0,
+            meta_nube: 0,
+            ventas_total: 0,
+            meta_total: 0,
+            recomendados: 0,
+            tiene_novedad: false,
+          }));
+          teamAsesorPerformance.sort((a, b) => b.pct_acv - a.pct_acv);
+        }
+
         const canjeablesMap = new Map<string, number>();
         (canjeablesRes.data || []).forEach((row: any) => {
           if (row.id) canjeablesMap.set(row.id, Number(row.sp_canje) || 0);
