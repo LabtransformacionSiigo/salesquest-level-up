@@ -144,6 +144,34 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        {/* Period selector (only VN Aliados/Empresarios) */}
+        {isVN && (
+          <motion.div className="flex items-center justify-end gap-3" variants={fadeUpItem}>
+            <label htmlFor="periodo-vn" className="text-xs font-bold uppercase text-muted-foreground">
+              📅 Periodo
+            </label>
+            <select
+              id="periodo-vn"
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className="h-9 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {periodoOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {periodo !== currentPeriodo && (
+              <button
+                type="button"
+                onClick={() => setPeriodo(currentPeriodo)}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Volver al actual
+              </button>
+            )}
+          </motion.div>
+        )}
+
         {/* KPIs del Mes */}
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
 
