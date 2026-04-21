@@ -203,13 +203,18 @@ export const useGamificationMetrics = (
 
     let cancelled = false;
     const now = new Date();
-    const anioActual = now.getFullYear();
+    // Resolve periodo (YYYYMM). Defaults to current month if no override provided.
+    const periodoSel = periodoOverride && /^\d{6}$/.test(periodoOverride)
+      ? periodoOverride
+      : `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const anioActual = parseInt(periodoSel.slice(0, 4), 10);
+    const mesIdx = parseInt(periodoSel.slice(4), 10) - 1;
     const semanaISO = getISOWeek(now);
     const weekStart = getISOWeekStartDate(semanaISO, anioActual);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
-    const currentMonthName = MONTH_NAMES_ES[now.getMonth()];
-    const mesActual = `${anioActual}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthName = MONTH_NAMES_ES[mesIdx];
+    const mesActual = periodoSel;
 
     const fetchAll = async () => {
       try {
