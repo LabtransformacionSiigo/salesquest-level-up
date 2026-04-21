@@ -7,6 +7,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  COUNTRY_LABELS,
+  SUPPORTED_COUNTRIES,
+  getFamiliesForCountry,
+  getSkusForCountry,
+  type CountryCode,
+  type ProductFamily,
+} from '@/lib/product-families';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-outlined", className)}>{icon}</span>
@@ -18,16 +26,11 @@ const CANALES = [
   { value: 'VC', label: 'Venta Cruzada' },
 ];
 
-const PRODUCTOS = [
-  { value: '', label: 'General (sin producto)' },
-  { value: 'Nube', label: 'Nube' },
-  { value: 'FE', label: 'Facturación Electrónica (FE)' },
-  { value: 'Nómina-e', label: 'Nómina-e' },
-  { value: 'Conversiones', label: 'Conversiones' },
-  { value: 'ACV+', label: 'ACV+' },
-  { value: 'POS', label: 'POS' },
-  { value: 'Contabilidad', label: 'Contabilidad' },
-];
+const FAMILY_LABELS: Record<ProductFamily, string> = {
+  FE: 'Familia FE (Facturación)',
+  NUBE: 'Familia Nube',
+  CONTADOR: 'Familia Contador',
+};
 
 const CONDICIONES = [
   { value: 'primera_venta', label: 'Primera Venta', desc: 'Se otorga al realizar la primera venta del producto' },
