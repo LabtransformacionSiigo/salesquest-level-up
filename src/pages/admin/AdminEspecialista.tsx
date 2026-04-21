@@ -486,14 +486,14 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)">
+              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
                 <select
                   value={form.familia}
                   onChange={(e) => setForm({ ...form, familia: e.target.value })}
                   className={inputClass}
                 >
                   <option value="">— N/A —</option>
-                  {FAMILIAS.map((f) => (
+                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>
@@ -587,14 +587,14 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)">
+              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
                 <select
                   value={form.familia}
                   onChange={(e) => setForm({ ...form, familia: e.target.value })}
                   className={inputClass}
                 >
                   <option value="">— N/A —</option>
-                  {FAMILIAS.map((f) => (
+                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>
