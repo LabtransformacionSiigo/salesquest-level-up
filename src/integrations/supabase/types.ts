@@ -207,10 +207,14 @@ export type Database = {
       catalogo_retos: {
         Row: {
           activo: boolean
+          canal: string | null
           created_at: string
+          dias_consecutivos: number | null
           emoji: string | null
           familia: string | null
+          familia_vc: string | null
           id: string
+          kpi: string | null
           nombre: string
           objetivo_descripcion: string | null
           operacion: string | null
@@ -218,14 +222,19 @@ export type Database = {
           sp_otorgados: number
           tipo_metrica: string
           umbral: number
+          umbral_secundario: number | null
           ventana_tiempo: string
         }
         Insert: {
           activo?: boolean
+          canal?: string | null
           created_at?: string
+          dias_consecutivos?: number | null
           emoji?: string | null
           familia?: string | null
+          familia_vc?: string | null
           id?: string
+          kpi?: string | null
           nombre: string
           objetivo_descripcion?: string | null
           operacion?: string | null
@@ -233,14 +242,19 @@ export type Database = {
           sp_otorgados?: number
           tipo_metrica: string
           umbral?: number
+          umbral_secundario?: number | null
           ventana_tiempo: string
         }
         Update: {
           activo?: boolean
+          canal?: string | null
           created_at?: string
+          dias_consecutivos?: number | null
           emoji?: string | null
           familia?: string | null
+          familia_vc?: string | null
           id?: string
+          kpi?: string | null
           nombre?: string
           objetivo_descripcion?: string | null
           operacion?: string | null
@@ -248,6 +262,7 @@ export type Database = {
           sp_otorgados?: number
           tipo_metrica?: string
           umbral?: number
+          umbral_secundario?: number | null
           ventana_tiempo?: string
         }
         Relationships: []
@@ -259,13 +274,17 @@ export type Database = {
           condicion_tipo: string
           created_at: string | null
           descripcion: string | null
+          dias_lun_mie: boolean | null
           dias_requeridos: number | null
+          familia_vc: string | null
           id: string
+          kpi: string | null
           multiplicador_sp: number | null
           nombre: string
           objetivo_descripcion: string | null
           operacion: string | null
           pais: string | null
+          umbral_legacy: number | null
           umbral_verde: number | null
         }
         Insert: {
@@ -274,13 +293,17 @@ export type Database = {
           condicion_tipo?: string
           created_at?: string | null
           descripcion?: string | null
+          dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
+          familia_vc?: string | null
           id?: string
+          kpi?: string | null
           multiplicador_sp?: number | null
           nombre: string
           objetivo_descripcion?: string | null
           operacion?: string | null
           pais?: string | null
+          umbral_legacy?: number | null
           umbral_verde?: number | null
         }
         Update: {
@@ -289,13 +312,17 @@ export type Database = {
           condicion_tipo?: string
           created_at?: string | null
           descripcion?: string | null
+          dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
+          familia_vc?: string | null
           id?: string
+          kpi?: string | null
           multiplicador_sp?: number | null
           nombre?: string
           objetivo_descripcion?: string | null
           operacion?: string | null
           pais?: string | null
+          umbral_legacy?: number | null
           umbral_verde?: number | null
         }
         Relationships: []
