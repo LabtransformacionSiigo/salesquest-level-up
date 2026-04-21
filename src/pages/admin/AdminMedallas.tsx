@@ -104,11 +104,39 @@ const AdminMedallas = () => {
     fetchCatalogo();
   };
 
-  const resetForm = () => setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'primera_venta', producto: '', cantidad_requerida: 1, sp: 100, emoji: '🏅', activo: true });
+  const resetForm = () => setForm({
+    canal: 'VN_ALIADOS',
+    pais: 'COL',
+    familia: 'FE',
+    nombre: '',
+    descripcion: '',
+    condicion_tipo: 'primera_venta',
+    producto: '',
+    cantidad_requerida: 1,
+    sp: 100,
+    emoji: '🏅',
+    activo: true,
+  });
 
   const startEdit = (m: any) => {
     setEditing(m.id);
-    setForm({ canal: m.canal, nombre: m.nombre, descripcion: m.descripcion || '', condicion_tipo: m.condicion_tipo, producto: m.producto || '', cantidad_requerida: m.cantidad_requerida, sp: m.sp, emoji: m.emoji || '🏅', activo: m.activo });
+    const familiasDisponibles = getFamiliesForCountry((m.pais || 'COL') as CountryCode);
+    const familiaInicial: ProductFamily = familiasDisponibles.includes((m.familia || 'FE') as ProductFamily)
+      ? (m.familia || 'FE') as ProductFamily
+      : (familiasDisponibles[0] || 'FE');
+    setForm({
+      canal: m.canal,
+      pais: ((m.pais || 'COL') as CountryCode),
+      familia: familiaInicial,
+      nombre: m.nombre,
+      descripcion: m.descripcion || '',
+      condicion_tipo: m.condicion_tipo,
+      producto: m.producto || '',
+      cantidad_requerida: m.cantidad_requerida,
+      sp: m.sp,
+      emoji: m.emoji || '🏅',
+      activo: m.activo,
+    });
     setShowAdd(true);
   };
 
