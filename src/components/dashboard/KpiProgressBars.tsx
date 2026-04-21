@@ -3,7 +3,7 @@ import { fadeUpItem, popIn } from '@/lib/animations';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import DonutChart from './DonutChart';
-import type { EjecucionAsesor, MetaAsesor } from '@/hooks/useGamificationMetrics';
+import type { EjecucionAsesor, MetaAsesor, AsesorPerformance } from '@/hooks/useGamificationMetrics';
 
 const NIVELES = [
   { nombre: 'Cuarzo', emoji: '🪨', min: 0, max: 1500 },
@@ -24,6 +24,9 @@ interface KpiProgressBarsProps {
   canal?: string | null;
   ejecucion?: EjecucionAsesor | null;
   metaAsesor?: MetaAsesor | null;
+  isVCGerente?: boolean;
+  teamAsesorPerformance?: AsesorPerformance[];
+  vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
