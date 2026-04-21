@@ -4,14 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import DonutChart from './DonutChart';
 import type { EjecucionAsesor, MetaAsesor, AsesorPerformance } from '@/hooks/useGamificationMetrics';
-
-const NIVELES = [
-  { nombre: 'Cuarzo', emoji: '🪨', min: 0, max: 1500 },
-  { nombre: 'Rubí', emoji: '❤️‍🔥', min: 1501, max: 3000 },
-  { nombre: 'Zafiro', emoji: '💎', min: 3001, max: 4500 },
-  { nombre: 'Esmeralda', emoji: '🟢', min: 4501, max: 6000 },
-  { nombre: 'Diamante', emoji: '💠', min: 6001, max: 999999 },
-];
+import { getNivelesByCanal } from '@/lib/niveles';
 
 interface KpiProgressBarsProps {
   kpis: any;
@@ -71,6 +64,7 @@ const VnProgressRow = ({
 };
 
 const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento }: KpiProgressBarsProps) => {
+  const NIVELES = getNivelesByCanal(canal);
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
   const nivelSiguiente = NIVELES[nivelIdx + 1];

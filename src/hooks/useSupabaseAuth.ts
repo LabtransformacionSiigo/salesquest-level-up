@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
+import { getNivelData } from '@/lib/niveles';
 
 export interface Gerente {
   id: string;
@@ -29,13 +30,6 @@ export interface AuthUser extends Gerente {
   canal_direccion?: string | null;
 }
 
-const NIVELES = [
-  { nombre: 'Cuarzo', min: 0, max: 1500 },
-  { nombre: 'Rubí', min: 1501, max: 3000 },
-  { nombre: 'Zafiro', min: 3001, max: 4500 },
-  { nombre: 'Esmeralda', min: 4501, max: 6000 },
-  { nombre: 'Diamante', min: 6001, max: Number.MAX_SAFE_INTEGER },
-];
 
 const MONTH_NUMBERS_ES: Record<string, string> = {
   Enero: '01',
@@ -52,16 +46,6 @@ const MONTH_NUMBERS_ES: Record<string, string> = {
   Diciembre: '12',
 };
 
-const getNivelData = (spTotales: number) => {
-  const nivelActual = NIVELES.find((nivel) => spTotales >= nivel.min && spTotales <= nivel.max) || NIVELES[0];
-  const siguienteNivel = NIVELES[NIVELES.indexOf(nivelActual) + 1] ?? null;
-
-  return {
-    nivel: nivelActual.nombre,
-    sp_nivel_actual: Math.max(0, spTotales - nivelActual.min),
-    sp_siguiente_nivel: siguienteNivel?.min ?? null,
-  };
-};
 
 const getCurrentConventionYear = () => new Date().getFullYear();
 
@@ -337,7 +321,7 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales);
+          const nivelData = getNivelData(spTotales, asesor.canal);
 
           setProfile({
             id: asesor.id,
@@ -449,7 +433,7 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales);
+          const nivelData = getNivelData(spTotales, data.canal);
 
           setProfile({
             id: data.id,
