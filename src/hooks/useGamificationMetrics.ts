@@ -430,7 +430,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // Build team asesor names from productividad_asesores (celula)
           const teamAsesorNames = new Set<string>();
           celulaRows.forEach((r: any) => {
-            if (r.asesor) teamAsesorNames.add(String(r.asesor).trim().toLowerCase());
+            if (r.asesor) teamAsesorNames.add(normalizeComparableText(r.asesor));
           });
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
@@ -521,7 +521,7 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
           const allEjecRows = ejecRes?.data || [];
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
-            const nombre = (e.documento_asesor || '').trim().toLowerCase();
+            const nombre = normalizeComparableText(e.documento_asesor);
             return teamAsesorNames.has(nombre);
           });
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
@@ -759,12 +759,16 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             }
           });
 
-          // Map ejecucion by documento_asesor for current month
+          // Map ejecucion by BOTH documento and nombre normalizado (ejecucion_asesores.documento_asesor
+          // suele contener el NOMBRE del asesor en VN, no el documento numérico)
           const ejecPorDoc = new Map<string, any>();
+          const ejecPorNombre = new Map<string, any>();
           (ejecRes?.data || []).forEach((e: any) => {
             if (String(e.periodo) !== mesActual) return;
-            const doc = String(e.documento_asesor || '').trim().toLowerCase();
-            if (doc) ejecPorDoc.set(doc, e);
+            const raw = String(e.documento_asesor || '').trim();
+            if (!raw) return;
+            ejecPorDoc.set(raw.toLowerCase(), e);
+            ejecPorNombre.set(normalizeComparableText(raw), e);
           });
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
@@ -773,7 +777,8 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             const asesorNorm = normalizeComparableText(prodRow.asesor);
             const meta = metasPorAsesor.get(asesorNorm);
             const doc = docPorNombre.get(asesorNorm) || '';
-            const ejec = ejecPorDoc.get(doc) || null;
+            // Match ejecucion: 1) por nombre normalizado del asesor, 2) por documento si existiera
+            const ejec = ejecPorNombre.get(asesorNorm) || ejecPorDoc.get(doc) || null;
             const tiene_novedad = !!(meta?.novedad && normalizeComparableText(meta.novedad) !== 'sin novedad');
 
             const acv = normalizeStoredAcv(prodRow.acv_f);
