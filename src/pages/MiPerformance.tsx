@@ -36,6 +36,7 @@ const MiPerformance = () => {
   const canal = profile?.canal;
   const isAliados = canal === 'VN_ALIADOS';
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
+  const isVCGerente = canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
   const canalLabel = metrics.isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
 
   // Celebration for meta cumplida
