@@ -598,19 +598,29 @@ export const useGamificationMetrics = (profile: GamificationProfile | null | und
             .eq('id', profile.id)
             .maybeSingle();
 
-          if (asesorData?.documento) {
+          if (asesorData?.documento || profile.nombre) {
             const { data: productividadAdvisorRows } = await supabase
               .from('productividad_asesores')
               .select('asesor, meta, acv_f, ventas, cant_recomendados')
               .eq('anio_mes', mesActual)
               .limit(2000);
 
-            const matchingEjec = (ejecRes.data || []).find(
-              (e: any) => e.documento_asesor === asesorData.documento && e.canal_direccion === asesorData.canal_direccion && String(e.periodo) === mesActual
-            );
-            const matchingMeta = (metasRes.data || []).find(
-              (m: any) => m.documento_asesor === asesorData.documento && m.canal_direccion === asesorData.canal_direccion
-            );
+            const docAsesor = asesorData?.documento || '';
+            const canalAsesor = asesorData?.canal_direccion || '';
+            const nombreNorm = normalizeComparableText(profile.nombre);
+
+            // Match ejecucion: 1) por documento exacto, 2) por nombre normalizado en documento_asesor (VN guarda nombre)
+            const matchingEjec = (ejecRes.data || []).find((e: any) => {
+              if (String(e.periodo) !== mesActual) return false;
+              if (canalAsesor && e.canal_direccion !== canalAsesor) return false;
+              if (docAsesor && e.documento_asesor === docAsesor) return true;
+              return nombreNorm && normalizeComparableText(e.documento_asesor) === nombreNorm;
+            });
+            const matchingMeta = (metasRes.data || []).find((m: any) => {
+              if (canalAsesor && m.canal_direccion !== canalAsesor) return false;
+              if (docAsesor && m.documento_asesor === docAsesor) return true;
+              return nombreNorm && normalizeComparableText(m.nombre_asesor) === nombreNorm;
+            });
             const matchingProductividad = (productividadAdvisorRows || []).find(
               (p: any) => String(p.asesor || '').trim().toLowerCase() === String(profile.nombre || '').trim().toLowerCase()
             );
