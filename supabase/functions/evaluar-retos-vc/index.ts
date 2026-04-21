@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
     const retosInsert: any[] = [];
     const spInsert: any[] = [];
     const rachasInsert: any[] = [];
+    const detalleSimulacion: any[] = []; // para dry-run
     let totalRetos = 0;
     let totalSp = 0;
 
