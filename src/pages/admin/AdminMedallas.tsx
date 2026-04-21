@@ -89,7 +89,9 @@ const AdminMedallas = () => {
       toast({ title: 'Campo requerido', description: 'El nombre de la medalla es obligatorio', variant: 'destructive' });
       return;
     }
-    const payload = { ...form, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
+    // `familia` no se persiste (la familia se infiere del producto + país vía product-families.ts).
+    const { familia: _familia, ...persistable } = form;
+    const payload = { ...persistable, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
     if (editing) {
       const { error } = await supabase.from('catalogo_medallas').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
