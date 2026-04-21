@@ -13,14 +13,7 @@ import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
-
-const NIVELES_THRESHOLDS = [0, 1501, 3001, 4501, 6001];
-const getNivelIndex = (sp: number) => {
-  for (let i = NIVELES_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (sp >= NIVELES_THRESHOLDS[i]) return i;
-  }
-  return 0;
-};
+import { getNivelThresholds } from '@/lib/niveles';
 
 const RETOS_SEMANALES = [
   { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },

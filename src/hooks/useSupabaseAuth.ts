@@ -321,7 +321,7 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales);
+          const nivelData = getNivelData(spTotales, asesor.canal);
 
           setProfile({
             id: asesor.id,
@@ -433,7 +433,7 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales);
+          const nivelData = getNivelData(spTotales, data.canal);
 
           setProfile({
             id: data.id,
