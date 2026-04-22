@@ -465,7 +465,10 @@ export const useGamificationMetrics = (
           const allVentasDiarias = ventasDiariasRes?.data || [];
           vnCelulaRows = celulaRows;
 
-          // Build team advisor identifiers from productividad + metas_asesores
+          // Build team advisor identifiers from productividad + metas_asesores.
+          // En Aliados/Empresarios no podemos depender de ventas_diarias.celula
+          // porque esa columna puede venir vacía; la verdad del equipo se arma
+          // desde la célula del gerente + los asesores del mes.
           const teamAsesorNames = new Set<string>();
           const teamAdvisorDocs = new Set<string>();
           celulaRows.forEach((r: any) => {
@@ -514,8 +517,6 @@ export const useGamificationMetrics = (
             }
           });
 
-          // Team filter: priorize celula match (raw transactional truth).
-          // Name match is only a secondary path for legacy rows missing celula.
           const paisProfile = String(profile.pais || '').toUpperCase();
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
             const rowCanal = String(row.canal_direccion || '').trim();
@@ -523,8 +524,15 @@ export const useGamificationMetrics = (
             const sameCanal = !canalNorm || rowCanal === canalNorm;
             const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
             if (!sameCanal || !samePais) return false;
-            if (celulaGerente && normalizeComparableText(row.celula) === celulaGerente) return true;
-            return teamAsesorNames.has(normalizeComparableText(row.asesor));
+
+            const asesorNorm = normalizeComparableText(row.asesor);
+            const rowCelulaNorm = normalizeComparableText(row.celula);
+            const rowEquipoNorm = normalizeComparableText(row.equipo);
+
+            if (teamAsesorNames.has(asesorNorm)) return true;
+            if (gerenteNombre && asesorNorm === gerenteNombre) return true;
+            if (celulaGerente && (rowCelulaNorm === celulaGerente || rowEquipoNorm === celulaGerente)) return true;
+            return false;
           });
           vnVentasDiariasRows = teamVentasDiariasAll;
 
