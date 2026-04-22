@@ -579,9 +579,18 @@ export const useGamificationMetrics = (
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
-          const teamVentasFe = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          const teamVentasNube = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-          const teamVentasTotal = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+          // SOURCE OF TRUTH for VN gerente team totals = ventas_diarias raw.
+          // ejecucion_asesores is only a fallback for legacy periods without raw rows.
+          const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
+          const teamVentasFe = ventasDiariasHasMonth
+            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
+            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          const teamVentasNube = ventasDiariasHasMonth
+            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
+            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+          const teamVentasTotal = ventasDiariasHasMonth
+            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
+            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
           vnCurrentMetaNube = metaNube;
