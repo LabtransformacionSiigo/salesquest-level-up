@@ -207,7 +207,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
               ))}
             </div>
           </div>
-        ) : isVN && ejecucion && metaAsesor ? (
+        ) : isVN && vnEjecucion && vnMeta ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
             <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
