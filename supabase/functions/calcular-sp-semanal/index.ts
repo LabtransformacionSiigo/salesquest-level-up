@@ -258,6 +258,47 @@ Deno.serve(async (req) => {
       if (g.id && g.celula) celulaPorGerente.set(g.id, g.celula);
     });
 
+    // Identify the REAL leader per celula. We only credit team SP to the real
+    // leader, otherwise everyone registered under the same celula gets the
+    // full team SP and the ranking explodes (8 people × team SP).
+    const liderPorCelula = new Map<string, string>(); // celula -> gerente.id
+    {
+      const { data: rolesRes } = await supabase.from("user_roles").select("user_id, role");
+      const roleByUser = new Map<string, string>();
+      (rolesRes || []).forEach((r: any) => {
+        if (r.user_id) roleByUser.set(r.user_id, r.role);
+      });
+      const byCelula = new Map<string, any[]>();
+      (gerentesFullRes.data || []).forEach((g: any) => {
+        if (!g.celula) return;
+        const arr = byCelula.get(g.celula) || [];
+        arr.push(g);
+        byCelula.set(g.celula, arr);
+      });
+      const advisorNamesLower = new Set<string>();
+      (productividadAsesoresRes.data || []).forEach((row: any) => {
+        if (row.asesor) advisorNamesLower.add(String(row.asesor).trim().toLowerCase());
+      });
+      byCelula.forEach((members, celula) => {
+        // 1) Prefer member whose role is "gerente"/"admin" AND not in advisor list
+        const realLeader = members.find((m: any) => {
+          const role = m.user_id ? roleByUser.get(m.user_id) : null;
+          const isAdvisor = advisorNamesLower.has(String(m.nombre || "").trim().toLowerCase());
+          return (role === "gerente" || role === "admin") && !isAdvisor;
+        });
+        if (realLeader) { liderPorCelula.set(celula, realLeader.id); return; }
+        // 2) Fallback: any member whose name does not appear in productividad_asesores
+        const nonAdvisor = members.find((m: any) => !advisorNamesLower.has(String(m.nombre || "").trim().toLowerCase()));
+        if (nonAdvisor) { liderPorCelula.set(celula, nonAdvisor.id); return; }
+        // 3) Last resort: first member
+        if (members.length > 0) liderPorCelula.set(celula, members[0].id);
+      });
+    }
+
+    // Cap to prevent runaway SP from corrupted source data (e.g. acv stored
+    // in raw COP × 1000). 300% is already an exceptional over-achievement.
+    const CAP_PCT_MES = 300;
+
     // Build FE/Nube meta by celula+period from metas_asesores (excluding novedad)
     const feMetaByCelulaPeriod = new Map<string, { metaFe: number; metaNube: number }>();
     (metasAsesoresRes.data || []).forEach((row: any) => {
