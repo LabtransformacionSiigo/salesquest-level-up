@@ -1485,6 +1485,7 @@ export type Database = {
           pais: string | null
           producto: string | null
           recurrencia: string | null
+          registro_idx: number
           tipo_producto: string | null
           unidades: number | null
         }
@@ -1502,6 +1503,7 @@ export type Database = {
           pais?: string | null
           producto?: string | null
           recurrencia?: string | null
+          registro_idx?: number
           tipo_producto?: string | null
           unidades?: number | null
         }
@@ -1519,6 +1521,7 @@ export type Database = {
           pais?: string | null
           producto?: string | null
           recurrencia?: string | null
+          registro_idx?: number
           tipo_producto?: string | null
           unidades?: number | null
         }

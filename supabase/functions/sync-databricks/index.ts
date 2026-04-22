@@ -1108,54 +1108,66 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   let synced = 0;
   const errores: string[] = [];
 
+  const currentYear = new Date().getFullYear();
+  const { error: clearVentasError } = await supabase
+    .from("ventas_diarias")
+    .delete()
+    .eq("canal_direccion", "Empresarios")
+    .gte("fecha", `${currentYear}-01-01`);
+  if (clearVentasError) errores.push(`Limpieza ventas_diarias Empresarios: ${clearVentasError.message}`);
+
+  const { error: clearEjecError } = await supabase
+    .from("ejecucion_asesores")
+    .delete()
+    .eq("canal_direccion", "Empresarios")
+    .gte("periodo", `${currentYear}01`);
+  if (clearEjecError) errores.push(`Limpieza ejecucion_asesores Empresarios: ${clearEjecError.message}`);
+
+  const registroCounters = new Map<string, number>();
   const upsertRows: any[] = [];
   for (const row of rows) {
+    const fecha = row.FECHA ? String(row.FECHA).trim().slice(0, 10) : null;
     const asesor = String(row.ASESOR || "").trim();
     const producto = String(row.Producto || "").trim();
-    if (!asesor) continue;
+    if (!fecha || !asesor) continue;
 
     const pais = normalizeCountry(row.pais || row.PAIS || "MEX");
-    // For Empresarios (MX): infer family from product name + country
     const familiaCanon = normalizeProductFamily(producto, pais);
+    const counterKey = `${fecha}|${asesor}|${familiaCanon}|Empresarios`;
+    const registro_idx = registroCounters.get(counterKey) ?? 0;
+    registroCounters.set(counterKey, registro_idx + 1);
 
     upsertRows.push({
-      fecha: row.FECHA ? String(row.FECHA).trim() : null,
+      fecha,
       asesor,
       celula: String(row.CELULA || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.Equipo || "").trim() || null,
-      tipo_producto: familiaCanon, // canonical family (FE/NUBE/OTRO) for ejecucion aggregation
+      tipo_producto: familiaCanon,
       producto: producto || null,
-      unidades: toRoundedInt(row.Unidades),
+      unidades: Math.max(0, toRoundedInt(row.Unidades)),
       acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Empresarios"),
       pais,
+      registro_idx,
     });
   }
 
-  // Deduplicate
-  const deduped = new Map<string, any>();
-  for (const row of upsertRows) {
-    const key = `${row.fecha}|${row.asesor}|${row.tipo_producto}|${row.canal_direccion}|${row.producto}`;
-    if (deduped.has(key)) {
-      const e = deduped.get(key);
-      e.unidades += row.unidades;
-      e.acv += row.acv;
-    } else {
-      deduped.set(key, { ...row });
-    }
-  }
-  const uniqueRows = [...deduped.values()];
+  synced += await parallelUpsert(
+    supabase,
+    "ventas_diarias",
+    upsertRows,
+    { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto,registro_idx", count: "exact" },
+    errores,
+    "ventas_diarias empresarios",
+  );
 
-  synced += await parallelUpsert(supabase, "ventas_diarias", uniqueRows, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" }, errores, "ventas_diarias empresarios");
+  await updateEjecucionFromVentasDiarias(supabase, upsertRows, "Empresarios", errores);
+  await aggregateVentasDiariasToKpis(supabase, upsertRows, "VN_EMPRESARIOS", errores);
 
-  // Also update ejecucion_asesores (summarize by asesor + month)
-  await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Empresarios", errores);
-  await aggregateVentasDiariasToKpis(supabase, uniqueRows, "VN_EMPRESARIOS", errores);
-
-  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, filas_preservadas: upsertRows.length, errores: errores.slice(0, 20) };
 }
 
 // ============================================================
@@ -1165,61 +1177,69 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   let synced = 0;
   const errores: string[] = [];
 
+  const currentYear = new Date().getFullYear();
+  const { error: clearVentasError } = await supabase
+    .from("ventas_diarias")
+    .delete()
+    .eq("canal_direccion", "Aliados")
+    .gte("fecha", `${currentYear}-01-01`);
+  if (clearVentasError) errores.push(`Limpieza ventas_diarias Aliados: ${clearVentasError.message}`);
+
+  const { error: clearEjecError } = await supabase
+    .from("ejecucion_asesores")
+    .delete()
+    .eq("canal_direccion", "Aliados")
+    .gte("periodo", `${currentYear}01`);
+  if (clearEjecError) errores.push(`Limpieza ejecucion_asesores Aliados: ${clearEjecError.message}`);
+
+  const registroCounters = new Map<string, number>();
   const upsertRows: any[] = [];
   for (const row of rows) {
+    const fecha = row.fecha ? String(row.fecha).trim().slice(0, 10) : null;
     const asesor = String(row.fullname || "").trim();
-    if (!asesor) continue;
+    if (!fecha || !asesor) continue;
 
-    // Aliados (tbl_gld_Ventas_SA): tipo_producto1 IS the family ("FE"/"NUBE"/"CONTADOR") — use directly
     const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
     const familiaCanon: "FE" | "NUBE" | "CONTADOR" | "OTRO" =
       familiaRaw === "FE" ? "FE"
       : familiaRaw === "NUBE" ? "NUBE"
       : familiaRaw === "CONTADOR" ? "CONTADOR"
       : "OTRO";
-
-    // CRITICAL: real Databricks column is `cuenta_finanzas` (NOT `Cuenta_comercial`).
-    // The previous bug read an inexistent column → 0 unidades → upsert con conflict-key
-    // débil sobreescribía las filas reales y borraba el conteo (caso Equipo Antioquia).
-    const unidades = toNumber(row.cuenta_finanzas, row.Cuenta_comercial);
+    const counterKey = `${fecha}|${asesor}|${familiaCanon}|Aliados`;
+    const registro_idx = registroCounters.get(counterKey) ?? 0;
+    registroCounters.set(counterKey, registro_idx + 1);
 
     upsertRows.push({
-      fecha: row.fecha ? String(row.fecha).trim() : null,
+      fecha,
       asesor,
       celula: String(row.celula || "").trim() || null,
       director: String(row.Director || "").trim() || null,
       equipo: String(row.equipo || "").trim() || null,
-      tipo_producto: familiaCanon, // canonical family for ejecucion aggregation
+      tipo_producto: familiaCanon,
       producto: String(row.tipo_producto1 || "").trim() || null,
-      unidades: Math.round(unidades),
+      unidades: 1,
       acv: toRoundedInt(row.ACV),
       recurrencia: null,
       origen: String(row.origen || "").trim() || null,
       canal_direccion: normalizeCanalDireccion("Aliados"),
       pais: normalizeCountry(row.pais || "COL"),
+      registro_idx,
     });
   }
 
-  // Deduplicate
-  const deduped = new Map<string, any>();
-  for (const row of upsertRows) {
-    const key = `${row.fecha}|${row.asesor}|${row.tipo_producto}|${row.canal_direccion}|${row.producto}`;
-    if (deduped.has(key)) {
-      const e = deduped.get(key);
-      e.unidades += row.unidades;
-      e.acv += row.acv;
-    } else {
-      deduped.set(key, { ...row });
-    }
-  }
-  const uniqueRows = [...deduped.values()];
+  synced += await parallelUpsert(
+    supabase,
+    "ventas_diarias",
+    upsertRows,
+    { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto,registro_idx", count: "exact" },
+    errores,
+    "ventas_diarias aliados",
+  );
 
-  synced += await parallelUpsert(supabase, "ventas_diarias", uniqueRows, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto", count: "exact" }, errores, "ventas_diarias aliados");
+  await updateEjecucionFromVentasDiarias(supabase, upsertRows, "Aliados", errores);
+  await aggregateVentasDiariasToKpis(supabase, upsertRows, "VN_ALIADOS", errores);
 
-  await updateEjecucionFromVentasDiarias(supabase, uniqueRows, "Aliados", errores);
-  await aggregateVentasDiariasToKpis(supabase, uniqueRows, "VN_ALIADOS", errores);
-
-  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+  return { total_rows: rows.length, ventas_diarias_sincronizadas: synced, filas_preservadas: upsertRows.length, errores: errores.slice(0, 20) };
 }
 
 // ============================================================

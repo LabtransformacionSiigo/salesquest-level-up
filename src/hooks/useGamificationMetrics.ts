@@ -445,8 +445,9 @@ export const useGamificationMetrics = (
           const vnMetasAsesores = vnMetasRes?.data || [];
           vnCelulaRows = celulaRows;
 
-          // Build team asesor names from productividad_asesores (celula)
+          // Build team advisor identifiers from productividad + metas_asesores
           const teamAsesorNames = new Set<string>();
+          const teamAdvisorDocs = new Set<string>();
           celulaRows.forEach((r: any) => {
             if (r.asesor) teamAsesorNames.add(normalizeComparableText(r.asesor));
           });
@@ -485,6 +486,13 @@ export const useGamificationMetrics = (
 
             return [];
           };
+
+          vnMetasAsesores.forEach((row: any) => {
+            if (celulaGerente && normalizeComparableText(row.celula) === celulaGerente) {
+              if (row.nombre_asesor) teamAsesorNames.add(normalizeComparableText(row.nombre_asesor));
+              if (row.documento_asesor) teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
+            }
+          });
 
           getMetaContextForPeriod = (period: string) => {
             const rows = getTeamMetaRowsForPeriod(period);
@@ -540,7 +548,9 @@ export const useGamificationMetrics = (
           const allEjecRows = ejecRes?.data || [];
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
             const nombre = normalizeComparableText(e.documento_asesor);
-            return teamAsesorNames.has(nombre);
+            const documento = String(e.documento_asesor || '').trim().toLowerCase();
+            const sameCanal = !canalNorm || e.canal_direccion === canalNorm;
+            return sameCanal && (teamAsesorNames.has(nombre) || teamAdvisorDocs.has(documento));
           });
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
           const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
