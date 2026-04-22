@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile, type VcAdvisorSnapshot } from '@/lib/vc-advisor-data';
 import { aggregateProductBreakdown, type ProductBreakdownItem } from '@/lib/product-breakdown';
+import { resolveProductFamily } from '@/lib/product-families';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -390,7 +391,7 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 19 – ventas_diarias raw for VN exact FE/Nube/Total aggregation */
           isVN
-            ? supabase.from('ventas_diarias').select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion')
+            ? supabase.from('ventas_diarias').select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
                 .limit(50000)
