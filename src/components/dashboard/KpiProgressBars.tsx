@@ -210,26 +210,26 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         ) : isVN && vnEjecucion && vnMeta ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
-            <VnProgressRow label="Total Unidades" current={ejecucion.ventas_total} goal={metaAsesor.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
-            <VnProgressRow label="FE" current={ejecucion.ventas_fe} goal={metaAsesor.meta_fe} icon="receipt_long" formatter={(v) => `${v.toLocaleString()} uds`} />
-            <VnProgressRow label="Nube" current={ejecucion.ventas_nube} goal={metaAsesor.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
-            <VnProgressRow label="ACV+" current={ejecucion.acv_total} goal={metaAcvValue} icon="trending_up" formatter={fmt} />
+            <VnProgressRow label="Total Unidades" current={vnEjecucion.ventas_total} goal={vnMeta.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="FE" current={vnEjecucion.ventas_fe} goal={vnMeta.meta_fe} icon="receipt_long" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="Nube" current={vnEjecucion.ventas_nube} goal={vnMeta.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
+            <VnProgressRow label="ACV+" current={vnEjecucion.acv_total} goal={metaAcvValue || vnMeta.meta_acv} icon="trending_up" formatter={fmt} />
 
             {/* Extras: Productividad + Recomendados */}
             <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
               <div className="text-center">
-                <p className="text-2xl font-black font-scoreboard text-primary">{Math.round(ejecucion.productividad)}</p>
+                <p className="text-2xl font-black font-scoreboard text-primary">{Math.round(vnEjecucion.productividad)}</p>
                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Productividad</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-black font-scoreboard text-accent">{ejecucion.cant_recomendados}</p>
+                <p className="text-2xl font-black font-scoreboard text-accent">{vnEjecucion.cant_recomendados}</p>
                 <p className="text-[10px] text-muted-foreground font-heading uppercase">{canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos'}</p>
               </div>
             </div>
 
             {/* Status based on unit compliance */}
             {(() => {
-              const pctAcv = getSafePercentage(ejecucion.acv_total, metaAcvValue);
+              const pctAcv = getSafePercentage(vnEjecucion.acv_total, metaAcvValue || vnMeta.meta_acv);
               return (
                 <div className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold ${
                   pctAcv >= 100 ? 'bg-accent/10 text-accent' : pctAcv >= 70 ? 'bg-primary/10 text-primary' : pctAcv >= 40 ? 'bg-orange/10 text-orange' : 'bg-muted text-muted-foreground'
