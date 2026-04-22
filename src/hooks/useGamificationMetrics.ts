@@ -161,6 +161,12 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   return Math.round(n);
 };
 
+const getPeriodFromDate = (value: unknown) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return raw.slice(0, 7).replace(/-/g, '');
+};
+
 /* ------------------------------------------------------------------ */
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */
@@ -382,12 +388,19 @@ export const useGamificationMetrics = (
                 .eq('mes', currentMonthName)
                 .like('documento_factura', 'SUM-%')
             : Promise.resolve({ data: [] }),
+          /* 19 – ventas_diarias raw for VN exact FE/Nube/Total aggregation */
+          isVN
+            ? supabase.from('ventas_diarias').select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion')
+                .gte('fecha', `${anioActual}-01-01`)
+                .lt('fecha', `${anioActual + 1}-01-01`)
+                .limit(50000)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
