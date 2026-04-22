@@ -46,10 +46,34 @@ export const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-export const normalizeVnMetaAcv = (value: number | null | undefined) => {
+/**
+ * Normaliza meta ACV considerando la escala del ACV real del periodo.
+ * - COL almacena ACV y meta en COP completos (acv ~ millones, meta ~ 50–70 = 50M–70M).
+ * - MEX/ECU/URU almacenan ya en escala "miles" (acv ~ 30k, meta ~ 18 = 18k de la misma escala).
+ *
+ * Regla: si la meta interpretada como millones (×1.000.000) es coherente con el orden de magnitud
+ * del ACV → escalar (caso COL). Si no, asumir que ya está en la misma escala (MEX/ECU/URU).
+ */
+export const normalizeVnMetaAcv = (
+  value: number | null | undefined,
+  acvReference?: number | null,
+) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
-  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+  const abs = Math.abs(n);
+  // Si ya viene en valor grande (>=100k), no escalar.
+  if (abs >= 100_000) return Math.round(n);
+
+  // Comparar contra ACV de referencia para decidir escala.
+  const acv = Math.abs(Number(acvReference) || 0);
+  if (acv > 0) {
+    const scaled = abs * 1_000_000;
+    // Si el ACV es mucho menor que la meta escalada (acv < scaled/100), la meta NO debe escalarse:
+    // significa que ambos vienen en la misma escala chica (caso MEX/ECU).
+    if (acv < scaled / 100) return Math.round(n);
+  }
+  // Caso COL histórico (sin referencia o ACV grande): escalar a millones.
+  return Math.round(n * 1_000_000);
 };
 
 export const normalizeStoredAcv = (value: number | null | undefined) => {
