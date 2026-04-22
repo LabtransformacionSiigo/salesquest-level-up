@@ -250,12 +250,13 @@ const Rankings = () => {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, spGeneralRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
-          supabase.from('gerentes').select('nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('gerentes').select('id, nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
+          supabase.from('ranking_general').select('id, sp_totales').eq('canal', profile.canal).eq('pais', userPais),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -289,12 +290,17 @@ const Rankings = () => {
           if (row.user_id && row.role) roleByUserId.set(row.user_id, row.role);
         });
 
-        const gerentesByCelula = new Map<string, { nombre: string; sp_canje: number }>();
-        const gerentesByCell = new Map<string, Array<{ nombre: string; sp_canje: number; user_id?: string | null }>>();
+        const spByGerenteId = new Map<string, number>();
+        (spGeneralRes.data || []).forEach((row: any) => {
+          if (row.id) spByGerenteId.set(row.id, Number(row.sp_totales) || 0);
+        });
+
+        const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_totales: number }>();
+        const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_totales: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
           if (!g.celula) return;
           const list = gerentesByCell.get(g.celula) || [];
-          list.push({ nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, user_id: g.user_id });
+          list.push({ id: g.id, nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, sp_totales: spByGerenteId.get(g.id) || 0, user_id: g.user_id });
           gerentesByCell.set(g.celula, list);
         });
 
@@ -353,7 +359,6 @@ const Rankings = () => {
           });
           const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
           const celulaMetaMap = metaAcvByCelulaTeam.get(celula);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
@@ -374,7 +379,7 @@ const Rankings = () => {
             pct_cumplimiento: pct,
             pct_fe: currentMonthly?.pctFe || 0,
             pct_nube: currentMonthly?.pctNube || 0,
-            sp_totales: spConv,
+            sp_totales: gerenteInfo?.sp_totales || 0,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
             posicion: 0,
