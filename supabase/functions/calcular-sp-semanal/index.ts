@@ -385,14 +385,6 @@ Deno.serve(async (req) => {
               resumenCanal[canal].sp += spFinal;
             }
           }
-              spUpserts.push({
-                gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
-                periodo, detalle: `Cumplimiento de Meta: ${spFinal}% · VC · ${agg.mes}`, tipo_sp: "convencion",
-              });
-              totalSpOtorgados += spFinal;
-              resumenCanal[canal].sp += spFinal;
-            }
-          }
         } else {
           // VN channels: SP per month from productividad_asesores by celula (SAME source as UI Mi Performance).
           // Rule: ACV %=1SP, FE %=1SP, Nube %=2SP — sum across all months with data.
