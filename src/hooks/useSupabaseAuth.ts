@@ -394,7 +394,8 @@ export const useSupabaseAuth = () => {
             // porque productividad usa "Equipo México X" (con tilde) y metas usa
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
             const normalizedCelula = normalizeComparableText(gerenteCelula);
-            const [vnRes, metasVnRes] = await Promise.all([
+            const canalDireccion = gerenteCanal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
+            const [vnRes, metasVnRes, ventasDiariasRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
                 .select('anio_mes, asesor, acv_f, meta, celula, pais')
@@ -407,6 +408,13 @@ export const useSupabaseAuth = () => {
                 .gte('anio_mes', `${currentConventionYear}01`)
                 .lte('anio_mes', `${currentConventionYear}12`)
                 .limit(20000),
+              supabase
+                .from('ventas_diarias')
+                .select('fecha, asesor, celula, tipo_producto, unidades, canal_direccion')
+                .gte('fecha', `${currentConventionYear}-01-01`)
+                .lt('fecha', `${currentConventionYear + 1}-01-01`)
+                .eq('canal_direccion', canalDireccion)
+                .limit(50000),
             ]);
             if (!vnRes.error && !metasVnRes.error) {
               const productivityRows = ((vnRes.data as any[]) || []).filter(
@@ -416,22 +424,73 @@ export const useSupabaseAuth = () => {
                 (row) => normalizeComparableText(row.celula) === normalizedCelula,
               );
 
-              const { data: ejecVnRows, error: ejecVnError } = await supabase
-                .from('ejecucion_asesores')
-                .select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total')
-                .gte('periodo', `${currentConventionYear}01`)
-                .lte('periodo', `${currentConventionYear}12`)
-                .limit(20000);
+              // SOURCE OF TRUTH: ventas_diarias aggregated by celula+period.
+              // Build a synthetic ejecRows shape that buildVnConventionMonthlyRows can consume.
+              const ventasByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
+              ((ventasDiariasRes?.data as any[]) || [])
+                .filter((row) => normalizeComparableText(row.celula) === normalizedCelula)
+                .forEach((row) => {
+                  const fecha = String(row.fecha || '');
+                  if (fecha.length < 7) return;
+                  const period = fecha.slice(0, 7).replace('-', '');
+                  const cur = ventasByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+                  const u = Number(row.unidades) || 0;
+                  const tipo = String(row.tipo_producto || '').toUpperCase();
+                  cur.total += u;
+                  if (tipo === 'FE') cur.fe += u;
+                  else if (tipo === 'NUBE') cur.nube += u;
+                  ventasByPeriod.set(period, cur);
+                });
 
-              if (!ejecVnError) {
+              const syntheticEjec = [...ventasByPeriod.entries()].map(([period, v]) => ({
+                periodo: period,
+                documento_asesor: `__celula_${normalizedCelula}`,
+                ventas_fe: v.fe,
+                ventas_nube: v.nube,
+                ventas_total: v.total,
+              }));
+
+              // Inject the synthetic identifier into metas so the period-level matcher accepts it
+              const metaRowsWithSynthetic = metaRowsFiltered.length > 0
+                ? [
+                    ...metaRowsFiltered,
+                    ...[...ventasByPeriod.keys()].map((period) => ({
+                      anio_mes: period,
+                      nombre_asesor: `__celula_${normalizedCelula}`,
+                      novedad: 'Sin novedad',
+                      meta_fe: 0,
+                      meta_nube: 0,
+                      meta_total: 0,
+                    })),
+                  ]
+                : metaRowsFiltered;
+
+              if (syntheticEjec.length > 0) {
                 const monthlyRows = buildVnConventionMonthlyRows({
                   productivityRows,
-                  metaRows: metaRowsFiltered,
-                  ejecRows: ejecVnRows as any[],
+                  metaRows: metaRowsWithSynthetic,
+                  ejecRows: syntheticEjec,
                 });
                 spTotales = sumVnConventionMonthlyRows(monthlyRows);
               } else {
-                spTotales = getVnMonthlyConventionTotal(productivityRows);
+                // Fallback to ejecucion_asesores if no ventas_diarias yet
+                const { data: ejecVnRows, error: ejecVnError } = await supabase
+                  .from('ejecucion_asesores')
+                  .select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total')
+                  .gte('periodo', `${currentConventionYear}01`)
+                  .lte('periodo', `${currentConventionYear}12`)
+                  .limit(20000);
+
+                if (!ejecVnError) {
+                  const monthlyRows = buildVnConventionMonthlyRows({
+                    productivityRows,
+                    metaRows: metaRowsFiltered,
+                    ejecRows: ejecVnRows as any[],
+                  });
+                  spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                } else {
+                  spTotales = getVnMonthlyConventionTotal(productivityRows);
+                }
               }
             } else if (!vnRes.error) {
               const productivityRows = ((vnRes.data as any[]) || []).filter(
