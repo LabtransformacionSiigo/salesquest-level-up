@@ -800,7 +800,51 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
 
   synced += await parallelUpsert(supabase, "metas_gerentes", uniqueRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
 
-  return { total_rows: rows.length, deduplicadas: uniqueRows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
+  let gerentesEnriquecidos = 0;
+  try {
+    const leaderCellMap = new Map<string, string>();
+    for (const row of uniqueRows) {
+      const director = normalizeText(row.director);
+      const celula = String(row.celula || "").trim();
+      if (director && celula && !leaderCellMap.has(director)) {
+        leaderCellMap.set(director, celula);
+      }
+    }
+
+    const { data: gerentesVn } = await supabase
+      .from("gerentes")
+      .select("id, nombre, celula, canal")
+      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
+
+    const updates = (gerentesVn || [])
+      .filter((g: any) => !g.celula)
+      .map((g: any) => {
+        const celula = leaderCellMap.get(normalizeText(g.nombre));
+        return celula ? { id: g.id, celula } : null;
+      })
+      .filter(Boolean);
+
+    if (updates.length > 0) {
+      gerentesEnriquecidos += await parallelUpsert(
+        supabase,
+        "gerentes",
+        updates,
+        { onConflict: "id", count: "exact" },
+        errores,
+        "gerentes celula metas_gerentes",
+      );
+    }
+  } catch (e) {
+    errores.push(`Enriquecimiento de gerentes desde metas_gerentes falló: ${String(e)}`);
+  }
+
+  return {
+    total_rows: rows.length,
+    deduplicadas: uniqueRows.length,
+    metas_gerentes_sincronizadas: synced,
+    gerentes_celula_enriquecida: gerentesEnriquecidos,
+    errores: errores.slice(0, 20),
+  };
 }
 
 // ============================================================
