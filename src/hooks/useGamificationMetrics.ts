@@ -643,18 +643,38 @@ export const useGamificationMetrics = (
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
-          // SOURCE OF TRUTH for VN gerente team totals = ventas_diarias raw,
-          // reclasificada por familia oficial (producto + país).
+
+          // ⭐ FUENTE DE VERDAD: ventas_gerente_mensual (Databricks pre-agregado por gerente).
+          // Si hay filas para este gerente en este mes, sobreescribe los conteos
+          // FE / NUBE / TOTAL / ACV con los valores oficiales de Databricks.
+          const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
+            .filter((r: any) => String(r.periodo) === mesActual);
+          const vgmHasMonth = vgmRows.length > 0;
+          const vgmFe = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'FE' ? (Number(r.unidades) || 0) : 0), 0);
+          const vgmNube = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'NUBE' ? (Number(r.unidades) || 0) : 0), 0);
+          const vgmContador = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'CONTADOR' ? (Number(r.unidades) || 0) : 0), 0);
+          const vgmTotal = vgmFe + vgmNube + vgmContador;
+          const vgmAcv = vgmRows.reduce((s, r) => s + (Number(r.acv) || 0), 0);
+
+          // SOURCE OF TRUTH for VN gerente team totals = ventas_gerente_mensual,
+          // luego ventas_diarias raw, luego ejecucion_asesores como último respaldo.
           const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
-          const teamVentasFe = ventasDiariasHasMonth
-            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
-            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          const teamVentasNube = ventasDiariasHasMonth
-            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
-            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-          const teamVentasTotal = ventasDiariasHasMonth
-            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
-            : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+          const teamVentasFe = vgmHasMonth
+            ? vgmFe
+            : (ventasDiariasHasMonth
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0));
+          const teamVentasNube = vgmHasMonth
+            ? vgmNube
+            : (ventasDiariasHasMonth
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0));
+          const teamVentasTotal = vgmHasMonth
+            ? vgmTotal
+            : (ventasDiariasHasMonth
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0));
+          const teamAcvFromVgm = vgmHasMonth ? Math.round(vgmAcv) : 0;
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
           vnCurrentMetaNube = metaNube;
