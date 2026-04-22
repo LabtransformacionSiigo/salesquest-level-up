@@ -846,7 +846,15 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     };
   }).filter((r) => r.documento_asesor && r.canal_direccion);
 
-  synced += await parallelUpsert(supabase, "metas_asesores", upsertRows, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" }, errores, "metas_asesores");
+  // Dedup by (documento_asesor, canal_direccion, anio_mes) to avoid Postgres upsert duplicate key errors
+  const metasDedupMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    metasDedupMap.set(`${r.documento_asesor}|${r.canal_direccion}|${r.anio_mes}`, r);
+  }
+  const uniqueMetasRows = [...metasDedupMap.values()];
+  console.log(`[metas_asesores] Total rows: ${upsertRows.length} → únicas: ${uniqueMetasRows.length}`);
+
+  synced += await parallelUpsert(supabase, "metas_asesores", uniqueMetasRows, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" }, errores, "metas_asesores");
 
   // Also update asesores table with documento and canal_direccion
   for (const row of rows) {
