@@ -858,7 +858,9 @@ export const useGamificationMetrics = (
             }
           });
 
-          // SOURCE OF TRUTH per asesor: ventas_diarias raw aggregated by asesor name
+          // SOURCE OF TRUTH per asesor: ventas_diarias raw aggregated by asesor name,
+          // reclasificada por familia oficial (producto + país).
+          const paisProfileForAsesor = String(profile.pais || '').toUpperCase();
           const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
           vnVentasDiariasRows
             .filter((row: any) => getPeriodFromDate(row.fecha) === mesActual)
@@ -867,11 +869,12 @@ export const useGamificationMetrics = (
               if (!key) return;
               const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
               const u = Number(row.unidades) || 0;
-              const tipo = String(row.tipo_producto || '').toUpperCase();
+              const fam = resolveProductFamily(row.producto, row.pais || paisProfileForAsesor)
+                ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
               cur.total += u;
               cur.acv += Number(row.acv) || 0;
-              if (tipo === 'FE') cur.fe += u;
-              else if (tipo === 'NUBE') cur.nube += u;
+              if (fam === 'FE') cur.fe += u;
+              else if (fam === 'NUBE') cur.nube += u;
               ventasPorAsesor.set(key, cur);
             });
 
