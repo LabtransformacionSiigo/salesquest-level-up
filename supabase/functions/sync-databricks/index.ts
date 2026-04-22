@@ -779,9 +779,18 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     productividad: toNumber(row.productividad),
   })).filter((r) => r.celula && r.canal_direccion);
 
-  synced += await parallelUpsert(supabase, "metas_gerentes", upsertRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
+  // Dedup by (celula, canal_direccion) — last row wins. Postgres rejects upserts with
+  // duplicate keys in the same batch ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+  const dedupedMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    dedupedMap.set(`${r.celula}|${r.canal_direccion}`, r);
+  }
+  const uniqueRows = [...dedupedMap.values()];
+  console.log(`[metas_gerentes] Total rows: ${upsertRows.length} → únicas: ${uniqueRows.length}`);
 
-  return { total_rows: rows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
+  synced += await parallelUpsert(supabase, "metas_gerentes", uniqueRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
+
+  return { total_rows: rows.length, deduplicadas: uniqueRows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
 }
 
 // ============================================================
@@ -837,7 +846,15 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
     };
   }).filter((r) => r.documento_asesor && r.canal_direccion);
 
-  synced += await parallelUpsert(supabase, "metas_asesores", upsertRows, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" }, errores, "metas_asesores");
+  // Dedup by (documento_asesor, canal_direccion, anio_mes) to avoid Postgres upsert duplicate key errors
+  const metasDedupMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    metasDedupMap.set(`${r.documento_asesor}|${r.canal_direccion}|${r.anio_mes}`, r);
+  }
+  const uniqueMetasRows = [...metasDedupMap.values()];
+  console.log(`[metas_asesores] Total rows: ${upsertRows.length} → únicas: ${uniqueMetasRows.length}`);
+
+  synced += await parallelUpsert(supabase, "metas_asesores", uniqueMetasRows, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" }, errores, "metas_asesores");
 
   // Also update asesores table with documento and canal_direccion
   for (const row of rows) {
@@ -1189,23 +1206,54 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
     director: String(row.Director || "").trim() || null,
   })).filter((r) => r.asesor && r.anio_mes);
 
-  synced += await parallelUpsert(supabase, "productividad_asesores", upsertRows, { onConflict: "asesor,anio_mes", count: "exact" }, errores, "productividad_asesores");
-
-  // Also update ejecucion_asesores cant_recomendados and productividad
-  for (const row of upsertRows) {
-    if (row.cant_recomendados > 0 || row.ventas > 0) {
-      const productividad = row.meta > 0 ? Math.round((row.ventas / row.meta) * 100) : 0;
-      await supabase.from("ejecucion_asesores").upsert({
-        documento_asesor: row.asesor,
-        periodo: String(row.anio_mes),
-        canal_direccion: normalizeCanalDireccion(row.area || row.celula || "VC"),
-        cant_recomendados: row.cant_recomendados,
-        productividad,
-      }, { onConflict: "documento_asesor,canal_direccion,periodo" });
+  // Dedup by (asesor, anio_mes) — sum numeric fields, last non-empty wins for strings
+  const prodDedupMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    const key = `${r.asesor}|${r.anio_mes}`;
+    const existing = prodDedupMap.get(key);
+    if (!existing) {
+      prodDedupMap.set(key, { ...r });
+    } else {
+      existing.cant_recomendados = (existing.cant_recomendados || 0) + (r.cant_recomendados || 0);
+      existing.ventas_mm_recomendados = (existing.ventas_mm_recomendados || 0) + (r.ventas_mm_recomendados || 0);
+      existing.sc_creados = (existing.sc_creados || 0) + (r.sc_creados || 0);
+      existing.ventas_mm_sql = (existing.ventas_mm_sql || 0) + (r.ventas_mm_sql || 0);
+      existing.meta = (existing.meta || 0) + (r.meta || 0);
+      existing.ventas = (existing.ventas || 0) + (r.ventas || 0);
+      existing.acv_f = (existing.acv_f || 0) + (r.acv_f || 0);
+      existing.celula = existing.celula || r.celula;
+      existing.area = existing.area || r.area;
+      existing.director = existing.director || r.director;
+      existing.rango_antiguedad = existing.rango_antiguedad || r.rango_antiguedad;
     }
   }
+  const uniqueProdRows = [...prodDedupMap.values()];
+  console.log(`[productividad_asesores] Total: ${upsertRows.length} → únicas: ${uniqueProdRows.length}`);
 
-  return { total_rows: rows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
+  synced += await parallelUpsert(supabase, "productividad_asesores", uniqueProdRows, { onConflict: "asesor,anio_mes", count: "exact" }, errores, "productividad_asesores");
+
+  // Also update ejecucion_asesores cant_recomendados and productividad
+  // Dedup by (asesor, anio_mes, canal_direccion) before bulk upsert
+  const ejMap = new Map<string, any>();
+  for (const row of uniqueProdRows) {
+    if (row.cant_recomendados > 0 || row.ventas > 0) {
+      const productividad = row.meta > 0 ? Math.round((row.ventas / row.meta) * 100) : 0;
+      const canal_direccion = normalizeCanalDireccion(row.area || row.celula || "VC");
+      const key = `${row.asesor}|${row.anio_mes}|${canal_direccion}`;
+      ejMap.set(key, {
+        documento_asesor: row.asesor,
+        periodo: String(row.anio_mes),
+        canal_direccion,
+        cant_recomendados: row.cant_recomendados,
+        productividad,
+      });
+    }
+  }
+  if (ejMap.size > 0) {
+    await parallelUpsert(supabase, "ejecucion_asesores", [...ejMap.values()], { onConflict: "documento_asesor,canal_direccion,periodo" }, errores, "ejecucion_asesores prod");
+  }
+
+  return { total_rows: rows.length, deduplicadas: uniqueProdRows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
 }
 
 // ============================================================
