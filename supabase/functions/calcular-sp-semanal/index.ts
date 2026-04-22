@@ -258,6 +258,47 @@ Deno.serve(async (req) => {
       if (g.id && g.celula) celulaPorGerente.set(g.id, g.celula);
     });
 
+    // Identify the REAL leader per celula. We only credit team SP to the real
+    // leader, otherwise everyone registered under the same celula gets the
+    // full team SP and the ranking explodes (8 people × team SP).
+    const liderPorCelula = new Map<string, string>(); // celula -> gerente.id
+    {
+      const { data: rolesRes } = await supabase.from("user_roles").select("user_id, role");
+      const roleByUser = new Map<string, string>();
+      (rolesRes || []).forEach((r: any) => {
+        if (r.user_id) roleByUser.set(r.user_id, r.role);
+      });
+      const byCelula = new Map<string, any[]>();
+      (gerentesFullRes.data || []).forEach((g: any) => {
+        if (!g.celula) return;
+        const arr = byCelula.get(g.celula) || [];
+        arr.push(g);
+        byCelula.set(g.celula, arr);
+      });
+      const advisorNamesLower = new Set<string>();
+      (productividadAsesoresRes.data || []).forEach((row: any) => {
+        if (row.asesor) advisorNamesLower.add(String(row.asesor).trim().toLowerCase());
+      });
+      byCelula.forEach((members, celula) => {
+        // 1) Prefer member whose role is "gerente"/"admin" AND not in advisor list
+        const realLeader = members.find((m: any) => {
+          const role = m.user_id ? roleByUser.get(m.user_id) : null;
+          const isAdvisor = advisorNamesLower.has(String(m.nombre || "").trim().toLowerCase());
+          return (role === "gerente" || role === "admin") && !isAdvisor;
+        });
+        if (realLeader) { liderPorCelula.set(celula, realLeader.id); return; }
+        // 2) Fallback: any member whose name does not appear in productividad_asesores
+        const nonAdvisor = members.find((m: any) => !advisorNamesLower.has(String(m.nombre || "").trim().toLowerCase()));
+        if (nonAdvisor) { liderPorCelula.set(celula, nonAdvisor.id); return; }
+        // 3) Last resort: first member
+        if (members.length > 0) liderPorCelula.set(celula, members[0].id);
+      });
+    }
+
+    // Cap to prevent runaway SP from corrupted source data (e.g. acv stored
+    // in raw COP × 1000). 300% is already an exceptional over-achievement.
+    const CAP_PCT_MES = 300;
+
     // Build FE/Nube meta by celula+period from metas_asesores (excluding novedad)
     const feMetaByCelulaPeriod = new Map<string, { metaFe: number; metaNube: number }>();
     (metasAsesoresRes.data || []).forEach((row: any) => {
@@ -333,7 +374,8 @@ Deno.serve(async (req) => {
           for (const [periodo, agg] of monthlyRows?.entries() || []) {
             if (agg.meta <= 0) continue;
 
-            const spFinal = Math.round((agg.acv / agg.meta) * 100);
+            let spFinal = Math.round((agg.acv / agg.meta) * 100);
+            if (spFinal > CAP_PCT_MES) spFinal = CAP_PCT_MES;
             if (spFinal > 0) {
               spUpserts.push({
                 gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
@@ -351,6 +393,14 @@ Deno.serve(async (req) => {
             procesados++; resumenCanal[canal].procesados++; continue;
           }
 
+          // Only the REAL leader of the celula gets team SP. Otherwise multiple
+          // people registered under the same celula would each receive the full
+          // team SP, inflating the ranking by 8x.
+          const liderId = liderPorCelula.get(gerenteCelula);
+          if (liderId && liderId !== gerente.id) {
+            procesados++; resumenCanal[canal].procesados++; continue;
+          }
+
           // Iterate every period that has productividad data for this celula
           const periods = [...(periodsByCelula.get(gerenteCelula) || new Set<string>())].sort();
 
@@ -359,19 +409,24 @@ Deno.serve(async (req) => {
             const acvVal = acvByCelulaPeriod.get(key) || 0;
             const metaAcv = metaAcvByCelulaPeriod.get(key) || 0;
 
-            // SP from ACV (1% = 1 SP) — only when meta exists
-            const spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            // SP from ACV (1% = 1 SP) — only when meta exists. Cap to prevent
+            // runaway from corrupted source data.
+            let spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            if (spAcv > CAP_PCT_MES) spAcv = CAP_PCT_MES;
 
             // SP from FE (1% = 1 SP) + Nube (1% = 2 SP) — only when both meta & ejecucion exist
             const feData = feMetaByCelulaPeriod.get(key) || { metaFe: 0, metaNube: 0 };
             const feEjec = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
 
-            const spFe = feData.metaFe > 0 && feEjec.ventasFe > 0
+            let spFe = feData.metaFe > 0 && feEjec.ventasFe > 0
               ? Math.round((feEjec.ventasFe / feData.metaFe) * 100)
               : 0;
-            const spNube = feData.metaNube > 0 && feEjec.ventasNube > 0
-              ? Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2
+            if (spFe > CAP_PCT_MES) spFe = CAP_PCT_MES;
+            let spNubePct = feData.metaNube > 0 && feEjec.ventasNube > 0
+              ? Math.round((feEjec.ventasNube / feData.metaNube) * 100)
               : 0;
+            if (spNubePct > CAP_PCT_MES) spNubePct = CAP_PCT_MES;
+            const spNube = spNubePct * 2;
 
             const spFinal = spAcv + spFe + spNube;
             if (spFinal <= 0) continue;
@@ -381,7 +436,7 @@ Deno.serve(async (req) => {
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
               periodo: period,
-              detalle: `ACV:${spAcv}% · FE:${spFe} · Nube:${spNube} · ${canal} · ${mesName}`,
+              detalle: `ACV:${spAcv}% · FE:${spFe} · Nube:${spNubePct}%×2 · ${canal} · ${mesName}`,
               tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
@@ -787,25 +842,30 @@ async function processAsesoresConvencion(
           const metaAcv = Number(meta.meta_total) || 0;
           if (metaAcv > 0 && acvTotal > 0) {
             spFinal = Math.round((acvTotal / metaAcv) * 100);
+            if (spFinal > 300) spFinal = 300;
             detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada · ${periodo}`;
           }
          } else {
-           // VN: ACV%=1SP, FE%=1SP, Nube%=2SP
+           // VN: ACV%=1SP, FE%=1SP, Nube%=2SP — capped to 300% per metric per month
           const acvAsesor = prodAcvMap.get(`${asesorNameLower}|${periodo}`) ||
             (ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0));
 
           const metaAcvAsesor = prodMetaMap.get(`${asesorNameLower}|${periodo}`) || 0;
-           const spAcv = metaAcvAsesor > 0 && acvAsesor > 0
-             ? Math.round((acvAsesor / metaAcvAsesor) * 100)
-             : 0;
-           const ventasFe = Number(ejecData?.ventas_fe) || 0;
-           const ventasNube = Number(ejecData?.ventas_nube) || 0;
-           const metaFe = Number(meta.meta_fe) || 0;
-           const metaNube = Number(meta.meta_nube) || 0;
-           const spFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
-           const spNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) * 2 : 0;
-           spFinal = spAcv + spFe + spNube;
-           detalleLabel = `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canalDir} · ${periodo}`;
+          let spAcv = metaAcvAsesor > 0 && acvAsesor > 0
+            ? Math.round((acvAsesor / metaAcvAsesor) * 100)
+            : 0;
+          if (spAcv > 300) spAcv = 300;
+          const ventasFe = Number(ejecData?.ventas_fe) || 0;
+          const ventasNube = Number(ejecData?.ventas_nube) || 0;
+          const metaFe = Number(meta.meta_fe) || 0;
+          const metaNube = Number(meta.meta_nube) || 0;
+          let spFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
+          if (spFe > 300) spFe = 300;
+          let spNubePct = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
+          if (spNubePct > 300) spNubePct = 300;
+          const spNube = spNubePct * 2;
+          spFinal = spAcv + spFe + spNube;
+          detalleLabel = `ACV:${spAcv}% FE:${spFe} Nube:${spNubePct}%×2 · ${canalDir} · ${periodo}`;
         }
 
         if (spFinal <= 0) continue;
