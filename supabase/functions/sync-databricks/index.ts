@@ -150,6 +150,31 @@ ${limit}`;
     sql: (limit: string) =>
       `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
+  // ── NEW: Ventas agregadas por GERENTE (fuente de verdad VN) ──
+  // Replica exactamente la consulta oficial: cuenta_finanzas por pais+mes+gerente+familia,
+  // con cruce celula→gerente desde tbl_brz_cuotas_asesores.
+  ventas_gerente_mensual: {
+    label: "Ventas Gerente Mensual (FE/NUBE/CONTADOR)",
+    sql: (limit: string) =>
+      `SELECT
+         v.pais,
+         MONTH(v.fecha) AS mes_nro,
+         c.gerente,
+         v.celula,
+         v.tipo_producto1,
+         CAST(SUM(v.cuenta_finanzas) AS DOUBLE) AS ventas,
+         CAST(SUM(v.ACV) AS DOUBLE) AS acv_total
+       FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
+       LEFT JOIN (
+         SELECT DISTINCT celula, gerente
+         FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+         WHERE gerente IS NOT NULL
+       ) c ON v.celula = c.celula
+       WHERE v.fecha >= '2026-01-01'
+         AND c.gerente IS NOT NULL
+       GROUP BY v.pais, MONTH(v.fecha), c.gerente, v.celula, v.tipo_producto1
+       ${limit}`,
+  },
 };
 
 // ============================================================
