@@ -149,6 +149,25 @@ const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const matchesNormalizedPerson = (candidate: string, aliases: Set<string>) => {
+  if (!candidate || aliases.size === 0) return false;
+  if (aliases.has(candidate)) return true;
+
+  const candidateShort = candidate.slice(0, 28);
+  for (const alias of aliases) {
+    const aliasShort = alias.slice(0, 28);
+    if (
+      candidateShort === aliasShort ||
+      candidate.startsWith(aliasShort) ||
+      alias.startsWith(candidateShort)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const normalizeVnMetaAcv = (value: number | null | undefined) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
@@ -477,6 +496,7 @@ export const useGamificationMetrics = (
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
           const celulaGerente = normalizeComparableText(profile.celula);
+          if (gerenteNombre) teamAsesorNames.add(gerenteNombre);
 
           const getTeamMetaRowsForPeriod = (period: string) => {
             const periodRows = vnMetasAsesores.filter((row: any) => String(row.anio_mes || '') === period);
@@ -511,7 +531,14 @@ export const useGamificationMetrics = (
           };
 
           vnMetasAsesores.forEach((row: any) => {
-            if (celulaGerente && normalizeComparableText(row.celula) === celulaGerente) {
+            const rowCelula = normalizeComparableText(row.celula);
+            const rowGerente = normalizeComparableText(row.gerente);
+            const rowAsesor = normalizeComparableText(row.nombre_asesor);
+            const sameCelula = !!celulaGerente && rowCelula === celulaGerente;
+            const sameGerente = !!gerenteNombre && rowGerente === gerenteNombre;
+            const knownAsesor = !!rowAsesor && matchesNormalizedPerson(rowAsesor, teamAsesorNames);
+
+            if (sameCelula || sameGerente || knownAsesor) {
               if (row.nombre_asesor) teamAsesorNames.add(normalizeComparableText(row.nombre_asesor));
               if (row.documento_asesor) teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
             }
@@ -529,8 +556,7 @@ export const useGamificationMetrics = (
             const rowCelulaNorm = normalizeComparableText(row.celula);
             const rowEquipoNorm = normalizeComparableText(row.equipo);
 
-            if (teamAsesorNames.has(asesorNorm)) return true;
-            if (gerenteNombre && asesorNorm === gerenteNombre) return true;
+            if (matchesNormalizedPerson(asesorNorm, teamAsesorNames)) return true;
             if (celulaGerente && (rowCelulaNorm === celulaGerente || rowEquipoNorm === celulaGerente)) return true;
             return false;
           });
@@ -601,7 +627,7 @@ export const useGamificationMetrics = (
             const nombre = normalizeComparableText(e.documento_asesor);
             const documento = String(e.documento_asesor || '').trim().toLowerCase();
             const sameCanal = !canalNorm || e.canal_direccion === canalNorm;
-            return sameCanal && (teamAsesorNames.has(nombre) || teamAdvisorDocs.has(documento));
+            return sameCanal && (matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento));
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
