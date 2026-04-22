@@ -882,13 +882,19 @@ export const useGamificationMetrics = (
           });
 
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
-            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             const metaContext = getMetaContextForPeriod(period);
             const mFe = metaContext.metaFe;
             const mNube = metaContext.metaNube;
             const mTotal = metaContext.metaTotal;
+            // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
+            const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
+            const metaAcvFinal = base.meta;
+            const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             return {
               ...base,
+              acv: acvFinal,
+              pct: pctAcvFinal,
               ventas_fe: ej.fe,
               ventas_nube: ej.nube,
               ventas_total: ej.total,
@@ -913,7 +919,7 @@ export const useGamificationMetrics = (
               cur.referidos += Number(row.cant_recomendados) || 0;
               monthAgg.set(period, cur);
             });
-            // Include any periods present in ejecucion but missing from productividad
+            // Include any periods present in ejecucion/vgm but missing from productividad
             ejecByPeriod.forEach((_, period) => {
               if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
             });
