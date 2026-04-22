@@ -1692,3 +1692,98 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
 }
+
+// ============================================================
+// NEW SYNC: Ventas Gerente Mensual (FE/NUBE/CONTADOR por gerente)
+// Fuente: tbl_gld_Ventas_SA + tbl_brz_cuotas_asesores (celula→gerente)
+// Esta es la fuente de verdad para el desempeño de gerentes VN.
+// ============================================================
+async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>[]) {
+  const errores: string[] = [];
+  const currentYear = new Date().getFullYear();
+
+  // 1) Limpieza del año en curso
+  const { error: clearErr } = await supabase
+    .from("ventas_gerente_mensual")
+    .delete()
+    .gte("anio", currentYear);
+  if (clearErr) errores.push(`Limpieza ventas_gerente_mensual: ${clearErr.message}`);
+
+  // 2) Mapear filas Databricks → registros tabla
+  const upsertRows: any[] = [];
+  for (const row of rows) {
+    const gerente = String(row.gerente || "").trim();
+    if (!gerente) continue;
+
+    const mesNro = Number(row.mes_nro);
+    if (!Number.isFinite(mesNro) || mesNro < 1 || mesNro > 12) continue;
+
+    const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
+    const familia: "FE" | "NUBE" | "CONTADOR" | "OTRO" =
+      familiaRaw === "FE" ? "FE"
+      : familiaRaw === "NUBE" ? "NUBE"
+      : familiaRaw === "CONTADOR" ? "CONTADOR"
+      : "OTRO";
+
+    const pais = normalizeCountry(row.pais || "COL");
+    const anio = currentYear;
+    const periodo = `${anio}${String(mesNro).padStart(2, "0")}`;
+    const unidadesRaw = Number(row.ventas);
+    const unidades = Number.isFinite(unidadesRaw) ? Math.round(unidadesRaw) : 0;
+    const acvRaw = Number(row.acv_total);
+    const acv = Number.isFinite(acvRaw) ? acvRaw : 0;
+
+    // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
+    // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,
+    // se puede determinar por celula. Por ahora todas las filas son Aliados.
+    const canalDireccion = "Aliados";
+    const gerenteNorm = normalizeText(gerente);
+
+    upsertRows.push({
+      pais,
+      anio,
+      mes: mesNro,
+      periodo,
+      canal_direccion: canalDireccion,
+      gerente,
+      gerente_normalizado: gerenteNorm,
+      celula: String(row.celula || "").trim() || null,
+      familia,
+      unidades,
+      acv,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  // 3) Agregar duplicados por (pais, periodo, canal, gerente_norm, familia)
+  //    porque pueden venir múltiples celulas mapeadas al mismo gerente.
+  const grouped = new Map<string, any>();
+  for (const r of upsertRows) {
+    const key = `${r.pais}|${r.periodo}|${r.canal_direccion}|${r.gerente_normalizado}|${r.familia}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.unidades += r.unidades;
+      existing.acv += r.acv;
+      // Mantén la primera celula encontrada como referencia
+    } else {
+      grouped.set(key, { ...r });
+    }
+  }
+  const finalRows = [...grouped.values()];
+
+  const synced = await parallelUpsert(
+    supabase,
+    "ventas_gerente_mensual",
+    finalRows,
+    { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia", count: "exact" },
+    errores,
+    "ventas_gerente_mensual",
+  );
+
+  return {
+    total_rows: rows.length,
+    registros_sincronizados: synced,
+    filas_finales: finalRows.length,
+    errores: errores.slice(0, 20),
+  };
+}
