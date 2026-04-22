@@ -1159,10 +1159,18 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
     const asesor = String(row.fullname || "").trim();
     if (!asesor) continue;
 
-    // Aliados (tbl_gld_Ventas_SA): tipo_producto1 IS the family ("FE"/"NUBE") — use directly
+    // Aliados (tbl_gld_Ventas_SA): tipo_producto1 IS the family ("FE"/"NUBE"/"CONTADOR") — use directly
     const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
-    const familiaCanon: "FE" | "NUBE" | "OTRO" =
-      familiaRaw === "FE" ? "FE" : familiaRaw === "NUBE" ? "NUBE" : "OTRO";
+    const familiaCanon: "FE" | "NUBE" | "CONTADOR" | "OTRO" =
+      familiaRaw === "FE" ? "FE"
+      : familiaRaw === "NUBE" ? "NUBE"
+      : familiaRaw === "CONTADOR" ? "CONTADOR"
+      : "OTRO";
+
+    // CRITICAL: real Databricks column is `cuenta_finanzas` (NOT `Cuenta_comercial`).
+    // The previous bug read an inexistent column → 0 unidades → upsert con conflict-key
+    // débil sobreescribía las filas reales y borraba el conteo (caso Equipo Antioquia).
+    const unidades = toNumber(row.cuenta_finanzas, row.Cuenta_comercial);
 
     upsertRows.push({
       fecha: row.fecha ? String(row.fecha).trim() : null,
@@ -1172,7 +1180,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       equipo: String(row.equipo || "").trim() || null,
       tipo_producto: familiaCanon, // canonical family for ejecucion aggregation
       producto: String(row.tipo_producto1 || "").trim() || null,
-      unidades: toRoundedInt(row.Cuenta_comercial),
+      unidades: Math.round(unidades),
       acv: toRoundedInt(row.ACV),
       recurrencia: null,
       origen: String(row.origen || "").trim() || null,
