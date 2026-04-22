@@ -1434,11 +1434,46 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
 
   const gerenteMap = new Map<string, any>();
-  const gerenteByCelula = new Map<string, any>();
+  const gerentesByCelula = new Map<string, any[]>();
   (gerentes || []).forEach((g: any) => {
     if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
-    if (g.celula) gerenteByCelula.set(normalizeText(g.celula), g);
+    if (g.celula) {
+      const key = normalizeText(g.celula);
+      const current = gerentesByCelula.get(key) || [];
+      current.push(g);
+      gerentesByCelula.set(key, current);
+    }
   });
+
+  const { data: metasGerentes } = await supabase
+    .from("metas_gerentes")
+    .select("celula, director, canal_direccion")
+    .eq("canal_direccion", canal === "VN_ALIADOS" ? "Aliados" : "Empresarios");
+
+  const directorByCelula = new Map<string, string>();
+  (metasGerentes || []).forEach((row: any) => {
+    const celula = normalizeText(row.celula);
+    const director = normalizeText(row.director);
+    if (celula && director && !directorByCelula.has(celula)) {
+      directorByCelula.set(celula, director);
+    }
+  });
+
+  const advisorUpdates = new Map<string, { id: string; celula: string }>();
+  for (const row of rows) {
+    const advisorName = normalizeText(String(row.comercial || row.ASESOR || row.fullname || ""));
+    const celula = String(row.celula || row.CELULA || "").trim();
+    if (!advisorName || !celula) continue;
+    const gerente = gerenteMap.get(advisorName);
+    if (gerente && !gerente.celula) {
+      advisorUpdates.set(gerente.id, { id: gerente.id, celula });
+      gerente.celula = celula;
+    }
+  }
+
+  if (advisorUpdates.size > 0) {
+    await parallelUpsert(supabase, "gerentes", [...advisorUpdates.values()], { onConflict: "id", count: "exact" }, errores, "gerentes celula ventas_vn");
+  }
 
   // Auto-create missing gerentes from lider/director data (only if we cannot match by celula either)
   const missingGerentes = new Map<string, any>();
@@ -1447,7 +1482,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     const celula = String(row.celula || row.CELULA || "").trim();
     if (!liderName) continue;
     if (gerenteMap.get(normalizeText(liderName))) continue;
-    if (celula && gerenteByCelula.get(normalizeText(celula))) continue;
+    if (celula && (directorByCelula.get(normalizeText(celula)) || (gerentesByCelula.get(normalizeText(celula)) || []).length > 0)) continue;
 
     const email = buildEmailFromName(liderName);
     if (!missingGerentes.has(email)) {
@@ -1465,18 +1500,28 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
       .select("id, nombre, email, canal, pais, celula");
     (created || []).forEach((g: any) => {
       if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
-      if (g.celula) gerenteByCelula.set(normalizeText(g.celula), g);
+      if (g.celula) {
+        const key = normalizeText(g.celula);
+        const current = gerentesByCelula.get(key) || [];
+        current.push(g);
+        gerentesByCelula.set(key, current);
+      }
     });
   }
 
-  // Build venta rows — match by celula first (most reliable), then by name
+  // Build venta rows — resolve the team leader from metas_gerentes by celula first.
   const ventaRows: any[] = [];
   const noMatchByCelula = new Set<string>();
   for (const row of rows) {
     const liderName = normalizeText(String(row.Director || row.lider || ""));
     const celula = normalizeText(String(row.celula || row.CELULA || ""));
-    let gerente = celula ? gerenteByCelula.get(celula) : null;
+    const directorName = celula ? directorByCelula.get(celula) : null;
+    let gerente = directorName ? gerenteMap.get(directorName) : null;
     if (!gerente) gerente = gerenteMap.get(liderName);
+    if (!gerente && celula) {
+      const candidates = (gerentesByCelula.get(celula) || []).filter((candidate: any) => normalizeText(candidate.nombre) === liderName);
+      if (candidates.length === 1) gerente = candidates[0];
+    }
     if (!gerente) {
       const key = `${row.Director || row.lider || "?"} | celula=${row.celula || row.CELULA || "?"}`;
       noMatchByCelula.add(key);
