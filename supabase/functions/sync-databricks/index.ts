@@ -1206,23 +1206,54 @@ async function syncProductividadAsesores(supabase: any, rows: Record<string, any
     director: String(row.Director || "").trim() || null,
   })).filter((r) => r.asesor && r.anio_mes);
 
-  synced += await parallelUpsert(supabase, "productividad_asesores", upsertRows, { onConflict: "asesor,anio_mes", count: "exact" }, errores, "productividad_asesores");
-
-  // Also update ejecucion_asesores cant_recomendados and productividad
-  for (const row of upsertRows) {
-    if (row.cant_recomendados > 0 || row.ventas > 0) {
-      const productividad = row.meta > 0 ? Math.round((row.ventas / row.meta) * 100) : 0;
-      await supabase.from("ejecucion_asesores").upsert({
-        documento_asesor: row.asesor,
-        periodo: String(row.anio_mes),
-        canal_direccion: normalizeCanalDireccion(row.area || row.celula || "VC"),
-        cant_recomendados: row.cant_recomendados,
-        productividad,
-      }, { onConflict: "documento_asesor,canal_direccion,periodo" });
+  // Dedup by (asesor, anio_mes) — sum numeric fields, last non-empty wins for strings
+  const prodDedupMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    const key = `${r.asesor}|${r.anio_mes}`;
+    const existing = prodDedupMap.get(key);
+    if (!existing) {
+      prodDedupMap.set(key, { ...r });
+    } else {
+      existing.cant_recomendados = (existing.cant_recomendados || 0) + (r.cant_recomendados || 0);
+      existing.ventas_mm_recomendados = (existing.ventas_mm_recomendados || 0) + (r.ventas_mm_recomendados || 0);
+      existing.sc_creados = (existing.sc_creados || 0) + (r.sc_creados || 0);
+      existing.ventas_mm_sql = (existing.ventas_mm_sql || 0) + (r.ventas_mm_sql || 0);
+      existing.meta = (existing.meta || 0) + (r.meta || 0);
+      existing.ventas = (existing.ventas || 0) + (r.ventas || 0);
+      existing.acv_f = (existing.acv_f || 0) + (r.acv_f || 0);
+      existing.celula = existing.celula || r.celula;
+      existing.area = existing.area || r.area;
+      existing.director = existing.director || r.director;
+      existing.rango_antiguedad = existing.rango_antiguedad || r.rango_antiguedad;
     }
   }
+  const uniqueProdRows = [...prodDedupMap.values()];
+  console.log(`[productividad_asesores] Total: ${upsertRows.length} → únicas: ${uniqueProdRows.length}`);
 
-  return { total_rows: rows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
+  synced += await parallelUpsert(supabase, "productividad_asesores", uniqueProdRows, { onConflict: "asesor,anio_mes", count: "exact" }, errores, "productividad_asesores");
+
+  // Also update ejecucion_asesores cant_recomendados and productividad
+  // Dedup by (asesor, anio_mes, canal_direccion) before bulk upsert
+  const ejMap = new Map<string, any>();
+  for (const row of uniqueProdRows) {
+    if (row.cant_recomendados > 0 || row.ventas > 0) {
+      const productividad = row.meta > 0 ? Math.round((row.ventas / row.meta) * 100) : 0;
+      const canal_direccion = normalizeCanalDireccion(row.area || row.celula || "VC");
+      const key = `${row.asesor}|${row.anio_mes}|${canal_direccion}`;
+      ejMap.set(key, {
+        documento_asesor: row.asesor,
+        periodo: String(row.anio_mes),
+        canal_direccion,
+        cant_recomendados: row.cant_recomendados,
+        productividad,
+      });
+    }
+  }
+  if (ejMap.size > 0) {
+    await parallelUpsert(supabase, "ejecucion_asesores", [...ejMap.values()], { onConflict: "documento_asesor,canal_direccion,periodo" }, errores, "ejecucion_asesores prod");
+  }
+
+  return { total_rows: rows.length, deduplicadas: uniqueProdRows.length, productividad_sincronizada: synced, errores: errores.slice(0, 20) };
 }
 
 // ============================================================
