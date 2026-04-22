@@ -779,9 +779,18 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     productividad: toNumber(row.productividad),
   })).filter((r) => r.celula && r.canal_direccion);
 
-  synced += await parallelUpsert(supabase, "metas_gerentes", upsertRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
+  // Dedup by (celula, canal_direccion) — last row wins. Postgres rejects upserts with
+  // duplicate keys in the same batch ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+  const dedupedMap = new Map<string, typeof upsertRows[number]>();
+  for (const r of upsertRows) {
+    dedupedMap.set(`${r.celula}|${r.canal_direccion}`, r);
+  }
+  const uniqueRows = [...dedupedMap.values()];
+  console.log(`[metas_gerentes] Total rows: ${upsertRows.length} → únicas: ${uniqueRows.length}`);
 
-  return { total_rows: rows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
+  synced += await parallelUpsert(supabase, "metas_gerentes", uniqueRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
+
+  return { total_rows: rows.length, deduplicadas: uniqueRows.length, metas_gerentes_sincronizadas: synced, errores: errores.slice(0, 20) };
 }
 
 // ============================================================
