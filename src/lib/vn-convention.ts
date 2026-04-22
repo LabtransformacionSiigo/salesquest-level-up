@@ -171,9 +171,16 @@ export const buildVnConventionMonthlyRows = ({
       const ventasNube = activeEjecRows.reduce((sum, row) => sum + (Number(row.ventas_nube) || 0), 0);
       const ventasTotal = activeEjecRows.reduce((sum, row) => sum + (Number(row.ventas_total) || 0), 0);
 
-      const pctAcv = metaAcv > 0 && acv > 0 ? Math.round((acv / metaAcv) * 100) : 0;
-      const pctFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
-      const pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
+      // Cap each metric percentage to 300% to prevent runaway SP from
+      // corrupted source data (e.g. ACV stored at wrong scale). Same cap is
+      // enforced server-side in calcular-sp-semanal.
+      const CAP = 300;
+      let pctAcv = metaAcv > 0 && acv > 0 ? Math.round((acv / metaAcv) * 100) : 0;
+      if (pctAcv > CAP) pctAcv = CAP;
+      let pctFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
+      if (pctFe > CAP) pctFe = CAP;
+      let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
+      if (pctNube > CAP) pctNube = CAP;
 
       return {
         period,
