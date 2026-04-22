@@ -1376,26 +1376,31 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
   // Build gerente map
   const { data: gerentes } = await supabase
     .from("gerentes")
-    .select("id, nombre, email, canal, pais")
+    .select("id, nombre, email, canal, pais, celula")
     .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
 
   const gerenteMap = new Map<string, any>();
+  const gerenteByCelula = new Map<string, any>();
   (gerentes || []).forEach((g: any) => {
     if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
+    if (g.celula) gerenteByCelula.set(normalizeText(g.celula), g);
   });
 
-  // Auto-create missing gerentes from lider/director data
+  // Auto-create missing gerentes from lider/director data (only if we cannot match by celula either)
   const missingGerentes = new Map<string, any>();
   for (const row of rows) {
     const liderName = String(row.Director || row.lider || "").trim();
-    if (!liderName || gerenteMap.get(normalizeText(liderName))) continue;
+    const celula = String(row.celula || row.CELULA || "").trim();
+    if (!liderName) continue;
+    if (gerenteMap.get(normalizeText(liderName))) continue;
+    if (celula && gerenteByCelula.get(normalizeText(celula))) continue;
 
     const email = buildEmailFromName(liderName);
     if (!missingGerentes.has(email)) {
       const equipo = String(row.equipo || row.Equipo || "").toLowerCase();
       const inferredCanal = equipo.includes("aliado") ? "VN_ALIADOS" : canal;
       const pais = normalizeCountry(row.pais || row.PAIS || "COL");
-      missingGerentes.set(email, { nombre: liderName, email, canal: inferredCanal, pais, activo: true });
+      missingGerentes.set(email, { nombre: liderName, email, canal: inferredCanal, pais, celula: celula || null, activo: true });
     }
   }
 
@@ -1403,19 +1408,25 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     const { data: created } = await supabase
       .from("gerentes")
       .upsert([...missingGerentes.values()], { onConflict: "email" })
-      .select("id, nombre, email, canal, pais");
+      .select("id, nombre, email, canal, pais, celula");
     (created || []).forEach((g: any) => {
       if (g.nombre) gerenteMap.set(normalizeText(g.nombre), g);
+      if (g.celula) gerenteByCelula.set(normalizeText(g.celula), g);
     });
   }
 
-  // Build venta rows
+  // Build venta rows — match by celula first (most reliable), then by name
   const ventaRows: any[] = [];
+  const noMatchByCelula = new Set<string>();
   for (const row of rows) {
     const liderName = normalizeText(String(row.Director || row.lider || ""));
-    const gerente = gerenteMap.get(liderName);
+    const celula = normalizeText(String(row.celula || row.CELULA || ""));
+    let gerente = celula ? gerenteByCelula.get(celula) : null;
+    if (!gerente) gerente = gerenteMap.get(liderName);
     if (!gerente) {
-      if (errores.length < 20) errores.push(`Gerente no encontrado: ${row.Director || row.lider || "?"}`);
+      const key = `${row.Director || row.lider || "?"} | celula=${row.celula || row.CELULA || "?"}`;
+      noMatchByCelula.add(key);
+      if (errores.length < 20) errores.push(`Gerente no encontrado: ${key}`);
       continue;
     }
 
