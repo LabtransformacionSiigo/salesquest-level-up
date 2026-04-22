@@ -1209,6 +1209,15 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
     const registro_idx = registroCounters.get(counterKey) ?? 0;
     registroCounters.set(counterKey, registro_idx + 1);
 
+    // unidades = cuenta_finanzas (Databricks ya trae el conteo real por
+    // factura/SKU). Antes asumíamos 1 por fila y eso desfasaba a la baja
+    // (ej. Equipo Antioquia: 215 contra 212 reales). Si viene NULL/0 caemos
+    // a 1 para no perder la fila.
+    const unidadesRaw = Number(row.cuenta_finanzas);
+    const unidades = Number.isFinite(unidadesRaw) && unidadesRaw > 0
+      ? Math.round(unidadesRaw)
+      : 1;
+
     upsertRows.push({
       fecha,
       asesor,
@@ -1217,7 +1226,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
       equipo: String(row.equipo || "").trim() || null,
       tipo_producto: familiaCanon,
       producto: String(row.tipo_producto1 || "").trim() || null,
-      unidades: 1,
+      unidades,
       acv: toRoundedInt(row.ACV),
       recurrencia: null,
       origen: String(row.origen || "").trim() || null,
