@@ -389,12 +389,28 @@ export const useGamificationMetrics = (
                 .eq('mes', currentMonthName)
                 .like('documento_factura', 'SUM-%')
             : Promise.resolve({ data: [] }),
-          /* 19 – ventas_diarias raw for VN exact FE/Nube/Total aggregation */
+          /* 19 – ventas_diarias raw para VN exact FE/Nube/Total aggregation */
           isVN
-            ? supabase.from('ventas_diarias').select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                .gte('fecha', `${anioActual}-01-01`)
-                .lt('fecha', `${anioActual + 1}-01-01`)
-                .limit(50000)
+            ? (() => {
+                const baseQuery = supabase
+                  .from('ventas_diarias')
+                  .select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                  .gte('fecha', `${anioActual}-01-01`)
+                  .lt('fecha', `${anioActual + 1}-01-01`);
+
+                if (profile.role !== 'asesor' && profile.celula) {
+                  return baseQuery
+                    .eq('celula', profile.celula)
+                    .eq('canal_direccion', canalNorm)
+                    .eq('pais', String(profile.pais || '').toUpperCase())
+                    .limit(20000);
+                }
+
+                return baseQuery
+                  .eq('canal_direccion', canalNorm)
+                  .eq('pais', String(profile.pais || '').toUpperCase())
+                  .limit(20000);
+              })()
             : Promise.resolve({ data: [] }),
         ];
 
@@ -514,8 +530,11 @@ export const useGamificationMetrics = (
           // Name match is only a secondary path for legacy rows missing celula.
           const paisProfile = String(profile.pais || '').toUpperCase();
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
-            const sameCanal = !canalNorm || row.canal_direccion === canalNorm;
-            if (!sameCanal) return false;
+            const rowCanal = String(row.canal_direccion || '').trim();
+            const rowPais = String(row.pais || '').toUpperCase().trim();
+            const sameCanal = !canalNorm || rowCanal === canalNorm;
+            const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
+            if (!sameCanal || !samePais) return false;
             if (celulaGerente && normalizeComparableText(row.celula) === celulaGerente) return true;
             return teamAsesorNames.has(normalizeComparableText(row.asesor));
           });
@@ -704,8 +723,15 @@ export const useGamificationMetrics = (
               (p: any) => normalizeComparableText(p.asesor) === nombreNorm
             );
 
-            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
-            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
+            const classifyAdvisorFamily = (row: any): 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO' => {
+              const fam = resolveProductFamily(row.producto, row.pais || profile.pais);
+              if (fam) return fam;
+              const tp = String(row.tipo_producto || '').toUpperCase();
+              if (tp === 'FE' || tp === 'NUBE' || tp === 'CONTADOR') return tp;
+              return 'OTRO';
+            };
+            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
             const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0);
 
             if (matchingEjec || matchingVentasDiarias.length > 0) {
@@ -757,12 +783,16 @@ export const useGamificationMetrics = (
           // Aggregate FE/Nube/Total per month from team ejecucion rows
           const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
           const ventasBaseForHistory = vnVentasDiariasRows.length > 0
-            ? vnVentasDiariasRows.map((row: any) => ({
-                periodo: getPeriodFromDate(row.fecha),
-                ventas_fe: String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0,
-                ventas_nube: String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0,
-                ventas_total: Number(row.unidades) || 0,
-              }))
+            ? vnVentasDiariasRows.map((row: any) => {
+                const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
+                  ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+                return {
+                  periodo: getPeriodFromDate(row.fecha),
+                  ventas_fe: fam === 'FE' ? (Number(row.unidades) || 0) : 0,
+                  ventas_nube: fam === 'NUBE' ? (Number(row.unidades) || 0) : 0,
+                  ventas_total: Number(row.unidades) || 0,
+                };
+              })
             : vnTeamEjecAll;
           ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
