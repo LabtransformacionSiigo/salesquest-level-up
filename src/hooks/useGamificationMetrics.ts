@@ -161,6 +161,12 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   return Math.round(n);
 };
 
+const getPeriodFromDate = (value: unknown) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return raw.slice(0, 7).replace(/-/g, '');
+};
+
 /* ------------------------------------------------------------------ */
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */
@@ -382,12 +388,19 @@ export const useGamificationMetrics = (
                 .eq('mes', currentMonthName)
                 .like('documento_factura', 'SUM-%')
             : Promise.resolve({ data: [] }),
+          /* 19 – ventas_diarias raw for VN exact FE/Nube/Total aggregation */
+          isVN
+            ? supabase.from('ventas_diarias').select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion')
+                .gte('fecha', `${anioActual}-01-01`)
+                .lt('fecha', `${anioActual + 1}-01-01`)
+                .limit(50000)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -404,6 +417,7 @@ export const useGamificationMetrics = (
         let vnAsesoresConNovedad = new Set<string>();
         let vnCelulaRows: any[] = [];
         let vnTeamEjecAll: any[] = [];
+        let vnVentasDiariasRows: any[] = [];
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
         let vnCurrentMetaTotal = 0;
@@ -443,6 +457,7 @@ export const useGamificationMetrics = (
           // VN gerente path: prefer productividad_asesores by celula
           const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
+          const allVentasDiarias = ventasDiariasRes?.data || [];
           vnCelulaRows = celulaRows;
 
           // Build team advisor identifiers from productividad + metas_asesores
@@ -493,6 +508,14 @@ export const useGamificationMetrics = (
               if (row.documento_asesor) teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
             }
           });
+
+          const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
+            const sameCanal = !canalNorm || row.canal_direccion === canalNorm;
+            const sameCelula = celulaGerente && normalizeComparableText(row.celula) === celulaGerente;
+            const sameAsesor = teamAsesorNames.has(normalizeComparableText(row.asesor));
+            return sameCanal && (sameCelula || sameAsesor);
+          });
+          vnVentasDiariasRows = teamVentasDiariasAll;
 
           getMetaContextForPeriod = (period: string) => {
             const rows = getTeamMetaRowsForPeriod(period);
@@ -552,10 +575,11 @@ export const useGamificationMetrics = (
             const sameCanal = !canalNorm || e.canal_direccion === canalNorm;
             return sameCanal && (teamAsesorNames.has(nombre) || teamAdvisorDocs.has(documento));
           });
+          const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
-          const teamVentasFe = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          const teamVentasNube = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-          const teamVentasTotal = teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+          const teamVentasFe = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          const teamVentasNube = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+          const teamVentasTotal = teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0) || teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
           vnCurrentMetaNube = metaNube;
@@ -638,6 +662,11 @@ export const useGamificationMetrics = (
             const nombreNorm = normalizeComparableText(profile.nombre);
 
             // Match ejecucion: 1) por documento exacto, 2) por nombre normalizado en documento_asesor (VN guarda nombre)
+            const matchingVentasDiarias = (ventasDiariasRes?.data || []).filter((row: any) => {
+              if (getPeriodFromDate(row.fecha) !== mesActual) return false;
+              if (canalAsesor && row.canal_direccion !== canalAsesor) return false;
+              return nombreNorm && normalizeComparableText(row.asesor) === nombreNorm;
+            });
             const matchingEjec = (ejecRes.data || []).find((e: any) => {
               if (String(e.periodo) !== mesActual) return false;
               if (canalAsesor && e.canal_direccion !== canalAsesor) return false;
@@ -653,14 +682,18 @@ export const useGamificationMetrics = (
               (p: any) => normalizeComparableText(p.asesor) === nombreNorm
             );
 
-            if (matchingEjec) {
+            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0);
+
+            if (matchingEjec || matchingVentasDiarias.length > 0) {
               ejecucion = {
-                ventas_fe: Number(matchingEjec.ventas_fe) || 0,
-                ventas_nube: Number(matchingEjec.ventas_nube) || 0,
-                ventas_total: Number(matchingEjec.ventas_total) || 0,
-                acv_total: Number(matchingEjec.acv_total) || 0,
-                cant_recomendados: Number(matchingEjec.cant_recomendados) || 0,
-                productividad: Number(matchingEjec.productividad) || 0,
+                ventas_fe: ventasDiariasFe || Number(matchingEjec?.ventas_fe) || 0,
+                ventas_nube: ventasDiariasNube || Number(matchingEjec?.ventas_nube) || 0,
+                ventas_total: ventasDiariasTotal || Number(matchingEjec?.ventas_total) || 0,
+                acv_total: Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0),
+                cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
+                productividad: Number(matchingEjec?.productividad) || 0,
               };
             }
             if (matchingMeta) {
@@ -701,7 +734,15 @@ export const useGamificationMetrics = (
 
           // Aggregate FE/Nube/Total per month from team ejecucion rows
           const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
-          vnTeamEjecAll.forEach((e: any) => {
+          const ventasBaseForHistory = vnVentasDiariasRows.length > 0
+            ? vnVentasDiariasRows.map((row: any) => ({
+                periodo: getPeriodFromDate(row.fecha),
+                ventas_fe: String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0,
+                ventas_nube: String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0,
+                ventas_total: Number(row.unidades) || 0,
+              }))
+            : vnTeamEjecAll;
+          ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
             cur.fe += Number(e.ventas_fe) || 0;
