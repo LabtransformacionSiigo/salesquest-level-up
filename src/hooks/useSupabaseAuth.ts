@@ -73,10 +73,32 @@ const getVcMonthlyConventionTotal = (rows: Array<{ anio?: number | null; mes?: s
   }, 0);
 };
 
-const normalizeVnMetaAcv = (value: number | null | undefined) => {
+const META_ACV_SCALE_BY_COUNTRY: Record<string, number> = {
+  COL: 1_000_000,
+  MEX: 1_000,
+  ECU: 100,
+  URU: 100,
+};
+
+const resolveCountryCode = (pais?: string | null): string | null => {
+  if (!pais) return null;
+  const normalized = String(pais).trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'MX' || normalized.startsWith('MEX')) return 'MEX';
+  if (normalized === 'CO' || normalized.startsWith('COL')) return 'COL';
+  if (normalized === 'EC' || normalized.startsWith('ECU')) return 'ECU';
+  if (normalized === 'UY' || normalized.startsWith('URU')) return 'URU';
+  return normalized;
+};
+
+const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | null) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
-  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+  const abs = Math.abs(n);
+  if (abs >= 100_000) return Math.round(n);
+  const country = resolveCountryCode(pais);
+  const factor = (country && META_ACV_SCALE_BY_COUNTRY[country]) || 1_000_000;
+  return Math.round(n * factor);
 };
 
 const normalizeStoredAcv = (value: number | null | undefined) => {
@@ -86,16 +108,17 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   return Math.round(n);
 };
 
-const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null }> | null | undefined) => {
+const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null; pais?: string | null }> | null | undefined) => {
   const monthly = new Map<string, { acv: number; meta: number }>();
 
   (rows || []).forEach((row) => {
     const period = String(row.anio_mes || '');
     if (!period) return;
 
+    const acv = normalizeStoredAcv(row.acv_f);
     const current = monthly.get(period) || { acv: 0, meta: 0 };
-    current.acv += normalizeStoredAcv(row.acv_f);
-    current.meta += normalizeVnMetaAcv(row.meta);
+    current.acv += acv;
+    current.meta += normalizeVnMetaAcv(row.meta, row.pais);
     monthly.set(period, current);
   });
 
@@ -367,23 +390,32 @@ export const useSupabaseAuth = () => {
           let spTotales = 0;
 
           if (isVnGerente && gerenteCelula) {
-            // VN: calcular ACV SP desde productividad_asesores por celula
+            // VN: traemos productividad y metas SIN filtrar por celula en SQL,
+            // porque productividad usa "Equipo México X" (con tilde) y metas usa
+            // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
+            const normalizedCelula = normalizeComparableText(gerenteCelula);
             const [vnRes, metasVnRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
-                .select('anio_mes, asesor, acv_f, meta')
-                .eq('celula', gerenteCelula)
-                .gte('anio_mes', `${currentConventionYear}01`)
-                .lte('anio_mes', `${currentConventionYear}12`),
-              supabase
-                .from('metas_asesores')
-                .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, novedad, celula, gerente')
-                .eq('celula', gerenteCelula)
+                .select('anio_mes, asesor, acv_f, meta, celula, pais')
                 .gte('anio_mes', `${currentConventionYear}01`)
                 .lte('anio_mes', `${currentConventionYear}12`)
-                .limit(2000),
+                .limit(20000),
+              supabase
+                .from('metas_asesores')
+                .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, novedad, celula, gerente, canal_direccion, pais')
+                .gte('anio_mes', `${currentConventionYear}01`)
+                .lte('anio_mes', `${currentConventionYear}12`)
+                .limit(20000),
             ]);
             if (!vnRes.error && !metasVnRes.error) {
+              const productivityRows = ((vnRes.data as any[]) || []).filter(
+                (row) => normalizeComparableText(row.celula) === normalizedCelula,
+              );
+              const metaRowsFiltered = ((metasVnRes.data as any[]) || []).filter(
+                (row) => normalizeComparableText(row.celula) === normalizedCelula,
+              );
+
               const { data: ejecVnRows, error: ejecVnError } = await supabase
                 .from('ejecucion_asesores')
                 .select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total')
@@ -393,16 +425,19 @@ export const useSupabaseAuth = () => {
 
               if (!ejecVnError) {
                 const monthlyRows = buildVnConventionMonthlyRows({
-                  productivityRows: vnRes.data as any[],
-                  metaRows: metasVnRes.data as any[],
+                  productivityRows,
+                  metaRows: metaRowsFiltered,
                   ejecRows: ejecVnRows as any[],
                 });
                 spTotales = sumVnConventionMonthlyRows(monthlyRows);
               } else {
-                spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+                spTotales = getVnMonthlyConventionTotal(productivityRows);
               }
             } else if (!vnRes.error) {
-              spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+              const productivityRows = ((vnRes.data as any[]) || []).filter(
+                (row) => normalizeComparableText(row.celula) === normalizedCelula,
+              );
+              spTotales = getVnMonthlyConventionTotal(productivityRows);
             }
           } else if (gerenteId) {
             // VC: calcular desde ventas SUM-

@@ -3,6 +3,7 @@ export interface VnConventionProductivityRow {
   asesor?: string | null;
   acv_f?: number | null;
   meta?: number | null;
+  pais?: string | null;
 }
 
 export interface VnConventionMetaRow {
@@ -46,10 +47,44 @@ export const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-export const normalizeVnMetaAcv = (value: number | null | undefined) => {
+/**
+ * Factor de escala de meta ACV por país, alineado al modelo de Databricks:
+ * - COL: meta entera = millones de COP. Factor 1.000.000.
+ * - MEX: meta entera = miles de MXN. Factor 1.000.
+ * - ECU/URU: meta entera = centenas de USD. Factor 100.
+ * Si meta ya viene en escala grande (>=100k), no se escala.
+ */
+export const META_ACV_SCALE_BY_COUNTRY: Record<string, number> = {
+  COL: 1_000_000,
+  MEX: 1_000,
+  ECU: 100,
+  URU: 100,
+};
+
+const resolveCountryCode = (pais?: string | null): string | null => {
+  if (!pais) return null;
+  const normalized = String(pais).trim().toUpperCase();
+  if (!normalized) return null;
+  // Mapear variantes comunes
+  if (normalized === 'MX' || normalized.startsWith('MEX')) return 'MEX';
+  if (normalized === 'CO' || normalized.startsWith('COL')) return 'COL';
+  if (normalized === 'EC' || normalized.startsWith('ECU')) return 'ECU';
+  if (normalized === 'UY' || normalized.startsWith('URU')) return 'URU';
+  return normalized;
+};
+
+export const normalizeVnMetaAcv = (
+  value: number | null | undefined,
+  pais?: string | null,
+) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
-  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+  const abs = Math.abs(n);
+  // Si ya viene en valor grande (>=100k), asumimos escala completa.
+  if (abs >= 100_000) return Math.round(n);
+  const country = resolveCountryCode(pais);
+  const factor = (country && META_ACV_SCALE_BY_COUNTRY[country]) || 1_000_000;
+  return Math.round(n * factor);
 };
 
 export const normalizeStoredAcv = (value: number | null | undefined) => {
@@ -110,7 +145,7 @@ export const buildVnConventionMonthlyRows = ({
       const metaAcv = periodProductivity.reduce((sum, row) => {
         const advisorName = normalizeComparableText(row.asesor);
         if (advisorName && novedadNames.has(advisorName)) return sum;
-        return sum + normalizeVnMetaAcv(row.meta);
+        return sum + normalizeVnMetaAcv(row.meta, row.pais);
       }, 0);
       const metaFe = activeMetas.reduce((sum, row) => sum + (Number(row.meta_fe) || 0), 0);
       const metaNube = activeMetas.reduce((sum, row) => sum + (Number(row.meta_nube) || 0), 0);
