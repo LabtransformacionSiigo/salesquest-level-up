@@ -559,9 +559,13 @@ export const useGamificationMetrics = (
           const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
           // VN: meta ACV (mensual) — preferir metas_gerentes.meta_total_acv
-          const metaGerenteData = (metasGerentesRes?.data || []).find(
-            (m: any) => normalizeComparableText(m.celula) === celulaGerente,
-          );
+          // metasGerentesRes proviene de .maybeSingle() => objeto único o null
+          const metaGerenteRaw = metasGerentesRes?.data;
+          const metaGerenteData = Array.isArray(metaGerenteRaw)
+            ? metaGerenteRaw.find((m: any) => normalizeComparableText(m.celula) === celulaGerente)
+            : (metaGerenteRaw && normalizeComparableText(metaGerenteRaw.celula) === celulaGerente
+                ? metaGerenteRaw
+                : metaGerenteRaw);
           let metaAcvEquipo = 0;
           if (metaGerenteData?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
