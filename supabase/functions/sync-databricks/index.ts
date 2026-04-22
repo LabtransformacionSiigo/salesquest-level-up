@@ -207,11 +207,12 @@ async function runDatabricksQuery(queryName: string, sql: string): Promise<Recor
   let data = await resp.json();
   if (!resp.ok && !data.statement_id) throw new Error(data.status?.error?.message || data.message || JSON.stringify(data));
 
+  const statementId = data.statement_id;
   let polls = 0;
   while ((data.status?.state === "PENDING" || data.status?.state === "RUNNING") && polls < 24) {
     polls++;
     await new Promise((r) => setTimeout(r, 5000));
-    const pr = await fetch(`${databricksUrl}/${data.statement_id}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
+    const pr = await fetch(`${databricksUrl}/${statementId}`, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
     data = await pr.json();
     console.log(`[${queryName}] Poll #${polls}: state=${data.status?.state}`);
   }
@@ -219,7 +220,41 @@ async function runDatabricksQuery(queryName: string, sql: string): Promise<Recor
   if (data.status?.state === "PENDING" || data.status?.state === "RUNNING") throw new Error("Query timeout after 2 min");
 
   const cols = (data.manifest?.schema?.columns || []).map((c: any) => c.name);
-  return (data.result?.data_array || []).map((row: any[]) => {
+  const totalRowCount = Number(data.manifest?.total_row_count ?? 0);
+  const totalChunks = Number(data.manifest?.total_chunk_count ?? 1);
+
+  // Collect first chunk
+  const allRows: any[][] = [];
+  const firstChunkRows = data.result?.data_array || [];
+  allRows.push(...firstChunkRows);
+  console.log(`[${queryName}] Chunk 0: ${firstChunkRows.length} rows (manifest total=${totalRowCount}, chunks=${totalChunks})`);
+
+  // Follow next_chunk_internal_link until all chunks are read
+  let nextLink: string | undefined = data.result?.next_chunk_internal_link;
+  let chunkIdx = 1;
+  const baseHost = DATABRICKS_HOST.replace(/\/+$/, "");
+  while (nextLink && chunkIdx < 500) {
+    const chunkUrl = nextLink.startsWith("http") ? nextLink : `${baseHost}${nextLink}`;
+    const cr = await fetch(chunkUrl, { headers: { Authorization: `Bearer ${DATABRICKS_TOKEN}` } });
+    if (!cr.ok) {
+      console.error(`[${queryName}] Chunk ${chunkIdx} fetch failed: ${cr.status}`);
+      break;
+    }
+    const chunkData = await cr.json();
+    const chunkRows = chunkData.data_array || [];
+    allRows.push(...chunkRows);
+    console.log(`[${queryName}] Chunk ${chunkIdx}: ${chunkRows.length} rows (running total=${allRows.length})`);
+    nextLink = chunkData.next_chunk_internal_link;
+    chunkIdx++;
+  }
+
+  if (totalRowCount > 0 && allRows.length < totalRowCount) {
+    console.warn(`[${queryName}] WARNING: fetched ${allRows.length} of ${totalRowCount} expected rows`);
+  } else {
+    console.log(`[${queryName}] DONE: ${allRows.length} rows in ${chunkIdx} chunk(s)`);
+  }
+
+  return allRows.map((row: any[]) => {
     const obj: Record<string, any> = {};
     cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
     return obj;
