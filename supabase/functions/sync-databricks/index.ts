@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
     // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
     // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_completo", "productividad_asesores"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_aliados", "ventas_vn_empresarios", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
