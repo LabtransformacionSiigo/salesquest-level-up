@@ -374,8 +374,17 @@ Deno.serve(async (req) => {
           for (const [periodo, agg] of monthlyRows?.entries() || []) {
             if (agg.meta <= 0) continue;
 
-            const spFinal = Math.round((agg.acv / agg.meta) * 100);
+            let spFinal = Math.round((agg.acv / agg.meta) * 100);
+            if (spFinal > CAP_PCT_MES) spFinal = CAP_PCT_MES;
             if (spFinal > 0) {
+              spUpserts.push({
+                gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
+                periodo, detalle: `Cumplimiento de Meta: ${spFinal}% · VC · ${agg.mes}`, tipo_sp: "convencion",
+              });
+              totalSpOtorgados += spFinal;
+              resumenCanal[canal].sp += spFinal;
+            }
+          }
               spUpserts.push({
                 gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
                 periodo, detalle: `Cumplimiento de Meta: ${spFinal}% · VC · ${agg.mes}`, tipo_sp: "convencion",
