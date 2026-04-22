@@ -1376,7 +1376,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
   // Build gerente map
   const { data: gerentes } = await supabase
     .from("gerentes")
-    .select("id, nombre, email, canal, pais")
+    .select("id, nombre, email, canal, pais, celula")
     .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"]);
 
   const gerenteMap = new Map<string, any>();
