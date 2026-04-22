@@ -118,9 +118,19 @@ ${limit}`;
     sql: (limit: string) =>
       `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
   },
+  ventas_vn_empresarios: {
+    label: "Ventas VN Empresarios (tbl_gld_Ventas_MX)",
+    sql: (limit: string) =>
+      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
+  },
   // ── NEW: Ventas Aliados ──
   ventas_aliados: {
     label: "Ventas Aliados (tbl_gld_Ventas_SA)",
+    sql: (limit: string) =>
+      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA WHERE YEAR(fecha) = 2026 ${limit}`,
+  },
+  ventas_vn_aliados: {
+    label: "Ventas VN Aliados (tbl_gld_Ventas_SA)",
     sql: (limit: string) =>
       `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen, Cuenta_comercial, ACV, Director FROM analyticdl.db_comercial.tbl_gld_Ventas_SA WHERE YEAR(fecha) = 2026 ${limit}`,
   },
