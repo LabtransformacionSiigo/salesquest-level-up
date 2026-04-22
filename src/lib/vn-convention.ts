@@ -48,33 +48,43 @@ export const normalizeComparableText = (value: unknown) =>
     .toLowerCase();
 
 /**
- * Normaliza meta ACV considerando la escala del ACV real del periodo.
- * - COL almacena ACV y meta en COP completos (acv ~ millones, meta ~ 50–70 = 50M–70M).
- * - MEX/ECU/URU almacenan ya en escala "miles" (acv ~ 30k, meta ~ 18 = 18k de la misma escala).
- *
- * Regla: si la meta interpretada como millones (×1.000.000) es coherente con el orden de magnitud
- * del ACV → escalar (caso COL). Si no, asumir que ya está en la misma escala (MEX/ECU/URU).
+ * Factor de escala de meta ACV por país, alineado al modelo de Databricks:
+ * - COL: meta entera = millones de COP. Factor 1.000.000.
+ * - MEX: meta entera = miles de MXN. Factor 1.000.
+ * - ECU/URU: meta entera = centenas de USD. Factor 100.
+ * Si meta ya viene en escala grande (>=100k), no se escala.
  */
+export const META_ACV_SCALE_BY_COUNTRY: Record<string, number> = {
+  COL: 1_000_000,
+  MEX: 1_000,
+  ECU: 100,
+  URU: 100,
+};
+
+const resolveCountryCode = (pais?: string | null): string | null => {
+  if (!pais) return null;
+  const normalized = String(pais).trim().toUpperCase();
+  if (!normalized) return null;
+  // Mapear variantes comunes
+  if (normalized === 'MX' || normalized.startsWith('MEX')) return 'MEX';
+  if (normalized === 'CO' || normalized.startsWith('COL')) return 'COL';
+  if (normalized === 'EC' || normalized.startsWith('ECU')) return 'ECU';
+  if (normalized === 'UY' || normalized.startsWith('URU')) return 'URU';
+  return normalized;
+};
+
 export const normalizeVnMetaAcv = (
   value: number | null | undefined,
-  acvReference?: number | null,
+  pais?: string | null,
 ) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
   const abs = Math.abs(n);
-  // Si ya viene en valor grande (>=100k), no escalar.
+  // Si ya viene en valor grande (>=100k), asumimos escala completa.
   if (abs >= 100_000) return Math.round(n);
-
-  // Comparar contra ACV de referencia para decidir escala.
-  const acv = Math.abs(Number(acvReference) || 0);
-  if (acv > 0) {
-    const scaled = abs * 1_000_000;
-    // Si el ACV es mucho menor que la meta escalada (acv < scaled/100), la meta NO debe escalarse:
-    // significa que ambos vienen en la misma escala chica (caso MEX/ECU).
-    if (acv < scaled / 100) return Math.round(n);
-  }
-  // Caso COL histórico (sin referencia o ACV grande): escalar a millones.
-  return Math.round(n * 1_000_000);
+  const country = resolveCountryCode(pais);
+  const factor = (country && META_ACV_SCALE_BY_COUNTRY[country]) || 1_000_000;
+  return Math.round(n * factor);
 };
 
 export const normalizeStoredAcv = (value: number | null | undefined) => {
