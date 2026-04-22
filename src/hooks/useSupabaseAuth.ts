@@ -73,10 +73,17 @@ const getVcMonthlyConventionTotal = (rows: Array<{ anio?: number | null; mes?: s
   }, 0);
 };
 
-const normalizeVnMetaAcv = (value: number | null | undefined) => {
+const normalizeVnMetaAcv = (value: number | null | undefined, acvReference?: number | null) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
-  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+  const abs = Math.abs(n);
+  if (abs >= 100_000) return Math.round(n);
+  const acv = Math.abs(Number(acvReference) || 0);
+  if (acv > 0) {
+    const scaled = abs * 1_000_000;
+    if (acv < scaled / 100) return Math.round(n);
+  }
+  return Math.round(n * 1_000_000);
 };
 
 const normalizeStoredAcv = (value: number | null | undefined) => {
@@ -93,9 +100,10 @@ const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv
     const period = String(row.anio_mes || '');
     if (!period) return;
 
+    const acv = normalizeStoredAcv(row.acv_f);
     const current = monthly.get(period) || { acv: 0, meta: 0 };
-    current.acv += normalizeStoredAcv(row.acv_f);
-    current.meta += normalizeVnMetaAcv(row.meta);
+    current.acv += acv;
+    current.meta += normalizeVnMetaAcv(row.meta, acv);
     monthly.set(period, current);
   });
 
