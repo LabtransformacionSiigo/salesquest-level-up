@@ -392,6 +392,14 @@ Deno.serve(async (req) => {
             procesados++; resumenCanal[canal].procesados++; continue;
           }
 
+          // Only the REAL leader of the celula gets team SP. Otherwise multiple
+          // people registered under the same celula would each receive the full
+          // team SP, inflating the ranking by 8x.
+          const liderId = liderPorCelula.get(gerenteCelula);
+          if (liderId && liderId !== gerente.id) {
+            procesados++; resumenCanal[canal].procesados++; continue;
+          }
+
           // Iterate every period that has productividad data for this celula
           const periods = [...(periodsByCelula.get(gerenteCelula) || new Set<string>())].sort();
 
@@ -400,19 +408,24 @@ Deno.serve(async (req) => {
             const acvVal = acvByCelulaPeriod.get(key) || 0;
             const metaAcv = metaAcvByCelulaPeriod.get(key) || 0;
 
-            // SP from ACV (1% = 1 SP) — only when meta exists
-            const spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            // SP from ACV (1% = 1 SP) — only when meta exists. Cap to prevent
+            // runaway from corrupted source data.
+            let spAcv = metaAcv > 0 && acvVal > 0 ? Math.round((acvVal / metaAcv) * 100) : 0;
+            if (spAcv > CAP_PCT_MES) spAcv = CAP_PCT_MES;
 
             // SP from FE (1% = 1 SP) + Nube (1% = 2 SP) — only when both meta & ejecucion exist
             const feData = feMetaByCelulaPeriod.get(key) || { metaFe: 0, metaNube: 0 };
             const feEjec = feEjecByCelulaPeriod.get(key) || { ventasFe: 0, ventasNube: 0 };
 
-            const spFe = feData.metaFe > 0 && feEjec.ventasFe > 0
+            let spFe = feData.metaFe > 0 && feEjec.ventasFe > 0
               ? Math.round((feEjec.ventasFe / feData.metaFe) * 100)
               : 0;
-            const spNube = feData.metaNube > 0 && feEjec.ventasNube > 0
-              ? Math.round((feEjec.ventasNube / feData.metaNube) * 100) * 2
+            if (spFe > CAP_PCT_MES) spFe = CAP_PCT_MES;
+            let spNubePct = feData.metaNube > 0 && feEjec.ventasNube > 0
+              ? Math.round((feEjec.ventasNube / feData.metaNube) * 100)
               : 0;
+            if (spNubePct > CAP_PCT_MES) spNubePct = CAP_PCT_MES;
+            const spNube = spNubePct * 2;
 
             const spFinal = spAcv + spFe + spNube;
             if (spFinal <= 0) continue;
@@ -422,7 +435,7 @@ Deno.serve(async (req) => {
             spUpserts.push({
               gerente_id: gerente.id, fuente: "CUMPLIMIENTO_META", sp: spFinal,
               periodo: period,
-              detalle: `ACV:${spAcv}% · FE:${spFe} · Nube:${spNube} · ${canal} · ${mesName}`,
+              detalle: `ACV:${spAcv}% · FE:${spFe} · Nube:${spNubePct}%×2 · ${canal} · ${mesName}`,
               tipo_sp: "convencion",
             });
             totalSpOtorgados += spFinal;
