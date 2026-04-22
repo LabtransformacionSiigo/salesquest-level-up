@@ -835,7 +835,7 @@ export const useGamificationMetrics = (
 
         // Build VN team asesor performance dashboard (only for gerentes VN)
         let teamAsesorPerformance: AsesorPerformance[] = [];
-        if (isVN && profile.role !== 'asesor' && vnCelulaRows.length > 0) {
+        if (isVN && profile.role !== 'asesor' && (vnCelulaRows.length > 0 || vnVentasDiariasRows.length > 0)) {
           const metaContextActual = getMetaContextForPeriod(mesActual);
           const teamMetaRows = metaContextActual.rows;
 
@@ -851,39 +851,63 @@ export const useGamificationMetrics = (
             }
           });
 
-          // Map ejecucion by BOTH documento and nombre normalizado (ejecucion_asesores.documento_asesor
-          // suele contener el NOMBRE del asesor en VN, no el documento numérico)
-          const ejecPorDoc = new Map<string, any>();
-          const ejecPorNombre = new Map<string, any>();
-          (ejecRes?.data || []).forEach((e: any) => {
-            if (String(e.periodo) !== mesActual) return;
-            const raw = String(e.documento_asesor || '').trim();
-            if (!raw) return;
-            ejecPorDoc.set(raw.toLowerCase(), e);
-            ejecPorNombre.set(normalizeComparableText(raw), e);
-          });
+          // SOURCE OF TRUTH per asesor: ventas_diarias raw aggregated by asesor name
+          const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          vnVentasDiariasRows
+            .filter((row: any) => getPeriodFromDate(row.fecha) === mesActual)
+            .forEach((row: any) => {
+              const key = normalizeComparableText(row.asesor);
+              if (!key) return;
+              const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
+              const u = Number(row.unidades) || 0;
+              const tipo = String(row.tipo_producto || '').toUpperCase();
+              cur.total += u;
+              cur.acv += Number(row.acv) || 0;
+              if (tipo === 'FE') cur.fe += u;
+              else if (tipo === 'NUBE') cur.nube += u;
+              ventasPorAsesor.set(key, cur);
+            });
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
+          const prodByName = new Map<string, any>();
+          currentMonthProd.forEach((r: any) => {
+            prodByName.set(normalizeComparableText(r.asesor), r);
+          });
 
-          for (const prodRow of currentMonthProd) {
-            const asesorNorm = normalizeComparableText(prodRow.asesor);
-            const meta = metasPorAsesor.get(asesorNorm);
-            const doc = docPorNombre.get(asesorNorm) || '';
-            // Match ejecucion: 1) por nombre normalizado del asesor, 2) por documento si existiera
-            const ejec = ejecPorNombre.get(asesorNorm) || ejecPorDoc.get(doc) || null;
+          // Union of all asesor identities seen this month: productividad ∪ ventas_diarias ∪ metas (sin novedad)
+          const allAsesorKeys = new Set<string>([
+            ...prodByName.keys(),
+            ...ventasPorAsesor.keys(),
+            ...[...metasPorAsesor.keys()].filter((k) => {
+              const m = metasPorAsesor.get(k);
+              const nov = normalizeComparableText(m?.novedad);
+              return !nov || nov === 'sin novedad';
+            }),
+          ]);
+
+          for (const asesorKey of allAsesorKeys) {
+            const meta = metasPorAsesor.get(asesorKey);
+            const prodRow = prodByName.get(asesorKey);
+            const ventas = ventasPorAsesor.get(asesorKey) || { fe: 0, nube: 0, total: 0, acv: 0 };
             const tiene_novedad = !!(meta?.novedad && normalizeComparableText(meta.novedad) !== 'sin novedad');
 
-            const acv = normalizeStoredAcv(prodRow.acv_f);
-            const meta_acv = normalizeVnMetaAcv(prodRow.meta);
-            const ventas_fe = Number(ejec?.ventas_fe) || 0;
+            const nombre = prodRow?.asesor || meta?.nombre_asesor || asesorKey;
+            const doc = (meta?.documento_asesor && String(meta.documento_asesor)) || '';
+
+            const acv = normalizeStoredAcv(prodRow?.acv_f) || ventas.acv;
+            const meta_acv = normalizeVnMetaAcv(prodRow?.meta);
+            const ventas_fe = ventas.fe;
             const meta_fe = meta ? (Number(meta.meta_fe) || 0) : 0;
-            const ventas_nube = Number(ejec?.ventas_nube) || 0;
+            const ventas_nube = ventas.nube;
             const meta_nube = meta ? (Number(meta.meta_nube) || 0) : 0;
-            const ventas_total = Number(ejec?.ventas_total) || Number(prodRow.ventas) || 0;
+            const ventas_total = ventas.total || Number(prodRow?.ventas) || 0;
             const meta_total = meta ? (Number(meta.meta_total) || 0) : 0;
 
+            // Skip totally empty rows (no ventas, no meta, no acv)
+            if (ventas_total === 0 && meta_total === 0 && acv === 0 && !tiene_novedad) continue;
+
             teamAsesorPerformance.push({
-              nombre: prodRow.asesor,
+              nombre,
               documento: doc,
               pct_acv: meta_acv > 0 ? Math.round((acv / meta_acv) * 100) : 0,
               pct_fe: meta_fe > 0 ? Math.round((ventas_fe / meta_fe) * 100) : 0,
@@ -891,7 +915,7 @@ export const useGamificationMetrics = (
               pct_total: meta_total > 0 ? Math.round((ventas_total / meta_total) * 100) : 0,
               acv, meta_acv, ventas_fe, meta_fe, ventas_nube, meta_nube,
               ventas_total, meta_total,
-              recomendados: Number(prodRow.cant_recomendados) || 0,
+              recomendados: Number(prodRow?.cant_recomendados) || 0,
               tiene_novedad,
             });
           }
