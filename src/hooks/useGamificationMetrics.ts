@@ -691,9 +691,9 @@ export const useGamificationMetrics = (
                 ventas_fe: ventasDiariasFe || Number(matchingEjec?.ventas_fe) || 0,
                 ventas_nube: ventasDiariasNube || Number(matchingEjec?.ventas_nube) || 0,
                 ventas_total: ventasDiariasTotal || Number(matchingEjec?.ventas_total) || 0,
-                acv_total: Number(matchingEjec.acv_total) || 0,
-                cant_recomendados: Number(matchingEjec.cant_recomendados) || 0,
-                productividad: Number(matchingEjec.productividad) || 0,
+                acv_total: Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0),
+                cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
+                productividad: Number(matchingEjec?.productividad) || 0,
               };
             }
             if (matchingMeta) {
@@ -734,7 +734,15 @@ export const useGamificationMetrics = (
 
           // Aggregate FE/Nube/Total per month from team ejecucion rows
           const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
-          vnTeamEjecAll.forEach((e: any) => {
+          const ventasBaseForHistory = vnVentasDiariasRows.length > 0
+            ? vnVentasDiariasRows.map((row: any) => ({
+                periodo: getPeriodFromDate(row.fecha),
+                ventas_fe: String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0,
+                ventas_nube: String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0,
+                ventas_total: Number(row.unidades) || 0,
+              }))
+            : vnTeamEjecAll;
+          ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
             cur.fe += Number(e.ventas_fe) || 0;
