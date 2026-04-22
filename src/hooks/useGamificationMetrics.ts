@@ -837,8 +837,28 @@ export const useGamificationMetrics = (
               .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
               .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
 
-          // Aggregate FE/Nube/Total per month from team ejecucion rows
-          const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number }>();
+          // Aggregate FE/Nube/Total per month.
+          // ⭐ Prioridad: ventas_gerente_mensual (Databricks oficial por gerente),
+          // luego ventas_diarias, luego ejecucion_asesores como respaldo.
+          const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          const vgmAllRows: any[] = ventasGerenteMensualRes?.data || [];
+          const vgmPeriodsWithData = new Set<string>(vgmAllRows.map((r: any) => String(r.periodo || '')));
+
+          if (vgmAllRows.length > 0) {
+            vgmAllRows.forEach((r: any) => {
+              const period = String(r.periodo || '');
+              const fam = String(r.familia || '').toUpperCase();
+              const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+              const uds = Number(r.unidades) || 0;
+              if (fam === 'FE') cur.fe += uds;
+              else if (fam === 'NUBE') cur.nube += uds;
+              cur.total += uds; // FE + NUBE + CONTADOR
+              cur.acv += Number(r.acv) || 0;
+              ejecByPeriod.set(period, cur);
+            });
+          }
+
+          // Para periodos SIN data en vgm, usar ventas_diarias o ejecucion_asesores
           const ventasBaseForHistory = vnVentasDiariasRows.length > 0
             ? vnVentasDiariasRows.map((row: any) => {
                 const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
@@ -853,7 +873,8 @@ export const useGamificationMetrics = (
             : vnTeamEjecAll;
           ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
-            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            if (vgmPeriodsWithData.has(period)) return; // ya cubierto por vgm
+            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             cur.fe += Number(e.ventas_fe) || 0;
             cur.nube += Number(e.ventas_nube) || 0;
             cur.total += Number(e.ventas_total) || 0;
@@ -861,13 +882,19 @@ export const useGamificationMetrics = (
           });
 
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
-            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
+            const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             const metaContext = getMetaContextForPeriod(period);
             const mFe = metaContext.metaFe;
             const mNube = metaContext.metaNube;
             const mTotal = metaContext.metaTotal;
+            // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
+            const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
+            const metaAcvFinal = base.meta;
+            const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             return {
               ...base,
+              acv: acvFinal,
+              pct: pctAcvFinal,
               ventas_fe: ej.fe,
               ventas_nube: ej.nube,
               ventas_total: ej.total,
@@ -892,7 +919,7 @@ export const useGamificationMetrics = (
               cur.referidos += Number(row.cant_recomendados) || 0;
               monthAgg.set(period, cur);
             });
-            // Include any periods present in ejecucion but missing from productividad
+            // Include any periods present in ejecucion/vgm but missing from productividad
             ejecByPeriod.forEach((_, period) => {
               if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
             });
