@@ -419,6 +419,18 @@ export const useGamificationMetrics = (
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(50000)
             : Promise.resolve({ data: [] }),
+          /* 20 – ventas_gerente_mensual: FUENTE DE VERDAD para gerentes VN
+                  (FE/NUBE/CONTADOR pre-agregado por Databricks).
+                  Filtra por nombre del gerente normalizado. */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? supabase
+                .from('ventas_gerente_mensual' as any)
+                .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
+                .eq('gerente_normalizado', normalizeComparableText(profile.nombre))
+                .gte('periodo', `${anioActual}01`)
+                .lte('periodo', `${anioActual}12`)
+                .limit(500)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
