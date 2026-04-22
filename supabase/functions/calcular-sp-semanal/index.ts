@@ -842,25 +842,30 @@ async function processAsesoresConvencion(
           const metaAcv = Number(meta.meta_total) || 0;
           if (metaAcv > 0 && acvTotal > 0) {
             spFinal = Math.round((acvTotal / metaAcv) * 100);
+            if (spFinal > 300) spFinal = 300;
             detalleLabel = `Cumplimiento ACV: ${spFinal}% · Venta Cruzada · ${periodo}`;
           }
          } else {
-           // VN: ACV%=1SP, FE%=1SP, Nube%=2SP
+           // VN: ACV%=1SP, FE%=1SP, Nube%=2SP — capped to 300% per metric per month
           const acvAsesor = prodAcvMap.get(`${asesorNameLower}|${periodo}`) ||
             (ventasData?.acv ?? (ejecData ? Number(ejecData.acv_total) || 0 : 0));
 
           const metaAcvAsesor = prodMetaMap.get(`${asesorNameLower}|${periodo}`) || 0;
-           const spAcv = metaAcvAsesor > 0 && acvAsesor > 0
-             ? Math.round((acvAsesor / metaAcvAsesor) * 100)
-             : 0;
-           const ventasFe = Number(ejecData?.ventas_fe) || 0;
-           const ventasNube = Number(ejecData?.ventas_nube) || 0;
-           const metaFe = Number(meta.meta_fe) || 0;
-           const metaNube = Number(meta.meta_nube) || 0;
-           const spFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
-           const spNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) * 2 : 0;
-           spFinal = spAcv + spFe + spNube;
-           detalleLabel = `ACV:${spAcv}% FE:${spFe} Nube:${spNube} · ${canalDir} · ${periodo}`;
+          let spAcv = metaAcvAsesor > 0 && acvAsesor > 0
+            ? Math.round((acvAsesor / metaAcvAsesor) * 100)
+            : 0;
+          if (spAcv > 300) spAcv = 300;
+          const ventasFe = Number(ejecData?.ventas_fe) || 0;
+          const ventasNube = Number(ejecData?.ventas_nube) || 0;
+          const metaFe = Number(meta.meta_fe) || 0;
+          const metaNube = Number(meta.meta_nube) || 0;
+          let spFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
+          if (spFe > 300) spFe = 300;
+          let spNubePct = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
+          if (spNubePct > 300) spNubePct = 300;
+          const spNube = spNubePct * 2;
+          spFinal = spAcv + spFe + spNube;
+          detalleLabel = `ACV:${spAcv}% FE:${spFe} Nube:${spNubePct}%×2 · ${canalDir} · ${periodo}`;
         }
 
         if (spFinal <= 0) continue;
