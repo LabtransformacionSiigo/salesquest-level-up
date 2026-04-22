@@ -73,17 +73,32 @@ const getVcMonthlyConventionTotal = (rows: Array<{ anio?: number | null; mes?: s
   }, 0);
 };
 
-const normalizeVnMetaAcv = (value: number | null | undefined, acvReference?: number | null) => {
+const META_ACV_SCALE_BY_COUNTRY: Record<string, number> = {
+  COL: 1_000_000,
+  MEX: 1_000,
+  ECU: 100,
+  URU: 100,
+};
+
+const resolveCountryCode = (pais?: string | null): string | null => {
+  if (!pais) return null;
+  const normalized = String(pais).trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'MX' || normalized.startsWith('MEX')) return 'MEX';
+  if (normalized === 'CO' || normalized.startsWith('COL')) return 'COL';
+  if (normalized === 'EC' || normalized.startsWith('ECU')) return 'ECU';
+  if (normalized === 'UY' || normalized.startsWith('URU')) return 'URU';
+  return normalized;
+};
+
+const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | null) => {
   const n = Number(value) || 0;
   if (n <= 0) return 0;
   const abs = Math.abs(n);
   if (abs >= 100_000) return Math.round(n);
-  const acv = Math.abs(Number(acvReference) || 0);
-  if (acv > 0) {
-    const scaled = abs * 1_000_000;
-    if (acv < scaled / 100) return Math.round(n);
-  }
-  return Math.round(n * 1_000_000);
+  const country = resolveCountryCode(pais);
+  const factor = (country && META_ACV_SCALE_BY_COUNTRY[country]) || 1_000_000;
+  return Math.round(n * factor);
 };
 
 const normalizeStoredAcv = (value: number | null | undefined) => {
@@ -93,7 +108,7 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   return Math.round(n);
 };
 
-const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null }> | null | undefined) => {
+const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null; pais?: string | null }> | null | undefined) => {
   const monthly = new Map<string, { acv: number; meta: number }>();
 
   (rows || []).forEach((row) => {
@@ -103,7 +118,7 @@ const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv
     const acv = normalizeStoredAcv(row.acv_f);
     const current = monthly.get(period) || { acv: 0, meta: 0 };
     current.acv += acv;
-    current.meta += normalizeVnMetaAcv(row.meta, acv);
+    current.meta += normalizeVnMetaAcv(row.meta, row.pais);
     monthly.set(period, current);
   });
 
