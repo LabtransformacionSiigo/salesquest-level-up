@@ -47,6 +47,19 @@ export const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const matchesNormalizedPerson = (candidate: string, aliases: Set<string>) => {
+  if (!candidate || aliases.size === 0) return false;
+  if (aliases.has(candidate)) return true;
+  const candidateShort = candidate.slice(0, 28);
+  for (const alias of aliases) {
+    const aliasShort = alias.slice(0, 28);
+    if (candidateShort === aliasShort || candidate.startsWith(aliasShort) || alias.startsWith(candidateShort)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 /**
  * Factor de escala de meta ACV por país, alineado al modelo de Databricks:
  * - COL: meta entera = millones de COP. Factor 1.000.000.
@@ -135,10 +148,14 @@ export const buildVnConventionMonthlyRows = ({
           .filter(Boolean)
       );
       const activeMetas = periodMetas.filter(isActiveMetaRow);
+      const periodMetaNames = new Set(
+        activeMetas.map((row) => normalizeComparableText(row.nombre_asesor)).filter(Boolean)
+      );
+      const periodAliases = new Set([...periodTeamNames, ...periodMetaNames]);
       const activeEjecRows = (ejecRows || []).filter(
         (row) =>
           String(row.periodo || '') === period &&
-          periodTeamNames.has(normalizeComparableText(row.documento_asesor))
+          matchesNormalizedPerson(normalizeComparableText(row.documento_asesor), periodAliases)
       );
 
       const acv = periodProductivity.reduce((sum, row) => sum + normalizeStoredAcv(row.acv_f), 0);
