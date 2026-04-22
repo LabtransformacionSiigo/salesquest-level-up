@@ -145,7 +145,7 @@ export const buildVnConventionMonthlyRows = ({
       const metaAcv = periodProductivity.reduce((sum, row) => {
         const advisorName = normalizeComparableText(row.asesor);
         if (advisorName && novedadNames.has(advisorName)) return sum;
-        return sum + normalizeVnMetaAcv(row.meta, normalizeStoredAcv(row.acv_f));
+        return sum + normalizeVnMetaAcv(row.meta, row.pais);
       }, 0);
       const metaFe = activeMetas.reduce((sum, row) => sum + (Number(row.meta_fe) || 0), 0);
       const metaNube = activeMetas.reduce((sum, row) => sum + (Number(row.meta_nube) || 0), 0);
