@@ -1527,6 +1527,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ventas_gerente_mensual: {
+        Row: {
+          acv: number
+          anio: number
+          canal_direccion: string
+          celula: string | null
+          created_at: string
+          familia: string
+          gerente: string
+          gerente_normalizado: string
+          id: string
+          mes: number
+          pais: string
+          periodo: string
+          unidades: number
+          updated_at: string
+        }
+        Insert: {
+          acv?: number
+          anio: number
+          canal_direccion: string
+          celula?: string | null
+          created_at?: string
+          familia: string
+          gerente: string
+          gerente_normalizado: string
+          id?: string
+          mes: number
+          pais?: string
+          periodo: string
+          unidades?: number
+          updated_at?: string
+        }
+        Update: {
+          acv?: number
+          anio?: number
+          canal_direccion?: string
+          celula?: string | null
+          created_at?: string
+          familia?: string
+          gerente?: string
+          gerente_normalizado?: string
+          id?: string
+          mes?: number
+          pais?: string
+          periodo?: string
+          unidades?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       acv_vc_mensual: {
