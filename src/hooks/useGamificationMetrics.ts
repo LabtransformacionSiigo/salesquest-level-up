@@ -512,6 +512,7 @@ export const useGamificationMetrics = (
 
           // Team filter: priorize celula match (raw transactional truth).
           // Name match is only a secondary path for legacy rows missing celula.
+          const paisProfile = String(profile.pais || '').toUpperCase();
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
             const sameCanal = !canalNorm || row.canal_direccion === canalNorm;
             if (!sameCanal) return false;
@@ -525,39 +526,44 @@ export const useGamificationMetrics = (
             const asesoresConNovedad = new Set<string>();
 
             rows.forEach((row: any) => {
-              const novedad = normalizeComparableText(row.novedad);
-              if (novedad && novedad !== 'sin novedad') {
-                const nombre = normalizeComparableText(row.nombre_asesor);
-                const documento = normalizeComparableText(row.documento_asesor);
-                if (nombre) asesoresConNovedad.add(nombre);
-                if (documento) asesoresConNovedad.add(documento);
+              const novedad = String(row.novedad || '').trim().toLowerCase();
+              const isExcluded = novedad && novedad !== 'sin novedad';
+              if (isExcluded && row.nombre_asesor) {
+                asesoresConNovedad.add(normalizeComparableText(row.nombre_asesor));
               }
             });
 
-            const rowsSinNovedad = rows.filter((row: any) => {
-              const novedad = normalizeComparableText(row.novedad);
+            const validRows = rows.filter((row: any) => {
+              const novedad = String(row.novedad || '').trim().toLowerCase();
               return !novedad || novedad === 'sin novedad';
             });
 
-            return {
-              rows,
-              asesoresConNovedad,
-              metaFe: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_fe) || 0), 0),
-              metaNube: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_nube) || 0), 0),
-              metaTotal: rowsSinNovedad.reduce((s: number, row: any) => s + (Number(row.meta_total) || 0), 0),
-            };
+            const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+            const metaNube = validRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+            const metaTotal = validRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+
+            return { rows: validRows, asesoresConNovedad, metaFe, metaNube, metaTotal };
+          };
+
+          // Helper: clasifica una fila a familia oficial usando producto+pais.
+          // Cae a tipo_producto si resolveProductFamily no encuentra match.
+          const classifyFamily = (row: any): 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO' => {
+            const fam = resolveProductFamily(row.producto, row.pais || paisProfile);
+            if (fam) return fam;
+            const tp = String(row.tipo_producto || '').toUpperCase();
+            if (tp === 'FE' || tp === 'NUBE' || tp === 'CONTADOR') return tp;
+            return 'OTRO';
           };
 
           const metaContextActual = getMetaContextForPeriod(mesActual);
-          const metaFe = metaContextActual.metaFe;
-          const metaNube = metaContextActual.metaNube;
-          const metaEquipoUnidades = metaContextActual.metaTotal;
-          vnAsesoresConNovedad = metaContextActual.asesoresConNovedad;
+          const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
-          // Meta ACV: prefer metas_gerentes.meta_total_acv, fallback to productividad_asesores.meta
-          const metaGerenteData = metasGerentesRes?.data;
+          // VN: meta ACV (mensual) — preferir metas_gerentes.meta_total_acv
+          const metaGerenteData = (metasGerentesRes?.data || []).find(
+            (m: any) => normalizeComparableText(m.celula) === celulaGerente,
+          );
           let metaAcvEquipo = 0;
-          if (metaGerenteData && Number(metaGerenteData.meta_total_acv) > 0) {
+          if (metaGerenteData?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
@@ -580,26 +586,14 @@ export const useGamificationMetrics = (
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
-          // eslint-disable-next-line no-console
-          console.log('[VN-DEBUG]', {
-            celulaGerente,
-            canalNorm,
-            mesActual,
-            allVentasDiariasCount: allVentasDiarias.length,
-            teamVentasDiariasAllCount: teamVentasDiariasAll.length,
-            teamVentasDiariasMonthCount: teamVentasDiariasMonth.length,
-            teamAsesorNamesCount: teamAsesorNames.size,
-            sampleRow: allVentasDiarias[0],
-            sampleTeamRow: teamVentasDiariasAll[0],
-          });
-          // SOURCE OF TRUTH for VN gerente team totals = ventas_diarias raw.
-          // ejecucion_asesores is only a fallback for legacy periods without raw rows.
+          // SOURCE OF TRUTH for VN gerente team totals = ventas_diarias raw,
+          // reclasificada por familia oficial (producto + país).
           const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
           const teamVentasFe = ventasDiariasHasMonth
-            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
+            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
             : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
           const teamVentasNube = ventasDiariasHasMonth
-            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (String(row.tipo_producto || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
+            ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
             : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
           const teamVentasTotal = ventasDiariasHasMonth
             ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
