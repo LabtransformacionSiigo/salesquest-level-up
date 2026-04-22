@@ -3,6 +3,7 @@ export interface VnConventionProductivityRow {
   asesor?: string | null;
   acv_f?: number | null;
   meta?: number | null;
+  pais?: string | null;
 }
 
 export interface VnConventionMetaRow {
