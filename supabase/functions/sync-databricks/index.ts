@@ -150,6 +150,31 @@ ${limit}`;
     sql: (limit: string) =>
       `SELECT ANIO_MES, ASESOR, PAIS, CELULA, AREA, RANGO_ANTIGUEDAD_SIIGO, CANT_RECOMENDADOS, VENTAS_MM_RECOMENDADOS, SC_Creados_MM, VENTAS_MM_SQL, META, VENTAS, ACV_F, Director FROM analyticdl.db_comercial.tbl_slv_Productividad_Progresiva WHERE ANIO_MES >= 202601 AND ANIO_MES <= 202612 ${limit}`,
   },
+  // ── NEW: Ventas agregadas por GERENTE (fuente de verdad VN) ──
+  // Replica exactamente la consulta oficial: cuenta_finanzas por pais+mes+gerente+familia,
+  // con cruce celula→gerente desde tbl_brz_cuotas_asesores.
+  ventas_gerente_mensual: {
+    label: "Ventas Gerente Mensual (FE/NUBE/CONTADOR)",
+    sql: (limit: string) =>
+      `SELECT
+         v.pais,
+         MONTH(v.fecha) AS mes_nro,
+         c.gerente,
+         v.celula,
+         v.tipo_producto1,
+         CAST(SUM(v.cuenta_finanzas) AS DOUBLE) AS ventas,
+         CAST(SUM(v.ACV) AS DOUBLE) AS acv_total
+       FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
+       LEFT JOIN (
+         SELECT DISTINCT celula, gerente
+         FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+         WHERE gerente IS NOT NULL
+       ) c ON v.celula = c.celula
+       WHERE v.fecha >= '2026-01-01'
+         AND c.gerente IS NOT NULL
+       GROUP BY v.pais, MONTH(v.fecha), c.gerente, v.celula, v.tipo_producto1
+       ${limit}`,
+  },
 };
 
 // ============================================================
@@ -354,7 +379,7 @@ Deno.serve(async (req) => {
     // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
     // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_aliados", "ventas_vn_empresarios", "productividad_asesores"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_aliados", "ventas_vn_empresarios", "productividad_asesores", "ventas_gerente_mensual"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
@@ -554,6 +579,7 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
     productividad_asesores: syncProductividadAsesores,
     ventas_vn_aliados: (sb, r) => syncVentasVN(sb, r, "VN_ALIADOS"),
     ventas_vn_empresarios: (sb, r) => syncVentasVN(sb, r, "VN_EMPRESARIOS"),
+    ventas_gerente_mensual: syncVentasGerenteMensual,
   };
 
   const syncFn = SYNC_MAP[table];
@@ -1666,4 +1692,99 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
   insertedVentas += await parallelUpsert(supabase, "ventas", uniqueRows, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" }, errores, "ventas VN");
 
   return { total_rows: rows.length, ventas_sincronizadas: insertedVentas, deduplicadas: uniqueRows.length, errores: errores.slice(0, 20) };
+}
+
+// ============================================================
+// NEW SYNC: Ventas Gerente Mensual (FE/NUBE/CONTADOR por gerente)
+// Fuente: tbl_gld_Ventas_SA + tbl_brz_cuotas_asesores (celula→gerente)
+// Esta es la fuente de verdad para el desempeño de gerentes VN.
+// ============================================================
+async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>[]) {
+  const errores: string[] = [];
+  const currentYear = new Date().getFullYear();
+
+  // 1) Limpieza del año en curso
+  const { error: clearErr } = await supabase
+    .from("ventas_gerente_mensual")
+    .delete()
+    .gte("anio", currentYear);
+  if (clearErr) errores.push(`Limpieza ventas_gerente_mensual: ${clearErr.message}`);
+
+  // 2) Mapear filas Databricks → registros tabla
+  const upsertRows: any[] = [];
+  for (const row of rows) {
+    const gerente = String(row.gerente || "").trim();
+    if (!gerente) continue;
+
+    const mesNro = Number(row.mes_nro);
+    if (!Number.isFinite(mesNro) || mesNro < 1 || mesNro > 12) continue;
+
+    const familiaRaw = String(row.tipo_producto1 || "").trim().toUpperCase();
+    const familia: "FE" | "NUBE" | "CONTADOR" | "OTRO" =
+      familiaRaw === "FE" ? "FE"
+      : familiaRaw === "NUBE" ? "NUBE"
+      : familiaRaw === "CONTADOR" ? "CONTADOR"
+      : "OTRO";
+
+    const pais = normalizeCountry(row.pais || "COL");
+    const anio = currentYear;
+    const periodo = `${anio}${String(mesNro).padStart(2, "0")}`;
+    const unidadesRaw = Number(row.ventas);
+    const unidades = Number.isFinite(unidadesRaw) ? Math.round(unidadesRaw) : 0;
+    const acvRaw = Number(row.acv_total);
+    const acv = Number.isFinite(acvRaw) ? acvRaw : 0;
+
+    // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
+    // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,
+    // se puede determinar por celula. Por ahora todas las filas son Aliados.
+    const canalDireccion = "Aliados";
+    const gerenteNorm = normalizeText(gerente);
+
+    upsertRows.push({
+      pais,
+      anio,
+      mes: mesNro,
+      periodo,
+      canal_direccion: canalDireccion,
+      gerente,
+      gerente_normalizado: gerenteNorm,
+      celula: String(row.celula || "").trim() || null,
+      familia,
+      unidades,
+      acv,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  // 3) Agregar duplicados por (pais, periodo, canal, gerente_norm, familia)
+  //    porque pueden venir múltiples celulas mapeadas al mismo gerente.
+  const grouped = new Map<string, any>();
+  for (const r of upsertRows) {
+    const key = `${r.pais}|${r.periodo}|${r.canal_direccion}|${r.gerente_normalizado}|${r.familia}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.unidades += r.unidades;
+      existing.acv += r.acv;
+      // Mantén la primera celula encontrada como referencia
+    } else {
+      grouped.set(key, { ...r });
+    }
+  }
+  const finalRows = [...grouped.values()];
+
+  const synced = await parallelUpsert(
+    supabase,
+    "ventas_gerente_mensual",
+    finalRows,
+    { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia", count: "exact" },
+    errores,
+    "ventas_gerente_mensual",
+  );
+
+  return {
+    total_rows: rows.length,
+    registros_sincronizados: synced,
+    filas_finales: finalRows.length,
+    errores: errores.slice(0, 20),
+  };
 }
