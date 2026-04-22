@@ -509,11 +509,13 @@ export const useGamificationMetrics = (
             }
           });
 
+          // Team filter: priorize celula match (raw transactional truth).
+          // Name match is only a secondary path for legacy rows missing celula.
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
             const sameCanal = !canalNorm || row.canal_direccion === canalNorm;
-            const sameCelula = celulaGerente && normalizeComparableText(row.celula) === celulaGerente;
-            const sameAsesor = teamAsesorNames.has(normalizeComparableText(row.asesor));
-            return sameCanal && (sameCelula || sameAsesor);
+            if (!sameCanal) return false;
+            if (celulaGerente && normalizeComparableText(row.celula) === celulaGerente) return true;
+            return teamAsesorNames.has(normalizeComparableText(row.asesor));
           });
           vnVentasDiariasRows = teamVentasDiariasAll;
 
