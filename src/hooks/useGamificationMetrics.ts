@@ -686,13 +686,15 @@ export const useGamificationMetrics = (
           if (currentMonthRows.length > 0) {
             const totalVentas = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
             const totalMetaUnidades = metaEquipoUnidades || currentMonthRows.reduce((s: number, r: any) => s + (Number(r.meta) || 0), 0);
-            const totalAcv = currentMonthRows.reduce((s: number, r: any) => s + normalizeStoredAcv(r.acv_f), 0);
+            const totalAcvProd = currentMonthRows.reduce((s: number, r: any) => s + normalizeStoredAcv(r.acv_f), 0);
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
+
+            // ACV: prioriza ventas_gerente_mensual (Databricks oficial)
+            const totalAcv = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : totalAcvProd;
 
             acvMes = totalAcv;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((totalAcv / metaAcvEquipo) * 100) : 0;
 
-            // Use ejecucion_asesores for FE/Nube, productividad for totals
             ejecucion = {
               ventas_fe: teamVentasFe || 0,
               ventas_nube: teamVentasNube || 0,
@@ -711,18 +713,19 @@ export const useGamificationMetrics = (
           } else {
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
-            acvMes = normalizeStoredAcv(kpiData?.acv_f);
+            const kpiAcv = normalizeStoredAcv(kpiData?.acv_f);
+            acvMes = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : kpiAcv;
             const metaFallback = metaEquipoUnidades || Number(kpiData?.meta) || 0;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((acvMes / metaAcvEquipo) * 100) : 0;
 
-            if (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0)) {
-              const ventasTotal = Number(kpiData.ventas) || 0;
+            if (vgmHasMonth || (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0))) {
+              const ventasTotal = Number(kpiData?.ventas) || 0;
               ejecucion = {
                 ventas_fe: teamVentasFe || 0,
                 ventas_nube: teamVentasNube || 0,
                 ventas_total: teamVentasTotal || ventasTotal,
                 acv_total: acvMes,
-                cant_recomendados: Number(kpiData.cant_recomendados) || 0,
+                cant_recomendados: Number(kpiData?.cant_recomendados) || 0,
                 productividad: metaFallback > 0 ? Math.round((teamVentasTotal || ventasTotal) / metaFallback * 100) : 0,
               };
               metaAsesor = {
