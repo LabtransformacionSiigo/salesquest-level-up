@@ -386,10 +386,14 @@ export const useSupabaseAuth = () => {
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
-          // SIEMPRE calcular dinámicamente desde tablas de origen
-          let spTotales = 0;
+          // Para gerentes VN, priorizamos el total persistido en backend porque ya
+          // viene recalculado con la lógica oficial por célula y es la misma fuente
+          // que consumen ranking_general / sp_totales_gerente.
+          let spTotales = isVnGerente
+            ? Number((data as any).sp_totales ?? (data as any).sp_convencion) || 0
+            : 0;
 
-          if (isVnGerente && gerenteCelula) {
+          if (isVnGerente && spTotales <= 0 && gerenteCelula) {
             // VN: traemos productividad y metas SIN filtrar por celula en SQL,
             // porque productividad usa "Equipo México X" (con tilde) y metas usa
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
