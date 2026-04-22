@@ -391,26 +391,14 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 19 – ventas_diarias raw para VN exact FE/Nube/Total aggregation */
           isVN
-            ? (() => {
-                const baseQuery = supabase
-                  .from('ventas_diarias')
-                  .select('fecha, asesor, celula, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                  .gte('fecha', `${anioActual}-01-01`)
-                  .lt('fecha', `${anioActual + 1}-01-01`);
-
-                if (profile.role !== 'asesor' && profile.celula) {
-                  return baseQuery
-                    .eq('celula', profile.celula)
-                    .eq('canal_direccion', canalNorm)
-                    .eq('pais', String(profile.pais || '').toUpperCase())
-                    .limit(20000);
-                }
-
-                return baseQuery
-                  .eq('canal_direccion', canalNorm)
-                  .eq('pais', String(profile.pais || '').toUpperCase())
-                  .limit(20000);
-              })()
+            ? supabase
+                .from('ventas_diarias')
+                .select('fecha, asesor, celula, equipo, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                .gte('fecha', `${anioActual}-01-01`)
+                .lt('fecha', `${anioActual + 1}-01-01`)
+                .eq('canal_direccion', canalNorm)
+                .eq('pais', String(profile.pais || '').toUpperCase())
+                .limit(50000)
             : Promise.resolve({ data: [] }),
         ];
 
