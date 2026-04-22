@@ -79,6 +79,16 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
   const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
+  // For VN: always show FE / Nube / Total / ACV+ progress bars even if data is
+  // partially missing — fall back to zeros so the user sees the meta and the
+  // progress (or lack of it) instead of an empty card.
+  const vnEjecucion = isVN
+    ? (ejecucion ?? { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, cant_recomendados: 0, productividad: 0 })
+    : null;
+  const vnMeta = isVN
+    ? (metaAsesor ?? { meta_fe: 0, meta_nube: 0, meta_total: 0, meta_acv: metaAcvValue })
+    : null;
+
   if (loading) {
     return (
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-5" variants={fadeUpItem}>
