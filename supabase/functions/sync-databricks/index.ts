@@ -202,6 +202,17 @@ const toNumber = (...values: any[]) => {
 
 const toRoundedInt = (...values: any[]) => Math.round(toNumber(...values));
 
+const buildStableHash = (...values: unknown[]) => {
+  const input = values
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .join("|");
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+};
+
 const normalizeStoredAcvInt = (...values: any[]) => {
   const n = toNumber(...values);
   if (!Number.isFinite(n)) return 0;
@@ -1554,11 +1565,16 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
     if (isNaN(fecha.getTime())) continue;
     const mes = MONTH_NAMES[fecha.getMonth() + 1] || "";
     const anio = fecha.getFullYear();
-    const acv = normalizeStoredAcvInt(row.acv || row.ACV);
-    const unidades = toRoundedInt(row.unidades || row.Unidades || row.Cuenta_comercial) || 1;
-    const comercial = String(row.comercial || row.ASESOR || row.fullname || "").trim();
     const producto = String(row.producto || row.Producto || row.tipo_producto1 || "").trim();
-    const tipoProducto = String(row.tipo_producto || row.TIPO_PRODUCTO || row.tipo_producto1 || "").trim();
+    const pais = normalizeCountry(row.pais || row.PAIS || gerente.pais || "COL");
+    const tipoProductoRaw = String(row.tipo_producto || row.TIPO_PRODUCTO || row.tipo_producto1 || "").trim();
+    const tipoProductoUpper = tipoProductoRaw.toUpperCase();
+    const tipoProducto = canal === "VN_ALIADOS"
+      ? (tipoProductoUpper === "FE" || tipoProductoUpper === "NUBE" || tipoProductoUpper === "CONTADOR" ? tipoProductoUpper : "OTRO")
+      : normalizeProductFamily(producto, pais);
+    const acv = normalizeStoredAcvInt(row.acv || row.ACV);
+    const unidades = toRoundedInt(row.unidades, row.Unidades, row.cuenta_finanzas, row.Cuenta_comercial);
+    const comercial = String(row.comercial || row.ASESOR || row.fullname || "").trim();
     const origenVal = String(row.origen || row.ORIGEN || "").trim();
     const equipo = String(row.equipo || row.Equipo || "").trim();
     const recurrencia = String(row.Recurrencia || row.recurrencia || "").trim();
@@ -1568,7 +1584,17 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
 
     // Create unique documento_factura with VN- prefix
     const fechaKey = fecha.toISOString().split("T")[0];
-    const docKey = `VN-${anio}-${mes}-${comercial.substring(0, 20)}-${producto.substring(0, 15)}-${fechaKey}`;
+    const docKey = `VN-${rowCanal}-${fechaKey}-${buildStableHash(
+      celula,
+      comercial,
+      producto,
+      tipoProducto,
+      acv,
+      unidades,
+      origenVal,
+      recurrencia,
+      row.Director || row.lider || ""
+    )}`;
 
     ventaRows.push({
       gerente_id: gerente.id,
@@ -1585,7 +1611,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
       meta: 0,
       comercial,
       lider: String(row.Director || row.lider || ""),
-      pais: gerente.pais,
+      pais,
       sc_creados_ind: unidades,
       origen: origenVal || null,
       recurrencia: recurrencia || null,
