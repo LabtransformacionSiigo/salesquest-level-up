@@ -1367,7 +1367,7 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
   // Get all gerentes for this canal
   const { data: gerentes } = await supabase
     .from("gerentes")
-    .select("id, nombre, canal, pais")
+    .select("id, nombre, canal, pais, celula")
     .eq("canal", canal)
     .eq("activo", true);
 
@@ -1424,7 +1424,9 @@ async function aggregateVentasDiariasToKpis(supabase: any, rows: any[], canal: s
   for (const [, kpi] of kpiUpdates) {
     const gerente = gerentes.find((g: any) => g.id === kpi.gerente_id);
     if (gerente) {
-      const meta = metaByCelula.get(normalizeText(gerente.nombre));
+      // Cross by celula (correct), with fallback to name for legacy cases
+      const meta = (gerente.celula && metaByCelula.get(normalizeText(gerente.celula)))
+        || metaByCelula.get(normalizeText(gerente.nombre));
       if (meta) kpi.meta = Math.round(meta.meta_total_acv || meta.meta_total_und || 0);
     }
   }
