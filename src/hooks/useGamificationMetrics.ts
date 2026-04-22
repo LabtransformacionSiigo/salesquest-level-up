@@ -579,6 +579,18 @@ export const useGamificationMetrics = (
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
+          // eslint-disable-next-line no-console
+          console.log('[VN-DEBUG]', {
+            celulaGerente,
+            canalNorm,
+            mesActual,
+            allVentasDiariasCount: allVentasDiarias.length,
+            teamVentasDiariasAllCount: teamVentasDiariasAll.length,
+            teamVentasDiariasMonthCount: teamVentasDiariasMonth.length,
+            teamAsesorNamesCount: teamAsesorNames.size,
+            sampleRow: allVentasDiarias[0],
+            sampleTeamRow: teamVentasDiariasAll[0],
+          });
           // SOURCE OF TRUTH for VN gerente team totals = ventas_diarias raw.
           // ejecucion_asesores is only a fallback for legacy periods without raw rows.
           const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
