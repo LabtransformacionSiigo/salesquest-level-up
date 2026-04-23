@@ -73,20 +73,27 @@ Deno.serve(async (req) => {
     const yStart = `${year}01`;
     const yEnd = `${year}12`;
 
-    // 1. Cargar todo lo necesario (paginado)
+    let paisFilter: string[] | null = null;
+    try {
+      const body = await req.json().catch(() => ({}));
+      if (body && Array.isArray(body.paises) && body.paises.length > 0) paisFilter = body.paises;
+      else if (body && typeof body.pais === 'string') paisFilter = [body.pais];
+    } catch (_) {}
+
+    // 1. Cargar todo lo necesario (paginado), filtrado por país si aplica
     const [gerentes, asesores, productividad, metas, vgm, ejec] = await Promise.all([
       fetchAll(supabase, 'gerentes', 'id, nombre, canal, pais, celula',
-        (q) => q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS'])),
+        (q) => { let x = q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS']); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'asesores', 'id, nombre, documento, canal, pais, gerente_id, canal_direccion',
-        (q) => q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS'])),
+        (q) => { let x = q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS']); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'productividad_asesores', 'anio_mes, asesor, celula, pais, acv_f, meta',
-        (q) => q.gte('anio_mes', yStart).lte('anio_mes', yEnd)),
+        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'metas_asesores', 'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
-        (q) => q.gte('anio_mes', yStart).lte('anio_mes', yEnd)),
+        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv',
-        (q) => q.gte('periodo', yStart).lte('periodo', yEnd)),
-      fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total',
-        (q) => q.gte('periodo', yStart).lte('periodo', yEnd)),
+        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+      fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
+        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
     ]);
 
     const isActiveMeta = (m: any) => {
