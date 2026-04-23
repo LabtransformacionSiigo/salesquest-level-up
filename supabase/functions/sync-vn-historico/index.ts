@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST")!;
+const DATABRICKS_HOST = Deno.env.get("DATABRICKS_HOST")!.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN")!;
 const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
