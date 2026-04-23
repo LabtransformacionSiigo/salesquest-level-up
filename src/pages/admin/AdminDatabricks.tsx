@@ -126,9 +126,30 @@ const AdminDatabricks = () => {
   };
 
   const handleRecalcConvencionVN = async () => {
-    if (!confirm('Esto borrará y recalculará TODOS los SP Convención (gerentes y asesores VN). Úsalo cuando hayas actualizado las metas FE/NUBE en metas_asesores. ¿Continuar?')) return;
+    if (!confirm('Esto borrará y recalculará TODOS los SP Convención VN (Aliados + Empresarios) en COL/MEX/ECU/URU. ¿Continuar?')) return;
     setRecalcRunning(true);
     setRecalcMsg(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('recalcular-sp-vn', {
+        body: {},
+      });
+      if (error) throw error;
+      const d = data as any;
+      const g = d?.gerentes_actualizados ?? 0;
+      const a = d?.asesores_actualizados ?? 0;
+      const spG = d?.sp_total_gerentes ?? 0;
+      const spA = d?.sp_total_asesores ?? 0;
+      setRecalcMsg(
+        `✓ Recalculado: ${g} gerentes (${spG.toLocaleString()} SP), ${a} asesores (${spA.toLocaleString()} SP)`,
+      );
+      setRecalcRunning(false);
+      return;
+    } catch (err: any) {
+      setRecalcMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+      setRecalcRunning(false);
+      return;
+    }
+    // Mantener variable usada (legacy)
     try {
       const { data, error } = await supabase.functions.invoke('calcular-sp-semanal', {
         body: { only_convencion: true, reset_existing_convencion: true },
