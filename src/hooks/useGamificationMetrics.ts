@@ -168,17 +168,31 @@ const matchesNormalizedPerson = (candidate: string, aliases: Set<string>) => {
   return false;
 };
 
-const normalizeVnMetaAcv = (value: number | null | undefined) => {
-  const n = Number(value) || 0;
-  if (n <= 0) return 0;
-  return Math.abs(n) < 100_000 ? Math.round(n * 1_000_000) : Math.round(n);
+const META_ACV_SCALE_BY_COUNTRY: Record<string, number> = {
+  COL: 1_000_000,
+  MEX: 1_000,
+  ECU: 100,
+  URU: 100,
 };
 
-const normalizeStoredAcv = (value: number | null | undefined) => {
+const resolveCountryCode = (pais?: string | null): string | null => {
+  if (!pais) return null;
+  const normalized = String(pais).trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'MX' || normalized.startsWith('MEX')) return 'MEX';
+  if (normalized === 'CO' || normalized.startsWith('COL')) return 'COL';
+  if (normalized === 'EC' || normalized.startsWith('ECU')) return 'ECU';
+  if (normalized === 'UY' || normalized.startsWith('URU')) return 'URU';
+  return normalized;
+};
+
+const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | null) => {
   const n = Number(value) || 0;
-  if (!Number.isFinite(n)) return 0;
-  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
-  return Math.round(n);
+  if (n <= 0) return 0;
+  if (Math.abs(n) >= 100_000) return Math.round(n);
+  const country = resolveCountryCode(pais);
+  const factor = (country && META_ACV_SCALE_BY_COUNTRY[country]) || 1_000_000;
+  return Math.round(n * factor);
 };
 
 const getPeriodFromDate = (value: unknown) => {
@@ -1124,13 +1138,16 @@ export const useGamificationMetrics = (
           if (row.id) canjeablesMap.set(row.id, Number(row.sp_canje) || 0);
         });
 
-        const topRanking = (rankingRes.data || []).map((r: any) => ({
-          id: r.id, nombre: r.nombre,
-          sp_totales: Number(r.sp_totales) || 0,
-          sp_canje: canjeablesMap.get(r.id) || 0,
-          canal: r.canal,
-          nivel: r.nivel,
-        }));
+        const topRanking = isVN
+          ? []
+          : (rankingRes.data || []).map((r: any) => ({
+              id: r.id,
+              nombre: r.nombre,
+              sp_totales: Number(r.sp_totales) || 0,
+              sp_canje: canjeablesMap.get(r.id) || 0,
+              canal: r.canal,
+              nivel: r.nivel,
+            }));
 
         const team = isVC
           ? (teamRes.data || []).map((c: any) => ({
