@@ -212,7 +212,7 @@ const Rankings = () => {
             ejecRows: ejecAsesoresRes.data || [],
           });
           const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
+          const spConv = currentMonthly?.sp || 0;
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
@@ -352,7 +352,7 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
+          const spConv = currentMonthly?.sp || 0;
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,

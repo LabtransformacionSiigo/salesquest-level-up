@@ -458,6 +458,10 @@ export const useSupabaseAuth = () => {
                     tipo_producto: row.tipo_producto,
                   });
                   cur.total += u;
+                  if (family === 'CONTADOR') {
+                    ventasByPeriod.set(period, cur);
+                    return;
+                  }
                   if (family === 'FE') cur.fe += u;
                   else if (family === 'NUBE') cur.nube += u;
                   ventasByPeriod.set(period, cur);

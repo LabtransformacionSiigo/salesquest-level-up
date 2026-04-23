@@ -698,8 +698,9 @@ export const useGamificationMetrics = (
           // ⭐ FUENTE DE VERDAD: ventas_gerente_mensual (Databricks pre-agregado por gerente).
           // Si hay filas para este gerente en este mes, sobreescribe los conteos
           // FE / NUBE / TOTAL / ACV con los valores oficiales de Databricks.
+          const gerenteNormalizado = normalizeComparableText(profile.nombre);
           const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
-            .filter((r: any) => String(r.periodo) === mesActual);
+            .filter((r: any) => String(r.periodo) === mesActual && normalizeComparableText(r.gerente) === gerenteNormalizado);
           const vgmHasMonth = vgmRows.length > 0;
           const vgmFe = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'FE' ? (Number(r.unidades) || 0) : 0), 0);
           const vgmNube = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'NUBE' ? (Number(r.unidades) || 0) : 0), 0);
@@ -896,7 +897,10 @@ export const useGamificationMetrics = (
           const vgmPeriodsWithData = new Set<string>(vgmAllRows.map((r: any) => String(r.periodo || '')));
 
           if (vgmAllRows.length > 0) {
-            vgmAllRows.forEach((r: any) => {
+            const gerenteNormalizado = normalizeComparableText(profile.nombre);
+            vgmAllRows
+              .filter((r: any) => normalizeComparableText(r.gerente) === gerenteNormalizado)
+              .forEach((r: any) => {
               const period = String(r.periodo || '');
               const fam = String(r.familia || '').toUpperCase();
               const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
