@@ -189,10 +189,6 @@ export const buildVnConventionMonthlyRows = ({
       if (pctFe > CAP) pctFe = CAP;
       let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
       if (pctNube > CAP) pctNube = CAP;
-
-      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
-      if (pctTotal > CAP) pctTotal = CAP;
-
       let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
       if (pctTotal > CAP) pctTotal = CAP;
 
@@ -277,6 +273,8 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
       if (pctFe > CAP) pctFe = CAP;
       let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
       if (pctNube > CAP) pctNube = CAP;
+      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
+      if (pctTotal > CAP) pctTotal = CAP;
 
       return {
         period,
