@@ -271,17 +271,14 @@ Deno.serve(async (req) => {
       if (!error) updatedA++;
     }
 
-    // Sample para validación
-    const diana = gerenteResults.find((g: any) => norm(g.nombre).includes('diana maria naranjo'));
-    const grace = gerenteResults.find((g: any) => norm(g.nombre).includes('grace alejandra serje'));
-
     return new Response(JSON.stringify({
       ok: true,
+      pais: paisFilter,
       gerentes_total: gerentes.length,
       gerentes_actualizados: updatedG,
       asesores_total: asesores.length,
       asesores_actualizados: updatedA,
-      sample: { diana, grace },
+      sample: { diana: sampleDiana, grace: sampleGrace },
     }, null, 2), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
