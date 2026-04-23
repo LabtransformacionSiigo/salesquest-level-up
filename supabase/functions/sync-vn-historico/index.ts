@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
     for (const r of rows) {
       const mes = Number(r.mes_nro);
       const familia = classifyFamily(r.tipo_producto1);
-      const canal = normalizeCanal(r.canal_direccion);
+      const canal = normalizeCanal(r.equipo);
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
       const celula = r.celula || null;
