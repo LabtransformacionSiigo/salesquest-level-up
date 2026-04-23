@@ -73,20 +73,30 @@ Deno.serve(async (req) => {
     const yStart = `${year}01`;
     const yEnd = `${year}12`;
 
-    // 1. Cargar todo lo necesario (paginado)
+    let paisFilter: string[] | null = null;
+    let canalFilter: string[] = ['VN_ALIADOS', 'VN_EMPRESARIOS'];
+    try {
+      const body = await req.json().catch(() => ({}));
+      if (body && Array.isArray(body.paises) && body.paises.length > 0) paisFilter = body.paises;
+      else if (body && typeof body.pais === 'string') paisFilter = [body.pais];
+      if (body && Array.isArray(body.canales) && body.canales.length > 0) canalFilter = body.canales;
+      else if (body && typeof body.canal === 'string') canalFilter = [body.canal];
+    } catch (_) {}
+
+    // 1. Cargar todo lo necesario (paginado), filtrado por país si aplica
     const [gerentes, asesores, productividad, metas, vgm, ejec] = await Promise.all([
       fetchAll(supabase, 'gerentes', 'id, nombre, canal, pais, celula',
-        (q) => q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS'])),
+        (q) => { let x = q.in('canal', canalFilter); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'asesores', 'id, nombre, documento, canal, pais, gerente_id, canal_direccion',
-        (q) => q.in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS'])),
+        (q) => { let x = q.in('canal', canalFilter); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'productividad_asesores', 'anio_mes, asesor, celula, pais, acv_f, meta',
-        (q) => q.gte('anio_mes', yStart).lte('anio_mes', yEnd)),
+        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'metas_asesores', 'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
-        (q) => q.gte('anio_mes', yStart).lte('anio_mes', yEnd)),
+        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); if (canalFilter) x = x.in('canal_direccion', canalFilter); return x; }),
       fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv',
-        (q) => q.gte('periodo', yStart).lte('periodo', yEnd)),
-      fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total',
-        (q) => q.gte('periodo', yStart).lte('periodo', yEnd)),
+        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+      fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
+        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
     ]);
 
     const isActiveMeta = (m: any) => {
@@ -94,66 +104,97 @@ Deno.serve(async (req) => {
       return !n || n === 'sin novedad';
     };
 
+    // Pre-indexar para evitar O(N×M)
+    const metasByCelula = new Map<string, any[]>();
+    for (const m of metas) {
+      const k = norm(m.celula);
+      if (!metasByCelula.has(k)) metasByCelula.set(k, []);
+      metasByCelula.get(k)!.push(m);
+    }
+    const prodByCelula = new Map<string, any[]>();
+    for (const p of productividad) {
+      const k = norm(p.celula);
+      if (!prodByCelula.has(k)) prodByCelula.set(k, []);
+      prodByCelula.get(k)!.push(p);
+    }
+    const vgmByGerente = new Map<string, any[]>();
+    for (const v of vgm) {
+      const k = String(v.gerente_normalizado || '');
+      if (!vgmByGerente.has(k)) vgmByGerente.set(k, []);
+      vgmByGerente.get(k)!.push(v);
+    }
+    const ejecByPeriod = new Map<string, any[]>();
+    for (const e of ejec) {
+      const k = String(e.periodo);
+      if (!ejecByPeriod.has(k)) ejecByPeriod.set(k, []);
+      ejecByPeriod.get(k)!.push(e);
+    }
+
     // ===== GERENTES =====
-    const gerenteResults: any[] = [];
+    const gerenteResults: { id: string; sp_total: number }[] = [];
+    let sampleDiana: any = null, sampleGrace: any = null;
     for (const g of gerentes) {
       const gNombreNorm = norm(g.nombre);
       const gCelulaNorm = norm(g.celula);
+      const gMetas = metasByCelula.get(gCelulaNorm) || [];
+      const gProd = prodByCelula.get(gCelulaNorm) || [];
+      const gVgm = vgmByGerente.get(gNombreNorm) || [];
+
       const periods = new Set<string>();
-
-      const gMetas = metas.filter((m: any) => norm(m.celula) === gCelulaNorm);
-      const gProd = productividad.filter((p: any) => norm(p.celula) === gCelulaNorm);
-      const gVgm = vgm.filter((v: any) => v.gerente_normalizado === gNombreNorm);
-
       gMetas.forEach((m: any) => periods.add(String(m.anio_mes)));
       gProd.forEach((p: any) => periods.add(String(p.anio_mes)));
       gVgm.forEach((v: any) => periods.add(String(v.periodo)));
 
       let total = 0;
-      const monthly: any[] = [];
+      const monthlyDbg: any[] = [];
+      const isDiana = gNombreNorm.includes('diana maria naranjo');
+      const isGrace = gNombreNorm.includes('grace alejandra serje');
 
-      for (const period of [...periods].sort()) {
+      for (const period of periods) {
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
         const novedadNames = new Set(pMetas.filter((m: any) => !isActiveMeta(m)).map((m: any) => norm(m.nombre_asesor)));
         const pProd = gProd.filter((p: any) => String(p.anio_mes) === period);
         const pVgm = gVgm.filter((v: any) => String(v.periodo) === period);
 
-        const metaFe = activeMetas.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
-        const metaNube = activeMetas.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
-        const metaTotal = activeMetas.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
-        const metaAcv = pProd.reduce((s: number, r: any) => {
-          if (novedadNames.has(norm(r.asesor))) return s;
-          return s + normMetaAcv(r.meta, r.pais);
-        }, 0);
+        let metaFe = 0, metaNube = 0, metaTotal = 0;
+        for (const r of activeMetas) {
+          metaFe += Number(r.meta_fe) || 0;
+          metaNube += Number(r.meta_nube) || 0;
+          metaTotal += Number(r.meta_total) || 0;
+        }
+        let metaAcv = 0;
+        for (const r of pProd) {
+          if (novedadNames.has(norm(r.asesor))) continue;
+          metaAcv += normMetaAcv(r.meta, r.pais);
+        }
 
-        // Ejecución: priorizar vgm, luego ejecucion_asesores cruzada por nombres del equipo
         let vFe = 0, vNube = 0, vTotal = 0, acv = 0;
         if (pVgm.length > 0) {
-          pVgm.forEach((v: any) => {
+          for (const v of pVgm) {
             const fam = String(v.familia || '').toUpperCase();
             const uds = Number(v.unidades) || 0;
             if (fam === 'FE') vFe += uds;
             else if (fam === 'NUBE') vNube += uds;
             vTotal += uds;
             acv += Number(v.acv) || 0;
-          });
+          }
           acv = Math.round(acv);
         } else {
-          // fallback: cruzar ejecucion por nombres del equipo en metas/productividad
           const teamKeys = new Set<string>();
-          activeMetas.forEach((m: any) => { if (m.nombre_asesor) teamKeys.add(norm(m.nombre_asesor)); });
-          pProd.forEach((p: any) => { if (p.asesor) teamKeys.add(norm(p.asesor)); });
-          ejec.filter((e: any) => String(e.periodo) === period && teamKeys.has(norm(e.documento_asesor)))
-            .forEach((e: any) => {
-              vFe += Number(e.ventas_fe) || 0;
-              vNube += Number(e.ventas_nube) || 0;
-              vTotal += Number(e.ventas_total) || 0;
-            });
-          acv = pProd.reduce((s: number, r: any) => {
-            if (novedadNames.has(norm(r.asesor))) return s;
-            return s + normAcv(r.acv_f);
-          }, 0);
+          for (const m of activeMetas) if (m.nombre_asesor) teamKeys.add(norm(m.nombre_asesor));
+          for (const p of pProd) if (p.asesor) teamKeys.add(norm(p.asesor));
+          const periodEjec = ejecByPeriod.get(period) || [];
+          for (const e of periodEjec) {
+            if (!teamKeys.has(norm(e.documento_asesor))) continue;
+            vFe += Number(e.ventas_fe) || 0;
+            vNube += Number(e.ventas_nube) || 0;
+            vTotal += Number(e.ventas_total) || 0;
+          }
+          for (const r of pProd) {
+            if (novedadNames.has(norm(r.asesor))) continue;
+            acv += normAcv(r.acv_f);
+          }
         }
 
         const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
@@ -161,13 +202,15 @@ Deno.serve(async (req) => {
         const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
         const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
-        if (sp > 0 || vTotal > 0 || acv > 0) {
-          monthly.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
-        }
         total += sp;
+        if (isDiana || isGrace) {
+          monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
+        }
       }
 
-      gerenteResults.push({ id: g.id, nombre: g.nombre, pais: g.pais, canal: g.canal, celula: g.celula, sp_total: total, monthly });
+      gerenteResults.push({ id: g.id, sp_total: total });
+      if (isDiana) sampleDiana = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
+      if (isGrace) sampleGrace = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
     }
 
     // ===== ASESORES =====
@@ -231,17 +274,14 @@ Deno.serve(async (req) => {
       if (!error) updatedA++;
     }
 
-    // Sample para validación
-    const diana = gerenteResults.find((g: any) => norm(g.nombre).includes('diana maria naranjo'));
-    const grace = gerenteResults.find((g: any) => norm(g.nombre).includes('grace alejandra serje'));
-
     return new Response(JSON.stringify({
       ok: true,
+      pais: paisFilter,
       gerentes_total: gerentes.length,
       gerentes_actualizados: updatedG,
       asesores_total: asesores.length,
       asesores_actualizados: updatedA,
-      sample: { diana, grace },
+      sample: { diana: sampleDiana, grace: sampleGrace },
     }, null, 2), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
