@@ -74,10 +74,13 @@ Deno.serve(async (req) => {
     const yEnd = `${year}12`;
 
     let paisFilter: string[] | null = null;
+    let canalFilter: string[] = ['VN_ALIADOS', 'VN_EMPRESARIOS'];
     try {
       const body = await req.json().catch(() => ({}));
       if (body && Array.isArray(body.paises) && body.paises.length > 0) paisFilter = body.paises;
       else if (body && typeof body.pais === 'string') paisFilter = [body.pais];
+      if (body && Array.isArray(body.canales) && body.canales.length > 0) canalFilter = body.canales;
+      else if (body && typeof body.canal === 'string') canalFilter = [body.canal];
     } catch (_) {}
 
     // 1. Cargar todo lo necesario (paginado), filtrado por país si aplica
