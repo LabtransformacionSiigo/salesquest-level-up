@@ -1,6 +1,21 @@
 // Recalcula SP Convención VN (Aliados/Empresarios) para COL/MEX/ECU/URU
-// y persiste el total anual 2026 en gerentes.sp_convencion y asesores.sp_convencion.
-// Fórmula mensual: SP = %Uds + %FE + (%Nube × 2) + %ACV. Cada componente cap 300%.
+// Fórmula mensual: SP_mes = cap(%Uds) + cap(%FE) + cap(%Nube*2) + cap(%ACV)
+// cap = min(300, max(0, round(value)))
+// Total = sumatoria SP_mes para todos los periodos con datos.
+//
+// Reglas:
+// - Gerente VN: una sola persona (el LIDER real de la célula) recibe el SP del equipo.
+//   Identificación: gerente cuyo nombre NO aparece en productividad_asesores.asesor para esa célula.
+// - Fuente prioritaria de unidades/FE/Nube/ACV por gerente: ventas_gerente_mensual.
+//   Fallback (si no hay filas en el periodo): ejecucion_asesores agrupado por célula
+//   y productividad_asesores para ACV.
+// - Metas por gerente: SUM metas_asesores por celula+periodo (excluyendo novedad ≠ "Sin novedad").
+//   Meta ACV: SUM productividad_asesores.meta por celula+periodo (mismo filtro).
+// - Asesor VN: misma fórmula con datos individuales.
+// - Persiste gerentes.sp_convencion / asesores.sp_convencion y hace upsert en sp_acumulados
+//   (fuente='CUMPLIMIENTO_META', tipo_sp='convencion'). Limpia primero los registros previos
+//   de los IDs involucrados antes de reinsertar.
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const corsHeaders = {
@@ -11,9 +26,13 @@ const corsHeaders = {
 const SCALE: Record<string, number> = { COL: 1_000_000, MEX: 1_000, ECU: 100, URU: 100 };
 const CAP = 300;
 
-const norm = (v: unknown) => String(v ?? '')
-  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .replace(/\s+/g, ' ').trim().toLowerCase();
+const norm = (v: unknown) =>
+  String(v ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 
 const resolveCountry = (p?: string | null) => {
   const n = String(p || '').trim().toUpperCase();
@@ -45,10 +64,15 @@ const cap = (v: number) => Math.min(CAP, Math.max(0, Math.round(v || 0)));
 const computeSp = (pctUds: number, pctFe: number, pctNube: number, pctAcv: number) =>
   cap(pctUds) + cap(pctFe) + cap(pctNube) * 2 + cap(pctAcv);
 
+const isActiveMeta = (m: any) => {
+  const n = norm(m?.novedad);
+  return !n || n === 'sin novedad';
+};
+
 async function fetchAll(supabase: any, table: string, select: string, build?: (q: any) => any) {
   const all: any[] = [];
   const pageSize = 1000;
-  for (let from = 0; from < 200_000; from += pageSize) {
+  for (let from = 0; from < 500_000; from += pageSize) {
     let q = supabase.from(table).select(select).range(from, from + pageSize - 1);
     if (build) q = build(q);
     const { data, error } = await q;
@@ -83,46 +107,73 @@ Deno.serve(async (req) => {
       else if (body && typeof body.canal === 'string') canalFilter = [body.canal];
     } catch (_) {}
 
-    // 1. Cargar todo lo necesario (paginado), filtrado por país si aplica
+    const canalDireccionFilter = canalFilter.map((c) =>
+      c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c,
+    );
+
+    // 1. Cargar todo
     const [gerentes, asesores, productividad, metas, vgm, ejec] = await Promise.all([
-      fetchAll(supabase, 'gerentes', 'id, nombre, canal, pais, celula',
-        (q) => { let x = q.in('canal', canalFilter); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
-      fetchAll(supabase, 'asesores', 'id, nombre, documento, canal, pais, gerente_id, canal_direccion',
-        (q) => { let x = q.in('canal', canalFilter); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
-      fetchAll(supabase, 'productividad_asesores', 'anio_mes, asesor, celula, pais, acv_f, meta',
-        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
-      fetchAll(supabase, 'metas_asesores', 'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
+      fetchAll(supabase, 'gerentes', 'id, nombre, canal, pais, celula', (q) => {
+        let x = q.in('canal', canalFilter);
+        if (paisFilter) x = x.in('pais', paisFilter);
+        return x;
+      }),
+      fetchAll(
+        supabase,
+        'asesores',
+        'id, nombre, documento, canal, pais, gerente_id, canal_direccion',
+        (q) => {
+          let x = q.in('canal', canalFilter);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          return x;
+        },
+      ),
+      fetchAll(
+        supabase,
+        'productividad_asesores',
+        'anio_mes, asesor, celula, pais, acv_f, meta',
         (q) => {
           let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd);
           if (paisFilter) x = x.in('pais', paisFilter);
-          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          return x;
+        },
+      ),
+      fetchAll(
+        supabase,
+        'metas_asesores',
+        'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
+        (q) => {
+          let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
           if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
           return x;
-        }),
-      fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv, pais, canal_direccion',
+        },
+      ),
+      fetchAll(
+        supabase,
+        'ventas_gerente_mensual',
+        'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv, pais, canal_direccion',
         (q) => {
           let x = q.gte('periodo', yStart).lte('periodo', yEnd);
           if (paisFilter) x = x.in('pais', paisFilter);
-          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
           if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
           return x;
-        }),
-      fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
+        },
+      ),
+      fetchAll(
+        supabase,
+        'ejecucion_asesores',
+        'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
         (q) => {
           let x = q.gte('periodo', yStart).lte('periodo', yEnd);
           if (paisFilter) x = x.in('pais', paisFilter);
-          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
           if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
           return x;
-        }),
+        },
+      ),
     ]);
 
-    const isActiveMeta = (m: any) => {
-      const n = norm(m.novedad);
-      return !n || n === 'sin novedad';
-    };
-
-    // Pre-indexar para evitar O(N×M)
+    // ===== Indexación =====
     const metasByCelula = new Map<string, any[]>();
     for (const m of metas) {
       const k = norm(m.celula);
@@ -135,15 +186,15 @@ Deno.serve(async (req) => {
       if (!prodByCelula.has(k)) prodByCelula.set(k, []);
       prodByCelula.get(k)!.push(p);
     }
-    const vgmByGerente = new Map<string, any[]>();
     const vgmByCelula = new Map<string, any[]>();
+    const vgmByGerente = new Map<string, any[]>();
     for (const v of vgm) {
-      const gerenteKey = String(v.gerente_normalizado || '');
-      if (!vgmByGerente.has(gerenteKey)) vgmByGerente.set(gerenteKey, []);
-      vgmByGerente.get(gerenteKey)!.push(v);
-      const celulaKey = norm(v.celula);
-      if (!vgmByCelula.has(celulaKey)) vgmByCelula.set(celulaKey, []);
-      vgmByCelula.get(celulaKey)!.push(v);
+      const ck = norm(v.celula);
+      if (!vgmByCelula.has(ck)) vgmByCelula.set(ck, []);
+      vgmByCelula.get(ck)!.push(v);
+      const gk = norm(v.gerente_normalizado || v.gerente);
+      if (!vgmByGerente.has(gk)) vgmByGerente.set(gk, []);
+      vgmByGerente.get(gk)!.push(v);
     }
     const ejecByPeriod = new Map<string, any[]>();
     for (const e of ejec) {
@@ -152,15 +203,58 @@ Deno.serve(async (req) => {
       ejecByPeriod.get(k)!.push(e);
     }
 
+    // Conjunto de nombres de asesores por célula (para detectar el líder real)
+    const asesorNamesByCelula = new Map<string, Set<string>>();
+    for (const p of productividad) {
+      const ck = norm(p.celula);
+      if (!asesorNamesByCelula.has(ck)) asesorNamesByCelula.set(ck, new Set());
+      asesorNamesByCelula.get(ck)!.add(norm(p.asesor));
+    }
+    for (const m of metas) {
+      const ck = norm(m.celula);
+      if (!asesorNamesByCelula.has(ck)) asesorNamesByCelula.set(ck, new Set());
+      if (m.nombre_asesor) asesorNamesByCelula.get(ck)!.add(norm(m.nombre_asesor));
+    }
+
     // ===== GERENTES =====
-    const gerenteResults: { id: string; sp_total: number }[] = [];
-    let sampleDiana: any = null, sampleGrace: any = null;
+    type GResult = { id: string; sp_total: number; monthly: { period: string; sp: number }[] };
+    const gerenteResults: GResult[] = [];
+    let sampleDiana: any = null;
+    let sampleGrace: any = null;
+
+    // Agrupar gerentes por célula para elegir un único líder real
+    const gerentesByCelula = new Map<string, any[]>();
     for (const g of gerentes) {
-      const gNombreNorm = norm(g.nombre);
+      const ck = norm(g.celula);
+      if (!ck) continue;
+      if (!gerentesByCelula.has(ck)) gerentesByCelula.set(ck, []);
+      gerentesByCelula.get(ck)!.push(g);
+    }
+
+    // Para cada célula: el "líder" es quien NO aparezca como asesor; el resto recibe 0.
+    const lideresPorCelula = new Map<string, string>(); // celula -> gerente.id
+    for (const [ck, lista] of gerentesByCelula.entries()) {
+      const asesoresSet = asesorNamesByCelula.get(ck) || new Set<string>();
+      const lider =
+        lista.find((g) => !asesoresSet.has(norm(g.nombre))) || lista[0];
+      lideresPorCelula.set(ck, lider.id);
+    }
+
+    for (const g of gerentes) {
       const gCelulaNorm = norm(g.celula);
+      const gNombreNorm = norm(g.nombre);
+      const isLider = lideresPorCelula.get(gCelulaNorm) === g.id;
+
+      const monthly: { period: string; sp: number }[] = [];
+
+      if (!isLider || !gCelulaNorm) {
+        gerenteResults.push({ id: g.id, sp_total: 0, monthly });
+        continue;
+      }
+
       const gMetas = metasByCelula.get(gCelulaNorm) || [];
       const gProd = prodByCelula.get(gCelulaNorm) || [];
-      const gVgm = (vgmByCelula.get(gCelulaNorm) || vgmByGerente.get(gNombreNorm) || []);
+      const gVgm = vgmByCelula.get(gCelulaNorm) || vgmByGerente.get(gNombreNorm) || [];
 
       const periods = new Set<string>();
       gMetas.forEach((m: any) => periods.add(String(m.anio_mes)));
@@ -168,17 +262,20 @@ Deno.serve(async (req) => {
       gVgm.forEach((v: any) => periods.add(String(v.periodo)));
 
       let total = 0;
-      const monthlyDbg: any[] = [];
       const isDiana = gNombreNorm.includes('diana maria naranjo');
       const isGrace = gNombreNorm.includes('grace alejandra serje');
+      const monthlyDbg: any[] = [];
 
       for (const period of periods) {
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
-        const novedadNames = new Set(pMetas.filter((m: any) => !isActiveMeta(m)).map((m: any) => norm(m.nombre_asesor)));
+        const novedadNames = new Set(
+          pMetas.filter((m: any) => !isActiveMeta(m)).map((m: any) => norm(m.nombre_asesor)),
+        );
         const pProd = gProd.filter((p: any) => String(p.anio_mes) === period);
         const pVgm = gVgm.filter((v: any) => String(v.periodo) === period);
 
+        // Metas
         let metaFe = 0, metaNube = 0, metaTotal = 0;
         for (const r of activeMetas) {
           metaFe += Number(r.meta_fe) || 0;
@@ -191,6 +288,7 @@ Deno.serve(async (req) => {
           metaAcv += normMetaAcv(r.meta, r.pais);
         }
 
+        // Ventas: prioridad ventas_gerente_mensual
         let vFe = 0, vNube = 0, vTotal = 0, acv = 0;
         if (pVgm.length > 0) {
           for (const v of pVgm) {
@@ -198,11 +296,13 @@ Deno.serve(async (req) => {
             const uds = Number(v.unidades) || 0;
             if (fam === 'FE') vFe += uds;
             else if (fam === 'NUBE') vNube += uds;
+            // CONTADOR suma a total pero no a FE ni NUBE
             vTotal += uds;
             acv += Number(v.acv) || 0;
           }
           acv = Math.round(acv);
         } else {
+          // Fallback: ejecucion_asesores filtrado por equipo de la célula + productividad para ACV
           const teamKeys = new Set<string>();
           for (const m of activeMetas) if (m.nombre_asesor) teamKeys.add(norm(m.nombre_asesor));
           for (const p of pProd) if (p.asesor) teamKeys.add(norm(p.asesor));
@@ -224,32 +324,70 @@ Deno.serve(async (req) => {
         const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
         const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
-        total += sp;
-        if (isDiana || isGrace) monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
+
+        if (sp > 0) {
+          total += sp;
+          monthly.push({ period, sp });
+        }
+        if (isDiana || isGrace) {
+          monthlyDbg.push({
+            period,
+            pctUds: cap(pctUds),
+            pctFe: cap(pctFe),
+            pctNube: cap(pctNube),
+            pctAcv: cap(pctAcv),
+            sp,
+          });
+        }
       }
 
-      gerenteResults.push({ id: g.id, sp_total: total });
+      gerenteResults.push({ id: g.id, sp_total: total, monthly });
       if (isDiana) sampleDiana = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
       if (isGrace) sampleGrace = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
     }
 
     // ===== ASESORES =====
-    const asesorResults: any[] = [];
+    type AResult = { id: string; sp_total: number; monthly: { period: string; sp: number }[] };
+    const asesorResults: AResult[] = [];
+
+    // Pre-index para velocidad
+    const prodByAsesor = new Map<string, any[]>();
+    for (const p of productividad) {
+      const k = norm(p.asesor);
+      if (!prodByAsesor.has(k)) prodByAsesor.set(k, []);
+      prodByAsesor.get(k)!.push(p);
+    }
+    const metasByDoc = new Map<string, any[]>();
+    const metasByName = new Map<string, any[]>();
+    for (const m of metas) {
+      const dk = String(m.documento_asesor || '').trim().toLowerCase();
+      if (dk) {
+        if (!metasByDoc.has(dk)) metasByDoc.set(dk, []);
+        metasByDoc.get(dk)!.push(m);
+      }
+      const nk = norm(m.nombre_asesor);
+      if (nk) {
+        if (!metasByName.has(nk)) metasByName.set(nk, []);
+        metasByName.get(nk)!.push(m);
+      }
+    }
+    const ejecByDoc = new Map<string, any[]>();
+    for (const e of ejec) {
+      const k = String(e.documento_asesor || '').trim().toLowerCase();
+      if (!ejecByDoc.has(k)) ejecByDoc.set(k, []);
+      ejecByDoc.get(k)!.push(e);
+    }
+
     for (const a of asesores) {
       const aNombreNorm = norm(a.nombre);
       const aDoc = String(a.documento || '').trim().toLowerCase();
       const aCanalDir = a.canal_direccion;
 
-      const aProd = productividad.filter((p: any) => norm(p.asesor) === aNombreNorm);
-      const aMetas = metas.filter((m: any) => {
-        if (aDoc && String(m.documento_asesor || '').trim().toLowerCase() === aDoc) return true;
-        return norm(m.nombre_asesor) === aNombreNorm;
-      });
-      const aEjec = ejec.filter((e: any) => {
-        if (aCanalDir && e.canal_direccion !== aCanalDir) return false;
-        if (aDoc && String(e.documento_asesor || '').trim().toLowerCase() === aDoc) return true;
-        return norm(e.documento_asesor) === aNombreNorm;
-      });
+      const aProd = prodByAsesor.get(aNombreNorm) || [];
+      const aMetas =
+        (aDoc && metasByDoc.get(aDoc)) || metasByName.get(aNombreNorm) || [];
+      const aEjecAll = (aDoc && ejecByDoc.get(aDoc)) || [];
+      const aEjec = aCanalDir ? aEjecAll.filter((e: any) => e.canal_direccion === aCanalDir) : aEjecAll;
 
       const periods = new Set<string>();
       aProd.forEach((p: any) => periods.add(String(p.anio_mes)));
@@ -257,9 +395,13 @@ Deno.serve(async (req) => {
       aEjec.forEach((e: any) => periods.add(String(e.periodo)));
 
       let total = 0;
+      const monthly: { period: string; sp: number }[] = [];
+
       for (const period of periods) {
         const pProd = aProd.filter((p: any) => String(p.anio_mes) === period);
-        const pMetas = aMetas.filter((m: any) => String(m.anio_mes) === period && isActiveMeta(m));
+        const pMetas = aMetas.filter(
+          (m: any) => String(m.anio_mes) === period && isActiveMeta(m),
+        );
         const pEjec = aEjec.filter((e: any) => String(e.periodo) === period);
         if (pMetas.length === 0 && pProd.length === 0) continue;
 
@@ -276,36 +418,115 @@ Deno.serve(async (req) => {
         const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
         const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
-        total += computeSp(pctUds, pctFe, pctNube, pctAcv);
+        const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
+        if (sp > 0) {
+          total += sp;
+          monthly.push({ period, sp });
+        }
       }
 
-      asesorResults.push({ id: a.id, nombre: a.nombre, sp_total: total });
+      asesorResults.push({ id: a.id, sp_total: total, monthly });
     }
 
-    // ===== PERSISTIR =====
+    // ===== PERSISTIR sp_convencion =====
     let updatedG = 0;
     for (const r of gerenteResults) {
-      const { error } = await supabase.from('gerentes').update({ sp_convencion: r.sp_total }).eq('id', r.id);
+      const { error } = await supabase
+        .from('gerentes')
+        .update({ sp_convencion: r.sp_total })
+        .eq('id', r.id);
       if (!error) updatedG++;
     }
     let updatedA = 0;
     for (const r of asesorResults) {
-      const { error } = await supabase.from('asesores').update({ sp_convencion: r.sp_total }).eq('id', r.id);
+      const { error } = await supabase
+        .from('asesores')
+        .update({ sp_convencion: r.sp_total })
+        .eq('id', r.id);
       if (!error) updatedA++;
     }
 
-    return new Response(JSON.stringify({
-      ok: true,
-      pais: paisFilter,
-      gerentes_total: gerentes.length,
-      gerentes_actualizados: updatedG,
-      asesores_total: asesores.length,
-      asesores_actualizados: updatedA,
-      sample: { diana: sampleDiana, grace: sampleGrace },
-    }, null, 2), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    // ===== sp_acumulados: limpiar e insertar =====
+    const allIds = [
+      ...gerenteResults.map((r) => r.id),
+      ...asesorResults.map((r) => r.id),
+    ];
+    let cleaned = 0;
+    let inserted = 0;
+    if (allIds.length > 0) {
+      // Borrar en lotes para evitar URLs gigantes
+      const batchSize = 200;
+      for (let i = 0; i < allIds.length; i += batchSize) {
+        const slice = allIds.slice(i, i + batchSize);
+        const { error, count } = await supabase
+          .from('sp_acumulados')
+          .delete({ count: 'exact' })
+          .eq('tipo_sp', 'convencion')
+          .eq('fuente', 'CUMPLIMIENTO_META')
+          .in('gerente_id', slice);
+        if (!error && typeof count === 'number') cleaned += count;
+      }
+
+      // Insertar
+      const rows: any[] = [];
+      for (const r of gerenteResults) {
+        for (const m of r.monthly) {
+          rows.push({
+            gerente_id: r.id,
+            fuente: 'CUMPLIMIENTO_META',
+            tipo_sp: 'convencion',
+            periodo: m.period,
+            sp: m.sp,
+            detalle: 'SP Convención VN (recálculo masivo)',
+          });
+        }
+      }
+      for (const r of asesorResults) {
+        for (const m of r.monthly) {
+          rows.push({
+            gerente_id: r.id,
+            fuente: 'CUMPLIMIENTO_META',
+            tipo_sp: 'convencion',
+            periodo: m.period,
+            sp: m.sp,
+            detalle: 'SP Convención VN (recálculo masivo)',
+          });
+        }
+      }
+      for (let i = 0; i < rows.length; i += 500) {
+        const slice = rows.slice(i, i + 500);
+        const { error } = await supabase.from('sp_acumulados').insert(slice);
+        if (!error) inserted += slice.length;
+      }
+    }
+
+    const spTotalGerentes = gerenteResults.reduce((s, r) => s + r.sp_total, 0);
+    const spTotalAsesores = asesorResults.reduce((s, r) => s + r.sp_total, 0);
+
+    return new Response(
+      JSON.stringify(
+        {
+          ok: true,
+          pais: paisFilter,
+          canal: canalFilter,
+          gerentes_total: gerentes.length,
+          gerentes_actualizados: updatedG,
+          asesores_total: asesores.length,
+          asesores_actualizados: updatedA,
+          sp_total_gerentes: spTotalGerentes,
+          sp_total_asesores: spTotalAsesores,
+          sp_acumulados_eliminados: cleaned,
+          sp_acumulados_insertados: inserted,
+          sample: { diana: sampleDiana, grace: sampleGrace },
+        },
+        null,
+        2,
+      ),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    );
   } catch (e: any) {
     console.error('recalcular-sp-vn error', e);
     return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
