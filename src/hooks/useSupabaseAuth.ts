@@ -27,6 +27,7 @@ export interface AuthUser extends Gerente {
   role: string | null;
   sp_canje: number;
   sp_convencion: number;
+  sp_periodo_actual?: number;
   canal_direccion?: string | null;
 }
 
@@ -221,6 +222,7 @@ export const useSupabaseAuth = () => {
   const fetchUserProfile = async (userId: string) => {
     try {
       const currentConventionYear = getCurrentConventionYear();
+      const currentConventionPeriod = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
       const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId);
       const roles = (roleRes.data || []).map((r: any) => r.role);
       const userRole = roles.includes('admin')
@@ -278,6 +280,7 @@ export const useSupabaseAuth = () => {
 
           // SIEMPRE calcular dinámicamente desde tablas de origen
           let spTotales = 0;
+          let spPeriodoActual = 0;
 
           if (asesor.canal === 'VC') {
             const vcRes = await supabase
@@ -324,6 +327,7 @@ export const useSupabaseAuth = () => {
                 ejecRows: ejecRes.data as any[],
               });
               spTotales = sumVnConventionMonthlyRows(monthlyRows);
+              spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
             } else if (!vnRes.error) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
             }
@@ -366,6 +370,7 @@ export const useSupabaseAuth = () => {
             role: 'asesor',
              sp_canje: asesor.sp_canje ?? 0,
              sp_convencion: spTotales,
+             sp_periodo_actual: spPeriodoActual,
             canal_direccion: (asesor as any).canal_direccion ?? null,
           });
         } else {
@@ -387,6 +392,7 @@ export const useSupabaseAuth = () => {
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
           let spTotales = 0;
+          let spPeriodoActual = 0;
 
           if (isVnGerente && gerenteCelula) {
             // VN: traemos productividad y metas SIN filtrar por celula en SQL,
@@ -473,6 +479,7 @@ export const useSupabaseAuth = () => {
                   ejecRows: syntheticEjec,
                 });
                 spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
               } else {
                 // Fallback to ejecucion_asesores if no ventas_diarias yet
                 const { data: ejecVnRows, error: ejecVnError } = await supabase
@@ -488,7 +495,8 @@ export const useSupabaseAuth = () => {
                     metaRows: metaRowsFiltered,
                     ejecRows: ejecVnRows as any[],
                   });
-                  spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                    spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                    spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
                 } else {
                   spTotales = getVnMonthlyConventionTotal(productivityRows);
                 }
@@ -550,6 +558,7 @@ export const useSupabaseAuth = () => {
             role: userRole,
              sp_canje: (gerenteRes.data as any)?.sp_canje ?? 0,
               sp_convencion: spTotales,
+             sp_periodo_actual: spPeriodoActual,
           });
         } else {
           setProfile(null);

@@ -23,6 +23,13 @@ export interface VnConventionEjecRow {
   ventas_total?: number | null;
 }
 
+export interface VnConventionManagerSourceRow {
+  periodo?: string | null;
+  familia?: string | null;
+  unidades?: number | null;
+  acv?: number | null;
+}
+
 export interface VnConventionMonthlyRow {
   period: string;
   acv: number;
@@ -36,6 +43,7 @@ export interface VnConventionMonthlyRow {
   pctAcv: number;
   pctFe: number;
   pctNube: number;
+  pctTotal: number;
   sp: number;
 }
 
@@ -181,6 +189,8 @@ export const buildVnConventionMonthlyRows = ({
       if (pctFe > CAP) pctFe = CAP;
       let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
       if (pctNube > CAP) pctNube = CAP;
+      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
+      if (pctTotal > CAP) pctTotal = CAP;
 
       return {
         period,
@@ -195,11 +205,94 @@ export const buildVnConventionMonthlyRows = ({
         pctAcv,
         pctFe,
         pctNube,
-        sp: pctAcv + pctFe + pctNube * 2,
+        pctTotal,
+        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
       };
     });
 
   return monthlyRows;
+};
+
+export const buildVnConventionMonthlyRowsFromManagerSources = ({
+  productivityRows,
+  metaRows,
+  managerRows,
+}: {
+  productivityRows?: VnConventionProductivityRow[] | null;
+  metaRows?: VnConventionMetaRow[] | null;
+  managerRows?: VnConventionManagerSourceRow[] | null;
+}) => {
+  const periodSet = new Set<string>();
+
+  (productivityRows || []).forEach((row) => {
+    const period = String(row.anio_mes || '');
+    if (period) periodSet.add(period);
+  });
+
+  (metaRows || []).forEach((row) => {
+    const period = String(row.anio_mes || '');
+    if (period) periodSet.add(period);
+  });
+
+  (managerRows || []).forEach((row) => {
+    const period = String(row.periodo || '');
+    if (period) periodSet.add(period);
+  });
+
+  return [...periodSet]
+    .sort((a, b) => a.localeCompare(b))
+    .map((period) => {
+      const periodProductivity = (productivityRows || []).filter((row) => String(row.anio_mes || '') === period);
+      const periodMetas = (metaRows || []).filter((row) => String(row.anio_mes || '') === period);
+      const activeMetas = periodMetas.filter(isActiveMetaRow);
+      const novedadNames = new Set(
+        periodMetas
+          .filter((row) => !isActiveMetaRow(row))
+          .map((row) => normalizeComparableText(row.nombre_asesor))
+          .filter(Boolean)
+      );
+      const periodManagerRows = (managerRows || []).filter((row) => String(row.periodo || '') === period);
+
+      const acv = periodManagerRows.reduce((sum, row) => sum + (Number(row.acv) || 0), 0);
+      const metaAcv = periodProductivity.reduce((sum, row) => {
+        const advisorName = normalizeComparableText(row.asesor);
+        if (advisorName && novedadNames.has(advisorName)) return sum;
+        return sum + normalizeVnMetaAcv(row.meta, row.pais);
+      }, 0);
+      const metaFe = activeMetas.reduce((sum, row) => sum + (Number(row.meta_fe) || 0), 0);
+      const metaNube = activeMetas.reduce((sum, row) => sum + (Number(row.meta_nube) || 0), 0);
+      const metaTotal = activeMetas.reduce((sum, row) => sum + (Number(row.meta_total) || 0), 0);
+      const ventasFe = periodManagerRows.reduce((sum, row) => sum + (String(row.familia || '').toUpperCase() === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
+      const ventasNube = periodManagerRows.reduce((sum, row) => sum + (String(row.familia || '').toUpperCase() === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
+      const ventasTotal = periodManagerRows.reduce((sum, row) => sum + (Number(row.unidades) || 0), 0);
+
+      const CAP = 300;
+      let pctAcv = metaAcv > 0 && acv > 0 ? Math.round((acv / metaAcv) * 100) : 0;
+      if (pctAcv > CAP) pctAcv = CAP;
+      let pctFe = metaFe > 0 && ventasFe > 0 ? Math.round((ventasFe / metaFe) * 100) : 0;
+      if (pctFe > CAP) pctFe = CAP;
+      let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
+      if (pctNube > CAP) pctNube = CAP;
+      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
+      if (pctTotal > CAP) pctTotal = CAP;
+
+      return {
+        period,
+        acv,
+        metaAcv,
+        metaFe,
+        metaNube,
+        metaTotal,
+        ventasFe,
+        ventasNube,
+        ventasTotal,
+        pctAcv,
+        pctFe,
+        pctNube,
+        pctTotal,
+        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
+      };
+    });
 };
 
 export const sumVnConventionMonthlyRows = (rows: VnConventionMonthlyRow[] | null | undefined) =>
