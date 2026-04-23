@@ -157,12 +157,13 @@ Deno.serve(async (req) => {
       };
     });
 
-    const BATCH = 1000;
+    const BATCH = 500;
     let inserted = 0;
     for (let i = 0; i < diarias.length; i += BATCH) {
       const slice = diarias.slice(i, i + BATCH);
-      const { error } = await sb.from("ventas_diarias").insert(slice);
-      if (error) throw new Error(`insert ventas_diarias: ${error.message}`);
+      const { error } = await sb.from("ventas_diarias")
+        .upsert(slice, { onConflict: "fecha,asesor,tipo_producto,canal_direccion,producto,registro_idx" });
+      if (error) throw new Error(`insert ventas_diarias [batch ${i}]: ${error.message}`);
       inserted += slice.length;
     }
     console.log(`✓ ventas_diarias insertadas: ${inserted}`);
