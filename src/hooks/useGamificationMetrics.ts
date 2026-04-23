@@ -1124,13 +1124,16 @@ export const useGamificationMetrics = (
           if (row.id) canjeablesMap.set(row.id, Number(row.sp_canje) || 0);
         });
 
-        const topRanking = (rankingRes.data || []).map((r: any) => ({
-          id: r.id, nombre: r.nombre,
-          sp_totales: Number(r.sp_totales) || 0,
-          sp_canje: canjeablesMap.get(r.id) || 0,
-          canal: r.canal,
-          nivel: r.nivel,
-        }));
+        const topRanking = isVN
+          ? []
+          : (rankingRes.data || []).map((r: any) => ({
+              id: r.id,
+              nombre: r.nombre,
+              sp_totales: Number(r.sp_totales) || 0,
+              sp_canje: canjeablesMap.get(r.id) || 0,
+              canal: r.canal,
+              nivel: r.nivel,
+            }));
 
         const team = isVC
           ? (teamRes.data || []).map((c: any) => ({
