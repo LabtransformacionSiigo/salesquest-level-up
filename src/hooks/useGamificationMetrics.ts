@@ -195,6 +195,13 @@ const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | nu
   return Math.round(n * factor);
 };
 
+const normalizeStoredAcv = (value: number | null | undefined) => {
+  const n = Number(value) || 0;
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
+  return Math.round(n);
+};
+
 const getPeriodFromDate = (value: unknown) => {
   const raw = String(value ?? '').trim();
   if (!raw) return '';
