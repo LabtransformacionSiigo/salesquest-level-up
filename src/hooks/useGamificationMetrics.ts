@@ -672,7 +672,7 @@ export const useGamificationMetrics = (
                 : metaGerenteRaw);
           let metaAcvEquipo = 0;
           if (metaGerenteData?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
+            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv, profile.pais);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
              const currentMonthProductividad = celulaRows.filter((r: any) => {
@@ -680,7 +680,7 @@ export const useGamificationMetrics = (
                const asesorName = normalizeComparableText(r.asesor);
                return period === mesActual && !metaContextActual.asesoresConNovedad.has(asesorName);
             });
-            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
           }
           vnMetaAcvActual = metaAcvEquipo;
 
@@ -802,7 +802,7 @@ export const useGamificationMetrics = (
           if (asesorData?.documento || profile.nombre) {
             const { data: productividadAdvisorRows } = await supabase
               .from('productividad_asesores')
-              .select('asesor, meta, acv_f, ventas, cant_recomendados')
+              .select('asesor, meta, acv_f, ventas, cant_recomendados, pais')
               .eq('anio_mes', mesActual)
               .limit(2000);
 
@@ -857,7 +857,7 @@ export const useGamificationMetrics = (
                 meta_fe: Number(matchingMeta.meta_fe) || 0,
                 meta_nube: Number(matchingMeta.meta_nube) || 0,
                 meta_total: Number(matchingMeta.meta_total) || 0,
-                meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta),
+                meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta, matchingProductividad?.pais),
               };
               vnCurrentMetaFe = Number(matchingMeta.meta_fe) || 0;
               vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
@@ -871,7 +871,7 @@ export const useGamificationMetrics = (
             });
 
             const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
-            const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
+            const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta, matchingProductividad?.pais);
             if (advisorAcv > 0) acvMes = advisorAcv;
             pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
             vcCumplimiento = advisorMetaAcv > 0 ? { acv: advisorAcv, meta: advisorMetaAcv, pct: pctCumplimiento } : null;

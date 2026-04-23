@@ -186,13 +186,13 @@ const Rankings = () => {
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0, acv: 0 };
           cm.ventas += Number(row.ventas) || 0;
-          cm.meta += normalizeVnMetaAcv(row.meta);
+          cm.meta += normalizeVnMetaAcv(row.meta, row.pais);
           cm.acv += normalizeStoredAcv(row.acv_f);
           agg.months.set(period, cm);
           // Current month totals
           if (period === currentMonth) {
             agg.ventas += Number(row.ventas) || 0;
-            agg.meta += normalizeVnMetaAcv(row.meta);
+            agg.meta += normalizeVnMetaAcv(row.meta, row.pais);
             agg.recomendados += Number(row.cant_recomendados) || 0;
             agg.currentAcv += normalizeStoredAcv(row.acv_f);
           }

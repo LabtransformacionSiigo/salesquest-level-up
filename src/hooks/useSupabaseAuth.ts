@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 import { getNivelData } from '@/lib/niveles';
+import { resolveProductFamily } from '@/lib/product-families';
 
 export interface Gerente {
   id: string;
@@ -21,6 +22,7 @@ export interface Gerente {
 
 export interface AuthUser extends Gerente {
   sp_totales: number;
+  sp_periodo_actual?: number;
   nivel: string;
   sp_nivel_actual: number;
   sp_siguiente_nivel: number | null;
@@ -106,6 +108,14 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   if (!Number.isFinite(n)) return 0;
   if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
   return Math.round(n);
+};
+
+const classifyVnFamily = (row: { producto?: string | null; pais?: string | null; tipo_producto?: string | null }) => {
+  const family = resolveProductFamily(row.producto, row.pais);
+  if (family) return family;
+  const tipo = String(row.tipo_producto || '').trim().toUpperCase();
+  if (tipo === 'FE' || tipo === 'NUBE' || tipo === 'CONTADOR') return tipo;
+  return 'OTRO';
 };
 
 const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null; pais?: string | null }> | null | undefined) => {
