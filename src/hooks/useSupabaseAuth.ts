@@ -386,14 +386,9 @@ export const useSupabaseAuth = () => {
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
-          // Para gerentes VN, priorizamos el total persistido en backend porque ya
-          // viene recalculado con la lógica oficial por célula y es la misma fuente
-          // que consumen ranking_general / sp_totales_gerente.
-          let spTotales = isVnGerente
-            ? Number((data as any).sp_totales ?? (data as any).sp_convencion) || 0
-            : 0;
+          let spTotales = 0;
 
-          if (isVnGerente && spTotales <= 0 && gerenteCelula) {
+          if (isVnGerente && gerenteCelula) {
             // VN: traemos productividad y metas SIN filtrar por celula en SQL,
             // porque productividad usa "Equipo México X" (con tilde) y metas usa
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
@@ -414,7 +409,7 @@ export const useSupabaseAuth = () => {
                 .limit(20000),
               supabase
                 .from('ventas_diarias')
-                .select('fecha, asesor, celula, tipo_producto, unidades, canal_direccion')
+                .select('fecha, asesor, celula, producto, pais, tipo_producto, unidades, canal_direccion')
                 .gte('fecha', `${currentConventionYear}-01-01`)
                 .lt('fecha', `${currentConventionYear + 1}-01-01`)
                 .eq('canal_direccion', canalDireccion)
@@ -439,10 +434,12 @@ export const useSupabaseAuth = () => {
                   const period = fecha.slice(0, 7).replace('-', '');
                   const cur = ventasByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
                   const u = Number(row.unidades) || 0;
-                  const tipo = String(row.tipo_producto || '').toUpperCase();
+                  const producto = String(row.producto || '');
+                  const tipoBase = String(row.tipo_producto || '').toUpperCase();
+                  const tipo = producto || tipoBase;
                   cur.total += u;
-                  if (tipo === 'FE') cur.fe += u;
-                  else if (tipo === 'NUBE') cur.nube += u;
+                  if (String(tipo).includes('FE')) cur.fe += u;
+                  else if (String(tipo).includes('NUBE')) cur.nube += u;
                   ventasByPeriod.set(period, cur);
                 });
 
