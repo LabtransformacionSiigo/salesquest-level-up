@@ -103,7 +103,8 @@ function normalizeCanal(c: any): string {
   const n = norm(c);
   if (n.includes("ALIAD")) return "Aliados";
   if (n.includes("EMPRES")) return "Empresarios";
-  return String(c || "Aliados");
+  // fallback: por defecto Aliados (la mayoría de SA)
+  return "Aliados";
 }
 
 Deno.serve(async (req) => {
