@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ ventas_diarias insertadas: ${inserted}`);
 
-    // 4) Agrega ventas_gerente_mensual (gerente + canal + celula + familia + mes)
+    // 4) Agrega ventas_gerente_mensual (clave: pais|periodo|canal|gerente_norm|familia)
     const aggMap = new Map<string, any>();
     for (const r of rows) {
       const mes = Number(r.mes_nro);
@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
                 : String(r.pais || "COL").toUpperCase().startsWith("ECU") ? "ECU"
                 : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL";
       const periodo = `2026${String(mes).padStart(2, "0")}`;
-      const key = `${gnorm}|${canal}|${celula}|${familia}|${mes}`;
+      const key = `${pais}|${periodo}|${canal}|${gnorm}|${familia}`;
       const cur = aggMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
         familia, mes, anio: 2026, periodo, pais, unidades: 0, acv: 0,
@@ -193,7 +193,8 @@ Deno.serve(async (req) => {
     const aggRows = [...aggMap.values()];
     for (let i = 0; i < aggRows.length; i += BATCH) {
       const slice = aggRows.slice(i, i + BATCH);
-      const { error } = await sb.from("ventas_gerente_mensual").insert(slice);
+      const { error } = await sb.from("ventas_gerente_mensual")
+        .upsert(slice, { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia" });
       if (error) throw new Error(`insert ventas_gerente_mensual: ${error.message}`);
     }
     console.log(`✓ ventas_gerente_mensual: ${aggRows.length} filas`);
