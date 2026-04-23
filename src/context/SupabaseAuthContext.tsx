@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useSupabaseAuth, AuthUser, Gerente } from '@/hooks/useSupabaseAuth';
 import { User, Session } from '@supabase/supabase-js';
 
@@ -15,7 +15,11 @@ interface SupabaseAuthContextType {
   refreshProfile: () => void;
 }
 
-const SupabaseAuthContext = createContext<SupabaseAuthContextType | undefined>(undefined);
+// Use a global symbol so HMR / duplicate module evaluation share the same context instance
+const CTX_KEY = '__SIIGO_ARENA_SUPABASE_AUTH_CTX__';
+const globalAny = globalThis as any;
+const SupabaseAuthContext: React.Context<SupabaseAuthContextType | undefined> =
+  globalAny[CTX_KEY] || (globalAny[CTX_KEY] = createContext<SupabaseAuthContextType | undefined>(undefined));
 
 export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useSupabaseAuth();
@@ -26,10 +30,26 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+const FALLBACK_AUTH: SupabaseAuthContextType = {
+  user: null,
+  session: null,
+  profile: null,
+  loading: true,
+  isAuthenticated: false,
+  signIn: async () => ({ error: new Error('Auth provider no disponible') }),
+  signUp: async () => ({ error: new Error('Auth provider no disponible') }),
+  signOut: async () => ({ error: null }),
+  updateProfile: async () => ({ error: new Error('Auth provider no disponible') }),
+  refreshProfile: () => {},
+};
+
 export const useSupabaseAuthContext = () => {
   const context = useContext(SupabaseAuthContext);
   if (context === undefined) {
-    throw new Error('useSupabaseAuthContext must be used within a SupabaseAuthProvider');
+    if (typeof window !== 'undefined') {
+      console.warn('[SupabaseAuthContext] consumer rendered outside provider — using fallback');
+    }
+    return FALLBACK_AUTH;
   }
   return context;
 };
