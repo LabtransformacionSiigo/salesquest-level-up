@@ -1,109 +1,62 @@
+## Plan de corrección
 
-Objetivo: cerrar la fuga restante para que VN muestre exactamente los totales de Databricks en dashboard, Mi Performance, rankings y SP Convención.
+### Qué voy a corregir
+1. Unificar la fórmula de SP Convención VN en toda la app para que siempre sea:
+   `SP mensual = %Uds + %FE + (%Nube × 2) + %ACV`
+2. Hacer que el historial mensual, el banner de Mi Performance, el header/sidebar, el ranking y el perfil autenticado usen exactamente la misma fuente de cálculo.
+3. Ejecutar un recálculo masivo 2026 y persistir el total correcto en backend para todos los gerentes y asesores VN de Colombia, México, Ecuador y Uruguay.
 
-Estado auditado
-- El arreglo de persistencia base ya existe:
-  - `ventas_diarias.registro_idx` ya está creado.
-  - La migration `20260422174825_02f0e07b-1a02-44c7-b193-457cb3bdba53.sql` ya reemplazó la unique key vieja por `UNIQUE(fecha, asesor, tipo_producto, canal_direccion, producto, registro_idx)`.
-  - `syncVentasAliados` y `syncVentasEmpresarios` ya limpian 2026, preservan filas individuales y usan `registro_idx`.
-- La base ya contiene el volumen correcto en crudo para el caso real:
-  - `ventas_diarias` en abril 2026 para `Equipo Antioquia` tiene FE=215, NUBE=70, CONTADOR=2.
-- La discrepancia persiste aguas abajo:
-  - `ejecucion_asesores` para `Diana Maria Naranjo Mattheus` sigue en FE=11, NUBE=3.
-  - Sumando `ejecucion_asesores` por asesores cruzados con metas del equipo da FE=201, NUBE=67, todavía por debajo del crudo.
-- Conclusión: la fuga principal ya no está en la carga cruda, sino en las capas agregadas y en cómo frontend/SP resuelven gerente-equipo vs asesor individual.
+### Hallazgos confirmados
+- `src/lib/vn-convention.ts` ya suma correctamente `pctTotal + pctAcv + pctFe + pctNube * 2`.
+- `src/pages/MiPerformance.tsx` todavía muestra mal la columna SP del historial mensual: allí se está calculando solo `ACV + FE + Nube*2` y se está omitiendo `%Uds`. Por eso una tabla puede mostrar 187 cuando la suma esperada incluye otro componente, o viceversa.
+- `src/hooks/useSupabaseAuth.ts` para gerentes VN sigue calculando el total con una ruta separada basada en `productividad_asesores + metas_asesores + synthetic ventas_diarias`, en vez de reutilizar la misma ruta oficial de historial mensual.
+- En backend hay valores persistidos desactualizados: por ejemplo, `gerentes.sp_convencion` para Diana Maria Naranjo Mattheus hoy está en `394`, mientras el caso que muestras apunta a `414`.
+- No existen filas de `sp_acumulados` de convención para Diana ni Grace; hoy la persistencia real está dependiendo de `gerentes.sp_convencion` / `asesores.sp_convencion`.
 
-Plan de implementación
+### Implementación
+1. Corregir el historial mensual VN
+   - Ajustar `VnHistorialSection` para que la columna `SP` use exactamente el mismo total del motor (`%Uds + %FE + (%Nube × 2) + %ACV`).
+   - Evitar recomputaciones parciales en el componente y preferir el `sp` ya calculado por la capa de datos cuando esté disponible.
 
-1. Corregir la fuente de verdad para VN gerente
-- Cambiar la lógica de gerentes VN para que FE/NUBE/TOTAL del equipo salga siempre de `ventas_diarias` agregada por `celula + periodo + canal_direccion`.
-- Dejar `ejecucion_asesores` como tabla derivada para asesores individuales y compatibilidad, no como fuente principal del gerente.
-- Aplicar esto en:
-  - `src/hooks/useGamificationMetrics.ts`
-  - `src/hooks/useSupabaseAuth.ts`
-  - cualquier cálculo mensual VN que hoy consuma `ejecucion_asesores` para gerentes.
+2. Unificar la fuente de verdad en frontend
+   - Extraer/usar un único builder para VN mensual en `src/lib/vn-convention.ts`.
+   - Hacer que `useGamificationMetrics.ts`, `useSupabaseAuth.ts` y `Rankings.tsx` consuman ese mismo builder.
+   - Para gerentes VN, priorizar `ventas_gerente_mensual` como fuente oficial de FE/Nube/Unidades/ACV por mes, combinada con `metas_asesores` y `productividad_asesores` para metas y ACV meta.
+   - Para asesores VN, usar la misma fórmula mensual y misma normalización de país/ACV.
 
-2. Reescribir la agregación mensual VN del gerente
-- Crear una utilidad compartida para VN gerente que reciba:
-  - `ventas_diarias`
-  - `productividad_asesores`
-  - `metas_asesores`
-  - `celula`
-  - `canal_direccion`
-- La utilidad debe producir por mes:
-  - `ventas_fe`, `ventas_nube`, `ventas_total` desde `ventas_diarias`
-  - `meta_fe`, `meta_nube`, `meta_total` desde `metas_asesores`
-  - `acv`, `metaAcv` desde `productividad_asesores` / `metas_gerentes`
-- Así el dashboard, historial mensual y SP convención usarán exactamente el mismo cálculo.
+3. Persistir los totales correctos en backend
+   - Crear una rutina de recálculo masivo para ciclo 2026 de todos los usuarios VN (`VN_ALIADOS` y `VN_EMPRESARIOS`) en `COL`, `MEX`, `ECU`, `URU`.
+   - Recalcular mes a mes y luego guardar la sumatoria anual en:
+     - `gerentes.sp_convencion`
+     - `asesores.sp_convencion`
+   - Si conviene para trazabilidad, también dejar una salida estructurada por periodo antes de actualizar para validar muestras como Diana y Grace.
 
-3. Corregir `useGamificationMetrics` en gerente VN
-- Eliminar dependencia de `ejecucion_asesores` para:
-  - `metrics.ejecucion`
-  - `vcMonthlyCumplimiento` en VN
-  - `teamAsesorPerformance` cuando se necesiten FE/NUBE por asesor
-- Mantener `ventas_diarias` como base:
-  - gerente: sumar por `celula`
-  - asesor: sumar por nombre/documento normalizado
-- Revisar el filtro de equipo para que sea prioritariamente por `celula`, no por coincidencia de nombres.
+4. Validación final
+   - Verificar manualmente casos conocidos como Diana y Grace comparando:
+     - Historial mensual en UI
+     - Suma anual mostrada en perfil/header/ranking
+     - Valor persistido en backend
+   - Confirmar que los totales coinciden en todos los puntos de la plataforma.
 
-4. Corregir `teamAsesorPerformance`
-- Hoy arma FE/NUBE por asesor desde `ejecucion_asesores`, lo que sigue heredando subconteos.
-- Cambiarlo para construir métricas por asesor directamente desde `ventas_diarias` del mes:
-  - FE = suma de `unidades` donde `tipo_producto='FE'`
-  - NUBE = suma de `unidades` donde `tipo_producto='NUBE'`
-  - TOTAL = suma de todas las `unidades`
-- Mantener metas por asesor desde `metas_asesores`.
-
-5. Corregir SP Convención VN en `useSupabaseAuth`
-- Para gerentes VN, reemplazar el uso de `buildVnConventionMonthlyRows(...ejecRows...)` basado en `ejecucion_asesores` por el mismo agregado mensual desde `ventas_diarias`.
-- Para asesores VN, conservar cálculo individual pero priorizando `ventas_diarias` sobre `ejecucion_asesores` cuando ambas existan.
-- Resultado esperado: SP de convención y ranking quedan alineados con el mismo volumen que ve la UI.
-
-6. Corregir agregado a `kpis_mensuales`
-- En `aggregateVentasDiariasToKpis` hay un bug de mapeo:
-  - intenta buscar meta con `metaByCelula.get(normalizeText(gerente.nombre))`
-  - debe cruzar contra `gerente.celula`, no contra `gerente.nombre`
-- Ajustar ese join para que KPI histórico VN no quede subalimentado o en cero.
-
-7. Endurecer `ejecucion_asesores` para que no vuelva a desalinearse
-- Mantener limpieza anual actual.
-- Recalcular `ejecucion_asesores` exclusivamente desde `ventas_diarias` recién sincronizada.
-- Validar que `tipo_producto` preserve `FE`, `NUBE`, `CONTADOR`, `OTRO`.
-- `ventas_total` debe incluir todo; `ventas_fe` y `ventas_nube` solo sus familias.
-
-8. Validación funcional obligatoria
-- Validar en BD y UI estos puntos:
-  - `ventas_diarias` abril 2026 / `Equipo Antioquia`
-  - total gerente Diana en dashboard y Mi Performance
-  - historial mensual abril 2026
-  - ranking VN gerente
-  - SP convención recalculado
-- Caso esperado para el equipo:
-  - FE ≈ 215
-  - NUBE = 70
-  - CONTADOR = 2
-- Si negocio exige exactamente 212/70/2 como Databricks, revisar diferencia de 3 FE en la query de extracción/mapeo de Aliados antes de cerrar. Esa diferencia ya no parece ser por colisión de filas sino por criterio de inclusión.
-
-Cambios técnicos concretos
+### Detalles técnicos
 - Archivos a tocar:
+  - `src/lib/vn-convention.ts`
   - `src/hooks/useGamificationMetrics.ts`
   - `src/hooks/useSupabaseAuth.ts`
-  - `src/lib/vn-convention.ts` o nueva utilidad VN compartida
-  - `supabase/functions/sync-databricks/index.ts`
-- Base de datos:
-  - no crear una segunda migration de `registro_idx` salvo que falte en otro entorno; en este proyecto ya existe.
-- Validación con consultas:
-  - comparar `ventas_diarias` vs `ejecucion_asesores` por celula/periodo
-  - comparar UI gerente vs agregado por `celula`
+  - `src/pages/MiPerformance.tsx`
+  - `src/pages/Rankings.tsx`
+- Datos usados:
+  - `ventas_gerente_mensual` para ejecución oficial de gerente VN por mes
+  - `metas_asesores` para `meta_fe`, `meta_nube`, `meta_total` y exclusión por novedad
+  - `productividad_asesores` para `acv_f` y `meta ACV` con escala por país
+- Persistencia a actualizar:
+  - `gerentes.sp_convencion`
+  - `asesores.sp_convencion`
 
-Secuencia de ejecución después de implementar
-1. Sync `ventas_aliados`
-2. Sync `ventas_empresarios`
-3. Sync `productividad_asesores`
-4. Recalcular SP VN
-5. Verificar caso Diana / Equipo Antioquia en preview
+### Resultado esperado
+- Si una fila mensual muestra 54% Uds, 57% FE, 46% Nube y 38% ACV, el SP del mes quedará exactamente en `54 + 57 + 92 + 38 = 241`.
+- El total anual será la suma de la columna SP mes a mes.
+- Ese mismo total quedará igual en Mi Performance, header, sidebar, ranking y backend.
+- Diana, Grace y el resto de VN en Colombia, México, Ecuador y Uruguay quedarán alineados con la tabla mensual oficial.
 
-Resultado esperado
-- La UI de gerentes VN deja de mostrar el subtotal individual del líder y pasa a mostrar el total real de la célula.
-- Rankings y SP Convención quedan alineados con la misma base transaccional.
-- `ejecucion_asesores` deja de ser el cuello de botella que reintroduce el subconteo.
+Apenas apruebes, hago la corrección y corro el recálculo masivo.
