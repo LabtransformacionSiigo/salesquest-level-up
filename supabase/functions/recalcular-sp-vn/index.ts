@@ -92,11 +92,29 @@ Deno.serve(async (req) => {
       fetchAll(supabase, 'productividad_asesores', 'anio_mes, asesor, celula, pais, acv_f, meta',
         (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'metas_asesores', 'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
-        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); if (canalFilter) x = x.in('canal_direccion', canalFilter); return x; }),
-      fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv',
-        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+        (q) => {
+          let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
+      fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv, pais, canal_direccion',
+        (q) => {
+          let x = q.gte('periodo', yStart).lte('periodo', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
       fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
-        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+        (q) => {
+          let x = q.gte('periodo', yStart).lte('periodo', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
     ]);
 
     const isActiveMeta = (m: any) => {
@@ -118,10 +136,14 @@ Deno.serve(async (req) => {
       prodByCelula.get(k)!.push(p);
     }
     const vgmByGerente = new Map<string, any[]>();
+    const vgmByCelula = new Map<string, any[]>();
     for (const v of vgm) {
-      const k = String(v.gerente_normalizado || '');
-      if (!vgmByGerente.has(k)) vgmByGerente.set(k, []);
-      vgmByGerente.get(k)!.push(v);
+      const gerenteKey = String(v.gerente_normalizado || '');
+      if (!vgmByGerente.has(gerenteKey)) vgmByGerente.set(gerenteKey, []);
+      vgmByGerente.get(gerenteKey)!.push(v);
+      const celulaKey = norm(v.celula);
+      if (!vgmByCelula.has(celulaKey)) vgmByCelula.set(celulaKey, []);
+      vgmByCelula.get(celulaKey)!.push(v);
     }
     const ejecByPeriod = new Map<string, any[]>();
     for (const e of ejec) {
@@ -138,7 +160,7 @@ Deno.serve(async (req) => {
       const gCelulaNorm = norm(g.celula);
       const gMetas = metasByCelula.get(gCelulaNorm) || [];
       const gProd = prodByCelula.get(gCelulaNorm) || [];
-      const gVgm = vgmByGerente.get(gNombreNorm) || [];
+      const gVgm = (vgmByCelula.get(gCelulaNorm) || vgmByGerente.get(gNombreNorm) || []);
 
       const periods = new Set<string>();
       gMetas.forEach((m: any) => periods.add(String(m.anio_mes)));
@@ -203,14 +225,12 @@ Deno.serve(async (req) => {
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
         const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
         total += sp;
-        if (isDiana || isGrace) {
-          monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
-        }
+        if (isDiana || isGrace) monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
       }
 
       gerenteResults.push({ id: g.id, sp_total: total });
-      if (isDiana) sampleDiana = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
-      if (isGrace) sampleGrace = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
+      if (isDiana) sampleDiana = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
+      if (isGrace) sampleGrace = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
     }
 
     // ===== ASESORES =====
