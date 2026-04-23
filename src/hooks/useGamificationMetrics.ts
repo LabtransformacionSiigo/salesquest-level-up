@@ -1074,7 +1074,7 @@ export const useGamificationMetrics = (
             const doc = (meta?.documento_asesor && String(meta.documento_asesor)) || '';
 
             const acv = normalizeStoredAcv(prodRow?.acv_f) || ventas.acv;
-            const meta_acv = normalizeVnMetaAcv(prodRow?.meta);
+            const meta_acv = normalizeVnMetaAcv(prodRow?.meta, prodRow?.pais || meta?.pais || profile.pais);
             const ventas_fe = ventas.fe;
             const meta_fe = meta ? (Number(meta.meta_fe) || 0) : 0;
             const ventas_nube = ventas.nube;

@@ -35,7 +35,7 @@ const Dashboard = () => {
   const periodoActivo = showPeriodoSelector ? periodo : undefined;
   const metrics = useGamificationMetrics(profile, periodoActivo);
 
-  const sp = profile?.sp_totales || 0;
+  const sp = isVN ? (profile?.sp_periodo_actual ?? profile?.sp_totales ?? 0) : (profile?.sp_totales ?? 0);
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
   // Period options: current year months + last 3 months of previous year
