@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
     .from("gerentes")
     .select("id, nombre, email, user_id")
     .not("email", "like", "emp-%")
-    .order("nombre", { ascending: true });
+    .order("nombre", { ascending: true })
+    .range(0, 4999);
 
   if (gErr) {
     return new Response(JSON.stringify({ error: gErr.message }), {
@@ -70,7 +71,7 @@ Deno.serve(async (req) => {
   }
 
   // Set de emails ocupados (incluye placeholders emp- para no chocar)
-  const { data: allEmails } = await supabase.from("gerentes").select("email");
+  const { data: allEmails } = await supabase.from("gerentes").select("email").range(0, 4999);
   const usedEmails = new Set<string>((allEmails || []).map((r: any) => (r.email || "").toLowerCase()));
 
   const log: any[] = [];
