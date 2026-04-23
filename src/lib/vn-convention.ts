@@ -36,6 +36,7 @@ export interface VnConventionMonthlyRow {
   pctAcv: number;
   pctFe: number;
   pctNube: number;
+  pctTotal: number;
   sp: number;
 }
 
@@ -182,6 +183,9 @@ export const buildVnConventionMonthlyRows = ({
       let pctNube = metaNube > 0 && ventasNube > 0 ? Math.round((ventasNube / metaNube) * 100) : 0;
       if (pctNube > CAP) pctNube = CAP;
 
+      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
+      if (pctTotal > CAP) pctTotal = CAP;
+
       return {
         period,
         acv,
@@ -195,7 +199,8 @@ export const buildVnConventionMonthlyRows = ({
         pctAcv,
         pctFe,
         pctNube,
-        sp: pctAcv + pctFe + pctNube * 2,
+        pctTotal,
+        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
       };
     });
 
