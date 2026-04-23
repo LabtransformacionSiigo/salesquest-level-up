@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       const gCelulaNorm = norm(g.celula);
       const gMetas = metasByCelula.get(gCelulaNorm) || [];
       const gProd = prodByCelula.get(gCelulaNorm) || [];
-      const gVgm = vgmByGerente.get(gNombreNorm) || [];
+      const gVgm = (vgmByCelula.get(gCelulaNorm) || vgmByGerente.get(gNombreNorm) || []);
 
       const periods = new Set<string>();
       gMetas.forEach((m: any) => periods.add(String(m.anio_mes)));
@@ -225,14 +225,12 @@ Deno.serve(async (req) => {
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
         const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
         total += sp;
-        if (isDiana || isGrace) {
-          monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
-        }
+        if (isDiana || isGrace) monthlyDbg.push({ period, pctUds: cap(pctUds), pctFe: cap(pctFe), pctNube: cap(pctNube), pctAcv: cap(pctAcv), sp });
       }
 
       gerenteResults.push({ id: g.id, sp_total: total });
-      if (isDiana) sampleDiana = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
-      if (isGrace) sampleGrace = { nombre: g.nombre, sp_total: total, monthly: monthlyDbg };
+      if (isDiana) sampleDiana = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
+      if (isGrace) sampleGrace = { nombre: g.nombre, celula: g.celula, sp_total: total, monthly: monthlyDbg };
     }
 
     // ===== ASESORES =====
