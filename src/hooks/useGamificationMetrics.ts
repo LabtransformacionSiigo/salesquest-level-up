@@ -408,16 +408,18 @@ export const useGamificationMetrics = (
                 .eq('mes', currentMonthName)
                 .like('documento_factura', 'SUM-%')
             : Promise.resolve({ data: [] }),
-          /* 19 – ventas_diarias raw para VN exact FE/Nube/Total aggregation */
+          /* 19 – ventas_diarias raw para VN exact FE/Nube/Total aggregation
+                  Para gerentes VN se refina luego con una consulta paginada del equipo
+                  para evitar el recorte backend de 1000 filas. */
           isVN
             ? supabase
                 .from('ventas_diarias')
-                .select('fecha, asesor, celula, equipo, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
                 .eq('canal_direccion', canalNorm)
                 .eq('pais', String(profile.pais || '').toUpperCase())
-                .limit(50000)
+                .range(0, 999)
             : Promise.resolve({ data: [] }),
           /* 20 – ventas_gerente_mensual: FUENTE DE VERDAD para gerentes VN
                   (FE/NUBE/CONTADOR pre-agregado por Databricks).
