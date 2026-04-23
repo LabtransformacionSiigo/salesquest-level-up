@@ -92,11 +92,29 @@ Deno.serve(async (req) => {
       fetchAll(supabase, 'productividad_asesores', 'anio_mes, asesor, celula, pais, acv_f, meta',
         (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
       fetchAll(supabase, 'metas_asesores', 'anio_mes, nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais, meta_fe, meta_nube, meta_total, novedad',
-        (q) => { let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd); if (paisFilter) x = x.in('pais', paisFilter); if (canalFilter) x = x.in('canal_direccion', canalFilter); return x; }),
-      fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv',
-        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+        (q) => {
+          let x = q.gte('anio_mes', yStart).lte('anio_mes', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
+      fetchAll(supabase, 'ventas_gerente_mensual', 'periodo, gerente, gerente_normalizado, celula, familia, unidades, acv, pais, canal_direccion',
+        (q) => {
+          let x = q.gte('periodo', yStart).lte('periodo', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
       fetchAll(supabase, 'ejecucion_asesores', 'periodo, documento_asesor, canal_direccion, ventas_fe, ventas_nube, ventas_total, acv_total, pais',
-        (q) => { let x = q.gte('periodo', yStart).lte('periodo', yEnd); if (paisFilter) x = x.in('pais', paisFilter); return x; }),
+        (q) => {
+          let x = q.gte('periodo', yStart).lte('periodo', yEnd);
+          if (paisFilter) x = x.in('pais', paisFilter);
+          const canalDireccionFilter = canalFilter.map((c) => c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c);
+          if (canalDireccionFilter.length > 0) x = x.in('canal_direccion', canalDireccionFilter);
+          return x;
+        }),
     ]);
 
     const isActiveMeta = (m: any) => {
