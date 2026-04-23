@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
 
@@ -122,6 +123,7 @@ const Header = ({ title }: HeaderProps) => {
         )}
 
         <NotificationBell />
+        <ChangePasswordDialog />
       </motion.div>
     </header>
   );
