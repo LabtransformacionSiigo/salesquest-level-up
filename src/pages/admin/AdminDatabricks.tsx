@@ -126,42 +126,55 @@ const AdminDatabricks = () => {
   };
 
   const handleRecalcConvencionVN = async () => {
-    if (!confirm('Esto borrará y recalculará TODOS los SP Convención VN (Aliados + Empresarios) en COL/MEX/ECU/URU. ¿Continuar?')) return;
+    if (!confirm('Esto recalculará el SP Convención VN por lotes (país + canal) para evitar timeouts en COL/MEX/ECU/URU. ¿Continuar?')) return;
+
+    const batches = [
+      { pais: 'COL', canal: 'VN_ALIADOS' },
+      { pais: 'COL', canal: 'VN_EMPRESARIOS' },
+      { pais: 'MEX', canal: 'VN_ALIADOS' },
+      { pais: 'MEX', canal: 'VN_EMPRESARIOS' },
+      { pais: 'ECU', canal: 'VN_ALIADOS' },
+      { pais: 'ECU', canal: 'VN_EMPRESARIOS' },
+      { pais: 'URU', canal: 'VN_ALIADOS' },
+      { pais: 'URU', canal: 'VN_EMPRESARIOS' },
+    ] as const;
+
     setRecalcRunning(true);
     setRecalcMsg(null);
+
     try {
-      const { data, error } = await supabase.functions.invoke('recalcular-sp-vn', {
-        body: {},
-      });
-      if (error) throw error;
-      const d = data as any;
-      const g = d?.gerentes_actualizados ?? 0;
-      const a = d?.asesores_actualizados ?? 0;
-      const spG = d?.sp_total_gerentes ?? 0;
-      const spA = d?.sp_total_asesores ?? 0;
+      let gerentesActualizados = 0;
+      let asesoresActualizados = 0;
+      let spGerentes = 0;
+      let spAsesores = 0;
+
+      for (let i = 0; i < batches.length; i += 1) {
+        const batch = batches[i];
+        setRecalcMsg(`Procesando ${i + 1}/${batches.length}: ${batch.pais} · ${batch.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios'}...`);
+
+        const { data, error } = await supabase.functions.invoke('recalcular-sp-vn', {
+          body: batch,
+        });
+
+        if (error) {
+          throw new Error(`${batch.pais} / ${batch.canal}: ${error.message}`);
+        }
+
+        const result = data as any;
+        gerentesActualizados += Number(result?.gerentes_actualizados) || 0;
+        asesoresActualizados += Number(result?.asesores_actualizados) || 0;
+        spGerentes += Number(result?.sp_total_gerentes) || 0;
+        spAsesores += Number(result?.sp_total_asesores) || 0;
+      }
+
       setRecalcMsg(
-        `✓ Recalculado: ${g} gerentes (${spG.toLocaleString()} SP), ${a} asesores (${spA.toLocaleString()} SP)`,
+        `✓ Recalculado por lotes: ${gerentesActualizados} gerentes (${spGerentes.toLocaleString()} SP), ${asesoresActualizados} asesores (${spAsesores.toLocaleString()} SP)`
       );
-      setRecalcRunning(false);
-      return;
     } catch (err: any) {
       setRecalcMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    } finally {
       setRecalcRunning(false);
-      return;
     }
-    // Mantener variable usada (legacy)
-    try {
-      const { data, error } = await supabase.functions.invoke('calcular-sp-semanal', {
-        body: { only_convencion: true, reset_existing_convencion: true },
-      });
-      if (error) throw error;
-      const sp = (data as any)?.sp_otorgados ?? 0;
-      const proc = (data as any)?.procesados ?? 0;
-      setRecalcMsg(`✓ Recalculado: ${proc} gerentes, ${sp.toLocaleString()} SP otorgados`);
-    } catch (err: any) {
-      setRecalcMsg(`✗ Error: ${err?.message || 'desconocido'}`);
-    }
-    setRecalcRunning(false);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -246,10 +259,10 @@ const AdminDatabricks = () => {
               </h3>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                 <strong className="text-foreground">⚠️ Úsalo cuando se actualicen metas FE/NUBE</strong> en <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>.
-                Borra y recalcula todos los SP Convención (gerentes y asesores VN) usando la fórmula oficial:
+                Ejecuta el recálculo por lotes (país + canal) para evitar timeouts del backend y persistir el total oficial en gerentes y asesores VN.
               </p>
               <p className="text-[11px] text-muted-foreground font-mono mt-2 bg-muted/50 rounded-lg px-3 py-2">
-                SP_mes = round(ACV/meta × 100) <span className="text-accent">[1%=1SP]</span> + round(FE/metaFE × 100) <span className="text-accent">[1%=1SP]</span> + round(Nube/metaNube × 100) × 2 <span className="text-accent">[1%=2SP]</span>
+                SP_mes = cap(%Uds) + cap(%FE) + cap(%Nube × 2) + cap(%ACV)
               </p>
               {recalcMsg && (
                 <p className={cn("text-xs font-semibold mt-2", recalcMsg.startsWith('✓') ? 'text-secondary' : 'text-destructive')}>
