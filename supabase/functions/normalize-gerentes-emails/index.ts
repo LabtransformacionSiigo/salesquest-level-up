@@ -190,13 +190,16 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify({
     success: true,
     dryRun,
-    total: (gerentes || []).length,
+    offset,
+    limit,
+    processed: (gerentes || []).length,
+    nextOffset: (gerentes || []).length === limit ? offset + limit : null,
     renamed,
     sameEmail,
     authCreated,
     authUpdated,
     pwdReset,
     errors,
-    sample: log.slice(0, 50),
+    sample: log.slice(0, 20),
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
