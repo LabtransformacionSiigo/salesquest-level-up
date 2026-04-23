@@ -186,13 +186,13 @@ const Rankings = () => {
           const period = String(row.anio_mes || '');
           const cm = agg.months.get(period) || { ventas: 0, meta: 0, acv: 0 };
           cm.ventas += Number(row.ventas) || 0;
-          cm.meta += normalizeVnMetaAcv(row.meta);
+          cm.meta += normalizeVnMetaAcv(row.meta, row.pais);
           cm.acv += normalizeStoredAcv(row.acv_f);
           agg.months.set(period, cm);
           // Current month totals
           if (period === currentMonth) {
             agg.ventas += Number(row.ventas) || 0;
-            agg.meta += normalizeVnMetaAcv(row.meta);
+            agg.meta += normalizeVnMetaAcv(row.meta, row.pais);
             agg.recomendados += Number(row.cant_recomendados) || 0;
             agg.currentAcv += normalizeStoredAcv(row.acv_f);
           }
@@ -212,7 +212,7 @@ const Rankings = () => {
             ejecRows: ejecAsesoresRes.data || [],
           });
           const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
+          const spConv = currentMonthly?.sp || 0;
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
@@ -352,7 +352,7 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
+          const spConv = currentMonthly?.sp || 0;
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,

@@ -672,7 +672,7 @@ export const useGamificationMetrics = (
                 : metaGerenteRaw);
           let metaAcvEquipo = 0;
           if (metaGerenteData?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
+            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv, profile.pais);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
              const currentMonthProductividad = celulaRows.filter((r: any) => {
@@ -680,7 +680,7 @@ export const useGamificationMetrics = (
                const asesorName = normalizeComparableText(r.asesor);
                return period === mesActual && !metaContextActual.asesoresConNovedad.has(asesorName);
             });
-            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
           }
           vnMetaAcvActual = metaAcvEquipo;
 
@@ -698,8 +698,9 @@ export const useGamificationMetrics = (
           // ⭐ FUENTE DE VERDAD: ventas_gerente_mensual (Databricks pre-agregado por gerente).
           // Si hay filas para este gerente en este mes, sobreescribe los conteos
           // FE / NUBE / TOTAL / ACV con los valores oficiales de Databricks.
+          const gerenteNormalizado = normalizeComparableText(profile.nombre);
           const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
-            .filter((r: any) => String(r.periodo) === mesActual);
+            .filter((r: any) => String(r.periodo) === mesActual && normalizeComparableText(r.gerente) === gerenteNormalizado);
           const vgmHasMonth = vgmRows.length > 0;
           const vgmFe = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'FE' ? (Number(r.unidades) || 0) : 0), 0);
           const vgmNube = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'NUBE' ? (Number(r.unidades) || 0) : 0), 0);
@@ -802,7 +803,7 @@ export const useGamificationMetrics = (
           if (asesorData?.documento || profile.nombre) {
             const { data: productividadAdvisorRows } = await supabase
               .from('productividad_asesores')
-              .select('asesor, meta, acv_f, ventas, cant_recomendados')
+              .select('asesor, meta, acv_f, ventas, cant_recomendados, pais')
               .eq('anio_mes', mesActual)
               .limit(2000);
 
@@ -857,7 +858,7 @@ export const useGamificationMetrics = (
                 meta_fe: Number(matchingMeta.meta_fe) || 0,
                 meta_nube: Number(matchingMeta.meta_nube) || 0,
                 meta_total: Number(matchingMeta.meta_total) || 0,
-                meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta),
+                meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta, matchingProductividad?.pais),
               };
               vnCurrentMetaFe = Number(matchingMeta.meta_fe) || 0;
               vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
@@ -871,7 +872,7 @@ export const useGamificationMetrics = (
             });
 
             const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
-            const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
+            const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta, matchingProductividad?.pais);
             if (advisorAcv > 0) acvMes = advisorAcv;
             pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
             vcCumplimiento = advisorMetaAcv > 0 ? { acv: advisorAcv, meta: advisorMetaAcv, pct: pctCumplimiento } : null;
@@ -896,7 +897,10 @@ export const useGamificationMetrics = (
           const vgmPeriodsWithData = new Set<string>(vgmAllRows.map((r: any) => String(r.periodo || '')));
 
           if (vgmAllRows.length > 0) {
-            vgmAllRows.forEach((r: any) => {
+            const gerenteNormalizado = normalizeComparableText(profile.nombre);
+            vgmAllRows
+              .filter((r: any) => normalizeComparableText(r.gerente) === gerenteNormalizado)
+              .forEach((r: any) => {
               const period = String(r.periodo || '');
               const fam = String(r.familia || '').toUpperCase();
               const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
@@ -1074,7 +1078,7 @@ export const useGamificationMetrics = (
             const doc = (meta?.documento_asesor && String(meta.documento_asesor)) || '';
 
             const acv = normalizeStoredAcv(prodRow?.acv_f) || ventas.acv;
-            const meta_acv = normalizeVnMetaAcv(prodRow?.meta);
+            const meta_acv = normalizeVnMetaAcv(prodRow?.meta, prodRow?.pais || meta?.pais || profile.pais);
             const ventas_fe = ventas.fe;
             const meta_fe = meta ? (Number(meta.meta_fe) || 0) : 0;
             const ventas_nube = ventas.nube;

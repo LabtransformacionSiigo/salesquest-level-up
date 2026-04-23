@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 import { getNivelData } from '@/lib/niveles';
+import { resolveProductFamily } from '@/lib/product-families';
 
 export interface Gerente {
   id: string;
@@ -21,6 +22,7 @@ export interface Gerente {
 
 export interface AuthUser extends Gerente {
   sp_totales: number;
+  sp_periodo_actual?: number;
   nivel: string;
   sp_nivel_actual: number;
   sp_siguiente_nivel: number | null;
@@ -106,6 +108,14 @@ const normalizeStoredAcv = (value: number | null | undefined) => {
   if (!Number.isFinite(n)) return 0;
   if (Math.abs(n) >= 1_000_000_000_000) return Math.round(n / 1_000_000_000);
   return Math.round(n);
+};
+
+const classifyVnFamily = (row: { producto?: string | null; pais?: string | null; tipo_producto?: string | null }) => {
+  const family = resolveProductFamily(row.producto, row.pais);
+  if (family) return family;
+  const tipo = String(row.tipo_producto || '').trim().toUpperCase();
+  if (tipo === 'FE' || tipo === 'NUBE' || tipo === 'CONTADOR') return tipo;
+  return 'OTRO';
 };
 
 const getVnMonthlyConventionTotal = (rows: Array<{ anio_mes?: string | null; acv_f?: number | null; meta?: number | null; pais?: string | null }> | null | undefined) => {
@@ -221,6 +231,7 @@ export const useSupabaseAuth = () => {
   const fetchUserProfile = async (userId: string) => {
     try {
       const currentConventionYear = getCurrentConventionYear();
+      const currentConventionPeriod = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
       const roleRes = await supabase.from('user_roles').select('role').eq('user_id', userId);
       const roles = (roleRes.data || []).map((r: any) => r.role);
       const userRole = roles.includes('admin')
@@ -278,6 +289,7 @@ export const useSupabaseAuth = () => {
 
           // SIEMPRE calcular dinámicamente desde tablas de origen
           let spTotales = 0;
+          let spPeriodoActual = 0;
 
           if (asesor.canal === 'VC') {
             const vcRes = await supabase
@@ -324,8 +336,12 @@ export const useSupabaseAuth = () => {
                 ejecRows: ejecRes.data as any[],
               });
               spTotales = sumVnConventionMonthlyRows(monthlyRows);
+              spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
             } else if (!vnRes.error) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
+              spPeriodoActual = getVnMonthlyConventionTotal(
+                ((vnRes.data as any[]) || []).filter((row) => String((row as any).anio_mes || '') === currentConventionPeriod),
+              );
             }
           }
 
@@ -360,6 +376,7 @@ export const useSupabaseAuth = () => {
             avatar_url: asesor.avatar_url,
             created_at: asesor.created_at ?? '',
             sp_totales: spTotales,
+            sp_periodo_actual: spPeriodoActual,
             nivel: nivelData.nivel,
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
@@ -387,6 +404,7 @@ export const useSupabaseAuth = () => {
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
           let spTotales = 0;
+          let spPeriodoActual = 0;
 
           if (isVnGerente && gerenteCelula) {
             // VN: traemos productividad y metas SIN filtrar por celula en SQL,
@@ -434,12 +452,18 @@ export const useSupabaseAuth = () => {
                   const period = fecha.slice(0, 7).replace('-', '');
                   const cur = ventasByPeriod.get(period) || { fe: 0, nube: 0, total: 0 };
                   const u = Number(row.unidades) || 0;
-                  const producto = String(row.producto || '');
-                  const tipoBase = String(row.tipo_producto || '').toUpperCase();
-                  const tipo = producto || tipoBase;
+                  const family = classifyVnFamily({
+                    producto: row.producto,
+                    pais: row.pais,
+                    tipo_producto: row.tipo_producto,
+                  });
                   cur.total += u;
-                  if (String(tipo).includes('FE')) cur.fe += u;
-                  else if (String(tipo).includes('NUBE')) cur.nube += u;
+                  if (family === 'CONTADOR') {
+                    ventasByPeriod.set(period, cur);
+                    return;
+                  }
+                  if (family === 'FE') cur.fe += u;
+                  else if (family === 'NUBE') cur.nube += u;
                   ventasByPeriod.set(period, cur);
                 });
 
@@ -473,6 +497,7 @@ export const useSupabaseAuth = () => {
                   ejecRows: syntheticEjec,
                 });
                 spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
               } else {
                 // Fallback to ejecucion_asesores if no ventas_diarias yet
                 const { data: ejecVnRows, error: ejecVnError } = await supabase
@@ -489,8 +514,12 @@ export const useSupabaseAuth = () => {
                     ejecRows: ejecVnRows as any[],
                   });
                   spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                  spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
                 } else {
                   spTotales = getVnMonthlyConventionTotal(productivityRows);
+                  spPeriodoActual = getVnMonthlyConventionTotal(
+                    productivityRows.filter((row: any) => String(row.anio_mes || '') === currentConventionPeriod),
+                  );
                 }
               }
             } else if (!vnRes.error) {
@@ -498,6 +527,9 @@ export const useSupabaseAuth = () => {
                 (row) => normalizeComparableText(row.celula) === normalizedCelula,
               );
               spTotales = getVnMonthlyConventionTotal(productivityRows);
+              spPeriodoActual = getVnMonthlyConventionTotal(
+                productivityRows.filter((row: any) => String(row.anio_mes || '') === currentConventionPeriod),
+              );
             }
           } else if (gerenteId) {
             // VC: calcular desde ventas SUM-
@@ -544,6 +576,7 @@ export const useSupabaseAuth = () => {
             avatar_url: data.avatar_url,
             created_at: '',
             sp_totales: spTotales,
+            sp_periodo_actual: spPeriodoActual,
             nivel: nivelData.nivel,
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
