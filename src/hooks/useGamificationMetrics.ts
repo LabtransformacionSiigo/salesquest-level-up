@@ -495,13 +495,12 @@ export const useGamificationMetrics = (
           // VN gerente path: prefer productividad_asesores by celula
           const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
-          const allVentasDiarias = ventasDiariasRes?.data || [];
+          let allVentasDiarias = ventasDiariasRes?.data || [];
           vnCelulaRows = celulaRows;
 
           // Build team advisor identifiers from productividad + metas_asesores.
-          // En Aliados/Empresarios no podemos depender de ventas_diarias.celula
-          // porque esa columna puede venir vacía; la verdad del equipo se arma
-          // desde la célula del gerente + los asesores del mes.
+          // En Aliados/Empresarios no podemos depender solo del primer bloque de ventas_diarias
+          // porque el backend devuelve páginas de 1000 filas; por eso refinamos la carga al equipo exacto.
           const teamAsesorNames = new Set<string>();
           const teamAdvisorDocs = new Set<string>();
           celulaRows.forEach((r: any) => {
@@ -559,6 +558,33 @@ export const useGamificationMetrics = (
           });
 
           const paisProfile = String(profile.pais || '').toUpperCase();
+
+          if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
+            const teamVentasPaged: any[] = [];
+            const pageSize = 1000;
+            for (let from = 0; from < 10000; from += pageSize) {
+              const filters = [
+                profile.celula ? `celula.eq.${profile.celula}` : '',
+                profile.nombre ? `director.eq.${profile.nombre}` : '',
+              ].filter(Boolean).join(',');
+
+              const query = supabase
+                .from('ventas_diarias')
+                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                .gte('fecha', `${anioActual}-01-01`)
+                .lt('fecha', `${anioActual + 1}-01-01`)
+                .eq('canal_direccion', canalNorm)
+                .eq('pais', paisProfile)
+                .range(from, from + pageSize - 1);
+
+              const { data: pageRows } = filters ? await query.or(filters) : await query;
+              if (!pageRows || pageRows.length === 0) break;
+              teamVentasPaged.push(...pageRows);
+              if (pageRows.length < pageSize) break;
+            }
+            allVentasDiarias = teamVentasPaged;
+          }
+
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
             const rowCanal = String(row.canal_direccion || '').trim();
             const rowPais = String(row.pais || '').toUpperCase().trim();
@@ -569,9 +595,11 @@ export const useGamificationMetrics = (
             const asesorNorm = normalizeComparableText(row.asesor);
             const rowCelulaNorm = normalizeComparableText(row.celula);
             const rowEquipoNorm = normalizeComparableText(row.equipo);
+            const rowDirectorNorm = normalizeComparableText(row.director);
 
             if (matchesNormalizedPerson(asesorNorm, teamAsesorNames)) return true;
             if (celulaGerente && (rowCelulaNorm === celulaGerente || rowEquipoNorm === celulaGerente)) return true;
+            if (gerenteNombre && rowDirectorNorm === gerenteNombre) return true;
             return false;
           });
           vnVentasDiariasRows = teamVentasDiariasAll;
