@@ -1,0 +1,1 @@
+ALTER TABLE public.ventas_diarias DROP CONSTRAINT IF EXISTS ventas_diarias_fecha_asesor_tipo_producto_canal_direccion_p_key;
