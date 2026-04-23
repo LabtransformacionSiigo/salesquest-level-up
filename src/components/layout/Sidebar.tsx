@@ -53,6 +53,8 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
+  const spDisplay = isVN ? (profile?.sp_periodo_actual ?? profile?.sp_totales ?? 0) : (profile?.sp_totales ?? 0);
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
@@ -90,7 +92,7 @@ const Sidebar = () => {
               title="SP Convención · Cumplimiento de meta"
             >
               <MI icon="leaderboard" className="text-sidebar-primary text-lg" />
-              <span className="text-base font-bold font-scoreboard text-sidebar-primary">{(profile?.sp_totales || 0).toLocaleString()}</span>
+              <span className="text-base font-bold font-scoreboard text-sidebar-primary">{spDisplay.toLocaleString()}</span>
               <span className="text-xs text-sidebar-muted font-medium">SP Convención</span>
             </motion.div>
             <motion.div 

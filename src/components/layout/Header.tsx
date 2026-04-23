@@ -21,6 +21,7 @@ const Header = ({ title }: HeaderProps) => {
   const [racha, setRacha] = useState<any>(null);
   const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
+  const spDisplay = isVN ? (profile?.sp_periodo_actual ?? profile?.sp_totales ?? 0) : (profile?.sp_totales ?? 0);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -86,7 +87,7 @@ const Header = ({ title }: HeaderProps) => {
           >
             <div className="flex items-center gap-1.5 bg-primary rounded-full px-3 py-1.5" title="SP Convención · Cumplimiento de meta">
               <MI icon="leaderboard" className="text-sm text-primary-foreground" />
-              <span className="text-xs font-bold text-primary-foreground font-scoreboard">{(profile?.sp_totales || 0).toLocaleString()}</span>
+              <span className="text-xs font-bold text-primary-foreground font-scoreboard">{spDisplay.toLocaleString()}</span>
               <span className="text-[10px] text-primary-foreground/70">SP Convención</span>
             </div>
             <div className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5" title="SP Canje · Medallas, retos y reconocimientos">
