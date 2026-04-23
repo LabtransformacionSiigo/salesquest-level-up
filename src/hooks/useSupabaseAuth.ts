@@ -277,9 +277,10 @@ export const useSupabaseAuth = () => {
 
         if (asesorRes.data) {
           const asesor = asesorRes.data;
+          const isVnAdvisor = asesor.canal === 'VN_ALIADOS' || asesor.canal === 'VN_EMPRESARIOS';
 
-          // SIEMPRE calcular dinámicamente desde tablas de origen
-          let spTotales = 0;
+          // VN debe reflejar el total persistido en backend; VC sigue calculando dinámicamente
+          let spTotales = isVnAdvisor ? Number(asesor.sp_convencion) || 0 : 0;
           let spPeriodoActual = 0;
 
           if (asesor.canal === 'VC') {
@@ -326,9 +327,11 @@ export const useSupabaseAuth = () => {
                 metaRows: (metasRes.data as any[]).filter((row) => normalizeComparableText((row as any).nombre_asesor) === advisorName),
                 ejecRows: ejecRes.data as any[],
               });
-              spTotales = sumVnConventionMonthlyRows(monthlyRows);
+              if (!isVnAdvisor || spTotales === 0) {
+                spTotales = sumVnConventionMonthlyRows(monthlyRows);
+              }
               spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
-            } else if (!vnRes.error) {
+            } else if (!vnRes.error && (!isVnAdvisor || spTotales === 0)) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
             }
           }
@@ -377,9 +380,9 @@ export const useSupabaseAuth = () => {
           setProfile(null);
         }
       } else {
-        const [profileRes, gerenteRes] = await Promise.all([
+          const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('gerentes').select('id, sp_canje, celula, canal').eq('user_id', userId).maybeSingle(),
+            supabase.from('gerentes').select('id, sp_canje, sp_convencion, celula, canal').eq('user_id', userId).maybeSingle(),
         ]);
 
         if (profileRes.error) throw profileRes.error;
@@ -391,7 +394,7 @@ export const useSupabaseAuth = () => {
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
-          let spTotales = 0;
+          let spTotales = isVnGerente ? Number((gerenteRes.data as any)?.sp_convencion) || 0 : 0;
           let spPeriodoActual = 0;
 
           if (isVnGerente && gerenteCelula) {
@@ -472,13 +475,15 @@ export const useSupabaseAuth = () => {
                   ]
                 : metaRowsFiltered;
 
-              if (syntheticEjec.length > 0) {
+                if (syntheticEjec.length > 0) {
                 const monthlyRows = buildVnConventionMonthlyRows({
                   productivityRows,
                   metaRows: metaRowsWithSynthetic,
                   ejecRows: syntheticEjec,
                 });
-                spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                  if (!spTotales) {
+                    spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                  }
                 spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
               } else {
                 // Fallback to ejecucion_asesores if no ventas_diarias yet
@@ -489,13 +494,15 @@ export const useSupabaseAuth = () => {
                   .lte('periodo', `${currentConventionYear}12`)
                   .limit(20000);
 
-                if (!ejecVnError) {
+                  if (!ejecVnError) {
                   const monthlyRows = buildVnConventionMonthlyRows({
                     productivityRows,
                     metaRows: metaRowsFiltered,
                     ejecRows: ejecVnRows as any[],
                   });
-                    spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                    if (!spTotales) {
+                      spTotales = sumVnConventionMonthlyRows(monthlyRows);
+                    }
                     spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
                 } else {
                   spTotales = getVnMonthlyConventionTotal(productivityRows);
