@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
-import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
+import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -158,7 +158,7 @@ const Rankings = () => {
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
-          supabase.from('asesores').select('nombre, sp_canje, pais').eq('canal', profile.canal),
+          supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
         ]);
@@ -170,9 +170,15 @@ const Rankings = () => {
             asesoresConNovedad.add(String(r.nombre_asesor).trim().toLowerCase());
           }
         });
-        const canjeMap = new Map<string, number>();
+        const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
         (asesoresRes.data || []).forEach((a: any) => {
-          if (a.nombre) canjeMap.set(normalizePersonName(a.nombre), Number(a.sp_canje) || 0);
+          if (a.nombre) {
+            asesorInfoMap.set(normalizePersonName(a.nombre), {
+              id: a.id,
+              sp_canje: Number(a.sp_canje) || 0,
+              sp_convencion: Number(a.sp_convencion) || 0,
+            });
+          }
         });
         // Aggregate by advisor
         const advisorAgg = new Map<string, { ventas: number; meta: number; recomendados: number; unidades: number; acv: number; currentAcv: number; celula: string; months: Map<string, { ventas: number; meta: number; acv: number }> }>();
@@ -212,14 +218,14 @@ const Rankings = () => {
             ejecRows: ejecAsesoresRes.data || [],
           });
           const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
+          const asesorInfo = asesorInfoMap.get(key);
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
-            id: key,
+            id: asesorInfo?.id || key,
             nombre: originalName,
             gerente_nombre: agg.celula,
             kpi_value: Math.round(currentAcv || agg.acv),
@@ -235,8 +241,8 @@ const Rankings = () => {
             posicion: 0,
             canal: profile.canal,
             pais: userPais,
-            sp_totales: spConv,
-            sp_canje: canjeMap.get(key) || 0,
+            sp_totales: asesorInfo?.sp_convencion || 0,
+            sp_canje: asesorInfo?.sp_canje || 0,
             nivel: null,
           });
         });
@@ -247,7 +253,7 @@ const Rankings = () => {
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
-          supabase.from('gerentes').select('id, nombre, celula, sp_canje, user_id').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
@@ -283,13 +289,13 @@ const Rankings = () => {
           if (row.user_id && row.role) roleByUserId.set(row.user_id, row.role);
         });
 
-        const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_totales: number }>();
-        const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_totales: number; user_id?: string | null }>>();
+        const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
+        const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
           const celulaKey = normalizeComparableText(g.celula);
           if (!celulaKey) return;
           const list = gerentesByCell.get(celulaKey) || [];
-          list.push({ id: g.id, nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, sp_totales: 0, user_id: g.user_id });
+          list.push({ id: g.id, nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
           gerentesByCell.set(celulaKey, list);
         });
 
@@ -352,7 +358,6 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          const spConv = sumVnConventionMonthlyRows(monthlyRows);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
@@ -370,7 +375,7 @@ const Rankings = () => {
             pct_cumplimiento: pct,
             pct_fe: currentMonthly?.pctFe || 0,
             pct_nube: currentMonthly?.pctNube || 0,
-            sp_totales: spConv,
+            sp_totales: gerenteInfo?.sp_convencion || 0,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
             posicion: 0,
@@ -405,7 +410,12 @@ const Rankings = () => {
   useEffect(() => {
     if (!isAuthenticated || !profile?.canal) return;
     fetchRanking();
-    const channel = supabase.channel('ranking-live').on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking()).subscribe();
+    const channel = supabase
+      .channel(`ranking-live-${profile?.canal}-${userPais}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, () => fetchRanking())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
 
