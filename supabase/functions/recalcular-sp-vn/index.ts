@@ -136,10 +136,14 @@ Deno.serve(async (req) => {
       prodByCelula.get(k)!.push(p);
     }
     const vgmByGerente = new Map<string, any[]>();
+    const vgmByCelula = new Map<string, any[]>();
     for (const v of vgm) {
-      const k = String(v.gerente_normalizado || '');
-      if (!vgmByGerente.has(k)) vgmByGerente.set(k, []);
-      vgmByGerente.get(k)!.push(v);
+      const gerenteKey = String(v.gerente_normalizado || '');
+      if (!vgmByGerente.has(gerenteKey)) vgmByGerente.set(gerenteKey, []);
+      vgmByGerente.get(gerenteKey)!.push(v);
+      const celulaKey = norm(v.celula);
+      if (!vgmByCelula.has(celulaKey)) vgmByCelula.set(celulaKey, []);
+      vgmByCelula.get(celulaKey)!.push(v);
     }
     const ejecByPeriod = new Map<string, any[]>();
     for (const e of ejec) {
