@@ -393,7 +393,7 @@ export const useSupabaseAuth = () => {
             // porque productividad usa "Equipo México X" (con tilde) y metas usa
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
             const normalizedCelula = normalizeComparableText(gerenteCelula);
-            const canalDireccion = gerenteCanal === 'VN_ALIADOS' ? 'Aliados' : 'SMBS';
+            const canalDireccion = gerenteCanal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
             const [vnRes, metasVnRes, ventasDiariasRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
