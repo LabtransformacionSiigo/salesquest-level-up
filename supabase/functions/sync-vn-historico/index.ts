@@ -26,7 +26,7 @@ WITH MaestroGerentes AS (
 SELECT v.pais, MONTH(v.fecha) AS mes_nro,
   COALESCE(m.gerente_limpio, v.Director) AS gerente,
   v.fullname AS asesor, v.tipo_producto1,
-  v.celula, v.canal_direccion, v.fecha,
+  v.celula, v.equipo, v.fecha,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
