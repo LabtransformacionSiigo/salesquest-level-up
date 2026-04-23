@@ -130,22 +130,32 @@ Deno.serve(async (req) => {
       .lte("mes", 4)
       .in("canal_direccion", ["Aliados", "Empresarios"]);
 
-    // 3) Inserta ventas_diarias en lotes
-    const diarias = rows.map((r, idx) => ({
-      fecha: String(r.fecha).slice(0, 10),
-      asesor: String(r.asesor || ""),
-      pais: String(r.pais || "COL").toUpperCase().startsWith("MEX") ? "MEX"
-          : String(r.pais || "COL").toUpperCase().startsWith("ECU") ? "ECU"
-          : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL",
-      celula: r.celula || null,
-      director: r.gerente || null,
-      canal_direccion: normalizeCanal(r.equipo),
-      producto: r.tipo_producto1 || null,
-      tipo_producto: classifyFamily(r.tipo_producto1),
-      unidades: Number(r.ventas) || 0,
-      acv: Number(r.acv_total) || 0,
-      registro_idx: idx,
-    }));
+    // 3) Inserta ventas_diarias en lotes (registro_idx por clave única)
+    const idxMap = new Map<string, number>();
+    const diarias = rows.map((r) => {
+      const fecha = String(r.fecha).slice(0, 10);
+      const asesor = String(r.asesor || "");
+      const tipo = classifyFamily(r.tipo_producto1);
+      const canal = normalizeCanal(r.equipo);
+      const producto = r.tipo_producto1 || "";
+      const key = `${fecha}|${asesor}|${tipo}|${canal}|${producto}`;
+      const cur = (idxMap.get(key) ?? -1) + 1;
+      idxMap.set(key, cur);
+      return {
+        fecha, asesor,
+        pais: String(r.pais || "COL").toUpperCase().startsWith("MEX") ? "MEX"
+            : String(r.pais || "COL").toUpperCase().startsWith("ECU") ? "ECU"
+            : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL",
+        celula: r.celula || null,
+        director: r.gerente || null,
+        canal_direccion: canal,
+        producto: r.tipo_producto1 || null,
+        tipo_producto: tipo,
+        unidades: Number(r.ventas) || 0,
+        acv: Number(r.acv_total) || 0,
+        registro_idx: cur,
+      };
+    });
 
     const BATCH = 1000;
     let inserted = 0;
