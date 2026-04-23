@@ -193,6 +193,9 @@ export const buildVnConventionMonthlyRows = ({
       let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
       if (pctTotal > CAP) pctTotal = CAP;
 
+      let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
+      if (pctTotal > CAP) pctTotal = CAP;
+
       return {
         period,
         acv,
@@ -288,8 +291,8 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
         pctAcv,
         pctFe,
         pctNube,
-        pctTotal: metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0,
-        sp: pctAcv + pctFe + pctNube * 2,
+        pctTotal,
+        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
       };
     });
 };
