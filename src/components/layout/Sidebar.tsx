@@ -44,8 +44,10 @@ const Sidebar = () => {
   const location = useLocation();
 
   const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
+    try { await signOut(); } catch {}
+    navigate('/login', { replace: true });
+    // Forzar reset del estado en memoria
+    setTimeout(() => { window.location.href = '/login'; }, 50);
   };
 
   const isActive = (path: string) => location.pathname === path;
