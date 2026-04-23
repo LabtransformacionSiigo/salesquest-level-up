@@ -36,10 +36,8 @@ const MiPerformance = () => {
   const canal = profile?.canal;
   const isAliados = canal === 'VN_ALIADOS';
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
-  const isVN = isAliados || isEmpresarios;
   const isVCGerente = canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
   const canalLabel = metrics.isVC ? 'Venta Cruzada' : isAliados ? 'Venta Nueva — Aliados' : 'Venta Nueva — Empresarios';
-  const spDisplay = isVN ? (profile?.sp_periodo_actual ?? profile?.sp_totales ?? 0) : (profile?.sp_totales ?? 0);
 
   // Celebration for meta cumplida
   const [celebration, setCelebration] = useState<{ show: boolean; type: 'level_up' | 'meta_cumplida' }>({ show: false, type: 'meta_cumplida' });
@@ -133,7 +131,7 @@ const MiPerformance = () => {
                       animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4 }}
                     >⚡</motion.span>
-                    <AnimatedCounter value={spDisplay} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                    <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                   </div>
                   <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
                 </div>
