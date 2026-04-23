@@ -259,10 +259,10 @@ const AdminDatabricks = () => {
               </h3>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                 <strong className="text-foreground">⚠️ Úsalo cuando se actualicen metas FE/NUBE</strong> en <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>.
-                Borra y recalcula todos los SP Convención (gerentes y asesores VN) usando la fórmula oficial:
+                Ejecuta el recálculo por lotes (país + canal) para evitar timeouts del backend y persistir el total oficial en gerentes y asesores VN.
               </p>
               <p className="text-[11px] text-muted-foreground font-mono mt-2 bg-muted/50 rounded-lg px-3 py-2">
-                SP_mes = round(ACV/meta × 100) <span className="text-accent">[1%=1SP]</span> + round(FE/metaFE × 100) <span className="text-accent">[1%=1SP]</span> + round(Nube/metaNube × 100) × 2 <span className="text-accent">[1%=2SP]</span>
+                SP_mes = cap(%Uds) + cap(%FE) + cap(%Nube × 2) + cap(%ACV)
               </p>
               {recalcMsg && (
                 <p className={cn("text-xs font-semibold mt-2", recalcMsg.startsWith('✓') ? 'text-secondary' : 'text-destructive')}>
