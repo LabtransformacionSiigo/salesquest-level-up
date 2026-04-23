@@ -55,14 +55,16 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* default */ }
   const dryRun: boolean = body?.dryRun === true;
+  const offset: number = Number(body?.offset || 0);
+  const limit: number = Math.min(Number(body?.limit || 100), 200);
 
-  // 1) Cargar todos los gerentes "reales" (sin placeholder emp-xxx)
+  // 1) Cargar lote de gerentes "reales" (sin placeholder emp-xxx)
   const { data: gerentes, error: gErr } = await supabase
     .from("gerentes")
     .select("id, nombre, email, user_id")
     .not("email", "like", "emp-%")
     .order("nombre", { ascending: true })
-    .range(0, 4999);
+    .range(offset, offset + limit - 1);
 
   if (gErr) {
     return new Response(JSON.stringify({ error: gErr.message }), {
