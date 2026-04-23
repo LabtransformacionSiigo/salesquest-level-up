@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
           : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL",
       celula: r.celula || null,
       director: r.gerente || null,
-      canal_direccion: normalizeCanal(r.canal_direccion),
+      canal_direccion: normalizeCanal(r.equipo),
       producto: r.tipo_producto1 || null,
       tipo_producto: classifyFamily(r.tipo_producto1),
       unidades: Number(r.ventas) || 0,
