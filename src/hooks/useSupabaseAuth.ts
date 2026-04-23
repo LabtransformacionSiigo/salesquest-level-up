@@ -588,12 +588,28 @@ export const useSupabaseAuth = () => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      setProfile(null);
-      setUser(null);
-      setSession(null);
+    // Intentar cerrar sesión global; si falla (token inválido/expirado), forzar limpieza local
+    let error: any = null;
+    try {
+      const result = await supabase.auth.signOut();
+      error = result.error;
+      // Si el servidor dice "session_not_found", igual limpiamos local
+      if (error && (error.status === 403 || error.message?.toLowerCase().includes('session'))) {
+        await supabase.auth.signOut({ scope: 'local' });
+        error = null;
+      }
+    } catch (e) {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
     }
+    // Limpieza defensiva del storage por si quedaron tokens huérfanos
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('sb-') && k.includes('-auth-token'))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    setProfile(null);
+    setUser(null);
+    setSession(null);
     return { error };
   };
 
