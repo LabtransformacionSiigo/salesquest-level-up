@@ -7,9 +7,9 @@ export interface CatalogScopeProfile {
 }
 
 export interface ScopedCatalogItem {
-  canal?: string | null;
-  pais?: string | null;
-  gerente_id?: string | null;
+  canal: string | null;
+  pais: string | null;
+  gerente_id: string | null;
 }
 
 const normalizeText = (value?: string | null) => String(value || '').trim().toUpperCase();
