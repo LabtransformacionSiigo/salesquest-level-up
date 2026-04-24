@@ -859,14 +859,14 @@ export const useGamificationMetrics = (
             };
             const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
             const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
-            const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0);
+            const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0);
 
             if (matchingEjec || matchingVentasDiarias.length > 0) {
               ejecucion = {
-                ventas_fe: ventasDiariasFe || Number(matchingEjec?.ventas_fe) || 0,
-                ventas_nube: ventasDiariasNube || Number(matchingEjec?.ventas_nube) || 0,
-                ventas_total: ventasDiariasTotal || Number(matchingEjec?.ventas_total) || 0,
-                acv_total: Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0),
+                ventas_fe: ventasDiariasFe || Math.round(Number(matchingEjec?.ventas_fe) || 0),
+                ventas_nube: ventasDiariasNube || Math.round(Number(matchingEjec?.ventas_nube) || 0),
+                ventas_total: ventasDiariasTotal || Math.round(Number(matchingEjec?.ventas_total) || 0),
+                acv_total: Math.round(Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
                 cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
                 productividad: Number(matchingEjec?.productividad) || 0,
               };
