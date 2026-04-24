@@ -61,8 +61,8 @@ const normAcv = (v: any) => {
 
 const cap = (v: number) => Math.min(CAP, Math.max(0, Math.round(v || 0)));
 
-const computeSp = (pctUds: number, pctFe: number, pctNube: number, pctAcv: number) =>
-  cap(pctUds) + cap(pctFe) + cap(pctNube) * 2 + cap(pctAcv);
+const computeSp = (_pctUds: number, pctFe: number, pctNube: number, pctAcv: number) =>
+  cap(pctFe) + cap(pctNube) * 2 + cap(pctAcv);
 
 const isActiveMeta = (m: any) => {
   const n = norm(m?.novedad);
