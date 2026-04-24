@@ -10,10 +10,24 @@ const corsHeaders = {
 };
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const localJwks = createLocalJWKSet(JSON.parse(Deno.env.get("SUPABASE_JWKS") || '{"keys":[]}'));
+
+let _localJwks: ReturnType<typeof createLocalJWKSet> | null = null;
+function getLocalJwks() {
+  if (_localJwks) return _localJwks;
+  const raw = Deno.env.get("SUPABASE_JWKS") || '{"keys":[]}';
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = { keys: [] };
+  }
+  if (!parsed || !Array.isArray(parsed.keys)) parsed = { keys: [] };
+  _localJwks = createLocalJWKSet(parsed);
+  return _localJwks;
+}
 
 async function getJwtUserId(token: string) {
-  const { payload } = await jwtVerify(token, localJwks, {
+  const { payload } = await jwtVerify(token, getLocalJwks(), {
     issuer: `${supabaseUrl}/auth/v1`,
     audience: "authenticated",
   });
