@@ -306,14 +306,13 @@ Deno.serve(async (req) => {
         if (pVgm.length > 0) {
           for (const v of pVgm) {
             const fam = String(v.familia || '').toUpperCase();
-            const uds = Number(v.unidades) || 0;
+            const uds = Math.round(Number(v.unidades) || 0);
             if (fam === 'FE') vFe += uds;
             else if (fam === 'NUBE') vNube += uds;
             // CONTADOR suma a total pero no a FE ni NUBE
             vTotal += uds;
-            acv += Number(v.acv) || 0;
+            acv += Math.round(Number(v.acv) || 0);
           }
-          acv = Math.round(acv);
         } else {
           // Fallback: ejecucion_asesores filtrado por equipo de la célula + productividad para ACV
           const teamKeys = new Set<string>();
