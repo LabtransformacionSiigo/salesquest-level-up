@@ -689,17 +689,9 @@ export const useGamificationMetrics = (
             return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
           });
 
-          const metaGerenteRaw = metasGerentesRes?.data;
-          const metaGerenteData = Array.isArray(metaGerenteRaw)
-            ? metaGerenteRaw.find((m: any) => normalizeComparableText(m.celula) === celulaGerente)
-            : (metaGerenteRaw && normalizeComparableText(metaGerenteRaw.celula) === celulaGerente
-                ? metaGerenteRaw
-                : metaGerenteRaw);
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
-          } else if (metaGerenteData?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
              const currentMonthProductividad = celulaRows.filter((r: any) => {
