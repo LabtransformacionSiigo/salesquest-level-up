@@ -244,6 +244,60 @@ const AdminEspecialista = () => {
                 items={retos}
                 tipo="reto"
                 permisos={permisos}
+                gerentes={gerentes}
+                isAdmin={isAdmin}
+                isInScope={isInScope}
+                onToggle={toggleActivo}
+                onEdit={(d) => setEditing({ tipo: 'reto', data: d })}
+                onNew={() => setEditing({ tipo: 'reto', data: {} })}
+              />
+            </TabsContent>
+            <TabsContent value="rachas" className="mt-6">
+              <ItemList
+                items={rachas}
+                tipo="racha"
+                permisos={permisos}
+                gerentes={gerentes}
+                isAdmin={isAdmin}
+                isInScope={isInScope}
+                onToggle={toggleActivo}
+                onEdit={(d) => setEditing({ tipo: 'racha', data: d })}
+                onNew={() => setEditing({ tipo: 'racha', data: {} })}
+              />
+            </TabsContent>
+            <TabsContent value="medallas" className="mt-6">
+              <ItemList
+                items={medallas}
+                tipo="medalla"
+                permisos={permisos}
+                gerentes={gerentes}
+                isAdmin={isAdmin}
+                isInScope={isInScope}
+                onToggle={toggleActivo}
+                onEdit={(d) => setEditing({ tipo: 'medalla', data: d })}
+                onNew={() => setEditing({ tipo: 'medalla', data: {} })}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {editing && permisos && (
+          <EditDrawer
+            tipo={editing.tipo}
+            data={editing.data}
+            permisos={permisos}
+            gerentes={gerentes}
+            isAdmin={isAdmin}
+            onClose={() => setEditing(null)}
+            onSave={(p) => saveItem(editing.tipo, p, editing.data.id)}
+          />
+        )}
+
+            <TabsContent value="retos" className="mt-6">
+              <ItemList
+                items={retos}
+                tipo="reto"
+                permisos={permisos}
                 isAdmin={isAdmin}
                 isInScope={isInScope}
                 onToggle={toggleActivo}
