@@ -352,14 +352,18 @@ export const useGamificationMetrics = (
           /* 1 */ supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 2 */ supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
-          /* 4 */ supabase.from('ventas').select('id', { count: 'exact', head: true })
-            .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
-            .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`),
-          /* 5 */ supabase.from('ventas').select('valor_producto')
-            .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
-            .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
+          /* 4 */ isVC
+            ? supabase.from('ventas').select('id', { count: 'exact', head: true })
+                .eq('gerente_id', profile.id)
+                .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
+                .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`)
+            : Promise.resolve({ count: 0 }),
+          /* 5 */ isVC
+            ? supabase.from('ventas').select('valor_producto')
+                .eq('gerente_id', profile.id)
+                .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
+                .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0])
+            : Promise.resolve({ data: [] }),
           /* 6 */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('mes', currentMonthName).eq('anio', anioActual).limit(1)
             : Promise.resolve({ data: [] }),
