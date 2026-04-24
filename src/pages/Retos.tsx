@@ -55,6 +55,9 @@ interface VcCatalogReto {
   nombre: string;
   emoji: string | null;
   ventana_tiempo: string;
+  canal?: string | null;
+  pais?: string | null;
+  gerente_id?: string | null;
   kpi: string | null;
   familia_vc: string | null;
   umbral: number;
