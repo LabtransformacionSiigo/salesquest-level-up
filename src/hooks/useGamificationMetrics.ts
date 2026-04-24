@@ -384,7 +384,9 @@ export const useGamificationMetrics = (
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
           /* 11 */
-          supabase.from('gerentes').select('id, sp_canje'),
+          isVN
+            ? Promise.resolve({ data: [] })
+            : supabase.from('gerentes').select('id, sp_canje'),
           /* 12 – ejecucion_asesores for VN (gerente OR asesor) - ALL months this year */
           isVN
             ? supabase.from('ejecucion_asesores').select('*')
