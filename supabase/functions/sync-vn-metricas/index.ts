@@ -17,8 +17,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ── Consulta A: Agregado por GERENTE (LATAM ex-MX) ──
-// El canal (Aliados/Empresarios) viene de tbl_brz_cuotas_asesores.equipo,
-// no de tbl_gld_Ventas_SA (que no tiene esa columna).
+// El canal (Aliados/Empresarios) viene de la venta misma (`v.equipo`).
+// El cruce con cuotas solo se usa para resolver gerente por célula.
 const QUERY_A_GERENTE = `
 SELECT
   v.pais,
@@ -26,13 +26,13 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  c.equipo,
+  v.equipo AS equipo,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente, equipo
+  SELECT DISTINCT celula, gerente
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
@@ -48,14 +48,14 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  c.equipo,
+  v.equipo AS equipo,
   v.fullname AS asesor,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente, equipo
+  SELECT DISTINCT celula, gerente
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
@@ -70,8 +70,7 @@ WITH MaestroGerentes AS (
   SELECT
     UPPER(TRIM(nombre_asesor)) AS asesor_key,
     MAX(gerente) AS gerente_asignado,
-    MAX(celula)  AS celula_asignada,
-    MAX(equipo)  AS equipo_asignado
+    MAX(celula)  AS celula_asignada
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
   GROUP BY 1
@@ -82,7 +81,7 @@ SELECT
   YEAR(v.FECHA)  AS anio,
   COALESCE(m.gerente_asignado, v.Director) AS gerente,
   m.celula_asignada AS celula,
-  m.equipo_asignado AS equipo,
+  v.EQUIPO AS equipo,
   v.ASESOR  AS asesor,
   v.TIPO_PRODUCTO AS tipo_producto1,
   SUM(v.Unidades) AS ventas,
@@ -195,6 +194,37 @@ function buildRecord(r: any, scope: "gerente" | "asesor") {
   };
 }
 
+function mergeByUniqueGrain(records: ReturnType<typeof buildRecord>[]) {
+  const merged = new Map<string, ReturnType<typeof buildRecord>>();
+
+  for (const record of records) {
+    const key = [
+      record.pais,
+      record.anio,
+      record.mes_nro,
+      record.canal_direccion,
+      record.scope,
+      record.gerente_normalizado ?? "",
+      record.asesor ?? "",
+      record.tipo_producto1,
+    ].join("|");
+
+    const existing = merged.get(key);
+    if (existing) {
+      existing.ventas += record.ventas;
+      existing.acv_total += record.acv_total;
+      if (!existing.gerente && record.gerente) existing.gerente = record.gerente;
+      if (!existing.celula && record.celula) existing.celula = record.celula;
+      if (!existing.familia && record.familia) existing.familia = record.familia;
+      continue;
+    }
+
+    merged.set(key, { ...record });
+  }
+
+  return [...merged.values()];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -227,23 +257,18 @@ Deno.serve(async (req) => {
       if (delErr) throw new Error(`delete previo: ${delErr.message}`);
     }
 
-    const records = [
+    const records = mergeByUniqueGrain([
       ...rowsA.map((r: any) => buildRecord(r, "gerente")),
       ...rowsB.map((r: any) => buildRecord(r, "asesor")),
       ...rowsC.map((r: any) => buildRecord(r, "asesor")),
-    ];
+    ]);
 
     const BATCH = 500;
     let inserted = 0;
     for (let i = 0; i < records.length; i += BATCH) {
       const slice = records.slice(i, i + BATCH);
-      const { error } = await sb
-        .from("vn_metricas_optimizadas")
-        .upsert(slice, {
-          onConflict: "pais,periodo,canal_direccion,scope,gerente_normalizado,asesor,tipo_producto1",
-          ignoreDuplicates: false,
-        });
-      if (error) throw new Error(`upsert batch ${i}: ${error.message}`);
+      const { error } = await sb.from("vn_metricas_optimizadas").insert(slice);
+      if (error) throw new Error(`insert batch ${i}: ${error.message}`);
       inserted += slice.length;
     }
     console.log(`✓ vn_metricas_optimizadas insertadas: ${inserted}`);
