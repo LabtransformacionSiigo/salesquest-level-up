@@ -669,8 +669,22 @@ export const useGamificationMetrics = (
           const metaContextActual = getMetaContextForPeriod(mesActual);
           const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
-          // VN: meta ACV (mensual) — preferir metas_gerentes.meta_total_acv
-          // metasGerentesRes proviene de .maybeSingle() => objeto único o null
+          // VN: meta ACV (mensual) — PRIORIDAD:
+          //   1) metas_acv_gerentes (VERDAD oficial Databricks)
+          //   2) metas_gerentes.meta_total_acv (legacy)
+          //   3) suma productividad_asesores.meta del mes (último recurso)
+          const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
+          // Mapea YYYYMM -> 'ene'/'feb'/... para hacer match con metas_acv_gerentes.mes
+          const mesNumToMes3: Record<string, string> = {
+            '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
+            '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
+          };
+          const mesActualMes3 = mesNumToMes3[String(mesActual).slice(-2)] || '';
+          const acvOficial = acvCatalogRows.find((r: any) => {
+            const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+            return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
+          });
+
           const metaGerenteRaw = metasGerentesRes?.data;
           const metaGerenteData = Array.isArray(metaGerenteRaw)
             ? metaGerenteRaw.find((m: any) => normalizeComparableText(m.celula) === celulaGerente)
@@ -678,7 +692,9 @@ export const useGamificationMetrics = (
                 ? metaGerenteRaw
                 : metaGerenteRaw);
           let metaAcvEquipo = 0;
-          if (metaGerenteData?.meta_total_acv) {
+          if (acvOficial?.meta_total_acv) {
+            metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
+          } else if (metaGerenteData?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
