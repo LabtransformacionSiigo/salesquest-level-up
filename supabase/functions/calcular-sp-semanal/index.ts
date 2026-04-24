@@ -303,8 +303,8 @@ Deno.serve(async (req) => {
     // Build FE/Nube meta by celula+period from metas_asesores (excluding novedad)
     const feMetaByCelulaPeriod = new Map<string, { metaFe: number; metaNube: number }>();
     (metasAsesoresRes.data || []).forEach((row: any) => {
-      const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : "";
-      if (nov && nov !== "sin novedad") return;
+      const nov = row.novedad ? String(row.novedad).trim() : "";
+      if (nov !== "" && nov !== "Sin novedad") return;
       const celula = (row.celula || "").trim();
       const period = String(row.anio_mes || "");
       if (!celula || !period) return;
