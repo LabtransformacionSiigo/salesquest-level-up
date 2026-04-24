@@ -79,6 +79,24 @@ const AdminMetasAcv = () => {
     }
   };
 
+  const handleSyncVnMetricas = async () => {
+    if (syncingVn) return;
+    setSyncingVn(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-vn-metricas', { body: {} });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync VN fallida');
+      toast({
+        title: '✅ Métricas VN sincronizadas',
+        description: `Gerente: ${data.rows_dbx_gerente} · Asesor SA: ${data.rows_dbx_asesor_sa} · MX: ${data.rows_dbx_asesor_mx} · Insertadas: ${data.inserted}`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Error sync VN', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncingVn(false);
+    }
+  };
+
   const fetchHistorial = async () => {
     let q = supabase
       .from('metas_acv_gerentes' as any)
