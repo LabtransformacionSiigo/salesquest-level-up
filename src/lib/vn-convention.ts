@@ -315,7 +315,9 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
       const periodManagerRows = (managerRows || []).filter((row) => String(row.periodo || '') === period);
 
       const acv = periodManagerRows.reduce((sum, row) => sum + (Number(row.acv) || 0), 0);
-      const metaAcv = periodProductivity.reduce((sum, row) => {
+      // Verdad oficial: metas_acv_gerentes (Databricks). Fallback: suma productividad.
+      const officialMetaAcv = getOfficialMetaAcv(period, celula, acvCatalog);
+      const metaAcv = officialMetaAcv ?? periodProductivity.reduce((sum, row) => {
         const advisorName = normalizeComparableText(row.asesor);
         if (advisorName && novedadNames.has(advisorName)) return sum;
         return sum + normalizeVnMetaAcv(row.meta, row.pais);
