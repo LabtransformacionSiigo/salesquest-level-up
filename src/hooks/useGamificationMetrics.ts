@@ -421,12 +421,8 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .order('anio_mes', { ascending: false })
             : Promise.resolve({ data: [] }),
-          /* 17 – metas_gerentes for VN gerente: meta_total_acv */
-          isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('metas_gerentes' as any).select('meta_total_acv, meta_total_und, fe, nube, celula')
-                .eq('celula', profile.celula)
-                .maybeSingle()
-            : Promise.resolve({ data: null }),
+          /* 17 – ELIMINADO: metas_gerentes reemplazada por metas_acv_gerentes (query 21) */
+          Promise.resolve({ data: null }),
           /* 18 – VC team per-comercial ACV+ vs meta for selected month */
           isVC
             ? supabase.from('ventas')
