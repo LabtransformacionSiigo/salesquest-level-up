@@ -65,8 +65,8 @@ const computeSp = (_pctUds: number, pctFe: number, pctNube: number, pctAcv: numb
   cap(pctFe) + cap(pctNube) * 2 + cap(pctAcv);
 
 const isActiveMeta = (m: any) => {
-  const n = norm(m?.novedad);
-  return !n || n === 'sin novedad';
+  const n = (m?.novedad ?? '').toString().trim();
+  return n === '' || n === 'Sin novedad';
 };
 
 async function fetchAll(supabase: any, table: string, select: string, build?: (q: any) => any) {

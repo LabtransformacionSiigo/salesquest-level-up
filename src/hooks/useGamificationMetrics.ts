@@ -641,16 +641,16 @@ export const useGamificationMetrics = (
             const asesoresConNovedad = new Set<string>();
 
             rows.forEach((row: any) => {
-              const novedad = String(row.novedad || '').trim().toLowerCase();
-              const isExcluded = novedad && novedad !== 'sin novedad';
+              const novedadRaw = String(row.novedad || '').trim();
+              const isExcluded = novedadRaw !== '' && novedadRaw !== 'Sin novedad';
               if (isExcluded && row.nombre_asesor) {
                 asesoresConNovedad.add(normalizeComparableText(row.nombre_asesor));
               }
             });
 
             const validRows = rows.filter((row: any) => {
-              const novedad = String(row.novedad || '').trim().toLowerCase();
-              return !novedad || novedad === 'sin novedad';
+              const novedadRaw = String(row.novedad || '').trim();
+              return novedadRaw === '' || novedadRaw === 'Sin novedad';
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
@@ -1078,8 +1078,8 @@ export const useGamificationMetrics = (
             ...ventasPorAsesor.keys(),
             ...[...metasPorAsesor.keys()].filter((k) => {
               const m = metasPorAsesor.get(k);
-              const nov = normalizeComparableText(m?.novedad);
-              return !nov || nov === 'sin novedad';
+              const nov = (m?.novedad ?? '').toString().trim();
+              return nov === '' || nov === 'Sin novedad';
             }),
           ]);
 
@@ -1087,7 +1087,7 @@ export const useGamificationMetrics = (
             const meta = metasPorAsesor.get(asesorKey);
             const prodRow = prodByName.get(asesorKey);
             const ventas = ventasPorAsesor.get(asesorKey) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            const tiene_novedad = !!(meta?.novedad && normalizeComparableText(meta.novedad) !== 'sin novedad');
+            const tiene_novedad = !!(meta?.novedad && (meta.novedad ?? '').toString().trim() !== '' && (meta.novedad ?? '').toString().trim() !== 'Sin novedad');
 
             const nombre = prodRow?.asesor || meta?.nombre_asesor || asesorKey;
             const doc = (meta?.documento_asesor && String(meta.documento_asesor)) || '';
