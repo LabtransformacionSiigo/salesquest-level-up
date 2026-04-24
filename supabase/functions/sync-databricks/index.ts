@@ -469,6 +469,8 @@ async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, j
     let result: any;
     if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
     else if (table === "ventas_vn_completo") result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
+    else if (table === "ventas_empresarios_combo") result = await runVentasEmpresariosCombo({ supabase, mesFilter });
+    else if (table === "ventas_aliados_combo") result = await runVentasAliadosCombo({ supabase, mesFilter });
     else if (table === "all_new") result = { error: "all_new should be dispatched, not processed inline" };
     else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
