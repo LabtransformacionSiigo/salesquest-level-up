@@ -1358,10 +1358,10 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     periodo: g.periodo,
     canal_direccion: canalDireccion,
     pais: g.pais,
-    ventas_fe: g.ventas_fe,
-    ventas_nube: g.ventas_nube,
-    ventas_total: g.ventas_total,
-    acv_total: g.acv_total,
+    ventas_fe: Math.round(g.ventas_fe),
+    ventas_nube: Math.round(g.ventas_nube),
+    ventas_total: Math.round(g.ventas_total),
+    acv_total: Math.round(g.acv_total),
   }));
 
   if (ejRows.length > 0) {
@@ -1781,7 +1781,7 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     const unidadesRaw = Number(row.ventas);
     const unidades = Number.isFinite(unidadesRaw) ? Math.round(unidadesRaw) : 0;
     const acvRaw = Number(row.acv_total);
-    const acv = Number.isFinite(acvRaw) ? acvRaw : 0;
+    const acv = Number.isFinite(acvRaw) ? Math.round(acvRaw) : 0;
 
     // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
     // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,

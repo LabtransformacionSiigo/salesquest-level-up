@@ -732,18 +732,18 @@ export const useGamificationMetrics = (
           const teamVentasFe = vgmHasMonth
             ? vgmFe
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0));
           const teamVentasNube = vgmHasMonth
             ? vgmNube
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0));
           const teamVentasTotal = vgmHasMonth
             ? vgmTotal
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0));
           const teamAcvFromVgm = vgmHasMonth ? Math.round(vgmAcv) : 0;
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
@@ -857,16 +857,16 @@ export const useGamificationMetrics = (
               if (tp === 'FE' || tp === 'NUBE' || tp === 'CONTADOR') return tp;
               return 'OTRO';
             };
-            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
-            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
-            const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0);
+            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0);
 
             if (matchingEjec || matchingVentasDiarias.length > 0) {
               ejecucion = {
-                ventas_fe: ventasDiariasFe || Number(matchingEjec?.ventas_fe) || 0,
-                ventas_nube: ventasDiariasNube || Number(matchingEjec?.ventas_nube) || 0,
-                ventas_total: ventasDiariasTotal || Number(matchingEjec?.ventas_total) || 0,
-                acv_total: Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0),
+                ventas_fe: ventasDiariasFe || Math.round(Number(matchingEjec?.ventas_fe) || 0),
+                ventas_nube: ventasDiariasNube || Math.round(Number(matchingEjec?.ventas_nube) || 0),
+                ventas_total: ventasDiariasTotal || Math.round(Number(matchingEjec?.ventas_total) || 0),
+                acv_total: Math.round(Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
                 cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
                 productividad: Number(matchingEjec?.productividad) || 0,
               };
@@ -889,7 +889,7 @@ export const useGamificationMetrics = (
               return nombreNorm && normalizeComparableText(e.documento_asesor) === nombreNorm;
             });
 
-            const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
+            const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Math.round(Number(matchingEjec?.acv_total) || 0);
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
             if (advisorAcv > 0) acvMes = advisorAcv;
             pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
@@ -919,11 +919,11 @@ export const useGamificationMetrics = (
               const period = String(r.periodo || '');
               const fam = String(r.familia || '').toUpperCase();
               const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              const uds = Number(r.unidades) || 0;
+              const uds = Math.round(Number(r.unidades) || 0);
               if (fam === 'FE') cur.fe += uds;
               else if (fam === 'NUBE') cur.nube += uds;
               cur.total += uds; // FE + NUBE + CONTADOR
-              cur.acv += Number(r.acv) || 0;
+              cur.acv += Math.round(Number(r.acv) || 0);
               ejecByPeriod.set(period, cur);
             });
           }
@@ -935,9 +935,9 @@ export const useGamificationMetrics = (
                   ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
                 return {
                   periodo: getPeriodFromDate(row.fecha),
-                  ventas_fe: fam === 'FE' ? (Number(row.unidades) || 0) : 0,
-                  ventas_nube: fam === 'NUBE' ? (Number(row.unidades) || 0) : 0,
-                  ventas_total: Number(row.unidades) || 0,
+                  ventas_fe: fam === 'FE' ? Math.round(Number(row.unidades) || 0) : 0,
+                  ventas_nube: fam === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0,
+                  ventas_total: Math.round(Number(row.unidades) || 0),
                 };
               })
             : vnTeamEjecAll;
@@ -945,9 +945,9 @@ export const useGamificationMetrics = (
             const period = String(e.periodo || '');
             if (vgmPeriodsWithData.has(period)) return; // ya cubierto por vgm
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            cur.fe += Number(e.ventas_fe) || 0;
-            cur.nube += Number(e.ventas_nube) || 0;
-            cur.total += Number(e.ventas_total) || 0;
+            cur.fe += Math.round(Number(e.ventas_fe) || 0);
+            cur.nube += Math.round(Number(e.ventas_nube) || 0);
+            cur.total += Math.round(Number(e.ventas_total) || 0);
             ejecByPeriod.set(period, cur);
           });
 

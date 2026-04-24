@@ -306,14 +306,13 @@ Deno.serve(async (req) => {
         if (pVgm.length > 0) {
           for (const v of pVgm) {
             const fam = String(v.familia || '').toUpperCase();
-            const uds = Number(v.unidades) || 0;
+            const uds = Math.round(Number(v.unidades) || 0);
             if (fam === 'FE') vFe += uds;
             else if (fam === 'NUBE') vNube += uds;
             // CONTADOR suma a total pero no a FE ni NUBE
             vTotal += uds;
-            acv += Number(v.acv) || 0;
+            acv += Math.round(Number(v.acv) || 0);
           }
-          acv = Math.round(acv);
         } else {
           // Fallback: ejecucion_asesores filtrado por equipo de la célula + productividad para ACV
           const teamKeys = new Set<string>();
@@ -322,9 +321,9 @@ Deno.serve(async (req) => {
           const periodEjec = ejecByPeriod.get(period) || [];
           for (const e of periodEjec) {
             if (!teamKeys.has(norm(e.documento_asesor))) continue;
-            vFe += Number(e.ventas_fe) || 0;
-            vNube += Number(e.ventas_nube) || 0;
-            vTotal += Number(e.ventas_total) || 0;
+            vFe += Math.round(Number(e.ventas_fe) || 0);
+            vNube += Math.round(Number(e.ventas_nube) || 0);
+            vTotal += Math.round(Number(e.ventas_total) || 0);
           }
           for (const r of pProd) {
             if (novedadNames.has(norm(r.asesor))) continue;
@@ -423,9 +422,9 @@ Deno.serve(async (req) => {
         const metaTotal = pMetas.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
         const metaAcv = pProd.reduce((s: number, r: any) => s + normMetaAcv(r.meta, r.pais), 0);
         const acv = pProd.reduce((s: number, r: any) => s + normAcv(r.acv_f), 0);
-        const vFe = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-        const vNube = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-        const vTotal = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+        const vFe = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0);
+        const vNube = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0);
+        const vTotal = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0);
 
         const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
