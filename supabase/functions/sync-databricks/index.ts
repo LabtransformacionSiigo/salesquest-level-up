@@ -45,6 +45,11 @@ const SPANISH_MONTHS: Record<string, string> = {
   "Septiembre": "09", "Octubre": "10", "Noviembre": "11", "Diciembre": "12",
 };
 
+const MONTH_NUMBERS_3: Record<string, string> = {
+  ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
+  jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
+};
+
 // ============================================================
 // TABLE_CONFIGS – all Databricks queries
 // ============================================================
@@ -259,6 +264,22 @@ const normalizeCountry = (value: unknown) => {
   if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
   if (["URU", "UY", "URUGUAY"].includes(country)) return "URU";
   return "COL";
+};
+
+const normalizePeriodFromCuotas = (row: Record<string, any>) => {
+  const rawYear = String(row["Año_Meta"] ?? row["anio_meta"] ?? row["ANIO_META"] ?? row.anio ?? row.Anio ?? "").trim();
+  const rawMonth = String(row.mes ?? row.MES ?? row.M ?? row.m ?? row.Mes ?? row["Mes_meta"] ?? row["mes_meta"] ?? "").trim();
+  const year = /^\d{4}$/.test(rawYear) ? rawYear : "2026";
+  const normalizedMonth = rawMonth.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 3);
+  const month = MONTH_NUMBERS_3[normalizedMonth] || SPANISH_MONTHS[rawMonth] || "";
+  return month ? `${year}${month}` : "";
+};
+
+const inferCanalDireccionFromTeam = (value: unknown) => {
+  const raw = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (raw.includes("empres") || raw.includes("smb") || raw.includes("mercadeo") || raw.includes("digital") || raw.includes("lead")) return "Empresarios";
+  if (raw.includes("aliad")) return "Aliados";
+  return "Aliados";
 };
 
 const toNumber = (...values: any[]) => {
