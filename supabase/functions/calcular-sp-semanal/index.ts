@@ -227,8 +227,8 @@ Deno.serve(async (req) => {
     // Build set of asesor names WITH novedad (to exclude from meta)
     const asesoresConNovedad = new Set<string>();
     (metasAsesoresRes.data || []).forEach((row: any) => {
-      const nov = row.novedad ? String(row.novedad).trim().toLowerCase() : "";
-      if (nov && nov !== "sin novedad" && row.nombre_asesor) {
+      const nov = row.novedad ? String(row.novedad).trim() : "";
+      if (nov !== "" && nov !== "Sin novedad" && row.nombre_asesor) {
         asesoresConNovedad.add(String(row.nombre_asesor).trim().toLowerCase());
       }
     });
