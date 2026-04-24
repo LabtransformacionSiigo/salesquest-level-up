@@ -908,7 +908,7 @@ export const useGamificationMetrics = (
           const buildMonthMetaAcv = (period: string) =>
             celulaRows
               .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
-              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
 
           // Aggregate FE/Nube/Total per month.
           // ⭐ Prioridad: ventas_gerente_mensual (Databricks oficial por gerente),
