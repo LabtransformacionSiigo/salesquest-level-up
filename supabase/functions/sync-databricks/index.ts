@@ -1843,36 +1843,72 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
 // (ventas_diarias + ejecucion_asesores + kpis_mensuales) y (ventas tabla VC unificada).
 // Antes ejecutábamos la misma query 2 veces por canal — esto reduce ~50% el tiempo.
 // ============================================================
+// Meses procesados por defecto cuando no se especifica un mesFilter.
+// Dividir por mes evita timeouts de Databricks/Edge en el combo (queries muy grandes).
+const COMBO_MESES_DEFAULT = ["Enero", "Febrero", "Marzo", "Abril"];
+
 async function runVentasEmpresariosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
   const config = TABLE_CONFIGS.ventas_empresarios;
-  const rows = await runDatabricksQuery("ventas_empresarios_combo", config.sql("", mesFilter));
-  console.log(`[ventas_empresarios_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+  const meses = mesFilter ? [mesFilter] : COMBO_MESES_DEFAULT;
+  console.log(`[ventas_empresarios_combo] procesando ${meses.length} mes(es): ${meses.join(", ")}`);
 
-  const [empresariosResult, vnResult] = await Promise.allSettled([
-    syncVentasEmpresarios(supabase, rows),
-    syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
-  ]);
+  let totalRows = 0;
+  const perMonth: Record<string, any> = {};
 
-  return {
-    total_rows: rows.length,
-    ventas_diarias: empresariosResult.status === "fulfilled" ? empresariosResult.value : { error: String(empresariosResult.reason) },
-    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
-  };
+  for (const mes of meses) {
+    try {
+      const rows = await runDatabricksQuery("ventas_empresarios_combo", config.sql("", mes));
+      console.log(`[ventas_empresarios_combo][${mes}] Databricks returned ${rows.length} rows`);
+      totalRows += rows.length;
+
+      const [empresariosResult, vnResult] = await Promise.allSettled([
+        syncVentasEmpresarios(supabase, rows),
+        syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
+      ]);
+
+      perMonth[mes] = {
+        rows: rows.length,
+        ventas_diarias: empresariosResult.status === "fulfilled" ? empresariosResult.value : { error: String(empresariosResult.reason) },
+        ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
+      };
+    } catch (err) {
+      console.error(`[ventas_empresarios_combo][${mes}] error:`, err);
+      perMonth[mes] = { error: String((err as any)?.message || err) };
+    }
+  }
+
+  return { total_rows: totalRows, meses: perMonth };
 }
 
 async function runVentasAliadosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
   const config = TABLE_CONFIGS.ventas_aliados;
-  const rows = await runDatabricksQuery("ventas_aliados_combo", config.sql("", mesFilter));
-  console.log(`[ventas_aliados_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+  const meses = mesFilter ? [mesFilter] : COMBO_MESES_DEFAULT;
+  console.log(`[ventas_aliados_combo] procesando ${meses.length} mes(es): ${meses.join(", ")}`);
 
-  const [aliadosResult, vnResult] = await Promise.allSettled([
-    syncVentasAliados(supabase, rows),
-    syncVentasVN(supabase, rows, "VN_ALIADOS"),
-  ]);
+  let totalRows = 0;
+  const perMonth: Record<string, any> = {};
 
-  return {
-    total_rows: rows.length,
-    ventas_diarias: aliadosResult.status === "fulfilled" ? aliadosResult.value : { error: String(aliadosResult.reason) },
-    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
-  };
+  for (const mes of meses) {
+    try {
+      const rows = await runDatabricksQuery("ventas_aliados_combo", config.sql("", mes));
+      console.log(`[ventas_aliados_combo][${mes}] Databricks returned ${rows.length} rows`);
+      totalRows += rows.length;
+
+      const [aliadosResult, vnResult] = await Promise.allSettled([
+        syncVentasAliados(supabase, rows),
+        syncVentasVN(supabase, rows, "VN_ALIADOS"),
+      ]);
+
+      perMonth[mes] = {
+        rows: rows.length,
+        ventas_diarias: aliadosResult.status === "fulfilled" ? aliadosResult.value : { error: String(aliadosResult.reason) },
+        ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
+      };
+    } catch (err) {
+      console.error(`[ventas_aliados_combo][${mes}] error:`, err);
+      perMonth[mes] = { error: String((err as any)?.message || err) };
+    }
+  }
+
+  return { total_rows: totalRows, meses: perMonth };
 }
