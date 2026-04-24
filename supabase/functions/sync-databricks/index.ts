@@ -1269,21 +1269,21 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
 // Helper: Update ejecucion_asesores from ventas_diarias rows
 // ============================================================
 async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], canalDireccion: string, errores: string[]) {
-  // Group by asesor + month → summarize FE, Nube, total
-  const grouped = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number; acv_total: number; documento_asesor: string; periodo: string }>();
+  // Group by asesor + pais + month → summarize FE, Nube, total.
+  // CRITICAL: include pais in the key so MEX/ECU/URU don't collide with COL
+  // when the same asesor name (or null doc) repeats across countries.
+  const grouped = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number; acv_total: number; documento_asesor: string; periodo: string; pais: string }>();
 
   for (const row of rows) {
     const fecha = String(row.fecha || "");
     const periodo = fecha.length >= 7 ? fecha.substring(0, 7).replace("-", "") : new Date().toISOString().substring(0, 7).replace("-", "");
-    // Ensure periodo is 6 chars (YYYYMM)
     const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
-    const key = `${row.asesor}|${periodoClean}`;
-    // tipo_producto already holds the canonical family ("FE" | "NUBE" | "OTRO")
-    // set by syncVentasAliados / syncVentasEmpresarios
+    const pais = String(row.pais || "COL").toUpperCase();
+    const key = `${row.asesor}|${pais}|${periodoClean}`;
     const cat = String(row.tipo_producto || "").trim().toUpperCase();
 
     if (!grouped.has(key)) {
-      grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
+      grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean, pais });
     }
     const g = grouped.get(key)!;
     const unidades = Math.round(row.unidades || 0);
@@ -1297,6 +1297,7 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     documento_asesor: g.documento_asesor,
     periodo: g.periodo,
     canal_direccion: canalDireccion,
+    pais: g.pais,
     ventas_fe: g.ventas_fe,
     ventas_nube: g.ventas_nube,
     ventas_total: g.ventas_total,
