@@ -1358,10 +1358,10 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     periodo: g.periodo,
     canal_direccion: canalDireccion,
     pais: g.pais,
-    ventas_fe: g.ventas_fe,
-    ventas_nube: g.ventas_nube,
-    ventas_total: g.ventas_total,
-    acv_total: g.acv_total,
+    ventas_fe: Math.round(g.ventas_fe),
+    ventas_nube: Math.round(g.ventas_nube),
+    ventas_total: Math.round(g.ventas_total),
+    acv_total: Math.round(g.acv_total),
   }));
 
   if (ejRows.length > 0) {
