@@ -159,6 +159,7 @@ export type Database = {
           created_at: string | null
           descripcion: string | null
           emoji: string | null
+          gerente_id: string | null
           id: string
           nombre: string
           objetivo_descripcion: string | null
@@ -176,6 +177,7 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           emoji?: string | null
+          gerente_id?: string | null
           id?: string
           nombre: string
           objetivo_descripcion?: string | null
@@ -193,6 +195,7 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           emoji?: string | null
+          gerente_id?: string | null
           id?: string
           nombre?: string
           objetivo_descripcion?: string | null
@@ -202,7 +205,57 @@ export type Database = {
           sp?: number
           tipo_evento?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_medallas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       catalogo_retos: {
         Row: {
@@ -213,6 +266,7 @@ export type Database = {
           emoji: string | null
           familia: string | null
           familia_vc: string | null
+          gerente_id: string | null
           id: string
           kpi: string | null
           nombre: string
@@ -233,6 +287,7 @@ export type Database = {
           emoji?: string | null
           familia?: string | null
           familia_vc?: string | null
+          gerente_id?: string | null
           id?: string
           kpi?: string | null
           nombre: string
@@ -253,6 +308,7 @@ export type Database = {
           emoji?: string | null
           familia?: string | null
           familia_vc?: string | null
+          gerente_id?: string | null
           id?: string
           kpi?: string | null
           nombre?: string
@@ -265,7 +321,57 @@ export type Database = {
           umbral_secundario?: number | null
           ventana_tiempo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "catalogo_retos_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       config_rachas: {
         Row: {
@@ -277,6 +383,7 @@ export type Database = {
           dias_lun_mie: boolean | null
           dias_requeridos: number | null
           familia_vc: string | null
+          gerente_id: string | null
           id: string
           kpi: string | null
           multiplicador_sp: number | null
@@ -296,6 +403,7 @@ export type Database = {
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
           familia_vc?: string | null
+          gerente_id?: string | null
           id?: string
           kpi?: string | null
           multiplicador_sp?: number | null
@@ -315,6 +423,7 @@ export type Database = {
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
           familia_vc?: string | null
+          gerente_id?: string | null
           id?: string
           kpi?: string | null
           multiplicador_sp?: number | null
@@ -325,7 +434,57 @@ export type Database = {
           umbral_legacy?: number | null
           umbral_verde?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "config_rachas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ejecucion_asesores: {
         Row: {

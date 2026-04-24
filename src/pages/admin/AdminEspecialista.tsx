@@ -70,6 +70,7 @@ const AdminEspecialista = () => {
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
   const [medallas, setMedallas] = useState<any[]>([]);
+  const [gerentes, setGerentes] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<{ tipo: string; data: any } | null>(null);
 
@@ -80,6 +81,14 @@ const AdminEspecialista = () => {
     if (!isAuthenticated || (!isAdmin && !isEspecialista)) return;
     loadAll();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
+
+  // Map operación → canal de gerente para filtrar el selector
+  const operacionToCanal = (op: string): string | null => {
+    if (op === 'Venta Cruzada') return 'VC';
+    if (op === 'Venta Nueva (Aliados)') return 'VN_ALIADOS';
+    if (op === 'Venta Nueva (Empresarios)') return 'VN_EMPRESARIOS';
+    return null;
+  };
 
   const loadAll = async () => {
     setDataLoading(true);
@@ -94,14 +103,24 @@ const AdminEspecialista = () => {
     }
     setPermisos(perm);
 
-    const [r1, r2, r3] = await Promise.all([
+    // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
+    let gerentesQuery = supabase.from('gerentes').select('id, nombre, canal, pais, celula').eq('activo', true).order('nombre');
+    if (!isAdmin) {
+      const canales = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
+      if (perm.paises.length > 0) gerentesQuery = gerentesQuery.in('pais', perm.paises);
+      if (canales.length > 0) gerentesQuery = gerentesQuery.in('canal', canales);
+    }
+
+    const [r1, r2, r3, gQ] = await Promise.all([
       supabase.from('catalogo_retos').select('*').order('ventana_tiempo'),
       supabase.from('config_rachas').select('*').order('nombre'),
       supabase.from('catalogo_medallas').select('*').order('nombre'),
+      gerentesQuery,
     ]);
     setRetos(r1.data || []);
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
+    setGerentes(gQ.data || []);
     setDataLoading(false);
   };
 
@@ -225,6 +244,7 @@ const AdminEspecialista = () => {
                 items={retos}
                 tipo="reto"
                 permisos={permisos}
+                gerentes={gerentes}
                 isAdmin={isAdmin}
                 isInScope={isInScope}
                 onToggle={toggleActivo}
@@ -237,6 +257,7 @@ const AdminEspecialista = () => {
                 items={rachas}
                 tipo="racha"
                 permisos={permisos}
+                gerentes={gerentes}
                 isAdmin={isAdmin}
                 isInScope={isInScope}
                 onToggle={toggleActivo}
@@ -249,6 +270,7 @@ const AdminEspecialista = () => {
                 items={medallas}
                 tipo="medalla"
                 permisos={permisos}
+                gerentes={gerentes}
                 isAdmin={isAdmin}
                 isInScope={isInScope}
                 onToggle={toggleActivo}
@@ -264,6 +286,7 @@ const AdminEspecialista = () => {
             tipo={editing.tipo}
             data={editing.data}
             permisos={permisos}
+            gerentes={gerentes}
             isAdmin={isAdmin}
             onClose={() => setEditing(null)}
             onSave={(p) => saveItem(editing.tipo, p, editing.data.id)}
@@ -277,6 +300,7 @@ const AdminEspecialista = () => {
 const ItemList = ({
   items,
   tipo,
+  gerentes = [],
   isInScope,
   onToggle,
   onEdit,
@@ -332,7 +356,13 @@ const ItemList = ({
               {it.operacion && (
                 <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{it.operacion}</span>
               )}
-              {!it.pais && !it.operacion && (
+              {it.gerente_id && (
+                <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <MI icon="person" className="text-[11px]" />
+                  {gerentes.find((g: any) => g.id === it.gerente_id)?.nombre || 'Gerente específico'}
+                </span>
+              )}
+              {!it.pais && !it.operacion && !it.gerente_id && (
                 <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-semibold">
                   Genérico (sin país/op)
                 </span>
@@ -355,7 +385,7 @@ const ItemList = ({
   </div>
 );
 
-const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => {
+const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onSave }: any) => {
   const [form, setForm] = useState<any>({
     nombre: data.nombre || '',
     objetivo_descripcion: data.objetivo_descripcion || data.descripcion || '',
@@ -364,6 +394,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
     emoji: data.emoji || '🎯',
     pais: data.pais || (permisos.paises[0] ?? ''),
     operacion: data.operacion || (permisos.operaciones[0] ?? ''),
+    gerente_id: data.gerente_id || '',
     activo: data.activo ?? false,
     // reto
     ventana_tiempo: data.ventana_tiempo || 'DIARIO',
@@ -386,12 +417,22 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
   const paisesPerm = isAdmin ? ['COL', 'ECU', 'URU', 'MEX'] : permisos.paises;
   const opsPerm = isAdmin ? OPERACIONES : permisos.operaciones;
 
+  // Filtrar gerentes según país/canal seleccionado en el formulario
+  const opToCanal = (op: string) => op === 'Venta Cruzada' ? 'VC' : op === 'Venta Nueva (Aliados)' ? 'VN_ALIADOS' : op === 'Venta Nueva (Empresarios)' ? 'VN_EMPRESARIOS' : null;
+  const canalForm = opToCanal(form.operacion);
+  const gerentesFiltrados = gerentes.filter((g: any) => {
+    if (form.pais && g.pais !== form.pais) return false;
+    if (canalForm && g.canal !== canalForm) return false;
+    return true;
+  });
+
   const handleSave = () => {
     let payload: any = {
       nombre: form.nombre,
       objetivo_descripcion: form.objetivo_descripcion,
       pais: form.pais || null,
       operacion: form.operacion || null,
+      gerente_id: form.gerente_id || null,
       activo: form.activo,
       emoji: form.emoji,
     };
@@ -479,7 +520,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
           <Field label="Operación">
             <select
               value={form.operacion}
-              onChange={(e) => setForm({ ...form, operacion: e.target.value })}
+              onChange={(e) => setForm({ ...form, operacion: e.target.value, gerente_id: '' })}
               className={inputClass}
             >
               <option value="">— Sin operación —</option>
@@ -490,6 +531,29 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
               ))}
             </select>
           </Field>
+          <div className="col-span-2">
+            <Field
+              label="Gerente asignado (opcional)"
+              hint={
+                gerentesFiltrados.length === 0
+                  ? 'No hay gerentes en el país/operación seleccionados'
+                  : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para que aplique a todo el canal/país.'
+              }
+            >
+              <select
+                value={form.gerente_id}
+                onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">— Aplica a todo el canal/país —</option>
+                {gerentesFiltrados.map((g: any) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
           {tipo === 'reto' && (
             <>
