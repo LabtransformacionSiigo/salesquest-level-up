@@ -552,13 +552,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
             </Field>
           </div>
 
-          <Field label="País" hint={paisesPerm.length === 0 ? 'Sin países asignados' : undefined}>
+          <Field label="País" hint={paisLocked ? 'Asignado por tu perfil de especialista' : (paisesPerm.length === 0 ? 'Sin países asignados' : undefined)}>
             <select
               value={form.pais}
-              onChange={(e) => setForm({ ...form, pais: e.target.value })}
-              className={inputClass}
+              onChange={(e) => setForm({ ...form, pais: e.target.value, gerente_id: '' })}
+              className={cn(inputClass, paisLocked && 'opacity-70 cursor-not-allowed')}
+              disabled={paisLocked}
             >
-              <option value="">— Sin país —</option>
+              {!paisLocked && <option value="">— Sin país —</option>}
               {paisesPerm.map((p: string) => (
                 <option key={p} value={p}>
                   {PAISES_LABEL[p] || p}
@@ -566,13 +567,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               ))}
             </select>
           </Field>
-          <Field label="Operación">
+          <Field label="Operación (Frente)" hint={opLocked ? 'Asignada por tu perfil de especialista' : undefined}>
             <select
               value={form.operacion}
               onChange={(e) => setForm({ ...form, operacion: e.target.value, gerente_id: '' })}
-              className={inputClass}
+              className={cn(inputClass, opLocked && 'opacity-70 cursor-not-allowed')}
+              disabled={opLocked}
             >
-              <option value="">— Sin operación —</option>
+              {!opLocked && <option value="">— Sin operación —</option>}
               {opsPerm.map((o: string) => (
                 <option key={o} value={o}>
                   {o}
@@ -580,30 +582,31 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               ))}
             </select>
           </Field>
-          <div className="col-span-2">
-            <Field
-              label="Gerente asignado (opcional)"
-              hint={
-                gerentesFiltrados.length === 0
-                  ? 'No hay gerentes en el país/operación seleccionados'
-                  : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para que aplique a todo el canal/país.'
-              }
-            >
-              <select
-                value={form.gerente_id}
-                onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
-                className={inputClass}
+          {showGerenteSelector && (
+            <div className="col-span-2">
+              <Field
+                label="Gerente asignado (opcional)"
+                hint={
+                  gerentesFiltrados.length === 0
+                    ? 'No hay gerentes en Colombia · Venta Cruzada'
+                    : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para todo VC Colombia.'
+                }
               >
-                <option value="">— Aplica a todo el canal/país —</option>
-                {gerentesFiltrados.map((g: any) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
+                <select
+                  value={form.gerente_id}
+                  onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">— Aplica a todo VC Colombia —</option>
+                  {gerentesFiltrados.map((g: any) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
           {tipo === 'reto' && (
             <>
               <Field label="Canal">
