@@ -52,6 +52,7 @@ const AdminMetasAcv = () => {
   const [historial, setHistorial] = useState<any[]>([]);
   const [filterMes, setFilterMes] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
+  const [syncingVn, setSyncingVn] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
 
