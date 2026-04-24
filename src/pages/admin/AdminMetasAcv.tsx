@@ -188,13 +188,17 @@ const AdminMetasAcv = () => {
     <Layout title="Admin · Metas ACV Gerentes">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-foreground">Metas ACV Gerentes (VN)</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Cargar metas ACV mensuales · Cierre es definitivo y bloquea futuras cargas para el mismo mes/célula
             </p>
           </div>
+          <Button onClick={handleSyncDatabricks} disabled={syncing} variant="default" className="gap-2">
+            <MI icon={syncing ? 'sync' : 'cloud_download'} className={cn('text-base', syncing && 'animate-spin')} />
+            {syncing ? 'Sincronizando…' : 'Sincronizar desde Databricks'}
+          </Button>
         </div>
 
         {/* Uploader */}
