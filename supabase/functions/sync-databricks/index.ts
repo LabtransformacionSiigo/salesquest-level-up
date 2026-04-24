@@ -378,8 +378,11 @@ Deno.serve(async (req) => {
 
     // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
     // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
+    // OPTIMIZACIÓN: usamos jobs combinados (ventas_empresarios_combo / ventas_aliados_combo)
+    // que descargan UNA sola vez de Databricks y procesan ambos destinos (ventas_diarias + ventas).
+    // Antes ejecutábamos la misma query 2 veces por canal → ahora 1 vez. ~50% menos tiempo en Databricks.
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_aliados", "ventas_vn_empresarios", "productividad_asesores", "ventas_gerente_mensual"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios_combo", "ventas_aliados_combo", "productividad_asesores", "ventas_gerente_mensual"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
