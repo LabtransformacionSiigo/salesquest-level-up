@@ -17,8 +17,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ── Consulta A: Agregado por GERENTE (LATAM ex-MX) ──
-// El canal (Aliados/Empresarios) viene de tbl_brz_cuotas_asesores.equipo,
-// no de tbl_gld_Ventas_SA (que no tiene esa columna).
+// El canal (Aliados/Empresarios) viene de la venta misma (`v.equipo`).
+// El cruce con cuotas solo se usa para resolver gerente por célula.
 const QUERY_A_GERENTE = `
 SELECT
   v.pais,
@@ -236,13 +236,8 @@ Deno.serve(async (req) => {
     let inserted = 0;
     for (let i = 0; i < records.length; i += BATCH) {
       const slice = records.slice(i, i + BATCH);
-      const { error } = await sb
-        .from("vn_metricas_optimizadas")
-        .upsert(slice, {
-          onConflict: "pais,periodo,canal_direccion,scope,gerente_normalizado,asesor,tipo_producto1",
-          ignoreDuplicates: false,
-        });
-      if (error) throw new Error(`upsert batch ${i}: ${error.message}`);
+      const { error } = await sb.from("vn_metricas_optimizadas").insert(slice);
+      if (error) throw new Error(`insert batch ${i}: ${error.message}`);
       inserted += slice.length;
     }
     console.log(`✓ vn_metricas_optimizadas insertadas: ${inserted}`);
