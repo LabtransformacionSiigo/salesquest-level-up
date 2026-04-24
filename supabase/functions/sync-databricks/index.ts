@@ -376,8 +376,6 @@ Deno.serve(async (req) => {
       const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", authUserId).eq("role", "admin").maybeSingle();
       if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-      if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
 
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || "preview";
