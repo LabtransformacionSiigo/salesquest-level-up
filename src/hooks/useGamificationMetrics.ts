@@ -352,14 +352,18 @@ export const useGamificationMetrics = (
           /* 1 */ supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 2 */ supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
-          /* 4 */ supabase.from('ventas').select('id', { count: 'exact', head: true })
-            .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
-            .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`),
-          /* 5 */ supabase.from('ventas').select('valor_producto')
-            .eq('gerente_id', profile.id)
-            .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
-            .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0]),
+          /* 4 */ isVC
+            ? supabase.from('ventas').select('id', { count: 'exact', head: true })
+                .eq('gerente_id', profile.id)
+                .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
+                .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`)
+            : Promise.resolve({ count: 0 }),
+          /* 5 */ isVC
+            ? supabase.from('ventas').select('valor_producto')
+                .eq('gerente_id', profile.id)
+                .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
+                .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0])
+            : Promise.resolve({ data: [] }),
           /* 6 */ isVC
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('mes', currentMonthName).eq('anio', anioActual).limit(1)
             : Promise.resolve({ data: [] }),
@@ -367,7 +371,9 @@ export const useGamificationMetrics = (
             ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
           /* 8 */
-          supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
+          isVN
+            ? Promise.resolve({ data: [] })
+            : supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
           /* 9 */
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
@@ -378,7 +384,9 @@ export const useGamificationMetrics = (
             ? supabase.from('acv_vc_mensual').select('*').eq('gerente_id', profile.id).eq('anio', anioActual)
             : Promise.resolve({ data: [] }),
           /* 11 */
-          supabase.from('gerentes').select('id, sp_canje'),
+          isVN
+            ? Promise.resolve({ data: [] })
+            : supabase.from('gerentes').select('id, sp_canje'),
           /* 12 – ejecucion_asesores for VN (gerente OR asesor) - ALL months this year */
           isVN
             ? supabase.from('ejecucion_asesores').select('*')
@@ -413,12 +421,8 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .order('anio_mes', { ascending: false })
             : Promise.resolve({ data: [] }),
-          /* 17 – metas_gerentes for VN gerente: meta_total_acv */
-          isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('metas_gerentes' as any).select('meta_total_acv, meta_total_und, fe, nube, celula')
-                .eq('celula', profile.celula)
-                .maybeSingle()
-            : Promise.resolve({ data: null }),
+          /* 17 – ELIMINADO: metas_gerentes reemplazada por metas_acv_gerentes (query 21) */
+          Promise.resolve({ data: null }),
           /* 18 – VC team per-comercial ACV+ vs meta for selected month */
           isVC
             ? supabase.from('ventas')
@@ -466,7 +470,7 @@ export const useGamificationMetrics = (
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -685,17 +689,9 @@ export const useGamificationMetrics = (
             return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
           });
 
-          const metaGerenteRaw = metasGerentesRes?.data;
-          const metaGerenteData = Array.isArray(metaGerenteRaw)
-            ? metaGerenteRaw.find((m: any) => normalizeComparableText(m.celula) === celulaGerente)
-            : (metaGerenteRaw && normalizeComparableText(metaGerenteRaw.celula) === celulaGerente
-                ? metaGerenteRaw
-                : metaGerenteRaw);
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
-          } else if (metaGerenteData?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
              const currentMonthProductividad = celulaRows.filter((r: any) => {
