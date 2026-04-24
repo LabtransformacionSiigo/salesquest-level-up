@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createLocalJWKSet, jwtVerify } from "npm:jose@5.9.6";
+import { createLocalJWKSet, jwtVerify } from "https://esm.sh/jose@5.9.6";
+
+declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
