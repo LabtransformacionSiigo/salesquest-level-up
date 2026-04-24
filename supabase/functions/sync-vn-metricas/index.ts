@@ -26,13 +26,13 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  c.equipo,
+  v.equipo AS equipo,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente, equipo
+  SELECT DISTINCT celula, gerente
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
@@ -48,14 +48,14 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  c.equipo,
+  v.equipo AS equipo,
   v.fullname AS asesor,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente, equipo
+  SELECT DISTINCT celula, gerente
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
@@ -70,8 +70,7 @@ WITH MaestroGerentes AS (
   SELECT
     UPPER(TRIM(nombre_asesor)) AS asesor_key,
     MAX(gerente) AS gerente_asignado,
-    MAX(celula)  AS celula_asignada,
-    MAX(equipo)  AS equipo_asignado
+    MAX(celula)  AS celula_asignada
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
   GROUP BY 1
@@ -82,7 +81,7 @@ SELECT
   YEAR(v.FECHA)  AS anio,
   COALESCE(m.gerente_asignado, v.Director) AS gerente,
   m.celula_asignada AS celula,
-  m.equipo_asignado AS equipo,
+  v.EQUIPO AS equipo,
   v.ASESOR  AS asesor,
   v.TIPO_PRODUCTO AS tipo_producto1,
   SUM(v.Unidades) AS ventas,
