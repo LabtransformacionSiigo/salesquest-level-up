@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
     const targetCanal = normalizeCanal(typeof requestBody.canal === "string" ? requestBody.canal : null) || null;
     const resetExistingConvencion = requestBody.reset_existing_convencion === true;
     const onlyConvencion = requestBody.only_convencion === true;
+    const errores: string[] = [];
 
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
@@ -357,7 +358,6 @@ Deno.serve(async (req) => {
     });
 
     let totalSpOtorgados = 0;
-    const errores: string[] = [];
     let procesados = 0;
     const resumenCanal: Record<string, { procesados: number; sp: number }> = {};
 
@@ -819,7 +819,7 @@ async function processAsesoresConvencion(
       if (metas.length === 0) continue;
 
       const isVentaCruzada = canalDir.toLowerCase().includes("cruzada") || canalDir === "VC";
-      let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string } | null = null;
+      let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string; pais: string } | null = null;
 
       // Get asesor's celula and area from productividad for meta ACV lookup
       const asesorNameLower = asesor.nombre.trim().toLowerCase();
