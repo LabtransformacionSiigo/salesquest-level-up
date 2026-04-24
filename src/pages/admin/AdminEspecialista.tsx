@@ -356,7 +356,13 @@ const ItemList = ({
               {it.operacion && (
                 <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{it.operacion}</span>
               )}
-              {!it.pais && !it.operacion && (
+              {it.gerente_id && (
+                <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <MI icon="person" className="text-[11px]" />
+                  {gerentes.find((g: any) => g.id === it.gerente_id)?.nombre || 'Gerente específico'}
+                </span>
+              )}
+              {!it.pais && !it.operacion && !it.gerente_id && (
                 <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-semibold">
                   Genérico (sin país/op)
                 </span>
