@@ -970,10 +970,6 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   let synced = 0;
   const errores: string[] = [];
 
-  // Build current month as anio_mes default
-  const now = new Date();
-  const defaultAnioMes = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-
   // DIAGNOSTIC: log sample of incoming raw rows + key field counts
   const sample = rows.slice(0, 2);
   const conGerente = rows.filter((r) => r.gerente).length;
@@ -996,7 +992,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
       celula: row.celula ? String(row.celula).trim() : null,
       nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
       gerente: row.gerente ? String(row.gerente).trim() : null,
-      anio_mes: defaultAnioMes,
+      anio_mes: normalizePeriodFromCuotas(row),
       // Nuevos campos extendidos
       proyecto: row.proyecto ? String(row.proyecto).trim() : null,
       fecha_ingreso_asesor: fechaIngreso && /^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso) ? fechaIngreso : null,
@@ -1014,7 +1010,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
       nube_bono: toRoundedInt(row.nube_bono),
       total_bono: toRoundedInt(row.total_bono),
     };
-  }).filter((r) => r.documento_asesor && r.canal_direccion);
+  }).filter((r) => r.documento_asesor && r.canal_direccion && /^\d{6}$/.test(r.anio_mes));
 
   // Dedup by (documento_asesor, canal_direccion, anio_mes) to avoid Postgres upsert duplicate key errors
   const metasDedupMap = new Map<string, typeof upsertRows[number]>();
