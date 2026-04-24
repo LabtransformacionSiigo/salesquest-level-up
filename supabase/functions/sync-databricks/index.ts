@@ -352,11 +352,13 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null;
 
     if (!isServiceRole) {
-      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-      const { data: { user: authUser }, error: authErr } = await userClient.auth.getUser();
-      if (authErr || !authUser) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      authUserId = authUser.id;
-      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", authUser.id).eq("role", "admin").maybeSingle();
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+      if (claimsErr || !claimsData?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized", detail: claimsErr?.message }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      authUserId = claimsData.claims.sub;
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", authUserId).eq("role", "admin").maybeSingle();
       if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
