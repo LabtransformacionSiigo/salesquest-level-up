@@ -1793,3 +1793,42 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     errores: errores.slice(0, 20),
   };
 }
+
+// ============================================================
+// COMBO SYNCS — descargan UNA sola vez de Databricks y procesan ambos destinos
+// (ventas_diarias + ejecucion_asesores + kpis_mensuales) y (ventas tabla VC unificada).
+// Antes ejecutábamos la misma query 2 veces por canal — esto reduce ~50% el tiempo.
+// ============================================================
+async function runVentasEmpresariosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
+  const config = TABLE_CONFIGS.ventas_empresarios;
+  const rows = await runDatabricksQuery("ventas_empresarios_combo", config.sql("", mesFilter));
+  console.log(`[ventas_empresarios_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+
+  const [empresariosResult, vnResult] = await Promise.allSettled([
+    syncVentasEmpresarios(supabase, rows),
+    syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
+  ]);
+
+  return {
+    total_rows: rows.length,
+    ventas_diarias: empresariosResult.status === "fulfilled" ? empresariosResult.value : { error: String(empresariosResult.reason) },
+    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
+  };
+}
+
+async function runVentasAliadosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
+  const config = TABLE_CONFIGS.ventas_aliados;
+  const rows = await runDatabricksQuery("ventas_aliados_combo", config.sql("", mesFilter));
+  console.log(`[ventas_aliados_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+
+  const [aliadosResult, vnResult] = await Promise.allSettled([
+    syncVentasAliados(supabase, rows),
+    syncVentasVN(supabase, rows, "VN_ALIADOS"),
+  ]);
+
+  return {
+    total_rows: rows.length,
+    ventas_diarias: aliadosResult.status === "fulfilled" ? aliadosResult.value : { error: String(aliadosResult.reason) },
+    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
+  };
+}
