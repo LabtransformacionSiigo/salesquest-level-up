@@ -17,7 +17,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ── Consulta A: Agregado por GERENTE (LATAM ex-MX) ──
-// Incluye celula y equipo para clasificar canal Aliados/Empresarios.
+// El canal (Aliados/Empresarios) viene de tbl_brz_cuotas_asesores.equipo,
+// no de tbl_gld_Ventas_SA (que no tiene esa columna).
 const QUERY_A_GERENTE = `
 SELECT
   v.pais,
@@ -25,13 +26,13 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  v.equipo,
+  c.equipo,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente
+  SELECT DISTINCT celula, gerente, equipo
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
@@ -47,14 +48,14 @@ SELECT
   YEAR(v.fecha)  AS anio,
   c.gerente,
   v.celula,
-  v.equipo,
+  c.equipo,
   v.fullname AS asesor,
   v.tipo_producto1,
   SUM(v.cuenta_finanzas) AS ventas,
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente
+  SELECT DISTINCT celula, gerente, equipo
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
 ) c ON v.celula = c.celula
