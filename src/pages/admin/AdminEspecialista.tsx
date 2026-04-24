@@ -47,6 +47,24 @@ const FAMILIAS_VC = [
   { value: 'AMBAS', label: 'Ambas' },
 ];
 
+// Métricas disponibles según canal (operación)
+const METRICAS_POR_CANAL: Record<string, string[]> = {
+  VC: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'],
+  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+};
+
+// Helpers de mapeo operación↔canal (compartidos)
+const opToCanalGlobal = (op: string): string | null =>
+  op === 'Venta Cruzada' ? 'VC'
+  : op === 'Venta Nueva (Aliados)' ? 'VN_ALIADOS'
+  : op === 'Venta Nueva (Empresarios)' ? 'VN_EMPRESARIOS'
+  : null;
+
+// Etiqueta dinámica para "Nube" según país/operación
+const labelNubeOCampana = (pais: string, operacion: string) =>
+  pais === 'MEX' && operacion === 'Venta Nueva (Empresarios)' ? 'Campaña' : 'Nube';
+
 interface Permisos {
   paises: string[];
   operaciones: string[];
