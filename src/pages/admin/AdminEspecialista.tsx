@@ -300,6 +300,7 @@ const AdminEspecialista = () => {
 const ItemList = ({
   items,
   tipo,
+  gerentes = [],
   isInScope,
   onToggle,
   onEdit,
