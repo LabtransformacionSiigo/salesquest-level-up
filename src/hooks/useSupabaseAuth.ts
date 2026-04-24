@@ -169,17 +169,22 @@ const getVnFeNubeConventionTotal = (
     ejecByPeriod.set(period, cur);
   });
 
+  const CAP = 300;
   let totalSp = 0;
   metaByPeriod.forEach((meta, period) => {
     const ejec = ejecByPeriod.get(period);
     if (!ejec) return;
-    // FE: 1% = 1 SP
+    // FE: 1% = 1 SP (cap 300)
     if (meta.fe > 0 && ejec.fe > 0) {
-      totalSp += Math.round((ejec.fe / meta.fe) * 100);
+      let pctFe = Math.round((ejec.fe / meta.fe) * 100);
+      if (pctFe > CAP) pctFe = CAP;
+      totalSp += pctFe;
     }
-    // Nube: 1% = 2 SP
+    // Nube: 1% = 2 SP (cap 300 antes de ×2)
     if (meta.nube > 0 && ejec.nube > 0) {
-      totalSp += Math.round((ejec.nube / meta.nube) * 100) * 2;
+      let pctNube = Math.round((ejec.nube / meta.nube) * 100);
+      if (pctNube > CAP) pctNube = CAP;
+      totalSp += pctNube * 2;
     }
   });
 
