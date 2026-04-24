@@ -935,9 +935,9 @@ export const useGamificationMetrics = (
                   ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
                 return {
                   periodo: getPeriodFromDate(row.fecha),
-                  ventas_fe: fam === 'FE' ? (Number(row.unidades) || 0) : 0,
-                  ventas_nube: fam === 'NUBE' ? (Number(row.unidades) || 0) : 0,
-                  ventas_total: Number(row.unidades) || 0,
+                  ventas_fe: fam === 'FE' ? Math.round(Number(row.unidades) || 0) : 0,
+                  ventas_nube: fam === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0,
+                  ventas_total: Math.round(Number(row.unidades) || 0),
                 };
               })
             : vnTeamEjecAll;
