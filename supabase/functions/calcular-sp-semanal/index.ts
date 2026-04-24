@@ -358,7 +358,6 @@ Deno.serve(async (req) => {
     });
 
     let totalSpOtorgados = 0;
-    const errores: string[] = [];
     let procesados = 0;
     const resumenCanal: Record<string, { procesados: number; sp: number }> = {};
 
