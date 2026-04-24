@@ -175,10 +175,14 @@ export const buildVnConventionMonthlyRows = ({
   productivityRows,
   metaRows,
   ejecRows,
+  acvCatalog,
+  celula,
 }: {
   productivityRows?: VnConventionProductivityRow[] | null;
   metaRows?: VnConventionMetaRow[] | null;
   ejecRows?: VnConventionEjecRow[] | null;
+  acvCatalog?: VnAcvCatalogRow[] | null;
+  celula?: string | null;
 }) => {
   const periodSet = new Set<string>();
 
