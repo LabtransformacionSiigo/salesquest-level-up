@@ -784,6 +784,54 @@ export type Database = {
           },
         ]
       }
+      metas_acv_gerentes: {
+        Row: {
+          archivo: string
+          canal: string
+          celula: string
+          created_at: string
+          cuota: number | null
+          director: string | null
+          esquema: string | null
+          id: string
+          mes: string
+          meta_total_acv: number | null
+          meta_total_und: number | null
+          pais: string
+          updated_at: string
+        }
+        Insert: {
+          archivo: string
+          canal: string
+          celula: string
+          created_at?: string
+          cuota?: number | null
+          director?: string | null
+          esquema?: string | null
+          id?: string
+          mes: string
+          meta_total_acv?: number | null
+          meta_total_und?: number | null
+          pais: string
+          updated_at?: string
+        }
+        Update: {
+          archivo?: string
+          canal?: string
+          celula?: string
+          created_at?: string
+          cuota?: number | null
+          director?: string | null
+          esquema?: string | null
+          id?: string
+          mes?: string
+          meta_total_acv?: number | null
+          meta_total_und?: number | null
+          pais?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       metas_asesores: {
         Row: {
           anio_mes: string
@@ -2122,6 +2170,21 @@ export type Database = {
       otorgar_medalla_si_aplica: {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
+      }
+      upsert_meta_acv_gerente: {
+        Args: {
+          p_archivo: string
+          p_canal: string
+          p_celula: string
+          p_cuota: number
+          p_director: string
+          p_esquema: string
+          p_mes: string
+          p_meta_total_acv: number
+          p_meta_total_und: number
+          p_pais: string
+        }
+        Returns: Json
       }
     }
     Enums: {
