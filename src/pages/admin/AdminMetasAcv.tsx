@@ -51,8 +51,32 @@ const AdminMetasAcv = () => {
   const [errorList, setErrorList] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
   const [filterMes, setFilterMes] = useState<string>('');
+  const [syncing, setSyncing] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
+
+  const handleSyncDatabricks = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-acv-databricks', {
+        body: {},
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync fallida');
+      setSummary(data.summary);
+      setErrorList(data.errors || []);
+      toast({
+        title: '✅ Sync Databricks completada',
+        description: `Insertadas: ${data.summary.inserted} · Cierres nuevos: ${data.summary.upgraded_to_cierre} · Bloqueadas: ${data.summary.skipped_cierre_existente}`,
+      });
+      fetchHistorial();
+    } catch (e: any) {
+      toast({ title: 'Error sync Databricks', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchHistorial = async () => {
     let q = supabase
