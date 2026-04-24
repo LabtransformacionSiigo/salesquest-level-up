@@ -47,6 +47,24 @@ const FAMILIAS_VC = [
   { value: 'AMBAS', label: 'Ambas' },
 ];
 
+// Métricas disponibles según canal (operación)
+const METRICAS_POR_CANAL: Record<string, string[]> = {
+  VC: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'],
+  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+};
+
+// Helpers de mapeo operación↔canal (compartidos)
+const opToCanalGlobal = (op: string): string | null =>
+  op === 'Venta Cruzada' ? 'VC'
+  : op === 'Venta Nueva (Aliados)' ? 'VN_ALIADOS'
+  : op === 'Venta Nueva (Empresarios)' ? 'VN_EMPRESARIOS'
+  : null;
+
+// Etiqueta dinámica para "Nube" según país/operación
+const labelNubeOCampana = (pais: string, operacion: string) =>
+  pais === 'MEX' && operacion === 'Venta Nueva (Empresarios)' ? 'Campaña' : 'Nube';
+
 interface Permisos {
   paises: string[];
   operaciones: string[];
@@ -386,14 +404,23 @@ const ItemList = ({
 );
 
 const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onSave }: any) => {
+  // Para especialistas: si solo tienen 1 país / 1 operación → forzar y bloquear.
+  const paisesPerm: string[] = isAdmin ? ['COL', 'ECU', 'URU', 'MEX'] : (permisos.paises || []);
+  const opsPerm: string[] = isAdmin ? OPERACIONES : (permisos.operaciones || []);
+  const paisLocked = !isAdmin && paisesPerm.length === 1;
+  const opLocked = !isAdmin && opsPerm.length === 1;
+  const paisDefault = paisLocked ? paisesPerm[0] : (data.pais || (paisesPerm[0] ?? ''));
+  const opDefault = opLocked ? opsPerm[0] : (data.operacion || (opsPerm[0] ?? ''));
+  const canalDefault = data.canal || opToCanalGlobal(opDefault) || 'VC';
+
   const [form, setForm] = useState<any>({
     nombre: data.nombre || '',
     objetivo_descripcion: data.objetivo_descripcion || data.descripcion || '',
     sp_otorgados: data.sp_otorgados ?? data.sp ?? 0,
     sp: data.sp ?? data.sp_otorgados ?? 0,
     emoji: data.emoji || '🎯',
-    pais: data.pais || (permisos.paises[0] ?? ''),
-    operacion: data.operacion || (permisos.operaciones[0] ?? ''),
+    pais: paisDefault,
+    operacion: opDefault,
     gerente_id: data.gerente_id || '',
     activo: data.activo ?? false,
     // reto
@@ -403,8 +430,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     umbral: data.umbral ?? 0,
     kpi: data.kpi || 'acv_plus',
     familia_vc: data.familia_vc || 'AMBAS',
-    // racha
-    canal: data.canal || 'VC',
+    // racha / canal compartido — se sincroniza con la operación
+    canal: canalDefault,
     condicion_tipo: data.condicion_tipo || 'VENTA_DIARIA_CONSECUTIVA',
     multiplicador_sp: data.multiplicador_sp ?? 1.5,
     dias_requeridos: data.dias_requeridos ?? 7,
@@ -414,44 +441,66 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     cantidad_requerida: data.cantidad_requerida ?? 1,
   });
 
-  const paisesPerm = isAdmin ? ['COL', 'ECU', 'URU', 'MEX'] : permisos.paises;
-  const opsPerm = isAdmin ? OPERACIONES : permisos.operaciones;
+  // Mantener canal y métricas sincronizados con la operación
+  useEffect(() => {
+    const canal = opToCanalGlobal(form.operacion);
+    if (canal && canal !== form.canal) {
+      setForm((f: any) => ({ ...f, canal }));
+    }
+    // Si la métrica actual no es válida para el canal, resetear a la primera disponible
+    const metricasValidas = canal ? METRICAS_POR_CANAL[canal] : TIPO_METRICA;
+    if (metricasValidas && !metricasValidas.includes(form.tipo_metrica)) {
+      setForm((f: any) => ({ ...f, tipo_metrica: metricasValidas[0] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.operacion]);
 
   // Filtrar gerentes según país/canal seleccionado en el formulario
-  const opToCanal = (op: string) => op === 'Venta Cruzada' ? 'VC' : op === 'Venta Nueva (Aliados)' ? 'VN_ALIADOS' : op === 'Venta Nueva (Empresarios)' ? 'VN_EMPRESARIOS' : null;
-  const canalForm = opToCanal(form.operacion);
+  const canalForm = opToCanalGlobal(form.operacion);
   const gerentesFiltrados = gerentes.filter((g: any) => {
     if (form.pais && g.pais !== form.pais) return false;
     if (canalForm && g.canal !== canalForm) return false;
     return true;
   });
 
+  // Gerente solo aplica para Colombia + Venta Cruzada
+  const showGerenteSelector = form.pais === 'COL' && form.operacion === 'Venta Cruzada';
+
+  // Métricas disponibles según canal
+  const metricasDisponibles = (canalForm && METRICAS_POR_CANAL[canalForm]) || TIPO_METRICA;
+
+  // Etiqueta dinámica para Nube/Campaña
+  const nubeLabel = labelNubeOCampana(form.pais, form.operacion);
+
   const handleSave = () => {
+    // Garantizar país/canal correctos en el payload
+    const canalFinal = opToCanalGlobal(form.operacion) || form.canal;
     let payload: any = {
       nombre: form.nombre,
       objetivo_descripcion: form.objetivo_descripcion,
       pais: form.pais || null,
       operacion: form.operacion || null,
-      gerente_id: form.gerente_id || null,
+      // Si el frente no es COL+VC, gerente_id siempre va null (aplica a todo el país/canal)
+      gerente_id: showGerenteSelector ? (form.gerente_id || null) : null,
       activo: form.activo,
       emoji: form.emoji,
     };
     if (tipo === 'reto') {
       payload = {
         ...payload,
-        canal: form.canal,
+        canal: canalFinal,
         ventana_tiempo: form.ventana_tiempo,
         tipo_metrica: form.tipo_metrica,
         familia: form.familia || null,
         kpi: form.kpi,
-        familia_vc: form.canal === 'VC' ? form.familia_vc : null,
+        familia_vc: canalFinal === 'VC' ? form.familia_vc : null,
         umbral: Number(form.umbral),
         sp_otorgados: Number(form.sp_otorgados),
       };
     } else if (tipo === 'racha') {
       payload = {
         ...payload,
-        canal: form.canal,
+        canal: canalFinal,
         condicion_tipo: form.condicion_tipo,
         multiplicador_sp: Number(form.multiplicador_sp),
         dias_requeridos: Number(form.dias_requeridos),
@@ -460,7 +509,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     } else {
       payload = {
         ...payload,
-        canal: form.canal,
+        canal: canalFinal,
         descripcion: form.objetivo_descripcion,
         condicion_tipo: form.tipo_evento === 'CANTIDAD_VENTAS_FAMILIA' ? 'cantidad' : 'evento',
         tipo_evento: form.tipo_evento,
@@ -503,13 +552,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
             </Field>
           </div>
 
-          <Field label="País" hint={paisesPerm.length === 0 ? 'Sin países asignados' : undefined}>
+          <Field label="País" hint={paisLocked ? 'Asignado por tu perfil de especialista' : (paisesPerm.length === 0 ? 'Sin países asignados' : undefined)}>
             <select
               value={form.pais}
-              onChange={(e) => setForm({ ...form, pais: e.target.value })}
-              className={inputClass}
+              onChange={(e) => setForm({ ...form, pais: e.target.value, gerente_id: '' })}
+              className={cn(inputClass, paisLocked && 'opacity-70 cursor-not-allowed')}
+              disabled={paisLocked}
             >
-              <option value="">— Sin país —</option>
+              {!paisLocked && <option value="">— Sin país —</option>}
               {paisesPerm.map((p: string) => (
                 <option key={p} value={p}>
                   {PAISES_LABEL[p] || p}
@@ -517,13 +567,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               ))}
             </select>
           </Field>
-          <Field label="Operación">
+          <Field label="Operación (Frente)" hint={opLocked ? 'Asignada por tu perfil de especialista' : undefined}>
             <select
               value={form.operacion}
               onChange={(e) => setForm({ ...form, operacion: e.target.value, gerente_id: '' })}
-              className={inputClass}
+              className={cn(inputClass, opLocked && 'opacity-70 cursor-not-allowed')}
+              disabled={opLocked}
             >
-              <option value="">— Sin operación —</option>
+              {!opLocked && <option value="">— Sin operación —</option>}
               {opsPerm.map((o: string) => (
                 <option key={o} value={o}>
                   {o}
@@ -531,37 +582,38 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               ))}
             </select>
           </Field>
-          <div className="col-span-2">
-            <Field
-              label="Gerente asignado (opcional)"
-              hint={
-                gerentesFiltrados.length === 0
-                  ? 'No hay gerentes en el país/operación seleccionados'
-                  : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para que aplique a todo el canal/país.'
-              }
-            >
-              <select
-                value={form.gerente_id}
-                onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
-                className={inputClass}
+          {showGerenteSelector && (
+            <div className="col-span-2">
+              <Field
+                label="Gerente asignado (opcional)"
+                hint={
+                  gerentesFiltrados.length === 0
+                    ? 'No hay gerentes en Colombia · Venta Cruzada'
+                    : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para todo VC Colombia.'
+                }
               >
-                <option value="">— Aplica a todo el canal/país —</option>
-                {gerentesFiltrados.map((g: any) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
+                <select
+                  value={form.gerente_id}
+                  onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">— Aplica a todo VC Colombia —</option>
+                  {gerentesFiltrados.map((g: any) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
           {tipo === 'reto' && (
             <>
-              <Field label="Canal">
+              <Field label="Canal" hint="Derivado de la operación">
                 <select
                   value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className={inputClass}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
                 >
                   {CANALES_RETOS.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -592,15 +644,15 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="Tipo de métrica">
+              <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
                 <select
                   value={form.tipo_metrica}
                   onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
                   className={inputClass}
                 >
-                  {TIPO_METRICA.map((t) => (
+                  {metricasDisponibles.map((t) => (
                     <option key={t} value={t}>
-                      {t}
+                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
                     </option>
                   ))}
                 </select>
@@ -651,11 +703,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'racha' && (
             <>
-              <Field label="Canal">
+              <Field label="Canal" hint="Derivado de la operación">
                 <select
                   value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className={inputClass}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
                 >
                   <option value="VC">VC</option>
                   <option value="VN_ALIADOS">VN Aliados</option>
@@ -695,11 +747,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'medalla' && (
             <>
-              <Field label="Canal">
+              <Field label="Canal" hint="Derivado de la operación">
                 <select
                   value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className={inputClass}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
                 >
                   <option value="VC">VC</option>
                   <option value="VN_ALIADOS">VN Aliados</option>
