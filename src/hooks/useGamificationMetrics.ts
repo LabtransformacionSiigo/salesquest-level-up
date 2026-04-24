@@ -857,8 +857,8 @@ export const useGamificationMetrics = (
               if (tp === 'FE' || tp === 'NUBE' || tp === 'CONTADOR') return tp;
               return 'OTRO';
             };
-            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0);
-            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasFe = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0);
+            const ventasDiariasNube = matchingVentasDiarias.reduce((s: number, row: any) => s + (classifyAdvisorFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0);
             const ventasDiariasTotal = matchingVentasDiarias.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0);
 
             if (matchingEjec || matchingVentasDiarias.length > 0) {
