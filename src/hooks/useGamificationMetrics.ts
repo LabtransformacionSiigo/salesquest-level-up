@@ -454,12 +454,19 @@ export const useGamificationMetrics = (
                 .lte('periodo', `${anioActual}12`)
                 .limit(500)
             : Promise.resolve({ data: [] }),
+          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks). */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase
+                .from('metas_acv_gerentes' as any)
+                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und')
+                .eq('celula', profile.celula)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -662,8 +669,22 @@ export const useGamificationMetrics = (
           const metaContextActual = getMetaContextForPeriod(mesActual);
           const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
-          // VN: meta ACV (mensual) — preferir metas_gerentes.meta_total_acv
-          // metasGerentesRes proviene de .maybeSingle() => objeto único o null
+          // VN: meta ACV (mensual) — PRIORIDAD:
+          //   1) metas_acv_gerentes (VERDAD oficial Databricks)
+          //   2) metas_gerentes.meta_total_acv (legacy)
+          //   3) suma productividad_asesores.meta del mes (último recurso)
+          const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
+          // Mapea YYYYMM -> 'ene'/'feb'/... para hacer match con metas_acv_gerentes.mes
+          const mesNumToMes3: Record<string, string> = {
+            '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
+            '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
+          };
+          const mesActualMes3 = mesNumToMes3[String(mesActual).slice(-2)] || '';
+          const acvOficial = acvCatalogRows.find((r: any) => {
+            const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+            return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
+          });
+
           const metaGerenteRaw = metasGerentesRes?.data;
           const metaGerenteData = Array.isArray(metaGerenteRaw)
             ? metaGerenteRaw.find((m: any) => normalizeComparableText(m.celula) === celulaGerente)
@@ -671,7 +692,9 @@ export const useGamificationMetrics = (
                 ? metaGerenteRaw
                 : metaGerenteRaw);
           let metaAcvEquipo = 0;
-          if (metaGerenteData?.meta_total_acv) {
+          if (acvOficial?.meta_total_acv) {
+            metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
+          } else if (metaGerenteData?.meta_total_acv) {
             metaAcvEquipo = normalizeVnMetaAcv(metaGerenteData.meta_total_acv);
           } else {
             // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)

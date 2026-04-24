@@ -51,8 +51,32 @@ const AdminMetasAcv = () => {
   const [errorList, setErrorList] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
   const [filterMes, setFilterMes] = useState<string>('');
+  const [syncing, setSyncing] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
+
+  const handleSyncDatabricks = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-acv-databricks', {
+        body: {},
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync fallida');
+      setSummary(data.summary);
+      setErrorList(data.errors || []);
+      toast({
+        title: '✅ Sync Databricks completada',
+        description: `Insertadas: ${data.summary.inserted} · Cierres nuevos: ${data.summary.upgraded_to_cierre} · Bloqueadas: ${data.summary.skipped_cierre_existente}`,
+      });
+      fetchHistorial();
+    } catch (e: any) {
+      toast({ title: 'Error sync Databricks', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchHistorial = async () => {
     let q = supabase
@@ -164,13 +188,17 @@ const AdminMetasAcv = () => {
     <Layout title="Admin · Metas ACV Gerentes">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-foreground">Metas ACV Gerentes (VN)</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Cargar metas ACV mensuales · Cierre es definitivo y bloquea futuras cargas para el mismo mes/célula
             </p>
           </div>
+          <Button onClick={handleSyncDatabricks} disabled={syncing} variant="default" className="gap-2">
+            <MI icon={syncing ? 'sync' : 'cloud_download'} className={cn('text-base', syncing && 'animate-spin')} />
+            {syncing ? 'Sincronizando…' : 'Sincronizar desde Databricks'}
+          </Button>
         </div>
 
         {/* Uploader */}

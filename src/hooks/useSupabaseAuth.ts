@@ -403,7 +403,7 @@ export const useSupabaseAuth = () => {
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
             const normalizedCelula = normalizeComparableText(gerenteCelula);
             const canalDireccion = gerenteCanal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
-            const [vnRes, metasVnRes, ventasDiariasRes] = await Promise.all([
+            const [vnRes, metasVnRes, ventasDiariasRes, acvCatalogRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
                 .select('anio_mes, asesor, acv_f, meta, celula, pais')
@@ -423,7 +423,12 @@ export const useSupabaseAuth = () => {
                 .lt('fecha', `${currentConventionYear + 1}-01-01`)
                 .eq('canal_direccion', canalDireccion)
                 .limit(50000),
+              // Catálogo oficial de metas ACV (Databricks → metas_acv_gerentes)
+              supabase
+                .from('metas_acv_gerentes' as any)
+                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und'),
             ]);
+            const acvCatalogRows = (acvCatalogRes?.data as any[]) || [];
             if (!vnRes.error && !metasVnRes.error) {
               const productivityRows = ((vnRes.data as any[]) || []).filter(
                 (row) => normalizeComparableText(row.celula) === normalizedCelula,
@@ -480,6 +485,8 @@ export const useSupabaseAuth = () => {
                   productivityRows,
                   metaRows: metaRowsWithSynthetic,
                   ejecRows: syntheticEjec,
+                  acvCatalog: acvCatalogRows,
+                  celula: gerenteCelula,
                 });
                   if (!spTotales) {
                     spTotales = sumVnConventionMonthlyRows(monthlyRows);
@@ -499,6 +506,8 @@ export const useSupabaseAuth = () => {
                     productivityRows,
                     metaRows: metaRowsFiltered,
                     ejecRows: ejecVnRows as any[],
+                    acvCatalog: acvCatalogRows,
+                    celula: gerenteCelula,
                   });
                     if (!spTotales) {
                       spTotales = sumVnConventionMonthlyRows(monthlyRows);
