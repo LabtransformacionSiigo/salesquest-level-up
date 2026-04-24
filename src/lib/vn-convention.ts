@@ -263,7 +263,7 @@ export const buildVnConventionMonthlyRows = ({
         pctFe,
         pctNube,
         pctTotal,
-        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
+        sp: pctAcv + pctFe + pctNube * 2,
       };
     });
 
@@ -353,7 +353,7 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
         pctFe,
         pctNube,
         pctTotal,
-        sp: pctTotal + pctAcv + pctFe + pctNube * 2,
+        sp: pctAcv + pctFe + pctNube * 2,
       };
     });
 };
