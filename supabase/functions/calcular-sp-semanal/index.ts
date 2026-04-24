@@ -819,7 +819,7 @@ async function processAsesoresConvencion(
       if (metas.length === 0) continue;
 
       const isVentaCruzada = canalDir.toLowerCase().includes("cruzada") || canalDir === "VC";
-      let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string } | null = null;
+      let currentMonthSummary: { id: string; sp: number; ejec: any; meta: any; canalDir: string; pais: string } | null = null;
 
       // Get asesor's celula and area from productividad for meta ACV lookup
       const asesorNameLower = asesor.nombre.trim().toLowerCase();
