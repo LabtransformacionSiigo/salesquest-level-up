@@ -919,11 +919,11 @@ export const useGamificationMetrics = (
               const period = String(r.periodo || '');
               const fam = String(r.familia || '').toUpperCase();
               const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              const uds = Number(r.unidades) || 0;
+              const uds = Math.round(Number(r.unidades) || 0);
               if (fam === 'FE') cur.fe += uds;
               else if (fam === 'NUBE') cur.nube += uds;
               cur.total += uds; // FE + NUBE + CONTADOR
-              cur.acv += Number(r.acv) || 0;
+              cur.acv += Math.round(Number(r.acv) || 0);
               ejecByPeriod.set(period, cur);
             });
           }
