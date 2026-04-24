@@ -141,25 +141,52 @@ ${limit}`;
   ventas_gerente_mensual: {
     label: "Ventas Gerente Mensual (FE/NUBE/CONTADOR)",
     sql: (limit: string) =>
-      `SELECT
-         v.pais,
-         MONTH(v.fecha) AS mes_nro,
-         c.gerente,
-         v.celula,
-         v.tipo_producto1,
-         CAST(SUM(v.cuenta_finanzas) AS DOUBLE) AS ventas,
-         CAST(SUM(v.ACV) AS DOUBLE) AS acv_total
-       FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
-       LEFT JOIN (
-         SELECT DISTINCT celula, gerente
-         FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
-         WHERE gerente IS NOT NULL
-       ) c ON v.celula = c.celula
-       WHERE v.fecha >= '2026-01-01'
-         AND c.gerente IS NOT NULL
-       GROUP BY v.pais, MONTH(v.fecha), c.gerente, v.celula, v.tipo_producto1
+      `SELECT pais, mes_nro, gerente, celula, tipo_producto1,
+              CAST(SUM(ventas) AS DOUBLE) AS ventas,
+              CAST(SUM(acv_total) AS DOUBLE) AS acv_total
+       FROM (
+         -- Sudamérica (COL/ECU/URU): tbl_gld_Ventas_SA
+         SELECT
+           v.pais,
+           MONTH(v.fecha) AS mes_nro,
+           c.gerente,
+           v.celula,
+           v.tipo_producto1,
+           v.cuenta_finanzas AS ventas,
+           v.ACV AS acv_total
+         FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
+         LEFT JOIN (
+           SELECT DISTINCT celula, gerente
+           FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+           WHERE gerente IS NOT NULL
+         ) c ON v.celula = c.celula
+         WHERE v.fecha >= '2026-01-01'
+           AND c.gerente IS NOT NULL
+
+         UNION ALL
+
+         -- México (MEX): tbl_gld_Ventas_MX
+         SELECT
+           'MEX' AS pais,
+           MONTH(v.FECHA) AS mes_nro,
+           c.gerente,
+           v.CELULA AS celula,
+           v.TIPO_PRODUCTO AS tipo_producto1,
+           CAST(v.Unidades AS DOUBLE) AS ventas,
+           CAST(v.ACV AS DOUBLE) AS acv_total
+         FROM analyticdl.db_comercial.tbl_gld_Ventas_MX v
+         LEFT JOIN (
+           SELECT DISTINCT celula, gerente
+           FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+           WHERE gerente IS NOT NULL
+         ) c ON v.CELULA = c.celula
+         WHERE v.FECHA >= '2026-01-01'
+           AND c.gerente IS NOT NULL
+       ) unioned
+       GROUP BY pais, mes_nro, gerente, celula, tipo_producto1
        ${limit}`,
   },
+
 };
 
 // ============================================================
