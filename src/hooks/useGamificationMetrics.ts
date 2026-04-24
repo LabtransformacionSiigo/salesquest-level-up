@@ -371,7 +371,9 @@ export const useGamificationMetrics = (
             ? supabase.from('desglose_producto_vc').select('producto, acv_total, unidades, mes').eq('gerente_id', profile.id).eq('anio', anioActual).eq('mes', currentMonthName)
             : Promise.resolve({ data: null }),
           /* 8 */
-          supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
+          isVN
+            ? Promise.resolve({ data: [] })
+            : supabase.from('ranking_general').select('*').order('sp_totales', { ascending: false }).limit(5),
           /* 9 */
           isVC
             ? supabase.from('comerciales_por_gerente' as any).select('nombre, gerente_id').eq('gerente_id', profile.id)
