@@ -28,6 +28,7 @@ import AdminPremios from '@/pages/admin/AdminPremios';
 import AdminEspecialista from '@/pages/admin/AdminEspecialista';
 import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
 import AdminSimulacion from '@/pages/admin/AdminSimulacion';
+import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 
@@ -56,6 +57,7 @@ function App() {
             <Route path="/admin/databricks" element={<AdminRoute><AdminDatabricks /></AdminRoute>} />
             <Route path="/admin/premios" element={<AdminRoute><AdminPremios /></AdminRoute>} />
             <Route path="/admin/simulacion" element={<AdminRoute><AdminSimulacion /></AdminRoute>} />
+            <Route path="/admin/metas-acv" element={<AdminRoute><AdminMetasAcv /></AdminRoute>} />
             <Route path="/admin/especialista" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             <Route path="/admin/especialista/premios" element={<EspecialistaRoute><AdminEspecialistaPremios /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
