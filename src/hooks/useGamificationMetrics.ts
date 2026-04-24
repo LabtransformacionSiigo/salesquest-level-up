@@ -889,7 +889,7 @@ export const useGamificationMetrics = (
               return nombreNorm && normalizeComparableText(e.documento_asesor) === nombreNorm;
             });
 
-            const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Number(matchingEjec?.acv_total) || 0;
+            const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Math.round(Number(matchingEjec?.acv_total) || 0);
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
             if (advisorAcv > 0) acvMes = advisorAcv;
             pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
