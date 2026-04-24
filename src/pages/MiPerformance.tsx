@@ -442,13 +442,12 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               const hasMetaFe = (m.meta_fe ?? 0) > 0;
               const hasMetaNube = (m.meta_nube ?? 0) > 0;
               const hasMetaAcv = (m.meta ?? 0) > 0;
-              // SP mensual VN = %Uds + %FE + (%Nube × 2) + %ACV (cap 300% por componente).
+              // SP mensual VN = %FE + (%Nube × 2) + %ACV (cap 300% por componente).
               const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
-              const spUds = hasMetaTotal ? cap(m.pct_total) : 0;
               const spFe = hasMetaFe ? cap(m.pct_fe) : 0;
               const spNube = hasMetaNube ? cap(m.pct_nube) * 2 : 0;
               const spAcv = hasMetaAcv ? cap(m.pct) : 0;
-              const spTotal = spUds + spFe + spNube + spAcv;
+              const spTotal = spFe + spNube + spAcv;
               return (
                 <motion.tr
                   key={m.mes}
