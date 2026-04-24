@@ -732,18 +732,18 @@ export const useGamificationMetrics = (
           const teamVentasFe = vgmHasMonth
             ? vgmFe
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? (Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0));
           const teamVentasNube = vgmHasMonth
             ? vgmNube
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? (Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0));
           const teamVentasTotal = vgmHasMonth
             ? vgmTotal
             : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (Number(row.unidades) || 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0));
+                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0)
+                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0));
           const teamAcvFromVgm = vgmHasMonth ? Math.round(vgmAcv) : 0;
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
