@@ -454,12 +454,19 @@ export const useGamificationMetrics = (
                 .lte('periodo', `${anioActual}12`)
                 .limit(500)
             : Promise.resolve({ data: [] }),
+          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks). */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase
+                .from('metas_acv_gerentes' as any)
+                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und')
+                .eq('celula', profile.celula)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, metasGerentesRes, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
