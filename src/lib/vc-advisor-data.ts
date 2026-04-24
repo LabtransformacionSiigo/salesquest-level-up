@@ -6,6 +6,7 @@ import {
   getVcAdvisorDerivedMetrics,
   type MedalLike,
 } from '@/lib/vc-advisor-metrics';
+import { filterCatalogByScope } from '@/lib/catalog-scope';
 
 export interface VcAdvisorProfileLike {
   id?: string | null;
@@ -47,7 +48,6 @@ export const getVcAdvisorSnapshot = async (profile?: VcAdvisorProfileLike | null
     supabase
       .from('catalogo_medallas')
       .select('*')
-      .eq('canal', 'VC')
       .eq('activo', true)
       .order('condicion_tipo')
       .order('nombre'),
@@ -62,7 +62,10 @@ export const getVcAdvisorSnapshot = async (profile?: VcAdvisorProfileLike | null
   if (medalsRes.error) throw medalsRes.error;
 
   const sales = filterVcAdvisorSales(salesRes.data || [], profile.nombre, profile.gerente_id);
-  const catalog = (catalogRes.data || []) as (MedalLike & { id?: string; descripcion?: string | null })[];
+  const catalog = filterCatalogByScope(
+    (catalogRes.data || []) as (MedalLike & { id?: string; descripcion?: string | null })[],
+    profile,
+  );
   const unlockedCatalog = getUnlockedVcAdvisorMedals(catalog, sales);
   const persistedMedals = medalsRes.data || [];
   const persistedNames = new Set(persistedMedals.map((medal) => medal.medalla));
