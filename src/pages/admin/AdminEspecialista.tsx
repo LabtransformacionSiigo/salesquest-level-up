@@ -703,11 +703,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'racha' && (
             <>
-              <Field label="Canal">
+              <Field label="Canal" hint="Derivado de la operación">
                 <select
                   value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className={inputClass}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
                 >
                   <option value="VC">VC</option>
                   <option value="VN_ALIADOS">VN Aliados</option>
