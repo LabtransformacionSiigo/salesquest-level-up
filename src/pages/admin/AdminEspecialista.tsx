@@ -70,6 +70,7 @@ const AdminEspecialista = () => {
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
   const [medallas, setMedallas] = useState<any[]>([]);
+  const [gerentes, setGerentes] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<{ tipo: string; data: any } | null>(null);
 
@@ -80,6 +81,14 @@ const AdminEspecialista = () => {
     if (!isAuthenticated || (!isAdmin && !isEspecialista)) return;
     loadAll();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
+
+  // Map operación → canal de gerente para filtrar el selector
+  const operacionToCanal = (op: string): string | null => {
+    if (op === 'Venta Cruzada') return 'VC';
+    if (op === 'Venta Nueva (Aliados)') return 'VN_ALIADOS';
+    if (op === 'Venta Nueva (Empresarios)') return 'VN_EMPRESARIOS';
+    return null;
+  };
 
   const loadAll = async () => {
     setDataLoading(true);
@@ -94,14 +103,24 @@ const AdminEspecialista = () => {
     }
     setPermisos(perm);
 
-    const [r1, r2, r3] = await Promise.all([
+    // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
+    let gerentesQuery = supabase.from('gerentes').select('id, nombre, canal, pais, celula').eq('activo', true).order('nombre');
+    if (!isAdmin) {
+      const canales = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
+      if (perm.paises.length > 0) gerentesQuery = gerentesQuery.in('pais', perm.paises);
+      if (canales.length > 0) gerentesQuery = gerentesQuery.in('canal', canales);
+    }
+
+    const [r1, r2, r3, gQ] = await Promise.all([
       supabase.from('catalogo_retos').select('*').order('ventana_tiempo'),
       supabase.from('config_rachas').select('*').order('nombre'),
       supabase.from('catalogo_medallas').select('*').order('nombre'),
+      gerentesQuery,
     ]);
     setRetos(r1.data || []);
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
+    setGerentes(gQ.data || []);
     setDataLoading(false);
   };
 
