@@ -945,9 +945,9 @@ export const useGamificationMetrics = (
             const period = String(e.periodo || '');
             if (vgmPeriodsWithData.has(period)) return; // ya cubierto por vgm
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            cur.fe += Number(e.ventas_fe) || 0;
-            cur.nube += Number(e.ventas_nube) || 0;
-            cur.total += Number(e.ventas_total) || 0;
+            cur.fe += Math.round(Number(e.ventas_fe) || 0);
+            cur.nube += Math.round(Number(e.ventas_nube) || 0);
+            cur.total += Math.round(Number(e.ventas_total) || 0);
             ejecByPeriod.set(period, cur);
           });
 
