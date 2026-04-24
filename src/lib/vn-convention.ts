@@ -108,6 +108,57 @@ export const normalizeVnMetaAcv = (
   return Math.round(n * factor);
 };
 
+/**
+ * Catálogo oficial de metas ACV por gerente/célula provenientes de
+ * `metas_acv_gerentes` (origen: Databricks tbl_brz_cuotas_asesores).
+ * Esta es la VERDAD para metas ACV de gerentes de Venta Nueva.
+ */
+export interface VnAcvCatalogRow {
+  pais?: string | null;
+  canal?: string | null;
+  celula?: string | null;
+  mes?: string | null;        // "Mar", "Abr", etc.
+  meta_total_acv?: number | null;
+  meta_total_und?: number | null;
+}
+
+const MES_3_TO_NUM: Record<string, string> = {
+  ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
+  jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
+};
+
+const periodToMes3 = (period: string): string => {
+  // period viene como YYYYMM o YYYY-MM
+  const m = String(period || '').replace(/[^0-9]/g, '').slice(-2);
+  const inv: Record<string, string> = {
+    '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
+    '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
+  };
+  return inv[m] || '';
+};
+
+/**
+ * Busca la meta ACV oficial de la célula para un periodo dado.
+ * Devuelve null si no hay registro en el catálogo (para hacer fallback).
+ */
+export const getOfficialMetaAcv = (
+  period: string,
+  celula: string | null | undefined,
+  catalog: VnAcvCatalogRow[] | null | undefined,
+): number | null => {
+  if (!catalog?.length || !celula) return null;
+  const mes3 = periodToMes3(period);
+  if (!mes3) return null;
+  const celulaNorm = normalizeComparableText(celula);
+  const match = catalog.find((r) => {
+    const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+    return rowMes === mes3 && normalizeComparableText(r.celula) === celulaNorm;
+  });
+  if (!match) return null;
+  const v = Number(match.meta_total_acv) || 0;
+  return v > 0 ? v : null;
+};
+
 export const normalizeStoredAcv = (value: number | null | undefined) => {
   const n = Number(value) || 0;
   if (!Number.isFinite(n)) return 0;
