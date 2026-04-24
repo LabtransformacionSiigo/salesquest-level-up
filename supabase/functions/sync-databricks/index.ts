@@ -360,7 +360,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -369,13 +368,14 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null;
 
     if (!isServiceRole) {
-      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-      if (claimsErr || !claimsData?.claims?.sub) {
-        return new Response(JSON.stringify({ error: "Unauthorized", detail: claimsErr?.message }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      try {
+        authUserId = await getJwtUserId(token);
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Unauthorized", detail: err instanceof Error ? err.message : "Invalid JWT" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      authUserId = claimsData.claims.sub;
       const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", authUserId).eq("role", "admin").maybeSingle();
+      if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
       if (!roleData) return new Response(JSON.stringify({ error: "Solo admins pueden sincronizar" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
