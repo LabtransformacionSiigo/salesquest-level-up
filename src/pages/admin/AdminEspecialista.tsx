@@ -385,7 +385,7 @@ const ItemList = ({
   </div>
 );
 
-const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => {
+const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onSave }: any) => {
   const [form, setForm] = useState<any>({
     nombre: data.nombre || '',
     objetivo_descripcion: data.objetivo_descripcion || data.descripcion || '',
@@ -394,6 +394,7 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
     emoji: data.emoji || '🎯',
     pais: data.pais || (permisos.paises[0] ?? ''),
     operacion: data.operacion || (permisos.operaciones[0] ?? ''),
+    gerente_id: data.gerente_id || '',
     activo: data.activo ?? false,
     // reto
     ventana_tiempo: data.ventana_tiempo || 'DIARIO',
@@ -415,6 +416,15 @@ const EditDrawer = ({ tipo, data, permisos, isAdmin, onClose, onSave }: any) => 
 
   const paisesPerm = isAdmin ? ['COL', 'ECU', 'URU', 'MEX'] : permisos.paises;
   const opsPerm = isAdmin ? OPERACIONES : permisos.operaciones;
+
+  // Filtrar gerentes según país/canal seleccionado en el formulario
+  const opToCanal = (op: string) => op === 'Venta Cruzada' ? 'VC' : op === 'Venta Nueva (Aliados)' ? 'VN_ALIADOS' : op === 'Venta Nueva (Empresarios)' ? 'VN_EMPRESARIOS' : null;
+  const canalForm = opToCanal(form.operacion);
+  const gerentesFiltrados = gerentes.filter((g: any) => {
+    if (form.pais && g.pais !== form.pais) return false;
+    if (canalForm && g.canal !== canalForm) return false;
+    return true;
+  });
 
   const handleSave = () => {
     let payload: any = {
