@@ -520,7 +520,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
           <Field label="Operación">
             <select
               value={form.operacion}
-              onChange={(e) => setForm({ ...form, operacion: e.target.value })}
+              onChange={(e) => setForm({ ...form, operacion: e.target.value, gerente_id: '' })}
               className={inputClass}
             >
               <option value="">— Sin operación —</option>
@@ -531,6 +531,29 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               ))}
             </select>
           </Field>
+          <div className="col-span-2">
+            <Field
+              label="Gerente asignado (opcional)"
+              hint={
+                gerentesFiltrados.length === 0
+                  ? 'No hay gerentes en el país/operación seleccionados'
+                  : 'Si seleccionas un gerente, esta configuración solo aplicará a su equipo. Déjalo vacío para que aplique a todo el canal/país.'
+              }
+            >
+              <select
+                value={form.gerente_id}
+                onChange={(e) => setForm({ ...form, gerente_id: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">— Aplica a todo el canal/país —</option>
+                {gerentesFiltrados.map((g: any) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nombre}{g.celula ? ` · ${g.celula}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
           {tipo === 'reto' && (
             <>
