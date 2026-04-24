@@ -1781,7 +1781,7 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     const unidadesRaw = Number(row.ventas);
     const unidades = Number.isFinite(unidadesRaw) ? Math.round(unidadesRaw) : 0;
     const acvRaw = Number(row.acv_total);
-    const acv = Number.isFinite(acvRaw) ? acvRaw : 0;
+    const acv = Number.isFinite(acvRaw) ? Math.round(acvRaw) : 0;
 
     // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
     // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,
