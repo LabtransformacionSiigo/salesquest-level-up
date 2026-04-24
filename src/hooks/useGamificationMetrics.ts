@@ -641,8 +641,8 @@ export const useGamificationMetrics = (
             const asesoresConNovedad = new Set<string>();
 
             rows.forEach((row: any) => {
-              const novedad = String(row.novedad || '').trim().toLowerCase();
-              const isExcluded = novedad && novedad !== 'sin novedad';
+              const novedadRaw = String(row.novedad || '').trim();
+              const isExcluded = novedadRaw !== '' && novedadRaw !== 'Sin novedad';
               if (isExcluded && row.nombre_asesor) {
                 asesoresConNovedad.add(normalizeComparableText(row.nombre_asesor));
               }
