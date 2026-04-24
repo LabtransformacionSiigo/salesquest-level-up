@@ -1087,7 +1087,7 @@ export const useGamificationMetrics = (
             const meta = metasPorAsesor.get(asesorKey);
             const prodRow = prodByName.get(asesorKey);
             const ventas = ventasPorAsesor.get(asesorKey) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            const tiene_novedad = !!(meta?.novedad && normalizeComparableText(meta.novedad) !== 'sin novedad');
+            const tiene_novedad = !!(meta?.novedad && (meta.novedad ?? '').toString().trim() !== '' && (meta.novedad ?? '').toString().trim() !== 'Sin novedad');
 
             const nombre = prodRow?.asesor || meta?.nombre_asesor || asesorKey;
             const doc = (meta?.documento_asesor && String(meta.documento_asesor)) || '';
