@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, trophyWobble, popIn } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import { filterCatalogByScope } from '@/lib/catalog-scope';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import medallaImg from '@/assets/medalla.png';
 import candadoImg from '@/assets/candado.png';
@@ -42,11 +43,11 @@ const Medallas = () => {
       }
       const [mRes, cRes] = await Promise.all([
         supabase.from('medallas').select('*').eq('gerente_id', profile.id),
-        supabase.from('catalogo_medallas').select('*').eq('canal', profile.canal).eq('activo', true).order('condicion_tipo').order('nombre'),
+        supabase.from('catalogo_medallas').select('*').eq('activo', true).order('condicion_tipo').order('nombre'),
       ]);
       if (cancelled) return;
       setMisMedallas(mRes.data || []);
-      setCatalogo(cRes.data || []);
+      setCatalogo(filterCatalogByScope(cRes.data || [], profile));
       setDataLoading(false);
     };
 

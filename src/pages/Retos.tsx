@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, scoreboardSlide, popIn, celebratePulse } from '@/lib/animations';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 import { hasVcAdvisorSalesEveryDaySoFar } from '@/lib/vc-advisor-metrics';
+import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
@@ -54,6 +55,9 @@ interface VcCatalogReto {
   nombre: string;
   emoji: string | null;
   ventana_tiempo: string;
+  canal?: string | null;
+  pais?: string | null;
+  gerente_id?: string | null;
   kpi: string | null;
   familia_vc: string | null;
   umbral: number;
@@ -92,12 +96,12 @@ const Retos = () => {
 
       if (useVcCatalog) {
         const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
-          supabase.from('catalogo_retos').select('*').eq('activo', true).eq('canal', 'VC'),
+          supabase.from('catalogo_retos').select('*').eq('activo', true),
           supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
           isVcAdvisor ? getVcAdvisorSnapshot(profile) : Promise.resolve(null as any),
         ]);
         if (cancelled) return;
-        setVcCatalog((catalog || []) as VcCatalogReto[]);
+        setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
         setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
         if (snapshot?.metrics) {
           setVentasHoy(snapshot.metrics.todaySalesCount || 0);
@@ -312,24 +316,24 @@ const Retos = () => {
               <>
                 <TabsContent value="diarios">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').map((r) => renderVcCard(r, periodoHoy))}
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'diario').length === 0 && (
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'DIARIO').map((r) => renderVcCard(r, periodoHoy))}
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'DIARIO').length === 0 && (
                       <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos diarios activos.</p>
                     )}
                   </motion.div>
                 </TabsContent>
                 <TabsContent value="semanales">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').map((r) => renderVcCard(r, periodoSemana))}
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'semanal').length === 0 && (
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'SEMANAL').map((r) => renderVcCard(r, periodoSemana))}
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'SEMANAL').length === 0 && (
                       <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos semanales activos.</p>
                     )}
                   </motion.div>
                 </TabsContent>
                 <TabsContent value="mensuales">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').map((r) => renderVcCard(r, periodoMes))}
-                    {vcCatalog.filter(r => r.ventana_tiempo === 'mensual').length === 0 && (
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'MENSUAL').map((r) => renderVcCard(r, periodoMes))}
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'MENSUAL').length === 0 && (
                       <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Sin retos mensuales activos.</p>
                     )}
                   </motion.div>

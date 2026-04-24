@@ -10,6 +10,9 @@ export interface VcAdvisorSaleLike {
 export interface MedalLike {
   nombre: string;
   condicion_tipo: string;
+  canal?: string | null;
+  pais?: string | null;
+  gerente_id?: string | null;
   producto?: string | null;
   cantidad_requerida?: number | null;
   sp: number;
