@@ -45,6 +45,11 @@ const SPANISH_MONTHS: Record<string, string> = {
   "Septiembre": "09", "Octubre": "10", "Noviembre": "11", "Diciembre": "12",
 };
 
+const MONTH_NUMBERS_3: Record<string, string> = {
+  ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
+  jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
+};
+
 // ============================================================
 // TABLE_CONFIGS – all Databricks queries
 // ============================================================
@@ -259,6 +264,22 @@ const normalizeCountry = (value: unknown) => {
   if (["ECU", "EC", "ECUADOR"].includes(country)) return "ECU";
   if (["URU", "UY", "URUGUAY"].includes(country)) return "URU";
   return "COL";
+};
+
+const normalizePeriodFromCuotas = (row: Record<string, any>) => {
+  const rawYear = String(row["Año_Meta"] ?? row["anio_meta"] ?? row["ANIO_META"] ?? row.anio ?? row.Anio ?? "").trim();
+  const rawMonth = String(row.mes ?? row.MES ?? row.M ?? row.m ?? row.Mes ?? row["Mes_meta"] ?? row["mes_meta"] ?? "").trim();
+  const year = /^\d{4}$/.test(rawYear) ? rawYear : "2026";
+  const normalizedMonth = rawMonth.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 3);
+  const month = MONTH_NUMBERS_3[normalizedMonth] || SPANISH_MONTHS[rawMonth] || "";
+  return month ? `${year}${month}` : "";
+};
+
+const inferCanalDireccionFromTeam = (value: unknown) => {
+  const raw = String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (raw.includes("empres") || raw.includes("smb") || raw.includes("mercadeo") || raw.includes("digital") || raw.includes("lead")) return "Empresarios";
+  if (raw.includes("aliad")) return "Aliados";
+  return "Aliados";
 };
 
 const toNumber = (...values: any[]) => {
@@ -949,10 +970,6 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   let synced = 0;
   const errores: string[] = [];
 
-  // Build current month as anio_mes default
-  const now = new Date();
-  const defaultAnioMes = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-
   // DIAGNOSTIC: log sample of incoming raw rows + key field counts
   const sample = rows.slice(0, 2);
   const conGerente = rows.filter((r) => r.gerente).length;
@@ -975,7 +992,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
       celula: row.celula ? String(row.celula).trim() : null,
       nombre_asesor: row.nombre_asesor ? String(row.nombre_asesor).trim() : null,
       gerente: row.gerente ? String(row.gerente).trim() : null,
-      anio_mes: defaultAnioMes,
+      anio_mes: normalizePeriodFromCuotas(row),
       // Nuevos campos extendidos
       proyecto: row.proyecto ? String(row.proyecto).trim() : null,
       fecha_ingreso_asesor: fechaIngreso && /^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso) ? fechaIngreso : null,
@@ -993,7 +1010,7 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
       nube_bono: toRoundedInt(row.nube_bono),
       total_bono: toRoundedInt(row.total_bono),
     };
-  }).filter((r) => r.documento_asesor && r.canal_direccion);
+  }).filter((r) => r.documento_asesor && r.canal_direccion && /^\d{6}$/.test(r.anio_mes));
 
   // Dedup by (documento_asesor, canal_direccion, anio_mes) to avoid Postgres upsert duplicate key errors
   const metasDedupMap = new Map<string, typeof upsertRows[number]>();
@@ -1182,7 +1199,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   let synced = 0;
   const errores: string[] = [];
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
   const { error: clearVentasError } = await supabase
     .from("ventas_diarias")
     .delete()
@@ -1223,7 +1240,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
-      canal_direccion: normalizeCanalDireccion("Empresarios"),
+      canal_direccion: inferCanalDireccionFromTeam(row.Equipo || "Empresarios"),
       pais,
       registro_idx,
     });
@@ -1251,7 +1268,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   let synced = 0;
   const errores: string[] = [];
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
   const { error: clearVentasError } = await supabase
     .from("ventas_diarias")
     .delete()
@@ -1750,7 +1767,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
 // ============================================================
 async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>[]) {
   const errores: string[] = [];
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
 
   // 1) Limpieza del año en curso
   const { error: clearErr } = await supabase
@@ -1783,10 +1800,7 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     const acvRaw = Number(row.acv_total);
     const acv = Number.isFinite(acvRaw) ? Math.round(acvRaw) : 0;
 
-    // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
-    // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,
-    // se puede determinar por celula. Por ahora todas las filas son Aliados.
-    const canalDireccion = "Aliados";
+    const canalDireccion = inferCanalDireccionFromTeam(row.equipo || row.EQUIPO || row.canal_direccion || "Aliados");
     const gerenteNorm = normalizeText(gerente);
 
     upsertRows.push({

@@ -396,11 +396,14 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
-            ? supabase.from('metas_asesores').select('*').eq('anio_mes', mesActual).limit(1000)
+            ? supabase.from('metas_asesores').select('*')
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .limit(5000)
             : Promise.resolve({ data: [] }),
           /* 14 – productividad_asesores aggregated by celula for VN gerente */
           isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados')
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais')
                 .eq('celula', profile.celula)
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
@@ -905,7 +908,7 @@ export const useGamificationMetrics = (
           const buildMonthMetaAcv = (period: string) =>
             celulaRows
               .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
-              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
+              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
 
           // Aggregate FE/Nube/Total per month.
           // ⭐ Prioridad: ventas_gerente_mensual (Databricks oficial por gerente),
