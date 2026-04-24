@@ -194,6 +194,37 @@ function buildRecord(r: any, scope: "gerente" | "asesor") {
   };
 }
 
+function mergeByUniqueGrain(records: ReturnType<typeof buildRecord>[]) {
+  const merged = new Map<string, ReturnType<typeof buildRecord>>();
+
+  for (const record of records) {
+    const key = [
+      record.pais,
+      record.anio,
+      record.mes_nro,
+      record.canal_direccion,
+      record.scope,
+      record.gerente_normalizado ?? "",
+      record.asesor ?? "",
+      record.tipo_producto1,
+    ].join("|");
+
+    const existing = merged.get(key);
+    if (existing) {
+      existing.ventas += record.ventas;
+      existing.acv_total += record.acv_total;
+      if (!existing.gerente && record.gerente) existing.gerente = record.gerente;
+      if (!existing.celula && record.celula) existing.celula = record.celula;
+      if (!existing.familia && record.familia) existing.familia = record.familia;
+      continue;
+    }
+
+    merged.set(key, { ...record });
+  }
+
+  return [...merged.values()];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -226,11 +257,11 @@ Deno.serve(async (req) => {
       if (delErr) throw new Error(`delete previo: ${delErr.message}`);
     }
 
-    const records = [
+    const records = mergeByUniqueGrain([
       ...rowsA.map((r: any) => buildRecord(r, "gerente")),
       ...rowsB.map((r: any) => buildRecord(r, "asesor")),
       ...rowsC.map((r: any) => buildRecord(r, "asesor")),
-    ];
+    ]);
 
     const BATCH = 500;
     let inserted = 0;
