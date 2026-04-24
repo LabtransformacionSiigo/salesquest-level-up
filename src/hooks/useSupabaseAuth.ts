@@ -148,8 +148,8 @@ const getVnFeNubeConventionTotal = (
   // Aggregate metas by period (excluding novedades)
   const metaByPeriod = new Map<string, { fe: number; nube: number }>();
   (metaRows || []).forEach((m) => {
-    const nov = m.novedad ? String(m.novedad).trim().toLowerCase() : '';
-    if (nov && nov !== 'sin novedad') return;
+    const nov = (m.novedad ?? '').toString().trim();
+    if (nov !== '' && nov !== 'Sin novedad') return;
     const period = String(m.anio_mes || '');
     if (!period) return;
     const cur = metaByPeriod.get(period) || { fe: 0, nube: 0 };
