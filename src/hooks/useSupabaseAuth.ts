@@ -485,6 +485,8 @@ export const useSupabaseAuth = () => {
                   productivityRows,
                   metaRows: metaRowsWithSynthetic,
                   ejecRows: syntheticEjec,
+                  acvCatalog: acvCatalogRows,
+                  celula: gerenteCelula,
                 });
                   if (!spTotales) {
                     spTotales = sumVnConventionMonthlyRows(monthlyRows);
