@@ -432,6 +432,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
       objetivo_descripcion: form.objetivo_descripcion,
       pais: form.pais || null,
       operacion: form.operacion || null,
+      gerente_id: form.gerente_id || null,
       activo: form.activo,
       emoji: form.emoji,
     };
