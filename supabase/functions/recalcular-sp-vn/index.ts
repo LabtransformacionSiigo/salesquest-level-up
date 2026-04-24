@@ -422,9 +422,9 @@ Deno.serve(async (req) => {
         const metaTotal = pMetas.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
         const metaAcv = pProd.reduce((s: number, r: any) => s + normMetaAcv(r.meta, r.pais), 0);
         const acv = pProd.reduce((s: number, r: any) => s + normAcv(r.acv_f), 0);
-        const vFe = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-        const vNube = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-        const vTotal = pEjec.reduce((s: number, r: any) => s + (Number(r.ventas_total) || 0), 0);
+        const vFe = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0);
+        const vNube = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0);
+        const vTotal = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0);
 
         const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
