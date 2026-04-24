@@ -107,6 +107,19 @@ Deno.serve(async (req) => {
       else if (body && typeof body.canal === 'string') canalFilter = [body.canal];
     } catch (_) {}
 
+    if (!paisFilter?.length || !canalFilter?.length) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: 'Debes enviar al menos un país y un canal para ejecutar el recálculo por lotes.',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      );
+    }
+
     const canalDireccionFilter = canalFilter.map((c) =>
       c === 'VN_ALIADOS' ? 'Aliados' : c === 'VN_EMPRESARIOS' ? 'Empresarios' : c,
     );
