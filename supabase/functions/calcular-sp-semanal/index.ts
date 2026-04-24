@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
     const targetCanal = normalizeCanal(typeof requestBody.canal === "string" ? requestBody.canal : null) || null;
     const resetExistingConvencion = requestBody.reset_existing_convencion === true;
     const onlyConvencion = requestBody.only_convencion === true;
+    const errores: string[] = [];
 
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
