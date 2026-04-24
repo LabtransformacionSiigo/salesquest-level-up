@@ -1,5 +1,5 @@
 // Recalcula SP Convención VN (Aliados/Empresarios) para COL/MEX/ECU/URU
-// Fórmula mensual: SP_mes = cap(%Uds) + cap(%FE) + cap(%Nube*2) + cap(%ACV)
+// Fórmula mensual: SP_mes = cap(%FE) + cap(%Nube)*2 + cap(%ACV)
 // cap = min(300, max(0, round(value)))
 // Total = sumatoria SP_mes para todos los periodos con datos.
 //
@@ -61,7 +61,7 @@ const normAcv = (v: any) => {
 
 const cap = (v: number) => Math.min(CAP, Math.max(0, Math.round(v || 0)));
 
-const computeSp = (_pctUds: number, pctFe: number, pctNube: number, pctAcv: number) =>
+const computeSp = (pctFe: number, pctNube: number, pctAcv: number) =>
   cap(pctFe) + cap(pctNube) * 2 + cap(pctAcv);
 
 const isActiveMeta = (m: any) => {
@@ -331,11 +331,10 @@ Deno.serve(async (req) => {
           }
         }
 
-        const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
         const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
-        const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
+        const sp = computeSp(pctFe, pctNube, pctAcv);
 
         if (sp > 0) {
           total += sp;
@@ -344,7 +343,6 @@ Deno.serve(async (req) => {
         if (isDiana || isGrace) {
           monthlyDbg.push({
             period,
-            pctUds: cap(pctUds),
             pctFe: cap(pctFe),
             pctNube: cap(pctNube),
             pctAcv: cap(pctAcv),
@@ -426,11 +424,10 @@ Deno.serve(async (req) => {
         const vNube = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0);
         const vTotal = pEjec.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0);
 
-        const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
         const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
-        const sp = computeSp(pctUds, pctFe, pctNube, pctAcv);
+        const sp = computeSp(pctFe, pctNube, pctAcv);
         if (sp > 0) {
           total += sp;
           monthly.push({ period, sp });
