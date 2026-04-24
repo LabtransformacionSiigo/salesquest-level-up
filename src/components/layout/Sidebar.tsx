@@ -31,6 +31,7 @@ const adminItems = [
   { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
   { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
+  { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
 ];
 
 const especialistaItems = [
