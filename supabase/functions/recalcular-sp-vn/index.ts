@@ -321,9 +321,9 @@ Deno.serve(async (req) => {
           const periodEjec = ejecByPeriod.get(period) || [];
           for (const e of periodEjec) {
             if (!teamKeys.has(norm(e.documento_asesor))) continue;
-            vFe += Number(e.ventas_fe) || 0;
-            vNube += Number(e.ventas_nube) || 0;
-            vTotal += Number(e.ventas_total) || 0;
+            vFe += Math.round(Number(e.ventas_fe) || 0);
+            vNube += Math.round(Number(e.ventas_nube) || 0);
+            vTotal += Math.round(Number(e.ventas_total) || 0);
           }
           for (const r of pProd) {
             if (novedadNames.has(norm(r.asesor))) continue;
