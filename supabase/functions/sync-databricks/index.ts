@@ -141,25 +141,52 @@ ${limit}`;
   ventas_gerente_mensual: {
     label: "Ventas Gerente Mensual (FE/NUBE/CONTADOR)",
     sql: (limit: string) =>
-      `SELECT
-         v.pais,
-         MONTH(v.fecha) AS mes_nro,
-         c.gerente,
-         v.celula,
-         v.tipo_producto1,
-         CAST(SUM(v.cuenta_finanzas) AS DOUBLE) AS ventas,
-         CAST(SUM(v.ACV) AS DOUBLE) AS acv_total
-       FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
-       LEFT JOIN (
-         SELECT DISTINCT celula, gerente
-         FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
-         WHERE gerente IS NOT NULL
-       ) c ON v.celula = c.celula
-       WHERE v.fecha >= '2026-01-01'
-         AND c.gerente IS NOT NULL
-       GROUP BY v.pais, MONTH(v.fecha), c.gerente, v.celula, v.tipo_producto1
+      `SELECT pais, mes_nro, gerente, celula, tipo_producto1,
+              CAST(SUM(ventas) AS DOUBLE) AS ventas,
+              CAST(SUM(acv_total) AS DOUBLE) AS acv_total
+       FROM (
+         -- Sudamérica (COL/ECU/URU): tbl_gld_Ventas_SA
+         SELECT
+           v.pais,
+           MONTH(v.fecha) AS mes_nro,
+           c.gerente,
+           v.celula,
+           v.tipo_producto1,
+           v.cuenta_finanzas AS ventas,
+           v.ACV AS acv_total
+         FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
+         LEFT JOIN (
+           SELECT DISTINCT celula, gerente
+           FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+           WHERE gerente IS NOT NULL
+         ) c ON v.celula = c.celula
+         WHERE v.fecha >= '2026-01-01'
+           AND c.gerente IS NOT NULL
+
+         UNION ALL
+
+         -- México (MEX): tbl_gld_Ventas_MX
+         SELECT
+           'MEX' AS pais,
+           MONTH(v.FECHA) AS mes_nro,
+           c.gerente,
+           v.CELULA AS celula,
+           v.TIPO_PRODUCTO AS tipo_producto1,
+           CAST(v.Unidades AS DOUBLE) AS ventas,
+           CAST(v.ACV AS DOUBLE) AS acv_total
+         FROM analyticdl.db_comercial.tbl_gld_Ventas_MX v
+         LEFT JOIN (
+           SELECT DISTINCT celula, gerente
+           FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+           WHERE gerente IS NOT NULL
+         ) c ON v.CELULA = c.celula
+         WHERE v.FECHA >= '2026-01-01'
+           AND c.gerente IS NOT NULL
+       ) unioned
+       GROUP BY pais, mes_nro, gerente, celula, tipo_producto1
        ${limit}`,
   },
+
 };
 
 // ============================================================
@@ -1269,21 +1296,21 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
 // Helper: Update ejecucion_asesores from ventas_diarias rows
 // ============================================================
 async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], canalDireccion: string, errores: string[]) {
-  // Group by asesor + month → summarize FE, Nube, total
-  const grouped = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number; acv_total: number; documento_asesor: string; periodo: string }>();
+  // Group by asesor + pais + month → summarize FE, Nube, total.
+  // CRITICAL: include pais in the key so MEX/ECU/URU don't collide with COL
+  // when the same asesor name (or null doc) repeats across countries.
+  const grouped = new Map<string, { ventas_fe: number; ventas_nube: number; ventas_total: number; acv_total: number; documento_asesor: string; periodo: string; pais: string }>();
 
   for (const row of rows) {
     const fecha = String(row.fecha || "");
     const periodo = fecha.length >= 7 ? fecha.substring(0, 7).replace("-", "") : new Date().toISOString().substring(0, 7).replace("-", "");
-    // Ensure periodo is 6 chars (YYYYMM)
     const periodoClean = periodo.replace(/[^0-9]/g, "").substring(0, 6);
-    const key = `${row.asesor}|${periodoClean}`;
-    // tipo_producto already holds the canonical family ("FE" | "NUBE" | "OTRO")
-    // set by syncVentasAliados / syncVentasEmpresarios
+    const pais = String(row.pais || "COL").toUpperCase();
+    const key = `${row.asesor}|${pais}|${periodoClean}`;
     const cat = String(row.tipo_producto || "").trim().toUpperCase();
 
     if (!grouped.has(key)) {
-      grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean });
+      grouped.set(key, { ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0, documento_asesor: row.asesor, periodo: periodoClean, pais });
     }
     const g = grouped.get(key)!;
     const unidades = Math.round(row.unidades || 0);
@@ -1297,6 +1324,7 @@ async function updateEjecucionFromVentasDiarias(supabase: any, rows: any[], cana
     documento_asesor: g.documento_asesor,
     periodo: g.periodo,
     canal_direccion: canalDireccion,
+    pais: g.pais,
     ventas_fe: g.ventas_fe,
     ventas_nube: g.ventas_nube,
     ventas_total: g.ventas_total,
