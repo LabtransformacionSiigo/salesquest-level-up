@@ -28,10 +28,13 @@ const TABLE_LABELS: Record<string, { label: string; icon: string }> = {
   metas_asesores_sync: { label: 'Metas Asesores', icon: 'person_search' },
   ventas_empresarios: { label: 'Ventas Empresarios', icon: 'business' },
   ventas_aliados: { label: 'Ventas Aliados', icon: 'handshake' },
+  ventas_empresarios_combo: { label: 'Ventas Empresarios (combo)', icon: 'business' },
+  ventas_aliados_combo: { label: 'Ventas Aliados (combo)', icon: 'handshake' },
   productividad_asesores: { label: 'Productividad Asesores', icon: 'emoji_events' },
   ventas_vn_completo: { label: 'Ventas VN Completo', icon: 'sync_alt' },
-  ventas_vn_aliados: { label: 'Ventas VN Aliados (→ventas)', icon: 'people' },
-  ventas_vn_empresarios: { label: 'Ventas VN Empresarios (→ventas)', icon: 'business_center' },
+  ventas_vn_aliados: { label: 'Ventas VN Aliados (legacy)', icon: 'people' },
+  ventas_vn_empresarios: { label: 'Ventas VN Empresarios (legacy)', icon: 'business_center' },
+  ventas_gerente_mensual: { label: 'Ventas Gerente Mensual', icon: 'leaderboard' },
   all_new: { label: 'Sync Completo (Nuevos)', icon: 'sync_alt' },
 };
 

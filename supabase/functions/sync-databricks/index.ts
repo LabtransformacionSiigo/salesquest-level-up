@@ -378,8 +378,11 @@ Deno.serve(async (req) => {
 
     // ── all_new: dispatch each table to its own fresh worker (fire-and-forget) ──
     // Each fetch hits this same edge function with a single table → fresh CPU budget per worker.
+    // OPTIMIZACIÓN: usamos jobs combinados (ventas_empresarios_combo / ventas_aliados_combo)
+    // que descargan UNA sola vez de Databricks y procesan ambos destinos (ventas_diarias + ventas).
+    // Antes ejecutábamos la misma query 2 veces por canal → ahora 1 vez. ~50% menos tiempo en Databricks.
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios", "ventas_aliados", "ventas_vn_aliados", "ventas_vn_empresarios", "productividad_asesores", "ventas_gerente_mensual"];
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios_combo", "ventas_aliados_combo", "productividad_asesores", "ventas_gerente_mensual"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
@@ -466,6 +469,8 @@ async function processSyncJob({ supabaseUrl, serviceRoleKey, table, mesFilter, j
     let result: any;
     if (table === "ventas_vc_completo") result = await runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
     else if (table === "ventas_vn_completo") result = await runVentasVnCompleto({ supabase, supabaseUrl, serviceRoleKey, mesFilter, mode: "sync" });
+    else if (table === "ventas_empresarios_combo") result = await runVentasEmpresariosCombo({ supabase, mesFilter });
+    else if (table === "ventas_aliados_combo") result = await runVentasAliadosCombo({ supabase, mesFilter });
     else if (table === "all_new") result = { error: "all_new should be dispatched, not processed inline" };
     else result = await runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table, mesFilter, mode: "sync" });
 
@@ -1786,5 +1791,44 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     registros_sincronizados: synced,
     filas_finales: finalRows.length,
     errores: errores.slice(0, 20),
+  };
+}
+
+// ============================================================
+// COMBO SYNCS — descargan UNA sola vez de Databricks y procesan ambos destinos
+// (ventas_diarias + ejecucion_asesores + kpis_mensuales) y (ventas tabla VC unificada).
+// Antes ejecutábamos la misma query 2 veces por canal — esto reduce ~50% el tiempo.
+// ============================================================
+async function runVentasEmpresariosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
+  const config = TABLE_CONFIGS.ventas_empresarios;
+  const rows = await runDatabricksQuery("ventas_empresarios_combo", config.sql("", mesFilter));
+  console.log(`[ventas_empresarios_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+
+  const [empresariosResult, vnResult] = await Promise.allSettled([
+    syncVentasEmpresarios(supabase, rows),
+    syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
+  ]);
+
+  return {
+    total_rows: rows.length,
+    ventas_diarias: empresariosResult.status === "fulfilled" ? empresariosResult.value : { error: String(empresariosResult.reason) },
+    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
+  };
+}
+
+async function runVentasAliadosCombo({ supabase, mesFilter }: { supabase: any; mesFilter?: string }) {
+  const config = TABLE_CONFIGS.ventas_aliados;
+  const rows = await runDatabricksQuery("ventas_aliados_combo", config.sql("", mesFilter));
+  console.log(`[ventas_aliados_combo] Databricks returned ${rows.length} rows — procesando ambos destinos`);
+
+  const [aliadosResult, vnResult] = await Promise.allSettled([
+    syncVentasAliados(supabase, rows),
+    syncVentasVN(supabase, rows, "VN_ALIADOS"),
+  ]);
+
+  return {
+    total_rows: rows.length,
+    ventas_diarias: aliadosResult.status === "fulfilled" ? aliadosResult.value : { error: String(aliadosResult.reason) },
+    ventas_vn: vnResult.status === "fulfilled" ? vnResult.value : { error: String(vnResult.reason) },
   };
 }
