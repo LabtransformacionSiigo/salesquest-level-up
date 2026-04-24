@@ -216,7 +216,11 @@ const AdminMetasAcv = () => {
           </div>
           <Button onClick={handleSyncDatabricks} disabled={syncing} variant="default" className="gap-2">
             <MI icon={syncing ? 'sync' : 'cloud_download'} className={cn('text-base', syncing && 'animate-spin')} />
-            {syncing ? 'Sincronizando…' : 'Sincronizar desde Databricks'}
+            {syncing ? 'Sincronizando…' : 'Sincronizar Metas ACV'}
+          </Button>
+          <Button onClick={handleSyncVnMetricas} disabled={syncingVn} variant="secondary" className="gap-2">
+            <MI icon={syncingVn ? 'sync' : 'insights'} className={cn('text-base', syncingVn && 'animate-spin')} />
+            {syncingVn ? 'Sincronizando…' : 'Sincronizar Métricas VN'}
           </Button>
         </div>
 
