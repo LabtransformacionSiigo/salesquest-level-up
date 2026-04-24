@@ -609,11 +609,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
           )}
           {tipo === 'reto' && (
             <>
-              <Field label="Canal">
+              <Field label="Canal" hint="Derivado de la operación">
                 <select
                   value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className={inputClass}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
                 >
                   {CANALES_RETOS.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -644,15 +644,15 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="Tipo de métrica">
+              <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
                 <select
                   value={form.tipo_metrica}
                   onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
                   className={inputClass}
                 >
-                  {TIPO_METRICA.map((t) => (
+                  {metricasDisponibles.map((t) => (
                     <option key={t} value={t}>
-                      {t}
+                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
                     </option>
                   ))}
                 </select>
