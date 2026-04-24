@@ -1199,7 +1199,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
   let synced = 0;
   const errores: string[] = [];
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
   const { error: clearVentasError } = await supabase
     .from("ventas_diarias")
     .delete()
@@ -1240,7 +1240,7 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
       acv: toRoundedInt(row.ACV),
       recurrencia: String(row.Recurrencia || "").trim() || null,
       origen: String(row.ORIGEN || "").trim() || null,
-      canal_direccion: normalizeCanalDireccion("Empresarios"),
+      canal_direccion: inferCanalDireccionFromTeam(row.Equipo || "Empresarios"),
       pais,
       registro_idx,
     });
@@ -1268,7 +1268,7 @@ async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
   let synced = 0;
   const errores: string[] = [];
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
   const { error: clearVentasError } = await supabase
     .from("ventas_diarias")
     .delete()
@@ -1767,7 +1767,7 @@ async function syncVentasVN(supabase: any, rows: Record<string, any>[], canal: "
 // ============================================================
 async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>[]) {
   const errores: string[] = [];
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2026;
 
   // 1) Limpieza del año en curso
   const { error: clearErr } = await supabase
@@ -1800,10 +1800,7 @@ async function syncVentasGerenteMensual(supabase: any, rows: Record<string, any>
     const acvRaw = Number(row.acv_total);
     const acv = Number.isFinite(acvRaw) ? Math.round(acvRaw) : 0;
 
-    // Inferir canal_direccion: tbl_gld_Ventas_SA es Aliados; las celulas de
-    // Empresarios viven en tbl_gld_Ventas_MX. Si en el futuro se unifica,
-    // se puede determinar por celula. Por ahora todas las filas son Aliados.
-    const canalDireccion = "Aliados";
+    const canalDireccion = inferCanalDireccionFromTeam(row.equipo || row.EQUIPO || row.canal_direccion || "Aliados");
     const gerenteNorm = normalizeText(gerente);
 
     upsertRows.push({
