@@ -167,8 +167,8 @@ export const normalizeStoredAcv = (value: number | null | undefined) => {
 };
 
 const isActiveMetaRow = (row: VnConventionMetaRow) => {
-  const novedad = normalizeComparableText(row.novedad);
-  return !novedad || novedad === 'sin novedad';
+  const novedad = String(row.novedad ?? '').trim();
+  return novedad === '' || novedad === 'Sin novedad';
 };
 
 export const buildVnConventionMonthlyRows = ({
