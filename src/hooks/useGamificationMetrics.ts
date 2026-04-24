@@ -1078,8 +1078,8 @@ export const useGamificationMetrics = (
             ...ventasPorAsesor.keys(),
             ...[...metasPorAsesor.keys()].filter((k) => {
               const m = metasPorAsesor.get(k);
-              const nov = normalizeComparableText(m?.novedad);
-              return !nov || nov === 'sin novedad';
+              const nov = (m?.novedad ?? '').toString().trim();
+              return nov === '' || nov === 'Sin novedad';
             }),
           ]);
 
