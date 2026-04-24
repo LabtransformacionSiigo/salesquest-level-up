@@ -649,8 +649,8 @@ export const useGamificationMetrics = (
             });
 
             const validRows = rows.filter((row: any) => {
-              const novedad = String(row.novedad || '').trim().toLowerCase();
-              return !novedad || novedad === 'sin novedad';
+              const novedadRaw = String(row.novedad || '').trim();
+              return novedadRaw === '' || novedadRaw === 'Sin novedad';
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
