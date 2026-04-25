@@ -987,6 +987,13 @@ export const useGamificationMetrics = (
             };
           };
 
+          // Recolectar todos los periodos donde haya metas para el equipo del gerente
+          const metaPeriods = new Set<string>();
+          (vnMetasAsesores || []).forEach((r: any) => {
+            const p = String(r.anio_mes || '');
+            if (/^\d{6}$/.test(p) && getTeamMetaRowsForPeriod(p).length > 0) metaPeriods.add(p);
+          });
+
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
             const monthAgg = new Map<string, { ventas: number; meta: number; acv: number; referidos: number }>();
@@ -999,8 +1006,11 @@ export const useGamificationMetrics = (
               cur.referidos += Number(row.cant_recomendados) || 0;
               monthAgg.set(period, cur);
             });
-            // Include any periods present in ejecucion/vgm but missing from productividad
+            // Include any periods present in ejecucion/vgm/metas but missing from productividad
             ejecByPeriod.forEach((_, period) => {
+              if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
+            });
+            metaPeriods.forEach((period) => {
               if (!monthAgg.has(period)) monthAgg.set(period, { ventas: 0, meta: 0, acv: 0, referidos: 0 });
             });
             vnMonthlyCumpl = [...monthAgg.entries()]
@@ -1017,6 +1027,7 @@ export const useGamificationMetrics = (
             const vnHistoryRows = vnHistoryRes?.data || [];
             const periodSet = new Set<string>(vnHistoryRows.map((r: any) => String(r.anio_mes || '')));
             ejecByPeriod.forEach((_, period) => periodSet.add(period));
+            metaPeriods.forEach((period) => periodSet.add(period));
             vnMonthlyCumpl = [...periodSet]
               .sort((a, b) => b.localeCompare(a))
               .map((period) => {
