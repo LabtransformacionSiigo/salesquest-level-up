@@ -154,19 +154,25 @@ ${limit}`;
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
     label: "Ventas Empresarios (tbl_gld_Ventas_MX)",
-    sql: (limit: string) =>
-      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
+    sql: (limit: string, mesFilter?: string) => {
+      const mesNum = mesNombreANumero(mesFilter);
+      const mesClause = mesNum ? `AND MONTH(FECHA) = ${mesNum}` : "";
+      return `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${mesClause} ${limit}`;
+    },
   },
   // ── NEW: Ventas Aliados ──
   ventas_aliados: {
     label: "Ventas Aliados (tbl_gld_Ventas_SA)",
-    sql: (limit: string) =>
-      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen,
+    sql: (limit: string, mesFilter?: string) => {
+      const mesNum = mesNombreANumero(mesFilter);
+      const mesClause = mesNum ? `AND MONTH(fecha) = ${mesNum}` : "";
+      return `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen,
               CAST(cuenta_finanzas AS DOUBLE) AS cuenta_finanzas,
               CAST(ACV AS DOUBLE) AS ACV,
               Director
        FROM analyticdl.db_comercial.tbl_gld_Ventas_SA
-       WHERE YEAR(fecha) = 2026 ${limit}`,
+       WHERE YEAR(fecha) = 2026 ${mesClause} ${limit}`;
+    },
   },
   // ── NEW: Productividad Asesores (gamificación) ──
   productividad_asesores: {
