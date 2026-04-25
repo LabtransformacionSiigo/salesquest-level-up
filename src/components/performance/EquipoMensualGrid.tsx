@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const normalize = (v: unknown) =>
+const normalizeText = (v: unknown) =>
   String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
 interface Props {
@@ -60,42 +58,42 @@ const textColorByPct = (pct: number, hasMeta: boolean): string => {
 const badgeColorByPct = (pct: number): string => {
   if (pct >= 100) return 'bg-accent/15 text-accent border-accent/30';
   if (pct >= 70) return 'bg-primary/15 text-primary border-primary/30';
+  if (pct >= 40) return 'bg-orange/15 text-orange border-orange/30';
   return 'bg-destructive/15 text-destructive border-destructive/30';
-};
-
-const mesShortToPeriodo = (mesAbr: string): string | null => {
-  const idx = MONTH_SHORT.findIndex((m) => normalize(m) === normalize(mesAbr));
-  if (idx === -1) return null;
-  return `2026${String(idx + 1).padStart(2, '0')}`;
 };
 
 const KpiCell = ({
   label,
   current,
   meta,
+  pct,
   isMoney = false,
 }: {
   label: string;
   current: number;
   meta: number;
+  pct: number;
   isMoney?: boolean;
 }) => {
   const hasMeta = meta > 0;
-  const pct = hasMeta ? Math.min(300, Math.round((current / meta) * 100)) : 0;
   const fmtFn = isMoney ? fmtMoney : (v: number) => v.toLocaleString();
 
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{label}</p>
       <p className="text-sm font-scoreboard font-bold text-foreground">
-        {hasMeta ? `${fmtFn(current)} / ${fmtFn(meta)}` : current > 0 ? fmtFn(current) : '—'}
+        {hasMeta ? `${fmtFn(current)} / ${fmtFn(meta)}` : '—'}
       </p>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn('h-full transition-all duration-500', colorByPct(pct, hasMeta))}
-          style={{ width: `${Math.min(100, pct)}%` }}
-        />
-      </div>
+      {hasMeta ? (
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn('h-full transition-all duration-500', colorByPct(pct, hasMeta))}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+        </div>
+      ) : (
+        <div className="h-1.5" />
+      )}
       <p className={cn('text-[11px] font-scoreboard font-bold', textColorByPct(pct, hasMeta))}>
         {hasMeta ? `${pct}%` : '—'}
       </p>
@@ -112,103 +110,110 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
     (async () => {
       setLoading(true);
       const year = '2026';
-      const gName = normalize(gerenteNombre);
-      const cName = normalize(celula);
+      const gerenteNorm = normalizeText(gerenteNombre);
+      const celulaNorm = normalizeText(celula);
 
-      // 1) ventas_gerente_mensual del año
-      let vgmQ = supabase
-        .from('ventas_gerente_mensual')
-        .select('periodo, gerente_normalizado, celula, familia, unidades, acv, canal_direccion, pais')
-        .gte('periodo', `${year}01`)
-        .lte('periodo', `${year}12`);
-      if (canalDireccion) vgmQ = vgmQ.eq('canal_direccion', canalDireccion);
-      const { data: vgmAll } = await vgmQ;
-
-      const vgmRows = (vgmAll || []).filter((r: any) => {
-        const cOk = cName && normalize(r.celula) === cName;
-        const gOk = gName && normalize(r.gerente_normalizado) === gName;
-        return cOk || gOk;
-      });
-
-      // 2) metas_asesores agrupadas por anio_mes
-      let metasQ = supabase
-        .from('metas_asesores')
-        .select('anio_mes, gerente, celula, meta_fe, meta_nube, meta_total, novedad, canal_direccion')
-        .gte('anio_mes', `${year}01`)
-        .lte('anio_mes', `${year}12`);
-      if (canalDireccion) metasQ = metasQ.eq('canal_direccion', canalDireccion);
-      const { data: metasAll } = await metasQ;
-
-      const metasRows = (metasAll || []).filter((r: any) => {
-        const nov = String(r.novedad || '').trim();
-        if (nov && nov !== 'Sin novedad') return false;
-        const cOk = cName && normalize(r.celula) === cName;
-        const gOk = gName && normalize(r.gerente) === gName;
-        return cOk || gOk;
-      });
-
-      // 3) metas_acv_gerentes
-      let acvQ = supabase
-        .from('metas_acv_gerentes')
-        .select('celula, mes, meta_total_acv, canal');
-      if (cName) acvQ = acvQ.ilike('celula', String(celula || ''));
-      const { data: acvAll } = await acvQ;
-      const acvRows = (acvAll || []).filter((r: any) => normalize(r.celula) === cName);
-
-      // Aggregate per period
-      const map = new Map<string, MonthData>();
-      const ensure = (p: string): MonthData => {
-        if (!map.has(p)) {
-          map.set(p, {
-            periodo: p,
-            ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0,
-            meta_fe: 0, meta_nube: 0, meta_total: 0, meta_acv: 0,
-            pct_fe: 0, pct_nube: 0, pct_total: 0, pct_acv: 0, sp_mes: 0,
-          });
-        }
-        return map.get(p)!;
+      const MES3_TO_YYYYMM: Record<string, string> = {
+        ene: `${year}01`, feb: `${year}02`, mar: `${year}03`, abr: `${year}04`,
+        may: `${year}05`, jun: `${year}06`, jul: `${year}07`, ago: `${year}08`,
+        sep: `${year}09`, oct: `${year}10`, nov: `${year}11`, dic: `${year}12`,
       };
 
-      vgmRows.forEach((r: any) => {
-        const p = String(r.periodo || '');
-        if (!/^\d{6}$/.test(p)) return;
-        const m = ensure(p);
-        const u = Math.round(Number(r.unidades) || 0);
-        const acv = Number(r.acv) || 0;
-        const fam = String(r.familia || '').toUpperCase();
-        if (fam === 'FE') m.ventas_fe += u;
-        else if (fam === 'NUBE') m.ventas_nube += u;
-        if (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') m.ventas_total += u;
-        m.acv_total += acv;
+      // 1) ventas_gerente_mensual — sin filtro de canal en WHERE, filtrar en cliente
+      const { data: vgmRaw } = await supabase
+        .from('ventas_gerente_mensual')
+        .select('periodo, familia, unidades, acv, celula, gerente_normalizado, canal_direccion')
+        .gte('periodo', `${year}01`)
+        .lte('periodo', `${year}12`)
+        .limit(5000);
+
+      const vgmFiltradas = (vgmRaw || []).filter((row: any) => {
+        if (celulaNorm && normalizeText(row.celula) === celulaNorm) return true;
+        if (gerenteNorm && normalizeText(row.gerente_normalizado) === gerenteNorm) return true;
+        return false;
       });
 
-      metasRows.forEach((r: any) => {
-        const p = String(r.anio_mes || '');
-        if (!/^\d{6}$/.test(p)) return;
-        const m = ensure(p);
-        m.meta_fe += Number(r.meta_fe) || 0;
-        m.meta_nube += Number(r.meta_nube) || 0;
-        m.meta_total += Number(r.meta_total) || 0;
+      // 2) metas_asesores — sin filtro de canal en WHERE, límite alto, filtrar en cliente
+      const { data: metasRaw } = await supabase
+        .from('metas_asesores')
+        .select('anio_mes, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, canal_direccion')
+        .gte('anio_mes', `${year}01`)
+        .lte('anio_mes', `${year}12`)
+        .limit(20000);
+
+      const metasFiltradas = (metasRaw || []).filter((row: any) => {
+        const nov = String(row.novedad ?? '').trim();
+        if (nov && nov !== 'Sin novedad') return false;
+        if (celulaNorm && normalizeText(row.celula) === celulaNorm) return true;
+        if (gerenteNorm && normalizeText(row.gerente) === gerenteNorm) return true;
+        return false;
       });
 
-      acvRows.forEach((r: any) => {
-        const p = mesShortToPeriodo(r.mes);
-        if (!p) return;
-        const m = ensure(p);
-        m.meta_acv += Number(r.meta_total_acv) || 0;
+      const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_total: number }>();
+      metasFiltradas.forEach((row: any) => {
+        const p = String(row.anio_mes);
+        const cur = metasPorPeriodo.get(p) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
+        cur.meta_fe += Number(row.meta_fe) || 0;
+        cur.meta_nube += Number(row.meta_nube) || 0;
+        cur.meta_total += Number(row.meta_total) || 0;
+        metasPorPeriodo.set(p, cur);
       });
 
-      // Calculate percentages and SP
-      const arr = [...map.values()].map((m) => {
-        m.pct_fe = m.meta_fe > 0 ? Math.min(300, Math.round((m.ventas_fe / m.meta_fe) * 100)) : 0;
-        m.pct_nube = m.meta_nube > 0 ? Math.min(300, Math.round((m.ventas_nube / m.meta_nube) * 100)) : 0;
-        m.pct_total = m.meta_total > 0 ? Math.min(300, Math.round((m.ventas_total / m.meta_total) * 100)) : 0;
-        m.pct_acv = m.meta_acv > 0 ? Math.min(300, Math.round((m.acv_total / m.meta_acv) * 100)) : 0;
-        m.sp_mes = m.pct_fe + m.pct_nube * 2 + m.pct_acv;
-        return m;
+      // 3) metas_acv_gerentes — filtrar por celula en cliente
+      const { data: metasAcvRaw } = await supabase
+        .from('metas_acv_gerentes')
+        .select('celula, mes, meta_total_acv, canal')
+        .limit(500);
+
+      const metasAcvPorPeriodo = new Map<string, number>();
+      (metasAcvRaw || [])
+        .filter((row: any) => celulaNorm && normalizeText(row.celula) === celulaNorm)
+        .forEach((row: any) => {
+          const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
+          const periodo = MES3_TO_YYYYMM[mesKey];
+          if (periodo) {
+            metasAcvPorPeriodo.set(periodo, (metasAcvPorPeriodo.get(periodo) ?? 0) + (Number(row.meta_total_acv) || 0));
+          }
+        });
+
+      // 4) Combinar todos los periodos posibles
+      const periodSet = new Set<string>();
+      vgmFiltradas.forEach((r: any) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
+      metasPorPeriodo.forEach((_, p) => periodSet.add(p));
+      metasAcvPorPeriodo.forEach((_, p) => periodSet.add(p));
+
+      const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
+
+      const arr: MonthData[] = [...periodSet].map((periodo) => {
+        const vgm = vgmFiltradas.filter((r: any) => String(r.periodo) === periodo);
+        const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
+        const metaAcv = metasAcvPorPeriodo.get(periodo) ?? 0;
+
+        let ventas_fe = 0, ventas_nube = 0, ventas_total = 0, acv_total = 0;
+        vgm.forEach((r: any) => {
+          const u = Math.round(Number(r.unidades) || 0);
+          const acv = Number(r.acv) || 0;
+          const fam = String(r.familia || '').toUpperCase();
+          if (fam === 'FE') ventas_fe += u;
+          else if (fam === 'NUBE') ventas_nube += u;
+          if (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') ventas_total += u;
+          acv_total += acv;
+        });
+
+        const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
+        const pct_nube = metas.meta_nube > 0 ? cap((ventas_nube / metas.meta_nube) * 100) : 0;
+        const pct_total = metas.meta_total > 0 ? cap((ventas_total / metas.meta_total) * 100) : 0;
+        const pct_acv = metaAcv > 0 ? cap((acv_total / metaAcv) * 100) : 0;
+        const sp_mes = pct_fe + pct_nube * 2 + pct_acv;
+
+        return {
+          periodo,
+          ventas_fe, ventas_nube, ventas_total, acv_total,
+          meta_fe: metas.meta_fe, meta_nube: metas.meta_nube, meta_total: metas.meta_total, meta_acv: metaAcv,
+          pct_fe, pct_nube, pct_total, pct_acv, sp_mes,
+        };
       });
 
-      // Filter: must have any data
       const filtered = arr.filter((m) =>
         m.ventas_fe > 0 || m.ventas_nube > 0 || m.ventas_total > 0 || m.acv_total > 0 ||
         m.meta_fe > 0 || m.meta_nube > 0 || m.meta_total > 0 || m.meta_acv > 0
@@ -272,7 +277,6 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
               transition={{ delay: idx * 0.05 }}
               className="bg-card border border-border rounded-2xl p-5 shadow-smooth-sm hover:border-primary/40 transition-colors"
             >
-              {/* Header */}
               <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
                 <div className="flex items-center gap-3">
                   <span className="text-base font-black font-heading text-foreground">{monthLabel}</span>
@@ -292,12 +296,11 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
                 )}
               </div>
 
-              {/* KPI grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KpiCell label="FE" current={m.ventas_fe} meta={m.meta_fe} />
-                <KpiCell label="Nube" current={m.ventas_nube} meta={m.meta_nube} />
-                <KpiCell label="Total" current={m.ventas_total} meta={m.meta_total} />
-                <KpiCell label="ACV+" current={m.acv_total} meta={m.meta_acv} isMoney />
+                <KpiCell label="FE" current={m.ventas_fe} meta={m.meta_fe} pct={m.pct_fe} />
+                <KpiCell label="Nube" current={m.ventas_nube} meta={m.meta_nube} pct={m.pct_nube} />
+                <KpiCell label="Total" current={m.ventas_total} meta={m.meta_total} pct={m.pct_total} />
+                <KpiCell label="ACV+" current={m.acv_total} meta={m.meta_acv} pct={m.pct_acv} isMoney />
               </div>
             </motion.div>
           );
