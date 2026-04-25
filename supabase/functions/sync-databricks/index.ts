@@ -1039,11 +1039,11 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
   // ============================================================
   let metasGerentesAgregadas = 0;
   try {
-    const aggMap = new Map<string, { celula: string; canal_direccion: string; pais_gestion: string | null; fe: number; nube: number; meta_total_und: number; gerente_nombre: string | null }>();
+    const aggMap = new Map<string, { celula: string; canal_direccion: string; pais_gestion: string | null; anio_mes: string; fe: number; nube: number; meta_total_und: number; gerente_nombre: string | null }>();
     for (const r of upsertRows) {
       if (!r.celula) continue;
-      const key = `${r.celula}|${r.canal_direccion}`;
-      const cur = aggMap.get(key) || { celula: r.celula, canal_direccion: r.canal_direccion, pais_gestion: r.pais, fe: 0, nube: 0, meta_total_und: 0, gerente_nombre: r.gerente || null };
+      const key = `${r.celula}|${r.canal_direccion}|${r.anio_mes}`;
+      const cur = aggMap.get(key) || { celula: r.celula, canal_direccion: r.canal_direccion, pais_gestion: r.pais, anio_mes: r.anio_mes, fe: 0, nube: 0, meta_total_und: 0, gerente_nombre: r.gerente || null };
       cur.fe += r.meta_fe || 0;
       cur.nube += r.meta_nube || 0;
       cur.meta_total_und += r.meta_total || 0;
@@ -1054,17 +1054,18 @@ async function syncMetasAsesoresData(supabase: any, rows: Record<string, any>[])
       celula: a.celula,
       canal_direccion: a.canal_direccion,
       pais_gestion: a.pais_gestion,
+      anio_mes: a.anio_mes,
       fe: a.fe,
       nube: a.nube,
       meta_total_und: a.meta_total_und,
       director: a.gerente_nombre, // store gerente name as director fallback
     }));
     if (aggRows.length > 0) {
-      const { error: aggErr, count: aggCount } = await supabase.from("metas_gerentes").upsert(aggRows, { onConflict: "celula,canal_direccion", count: "exact" });
+      const { error: aggErr, count: aggCount } = await supabase.from("metas_gerentes").upsert(aggRows, { onConflict: "celula,canal_direccion,anio_mes", count: "exact" });
       if (aggErr) errores.push(`metas_gerentes auto-agregado: ${aggErr.message}`);
       else metasGerentesAgregadas = aggCount || aggRows.length;
     }
-    console.log(`[metas_asesores] Auto-agregado metas_gerentes: ${metasGerentesAgregadas} celulas`);
+    console.log(`[metas_asesores] Auto-agregado metas_gerentes: ${metasGerentesAgregadas} filas (celula × mes)`);
   } catch (e) {
     errores.push(`Auto-agregado metas_gerentes falló: ${String(e)}`);
   }
