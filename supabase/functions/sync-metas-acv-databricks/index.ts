@@ -1,10 +1,14 @@
 // Edge function: sync-metas-acv-databricks
-// Lee hive_metastore.db_comercial.tbl_brz_cuotas_asesores agrupado por
-// (pais, canal_direccion, director, celula, mes, archivo) y carga el resultado
-// en metas_acv_gerentes a través del RPC upsert_meta_acv_gerente.
+// Lee hive_metastore.db_comercial.tbl_brz_cuotas_GERENTES (no _asesores)
+// porque esta tabla contiene las columnas reales de meta ACV monetaria
+// (meta_total_acv) y meta de unidades (meta_total_und) por célula.
 //
-// Esta tabla es la VERDAD para las metas ACV de los gerentes de Venta Nueva
+// La tabla _asesores solo tiene unidades (meta_total = unidades).
+// Esta tabla es la VERDAD para las metas ACV de gerentes de Venta Nueva
 // (Aliados y Empresarios/SMBS).
+//
+// El mes y tipo de archivo (Inicio/Cierre) se derivan del campo
+// `_archivo_origen` con formato "Cuotas YYYY MesAbrev_TipoArchivo".
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
