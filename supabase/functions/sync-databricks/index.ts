@@ -1952,7 +1952,7 @@ async function runVentasAliadosCombo({ supabase, mesFilter }: { supabase: any; m
       totalRows += rows.length;
 
       const [aliadosResult, vnResult] = await Promise.allSettled([
-        syncVentasAliados(supabase, rows),
+        syncVentasAliados(supabase, rows, mes),
         syncVentasVN(supabase, rows, "VN_ALIADOS"),
       ]);
 
