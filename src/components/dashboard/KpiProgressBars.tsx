@@ -3,6 +3,7 @@ import { fadeUpItem, popIn } from '@/lib/animations';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import DonutChart from './DonutChart';
+import EquipoRendimientoMes from './EquipoRendimientoMes';
 import type { EjecucionAsesor, MetaAsesor, AsesorPerformance } from '@/hooks/useGamificationMetrics';
 import { getNivelesByCanal } from '@/lib/niveles';
 
