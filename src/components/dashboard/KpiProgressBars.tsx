@@ -3,6 +3,7 @@ import { fadeUpItem, popIn } from '@/lib/animations';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import DonutChart from './DonutChart';
+import EquipoRendimientoMes from './EquipoRendimientoMes';
 import type { EjecucionAsesor, MetaAsesor, AsesorPerformance } from '@/hooks/useGamificationMetrics';
 import { getNivelesByCanal } from '@/lib/niveles';
 
@@ -20,6 +21,7 @@ interface KpiProgressBarsProps {
   isVCGerente?: boolean;
   teamAsesorPerformance?: AsesorPerformance[];
   vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
+  periodoSeleccionado?: string;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
@@ -63,7 +65,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado }: KpiProgressBarsProps) => {
   const NIVELES = getNivelesByCanal(canal);
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
@@ -78,6 +80,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
 
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
   const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
+  const showVNTeam = isVN && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
   // For VN: always show FE / Nube / Total / ACV+ progress bars even if data is
   // partially missing — fall back to zeros so the user sees the meta and the
@@ -171,13 +174,19 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
       >
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">🎯</span> {showVCTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
+          <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
-        {showVCTeam ? (
+        {showVNTeam ? (
+          <EquipoRendimientoMes
+            asesores={teamAsesorPerformance!}
+            periodoSeleccionado={periodoSeleccionado || ''}
+            canal={canal}
+          />
+        ) : showVCTeam ? (
           /* ── VC Gerente: ACV+ por comercial ── */
           <div className="flex flex-col gap-4 flex-1">
             {/* Resumen total del equipo */}

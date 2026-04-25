@@ -1,290 +1,309 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 const normalize = (v: unknown) =>
-  String(v ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
 interface Props {
   gerenteNombre: string;
   celula: string | null;
-  canalDireccion: string | null; // 'Aliados' | 'Empresarios' | etc.
+  canalDireccion: string | null;
   pais: string | null;
 }
 
-interface AsesorMes {
+interface MonthData {
+  periodo: string;
   ventas_fe: number;
   ventas_nube: number;
   ventas_total: number;
+  acv_total: number;
   meta_fe: number;
   meta_nube: number;
   meta_total: number;
-  novedad: string;
+  meta_acv: number;
+  pct_fe: number;
+  pct_nube: number;
+  pct_total: number;
+  pct_acv: number;
+  sp_mes: number;
 }
 
-type AsesorRow = {
-  documento: string;
-  nombre: string;
-  meses: Record<string, AsesorMes>; // key = YYYYMM
+const fmtMoney = (v: number) => {
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
+  return `$${Math.round(v)}`;
 };
 
-const EMPTY_MES: AsesorMes = {
-  ventas_fe: 0, ventas_nube: 0, ventas_total: 0,
-  meta_fe: 0, meta_nube: 0, meta_total: 0, novedad: '',
+const colorByPct = (pct: number, hasMeta: boolean): string => {
+  if (!hasMeta) return 'bg-muted';
+  if (pct >= 100) return 'bg-accent';
+  if (pct >= 70) return 'bg-primary';
+  if (pct >= 40) return 'bg-orange';
+  return 'bg-destructive';
 };
 
-const pctClass = (pct: number, hasMeta: boolean) => {
+const textColorByPct = (pct: number, hasMeta: boolean): string => {
   if (!hasMeta) return 'text-muted-foreground';
-  if (pct >= 90) return 'text-accent';
-  if (pct >= 60) return 'text-orange-600';
+  if (pct >= 100) return 'text-accent';
+  if (pct >= 70) return 'text-primary';
+  if (pct >= 40) return 'text-orange';
   return 'text-destructive';
 };
 
-const fmt = (m: AsesorMes, kind: 'fe' | 'nube' | 'total') => {
-  const v = kind === 'fe' ? m.ventas_fe : kind === 'nube' ? m.ventas_nube : m.ventas_total;
-  const meta = kind === 'fe' ? m.meta_fe : kind === 'nube' ? m.meta_nube : m.meta_total;
-  if (meta <= 0 && v <= 0) return { text: '—', pct: 0, hasMeta: false };
-  if (meta <= 0) return { text: `${v}`, pct: 0, hasMeta: false };
-  const pct = Math.round((v / meta) * 100);
-  return { text: `${v}/${meta}`, pct, hasMeta: true };
+const badgeColorByPct = (pct: number): string => {
+  if (pct >= 100) return 'bg-accent/15 text-accent border-accent/30';
+  if (pct >= 70) return 'bg-primary/15 text-primary border-primary/30';
+  return 'bg-destructive/15 text-destructive border-destructive/30';
+};
+
+const mesShortToPeriodo = (mesAbr: string): string | null => {
+  const idx = MONTH_SHORT.findIndex((m) => normalize(m) === normalize(mesAbr));
+  if (idx === -1) return null;
+  return `2026${String(idx + 1).padStart(2, '0')}`;
+};
+
+const KpiCell = ({
+  label,
+  current,
+  meta,
+  isMoney = false,
+}: {
+  label: string;
+  current: number;
+  meta: number;
+  isMoney?: boolean;
+}) => {
+  const hasMeta = meta > 0;
+  const pct = hasMeta ? Math.min(300, Math.round((current / meta) * 100)) : 0;
+  const fmtFn = isMoney ? fmtMoney : (v: number) => v.toLocaleString();
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-sm font-scoreboard font-bold text-foreground">
+        {hasMeta ? `${fmtFn(current)} / ${fmtFn(meta)}` : current > 0 ? fmtFn(current) : '—'}
+      </p>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full transition-all duration-500', colorByPct(pct, hasMeta))}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+      <p className={cn('text-[11px] font-scoreboard font-bold', textColorByPct(pct, hasMeta))}>
+        {hasMeta ? `${pct}%` : '—'}
+      </p>
+    </div>
+  );
 };
 
 export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais }: Props) => {
-  const [rows, setRows] = useState<AsesorRow[]>([]);
+  const [meses, setMeses] = useState<MonthData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [periods, setPeriods] = useState<string[]>([]);
-  const [kpi, setKpi] = useState<'fe' | 'nube' | 'total'>('fe');
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-
-      // Año en curso: 2026
       const year = '2026';
-      const allPeriods = MONTH_LABELS.map((_, i) => `${year}${String(i + 1).padStart(2, '0')}`);
+      const gName = normalize(gerenteNombre);
+      const cName = normalize(celula);
 
-      // 1) Fetch metas_asesores del gerente / celula
+      // 1) ventas_gerente_mensual del año
+      let vgmQ = supabase
+        .from('ventas_gerente_mensual')
+        .select('periodo, gerente_normalizado, celula, familia, unidades, acv, canal_direccion, pais')
+        .gte('periodo', `${year}01`)
+        .lte('periodo', `${year}12`);
+      if (canalDireccion) vgmQ = vgmQ.eq('canal_direccion', canalDireccion);
+      const { data: vgmAll } = await vgmQ;
+
+      const vgmRows = (vgmAll || []).filter((r: any) => {
+        const cOk = cName && normalize(r.celula) === cName;
+        const gOk = gName && normalize(r.gerente_normalizado) === gName;
+        return cOk || gOk;
+      });
+
+      // 2) metas_asesores agrupadas por anio_mes
       let metasQ = supabase
-        .from('metas_asesores' as any)
-        .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, canal_direccion')
+        .from('metas_asesores')
+        .select('anio_mes, gerente, celula, meta_fe, meta_nube, meta_total, novedad, canal_direccion')
         .gte('anio_mes', `${year}01`)
         .lte('anio_mes', `${year}12`);
-
       if (canalDireccion) metasQ = metasQ.eq('canal_direccion', canalDireccion);
       const { data: metasAll } = await metasQ;
 
-      const gName = normalize(gerenteNombre);
-      const cName = normalize(celula);
-      const metasFiltradas = (metasAll || []).filter((r: any) => {
-        if (cName && normalize(r.celula) === cName) return true;
-        if (gName && normalize(r.gerente) === gName) return true;
-        return false;
+      const metasRows = (metasAll || []).filter((r: any) => {
+        const nov = String(r.novedad || '').trim();
+        if (nov && nov !== 'Sin novedad') return false;
+        const cOk = cName && normalize(r.celula) === cName;
+        const gOk = gName && normalize(r.gerente) === gName;
+        return cOk || gOk;
       });
 
-      // 2) Fetch ventas_diarias del periodo año, mismo canal/celula → reagrupar por asesor + mes
-      let vdQ = supabase
-        .from('ventas_diarias')
-        .select('fecha, asesor, celula, unidades, acv, tipo_producto, producto, pais, canal_direccion')
-        .gte('fecha', `${year}-01-01`)
-        .lte('fecha', `${year}-12-31`)
-        .limit(20000);
-      if (canalDireccion) vdQ = vdQ.eq('canal_direccion', canalDireccion);
-      const { data: vdAll } = await vdQ;
+      // 3) metas_acv_gerentes
+      let acvQ = supabase
+        .from('metas_acv_gerentes')
+        .select('celula, mes, meta_total_acv, canal');
+      if (cName) acvQ = acvQ.ilike('celula', String(celula || ''));
+      const { data: acvAll } = await acvQ;
+      const acvRows = (acvAll || []).filter((r: any) => normalize(r.celula) === cName);
 
-      // Restringimos al equipo: por celula del gerente; si no hay, por nombres en metas
-      const teamNames = new Set<string>(
-        metasFiltradas.map((r: any) => normalize(r.nombre_asesor)).filter(Boolean)
-      );
-
-      const vdTeam = (vdAll || []).filter((r: any) => {
-        const celOk = cName ? normalize(r.celula) === cName : true;
-        const nameOk = teamNames.size > 0 ? teamNames.has(normalize(r.asesor)) : true;
-        return celOk || nameOk;
-      });
-
-      // Index productos a familia básica usando tipo_producto (FE/NUBE/CONTADOR)
-      const famOf = (row: any): 'FE' | 'NUBE' | 'OTRO' => {
-        const tp = String(row.tipo_producto || '').toUpperCase();
-        if (tp === 'FE' || tp === 'NUBE') return tp;
-        return 'OTRO';
+      // Aggregate per period
+      const map = new Map<string, MonthData>();
+      const ensure = (p: string): MonthData => {
+        if (!map.has(p)) {
+          map.set(p, {
+            periodo: p,
+            ventas_fe: 0, ventas_nube: 0, ventas_total: 0, acv_total: 0,
+            meta_fe: 0, meta_nube: 0, meta_total: 0, meta_acv: 0,
+            pct_fe: 0, pct_nube: 0, pct_total: 0, pct_acv: 0, sp_mes: 0,
+          });
+        }
+        return map.get(p)!;
       };
 
-      const periodOf = (fecha: string) => {
-        if (!fecha) return '';
-        const d = new Date(fecha);
-        if (Number.isNaN(d.getTime())) return '';
-        return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
-      };
-
-      // 3) Agregar por asesor x periodo
-      const byAsesor = new Map<string, AsesorRow>();
-
-      // First pass: metas
-      metasFiltradas.forEach((m: any) => {
-        const key = normalize(m.nombre_asesor);
-        if (!key) return;
-        const cur = byAsesor.get(key) || {
-          documento: m.documento_asesor || '',
-          nombre: m.nombre_asesor || key,
-          meses: {} as Record<string, AsesorMes>,
-        };
-        const period = String(m.anio_mes || '');
-        if (!/^\d{6}$/.test(period)) return;
-        const mes = cur.meses[period] || { ...EMPTY_MES };
-        mes.meta_fe += Number(m.meta_fe) || 0;
-        mes.meta_nube += Number(m.meta_nube) || 0;
-        mes.meta_total += Number(m.meta_total) || 0;
-        const nov = String(m.novedad || '').trim();
-        if (nov && nov !== 'Sin novedad') mes.novedad = nov;
-        cur.meses[period] = mes;
-        byAsesor.set(key, cur);
+      vgmRows.forEach((r: any) => {
+        const p = String(r.periodo || '');
+        if (!/^\d{6}$/.test(p)) return;
+        const m = ensure(p);
+        const u = Math.round(Number(r.unidades) || 0);
+        const acv = Number(r.acv) || 0;
+        const fam = String(r.familia || '').toUpperCase();
+        if (fam === 'FE') m.ventas_fe += u;
+        else if (fam === 'NUBE') m.ventas_nube += u;
+        if (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') m.ventas_total += u;
+        m.acv_total += acv;
       });
 
-      // Second pass: ventas_diarias
-      vdTeam.forEach((row: any) => {
-        const key = normalize(row.asesor);
-        if (!key) return;
-        const period = periodOf(row.fecha);
-        if (!period) return;
-        const cur = byAsesor.get(key) || {
-          documento: '',
-          nombre: row.asesor || key,
-          meses: {} as Record<string, AsesorMes>,
-        };
-        const mes = cur.meses[period] || { ...EMPTY_MES };
-        const u = Math.round(Number(row.unidades) || 0);
-        mes.ventas_total += u;
-        const f = famOf(row);
-        if (f === 'FE') mes.ventas_fe += u;
-        else if (f === 'NUBE') mes.ventas_nube += u;
-        cur.meses[period] = mes;
-        byAsesor.set(key, cur);
+      metasRows.forEach((r: any) => {
+        const p = String(r.anio_mes || '');
+        if (!/^\d{6}$/.test(p)) return;
+        const m = ensure(p);
+        m.meta_fe += Number(r.meta_fe) || 0;
+        m.meta_nube += Number(r.meta_nube) || 0;
+        m.meta_total += Number(r.meta_total) || 0;
       });
 
-      // Periodos visibles: solo los que tienen alguna data
-      const periodsWithData = allPeriods.filter((p) =>
-        [...byAsesor.values()].some((r) => {
-          const m = r.meses[p];
-          if (!m) return false;
-          return m.meta_fe > 0 || m.meta_nube > 0 || m.meta_total > 0 || m.ventas_fe > 0 || m.ventas_nube > 0 || m.ventas_total > 0;
-        })
+      acvRows.forEach((r: any) => {
+        const p = mesShortToPeriodo(r.mes);
+        if (!p) return;
+        const m = ensure(p);
+        m.meta_acv += Number(r.meta_total_acv) || 0;
+      });
+
+      // Calculate percentages and SP
+      const arr = [...map.values()].map((m) => {
+        m.pct_fe = m.meta_fe > 0 ? Math.min(300, Math.round((m.ventas_fe / m.meta_fe) * 100)) : 0;
+        m.pct_nube = m.meta_nube > 0 ? Math.min(300, Math.round((m.ventas_nube / m.meta_nube) * 100)) : 0;
+        m.pct_total = m.meta_total > 0 ? Math.min(300, Math.round((m.ventas_total / m.meta_total) * 100)) : 0;
+        m.pct_acv = m.meta_acv > 0 ? Math.min(300, Math.round((m.acv_total / m.meta_acv) * 100)) : 0;
+        m.sp_mes = m.pct_fe + m.pct_nube * 2 + m.pct_acv;
+        return m;
+      });
+
+      // Filter: must have any data
+      const filtered = arr.filter((m) =>
+        m.ventas_fe > 0 || m.ventas_nube > 0 || m.ventas_total > 0 || m.acv_total > 0 ||
+        m.meta_fe > 0 || m.meta_nube > 0 || m.meta_total > 0 || m.meta_acv > 0
       );
 
-      const finalRows = [...byAsesor.values()]
-        .filter((r) => Object.keys(r.meses).length > 0)
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      filtered.sort((a, b) => b.periodo.localeCompare(a.periodo));
 
       if (!cancelled) {
-        setRows(finalRows);
-        setPeriods(periodsWithData);
+        setMeses(filtered);
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [gerenteNombre, celula, canalDireccion, pais]);
 
-  const kpiLabel = useMemo(
-    () => (kpi === 'fe' ? 'FE' : kpi === 'nube' ? 'Nube' : 'Unidades'),
-    [kpi]
-  );
-
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6 text-sm text-muted-foreground">
-        Cargando rendimiento mensual del equipo…
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-bold font-heading text-secondary">📅 Historial Mensual del Equipo</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+        </div>
       </div>
     );
   }
 
-  if (rows.length === 0 || periods.length === 0) {
+  if (meses.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6 text-sm text-muted-foreground text-center">
-        Sin datos mensuales disponibles para tu equipo.
+      <div className="bg-card border border-border rounded-2xl p-6 text-center text-sm text-muted-foreground shadow-smooth-sm">
+        Sin datos mensuales disponibles.
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-2xl p-4 md:p-6 space-y-4"
-    >
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-sm font-bold text-foreground">Rendimiento mensual del equipo</h3>
-          <p className="text-[11px] text-muted-foreground">
-            Cumplimiento por asesor y mes — {kpiLabel}
+          <h3 className="text-base font-bold font-heading text-secondary flex items-center gap-2">
+            <span className="text-primary">📅</span> Historial Mensual del Equipo
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Cumplimiento por mes · {meses.length} mes{meses.length !== 1 ? 'es' : ''} con datos
           </p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(['fe', 'nube', 'total'] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setKpi(k)}
-              className={cn(
-                'px-3 py-1 rounded-full text-[11px] font-semibold border transition-all',
-                kpi === k
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card border-border text-muted-foreground hover:border-primary/40'
-              )}
-            >
-              {k === 'fe' ? 'FE' : k === 'nube' ? 'Nube' : 'Uds'}
-            </button>
-          ))}
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 pr-3 font-semibold text-muted-foreground sticky left-0 bg-card">Asesor</th>
-              {periods.map((p) => {
-                const m = parseInt(p.slice(4), 10);
-                return (
-                  <th key={p} className="text-center py-2 px-2 font-semibold text-muted-foreground whitespace-nowrap">
-                    {MONTH_LABELS[m - 1]}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.documento || r.nombre} className="border-b border-border/60 hover:bg-muted/30">
-                <td className="py-2 pr-3 font-semibold text-foreground sticky left-0 bg-card max-w-[200px] truncate">
-                  {r.nombre}
-                </td>
-                {periods.map((p) => {
-                  const mes = r.meses[p] || EMPTY_MES;
-                  if (mes.novedad) {
-                    return (
-                      <td key={p} className="text-center py-2 px-2 text-muted-foreground">
-                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">N/A</span>
-                      </td>
-                    );
-                  }
-                  const cell = fmt(mes, kpi);
-                  return (
-                    <td key={p} className="text-center py-2 px-2">
-                      <div className={cn('font-scoreboard text-[11px] font-bold', pctClass(cell.pct, cell.hasMeta))}>
-                        {cell.hasMeta ? `${cell.pct}%` : '—'}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-scoreboard">{cell.text}</div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 gap-3">
+        {meses.map((m, idx) => {
+          const mesIdx = parseInt(m.periodo.slice(4), 10) - 1;
+          const monthLabel = `${MONTH_LABELS[mesIdx]} ${m.periodo.slice(0, 4)}`;
+          const hasAcvMeta = m.meta_acv > 0;
+
+          return (
+            <motion.div
+              key={m.periodo}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="bg-card border border-border rounded-2xl p-5 shadow-smooth-sm hover:border-primary/40 transition-colors"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-base font-black font-heading text-foreground">{monthLabel}</span>
+                  {hasAcvMeta && (
+                    <span className={cn(
+                      'text-[11px] font-bold font-scoreboard px-2.5 py-1 rounded-full border',
+                      badgeColorByPct(m.pct_acv)
+                    )}>
+                      {m.pct_acv}% ACV+
+                    </span>
+                  )}
+                </div>
+                {m.sp_mes > 0 && (
+                  <span className="text-xs font-bold font-scoreboard text-primary flex items-center gap-1">
+                    ⚡ +{m.sp_mes.toLocaleString()} SP
+                  </span>
+                )}
+              </div>
+
+              {/* KPI grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <KpiCell label="FE" current={m.ventas_fe} meta={m.meta_fe} />
+                <KpiCell label="Nube" current={m.ventas_nube} meta={m.meta_nube} />
+                <KpiCell label="Total" current={m.ventas_total} meta={m.meta_total} />
+                <KpiCell label="ACV+" current={m.acv_total} meta={m.meta_acv} isMoney />
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
-    </motion.div>
+    </div>
   );
 };
 
