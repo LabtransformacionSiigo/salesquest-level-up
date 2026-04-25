@@ -336,13 +336,33 @@ const AdminMetasAcv = () => {
 
         {/* Historial */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
-            <h3 className="text-sm font-bold text-foreground">Metas registradas</h3>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30 gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-foreground">Metas registradas</h3>
+              {(['Ene', 'Feb', 'Mar', 'Abr'] as const).map((m) => {
+                const count = historial.filter((h) => String(h.mes || '').startsWith(m)).length;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setFilterMes(filterMes === m ? '' : m)}
+                    className={cn(
+                      'text-[10px] font-semibold px-2 py-0.5 rounded-full border transition',
+                      filterMes === m
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                    )}
+                  >
+                    {m} · {count}
+                  </button>
+                );
+              })}
+            </div>
             <input
               type="text"
               value={filterMes}
               onChange={(e) => setFilterMes(e.target.value)}
-              placeholder="Filtrar mes (ej: 2026-01)"
+              placeholder="Filtrar mes (ej: Ene, Feb, Mar, Abr)"
               className="h-8 text-xs rounded-lg border border-border bg-background px-2"
             />
           </div>
