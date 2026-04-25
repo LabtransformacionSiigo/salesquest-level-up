@@ -1919,7 +1919,7 @@ async function runVentasEmpresariosCombo({ supabase, mesFilter }: { supabase: an
       totalRows += rows.length;
 
       const [empresariosResult, vnResult] = await Promise.allSettled([
-        syncVentasEmpresarios(supabase, rows),
+        syncVentasEmpresarios(supabase, rows, mes),
         syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
       ]);
 
