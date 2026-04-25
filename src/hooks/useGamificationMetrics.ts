@@ -415,7 +415,7 @@ export const useGamificationMetrics = (
             ? supabase.from('metas_asesores' as any).select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
-                .limit(5000)
+                .limit(50000)
             : Promise.resolve({ data: [] }),
           /* 16 – kpis_mensuales history for VN gerente (all months this year) */
           isVN
