@@ -547,31 +547,36 @@ export const useGamificationMetrics = (
           const celulaGerente = normalizeComparableText(profile.celula);
           if (gerenteNombre) teamAsesorNames.add(gerenteNombre);
 
+          // Paso 1: identificar TODAS las células del equipo (en cualquier mes del año).
+          // Una fila pertenece al equipo si:
+          //  - su célula coincide con la del gerente (en ese o en cualquier otro mes), o
+          //  - su gerente coincide con el gerente del perfil.
+          const teamCelulas = new Set<string>();
+          if (celulaGerente) teamCelulas.add(celulaGerente);
+          vnMetasAsesores.forEach((row: any) => {
+            const rowCelula = normalizeComparableText(row.celula);
+            const rowGerente = normalizeComparableText(row.gerente);
+            if (!rowCelula) return;
+            if ((celulaGerente && rowCelula === celulaGerente) || (gerenteNombre && rowGerente === gerenteNombre)) {
+              teamCelulas.add(rowCelula);
+            }
+          });
+
           const getTeamMetaRowsForPeriod = (period: string) => {
             const periodRows = vnMetasAsesores.filter((row: any) => String(row.anio_mes || '') === period);
-            const rowsByCelula = celulaGerente
-              ? periodRows.filter((row: any) => normalizeComparableText(row.celula) === celulaGerente)
-              : [];
 
-            const gerenteNamesFromCelula = new Set(
-              rowsByCelula
-                .map((row: any) => normalizeComparableText(row.gerente))
-                .filter(Boolean)
-            );
+            // Paso 2: filtrar por células identificadas o por nombre de gerente
+            const rowsByTeam = periodRows.filter((row: any) => {
+              const rowCelula = normalizeComparableText(row.celula);
+              const rowGerente = normalizeComparableText(row.gerente);
+              if (rowCelula && teamCelulas.has(rowCelula)) return true;
+              if (gerenteNombre && rowGerente === gerenteNombre) return true;
+              return false;
+            });
 
-            if (gerenteNamesFromCelula.size > 0) {
-              return periodRows.filter((row: any) => gerenteNamesFromCelula.has(normalizeComparableText(row.gerente)));
-            }
+            if (rowsByTeam.length > 0) return rowsByTeam;
 
-            if (rowsByCelula.length > 0) {
-              return rowsByCelula;
-            }
-
-            if (gerenteNombre) {
-              const rowsByGerente = periodRows.filter((row: any) => normalizeComparableText(row.gerente) === gerenteNombre);
-              if (rowsByGerente.length > 0) return rowsByGerente;
-            }
-
+            // Fallback: por nombres de asesores conocidos del equipo
             if (teamAsesorNames.size > 0) {
               return periodRows.filter((row: any) => teamAsesorNames.has(normalizeComparableText(row.nombre_asesor)));
             }
