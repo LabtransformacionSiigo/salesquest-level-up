@@ -196,6 +196,14 @@ const MiPerformance = () => {
                   {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
                     <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
                   )}
+                  {profile?.role !== 'asesor' && (
+                    <EquipoMensualGrid
+                      gerenteNombre={profile?.nombre || ''}
+                      celula={profile?.celula || null}
+                      canalDireccion="Aliados"
+                      pais={profile?.pais || null}
+                    />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
