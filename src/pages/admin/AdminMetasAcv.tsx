@@ -101,12 +101,22 @@ const AdminMetasAcv = () => {
     let q = supabase
       .from('metas_acv_gerentes' as any)
       .select('*')
-      .order('mes', { ascending: false })
       .order('celula', { ascending: true })
-      .limit(500);
-    if (filterMes) q = q.eq('mes', filterMes);
+      .limit(2000);
+    if (filterMes) q = q.ilike('mes', `${filterMes}%`);
     const { data } = await q;
-    setHistorial((data as any[]) || []);
+    // Ordenamos en cliente por mes cronológico (Ene, Feb, Mar, Abr...) y luego célula.
+    const MES_ORDER: Record<string, number> = {
+      Ene: 1, Feb: 2, Mar: 3, Abr: 4, May: 5, Jun: 6,
+      Jul: 7, Ago: 8, Sep: 9, Oct: 10, Nov: 11, Dic: 12,
+    };
+    const sorted = ((data as any[]) || []).slice().sort((a, b) => {
+      const ma = MES_ORDER[String(a.mes || '').slice(0, 3)] || 99;
+      const mb = MES_ORDER[String(b.mes || '').slice(0, 3)] || 99;
+      if (ma !== mb) return ma - mb;
+      return String(a.celula || '').localeCompare(String(b.celula || ''));
+    });
+    setHistorial(sorted);
   };
 
   useEffect(() => {
