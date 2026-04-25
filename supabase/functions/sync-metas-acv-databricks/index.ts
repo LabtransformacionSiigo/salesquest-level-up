@@ -60,6 +60,17 @@ const deriveArchivo = (nombreArchivo: string): "Inicio" | "Cierre" | null => {
   return null;
 };
 
+// Deriva el mes (3 letras Title-case: "Ene", "Feb", "Mar"...) del nombre del
+// archivo origen, ej: "Cuotas 2026 Abr_Inicio" -> "Abr".
+const deriveMesFromArchivo = (nombreArchivo: string): string => {
+  const s = (nombreArchivo || "").trim();
+  // Match " <Mes>_" (mes con 3+ letras antes del separador "_")
+  const m = s.match(/\s([A-Za-zÁÉÍÓÚáéíóú]{3,})_/);
+  if (!m) return "";
+  const raw = m[1];
+  return raw.charAt(0).toUpperCase() + raw.slice(1, 3).toLowerCase();
+};
+
 const toNum = (v: unknown): number => {
   if (v === null || v === undefined || v === "") return 0;
   const n = Number(String(v).replace(/[^\d.\-]/g, ""));
