@@ -12,6 +12,7 @@ import { useGamificationMetrics, type EjecucionAsesor, type MetaAsesor, type Ase
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
+import EquipoMensualGrid from '@/components/performance/EquipoMensualGrid';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
@@ -167,6 +168,14 @@ const MiPerformance = () => {
                   {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
                     <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
                   )}
+                  {profile?.role !== 'asesor' && (
+                    <EquipoMensualGrid
+                      gerenteNombre={profile?.nombre || ''}
+                      celula={profile?.celula || null}
+                      canalDireccion="Empresarios"
+                      pais={profile?.pais || null}
+                    />
+                  )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
               )}
@@ -186,6 +195,14 @@ const MiPerformance = () => {
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
                   {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
                     <EquipoRendimientoSection asesores={metrics.teamAsesorPerformance} canal={canal} />
+                  )}
+                  {profile?.role !== 'asesor' && (
+                    <EquipoMensualGrid
+                      gerenteNombre={profile?.nombre || ''}
+                      celula={profile?.celula || null}
+                      canalDireccion="Aliados"
+                      pais={profile?.pais || null}
+                    />
                   )}
                   {vcMonthlyCumplimiento.length > 0 && <VnHistorialSection data={vcMonthlyCumplimiento} canal={canal} />}
                 </>
