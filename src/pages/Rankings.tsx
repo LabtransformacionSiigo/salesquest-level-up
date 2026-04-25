@@ -222,6 +222,10 @@ const Rankings = () => {
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
+          // SP Convención dinámico (suma año) — fallback si tabla asesores no tiene sp_convencion
+          const spDynamic = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
+          const spPersisted = asesorInfo?.sp_convencion || 0;
+          const spFinal = spPersisted > 0 ? spPersisted : spDynamic;
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
@@ -241,7 +245,7 @@ const Rankings = () => {
             posicion: 0,
             canal: profile.canal,
             pais: userPais,
-            sp_totales: asesorInfo?.sp_convencion || 0,
+            sp_totales: spFinal,
             sp_canje: asesorInfo?.sp_canje || 0,
             nivel: null,
           });

@@ -33,6 +33,7 @@ interface MonthlyCumplimiento {
   pct_fe?: number;
   pct_nube?: number;
   pct_total?: number;
+  sp?: number;
 }
 
 export interface EjecucionAsesor {
@@ -964,6 +965,11 @@ export const useGamificationMetrics = (
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const metaAcvFinal = base.meta;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
+            const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
+            const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
+            // SP del mes (cap por componente, sin %Uds)
+            const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
+            const spMes = cap(pctFeFinal) + cap(pctNubeFinal) * 2 + cap(pctAcvFinal);
             return {
               ...base,
               acv: acvFinal,
@@ -974,9 +980,10 @@ export const useGamificationMetrics = (
               meta_fe: mFe,
               meta_nube: mNube,
               meta_total: mTotal,
-              pct_fe: mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0,
-              pct_nube: mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0,
+              pct_fe: pctFeFinal,
+              pct_nube: pctNubeFinal,
               pct_total: mTotal > 0 ? Math.round((ej.total / mTotal) * 100) : 0,
+              sp: spMes,
             };
           };
 
