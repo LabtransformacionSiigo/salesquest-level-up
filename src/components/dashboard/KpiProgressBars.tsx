@@ -21,6 +21,7 @@ interface KpiProgressBarsProps {
   isVCGerente?: boolean;
   teamAsesorPerformance?: AsesorPerformance[];
   vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
+  periodoSeleccionado?: string;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
