@@ -1,14 +1,13 @@
 // Edge function: sync-metas-acv-databricks
-// Lee hive_metastore.db_comercial.tbl_brz_cuotas_GERENTES (no _asesores)
-// porque esta tabla contiene las columnas reales de meta ACV monetaria
-// (meta_total_acv) y meta de unidades (meta_total_und) por célula.
-//
-// La tabla _asesores solo tiene unidades (meta_total = unidades).
-// Esta tabla es la VERDAD para las metas ACV de gerentes de Venta Nueva
-// (Aliados y Empresarios/SMBS).
-//
-// El mes y tipo de archivo (Inicio/Cierre) se derivan del campo
-// `_archivo_origen` con formato "Cuotas YYYY MesAbrev_TipoArchivo".
+// Lee hive_metastore.db_comercial.tbl_brz_cuotas (NO _asesores ni _gerentes).
+// Esta tabla es la VERDAD para metas ACV de gerentes de Venta Nueva
+// (Aliados y Empresarios/SMBS). Incluye:
+//   - meta_total_acv (monetario real, ej: "$ 355,110,717")
+//   - meta_total_und (unidades)
+//   - mes (palabra completa: "Enero", "Febrero"... → normalizamos a "Ene", "Feb"...)
+//   - archivo ("Inicio" / "Cierre")
+//   - cuota (ej: "100%")
+// Cubre Enero–Abril 2026 para todos los países.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -139,32 +138,41 @@ Deno.serve(async (req) => {
     const filterMes: string | undefined = body?.mes;
     const filterPais: string | undefined = body?.pais;
 
-    // Filtros opcionales — aplicados sobre la tabla tbl_brz_cuotas_gerentes.
-    // El mes vive en `_archivo_origen` (ej: "Cuotas 2026 Abr_Inicio").
-    const where: string[] = ["celula IS NOT NULL", "celula <> ''", "_archivo_origen IS NOT NULL"];
+    // Filtros opcionales sobre tbl_brz_cuotas.
+    // - mes: palabra completa "Enero", "Febrero", ... (case-insensitive, prefix match).
+    // - pais: nombre completo "Colombia", "Mexico", ...
+    const where: string[] = [
+      "celula IS NOT NULL",
+      "celula <> ''",
+      "mes IS NOT NULL",
+      "archivo IS NOT NULL",
+      "canal_direccion IN ('Aliados','SMBS','Empresarios')",
+    ];
     if (filterMes) {
-      where.push(`LOWER(_archivo_origen) LIKE '%${filterMes.toLowerCase().replace(/'/g, "''")}_%'`);
+      const safe = filterMes.replace(/'/g, "''").toLowerCase();
+      where.push(`LOWER(mes) LIKE '${safe}%'`);
     }
     if (filterPais) {
       where.push(`LOWER(pais_gestion) = LOWER('${filterPais.replace(/'/g, "''")}')`);
     }
 
-    // Leemos directamente las filas (una por célula) — no hay duplicados a agregar.
-    // La tabla tbl_brz_cuotas_gerentes ya viene a nivel célula+mes+archivo.
+    // Una fila por célula+mes+archivo. La columna mes viene como palabra completa
+    // ("Enero"), la normalizamos a 3 letras Title-case ("Ene") al escribir.
     const sql = `
       SELECT
         pais_gestion AS pais,
         canal_direccion,
         director,
         celula,
-        _archivo_origen AS archivo_origen,
+        mes,
+        archivo,
         meta_total_und,
         meta_total_acv,
         cuota
-      FROM hive_metastore.db_comercial.tbl_brz_cuotas_gerentes
+      FROM hive_metastore.db_comercial.tbl_brz_cuotas
       WHERE ${where.join(" AND ")}
-      ORDER BY _archivo_origen, pais_gestion, canal_direccion, celula,
-               CASE WHEN LOWER(_archivo_origen) LIKE '%inicio%' THEN 0 ELSE 1 END
+      ORDER BY mes, pais_gestion, canal_direccion, celula,
+               CASE WHEN LOWER(archivo) LIKE '%inicio%' THEN 0 ELSE 1 END
     `;
 
     const { rows } = await executeDatabricksQuery(sql);
@@ -180,17 +188,17 @@ Deno.serve(async (req) => {
     const errors: Array<{ row: any; error: string }> = [];
 
     for (const r of rows) {
-      const [pais, canal, director, celula, archivoRaw, metaUnd, metaAcv, cuota] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, metaUnd, metaAcv, cuota] = r;
       const archivo = deriveArchivo(String(archivoRaw || ""));
-      const mes = deriveMesFromArchivo(String(archivoRaw || ""));
+      const mes = normMes(String(mesRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
         summary.invalid++;
         continue;
       }
 
       const meta_total_und = Math.round(toNum(metaUnd));
-      // ACV monetario REAL (ej: 393433136 ≈ 393M COP) — viene de la columna
-      // `meta_total_acv` de la tabla de gerentes. NUNCA es igual a unidades.
+      // ACV monetario REAL (ej: "$ 355,110,717" → 355110717). toNum limpia
+      // símbolos y separadores. NUNCA es igual a unidades.
       const meta_total_acv = toNum(metaAcv);
       const cuotaNum = toNum(cuota);
 
