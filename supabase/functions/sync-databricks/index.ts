@@ -1217,23 +1217,34 @@ function normalizeProductFamily(productName: string, pais: string): "FE" | "NUBE
 // ============================================================
 // NEW SYNC 3: Ventas Empresarios → ventas_diarias
 // ============================================================
-async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[]) {
+async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[], mesFilter?: string) {
   let synced = 0;
   const errores: string[] = [];
 
   const currentYear = 2026;
-  const { error: clearVentasError } = await supabase
-    .from("ventas_diarias")
-    .delete()
-    .eq("canal_direccion", "Empresarios")
-    .gte("fecha", `${currentYear}-01-01`);
+  const mesNum = mesNombreANumero(mesFilter);
+
+  // Limpieza acotada al mes cuando se procesa por mes; si no, al año entero.
+  const ventasDel = supabase.from("ventas_diarias").delete().eq("canal_direccion", "Empresarios");
+  if (mesNum) {
+    const start = `${currentYear}-${String(mesNum).padStart(2, "0")}-01`;
+    const endMonth = mesNum === 12 ? 1 : mesNum + 1;
+    const endYear = mesNum === 12 ? currentYear + 1 : currentYear;
+    const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+    ventasDel.gte("fecha", start).lt("fecha", end);
+  } else {
+    ventasDel.gte("fecha", `${currentYear}-01-01`);
+  }
+  const { error: clearVentasError } = await ventasDel;
   if (clearVentasError) errores.push(`Limpieza ventas_diarias Empresarios: ${clearVentasError.message}`);
 
-  const { error: clearEjecError } = await supabase
-    .from("ejecucion_asesores")
-    .delete()
-    .eq("canal_direccion", "Empresarios")
-    .gte("periodo", `${currentYear}01`);
+  const ejecDel = supabase.from("ejecucion_asesores").delete().eq("canal_direccion", "Empresarios");
+  if (mesNum) {
+    ejecDel.eq("periodo", `${currentYear}${String(mesNum).padStart(2, "0")}`);
+  } else {
+    ejecDel.gte("periodo", `${currentYear}01`);
+  }
+  const { error: clearEjecError } = await ejecDel;
   if (clearEjecError) errores.push(`Limpieza ejecucion_asesores Empresarios: ${clearEjecError.message}`);
 
   const registroCounters = new Map<string, number>();
