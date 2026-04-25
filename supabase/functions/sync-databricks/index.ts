@@ -126,6 +126,7 @@ ${limit}`;
     label: "Metas Asesores Aliados+Empresarios (cuotas_asesores)",
     sql: (limit: string) =>
       `SELECT pais, canal_direccion, director, gerente, documento_asesor, nombre_asesor, celula,
+              mes,
               proyecto, fecha_ingreso_asesor, m_de_antiguedad,
               COALESCE(novedad, 'No aplica') AS novedad,
               CAST(dias_habiles_de_novedad_comisiones_peopleretiro_intrames AS INT) AS dias_novedad,
