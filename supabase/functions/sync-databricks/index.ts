@@ -50,9 +50,23 @@ const MONTH_NUMBERS_3: Record<string, string> = {
   jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
 };
 
-// ============================================================
-// TABLE_CONFIGS – all Databricks queries
-// ============================================================
+// Convierte nombre de mes ('Enero', 'Ene', 'enero', etc.) a número 1-12, o null.
+function mesNombreANumero(mes?: string | null): number | null {
+  if (!mes) return null;
+  const k = String(mes).trim().toLowerCase();
+  const full: Record<string, number> = {
+    enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
+    julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+  };
+  if (full[k]) return full[k];
+  const short = k.slice(0, 3);
+  const map3: Record<string, number> = {
+    ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6,
+    jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12,
+  };
+  return map3[short] || null;
+}
+
 const TABLE_CONFIGS: Record<string, { sql: (limit: string, mesFilter?: string) => string; label: string }> = {
   productividad: {
     label: "Productividad Progresiva (legacy → kpis_mensuales)",
