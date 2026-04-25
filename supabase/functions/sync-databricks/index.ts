@@ -50,9 +50,23 @@ const MONTH_NUMBERS_3: Record<string, string> = {
   jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
 };
 
-// ============================================================
-// TABLE_CONFIGS – all Databricks queries
-// ============================================================
+// Convierte nombre de mes ('Enero', 'Ene', 'enero', etc.) a número 1-12, o null.
+function mesNombreANumero(mes?: string | null): number | null {
+  if (!mes) return null;
+  const k = String(mes).trim().toLowerCase();
+  const full: Record<string, number> = {
+    enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
+    julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+  };
+  if (full[k]) return full[k];
+  const short = k.slice(0, 3);
+  const map3: Record<string, number> = {
+    ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6,
+    jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12,
+  };
+  return map3[short] || null;
+}
+
 const TABLE_CONFIGS: Record<string, { sql: (limit: string, mesFilter?: string) => string; label: string }> = {
   productividad: {
     label: "Productividad Progresiva (legacy → kpis_mensuales)",
@@ -154,19 +168,25 @@ ${limit}`;
   // ── NEW: Ventas Empresarios ──
   ventas_empresarios: {
     label: "Ventas Empresarios (tbl_gld_Ventas_MX)",
-    sql: (limit: string) =>
-      `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${limit}`,
+    sql: (limit: string, mesFilter?: string) => {
+      const mesNum = mesNombreANumero(mesFilter);
+      const mesClause = mesNum ? `AND MONTH(FECHA) = ${mesNum}` : "";
+      return `SELECT FECHA, ASESOR, CELULA, Director, Equipo, TIPO_PRODUCTO, Producto, Unidades, ACV, Recurrencia, ORIGEN FROM analyticdl.db_comercial.tbl_gld_Ventas_MX WHERE YEAR(FECHA) = 2026 ${mesClause} ${limit}`;
+    },
   },
   // ── NEW: Ventas Aliados ──
   ventas_aliados: {
     label: "Ventas Aliados (tbl_gld_Ventas_SA)",
-    sql: (limit: string) =>
-      `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen,
+    sql: (limit: string, mesFilter?: string) => {
+      const mesNum = mesNombreANumero(mesFilter);
+      const mesClause = mesNum ? `AND MONTH(fecha) = ${mesNum}` : "";
+      return `SELECT fecha, fullname, celula, tipo_producto1, equipo, pais, origen,
               CAST(cuenta_finanzas AS DOUBLE) AS cuenta_finanzas,
               CAST(ACV AS DOUBLE) AS ACV,
               Director
        FROM analyticdl.db_comercial.tbl_gld_Ventas_SA
-       WHERE YEAR(fecha) = 2026 ${limit}`,
+       WHERE YEAR(fecha) = 2026 ${mesClause} ${limit}`;
+    },
   },
   // ── NEW: Productividad Asesores (gamificación) ──
   productividad_asesores: {
@@ -1197,23 +1217,34 @@ function normalizeProductFamily(productName: string, pais: string): "FE" | "NUBE
 // ============================================================
 // NEW SYNC 3: Ventas Empresarios → ventas_diarias
 // ============================================================
-async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[]) {
+async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[], mesFilter?: string) {
   let synced = 0;
   const errores: string[] = [];
 
   const currentYear = 2026;
-  const { error: clearVentasError } = await supabase
-    .from("ventas_diarias")
-    .delete()
-    .eq("canal_direccion", "Empresarios")
-    .gte("fecha", `${currentYear}-01-01`);
+  const mesNum = mesNombreANumero(mesFilter);
+
+  // Limpieza acotada al mes cuando se procesa por mes; si no, al año entero.
+  const ventasDel = supabase.from("ventas_diarias").delete().eq("canal_direccion", "Empresarios");
+  if (mesNum) {
+    const start = `${currentYear}-${String(mesNum).padStart(2, "0")}-01`;
+    const endMonth = mesNum === 12 ? 1 : mesNum + 1;
+    const endYear = mesNum === 12 ? currentYear + 1 : currentYear;
+    const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+    ventasDel.gte("fecha", start).lt("fecha", end);
+  } else {
+    ventasDel.gte("fecha", `${currentYear}-01-01`);
+  }
+  const { error: clearVentasError } = await ventasDel;
   if (clearVentasError) errores.push(`Limpieza ventas_diarias Empresarios: ${clearVentasError.message}`);
 
-  const { error: clearEjecError } = await supabase
-    .from("ejecucion_asesores")
-    .delete()
-    .eq("canal_direccion", "Empresarios")
-    .gte("periodo", `${currentYear}01`);
+  const ejecDel = supabase.from("ejecucion_asesores").delete().eq("canal_direccion", "Empresarios");
+  if (mesNum) {
+    ejecDel.eq("periodo", `${currentYear}${String(mesNum).padStart(2, "0")}`);
+  } else {
+    ejecDel.gte("periodo", `${currentYear}01`);
+  }
+  const { error: clearEjecError } = await ejecDel;
   if (clearEjecError) errores.push(`Limpieza ejecucion_asesores Empresarios: ${clearEjecError.message}`);
 
   const registroCounters = new Map<string, number>();
@@ -1266,23 +1297,33 @@ async function syncVentasEmpresarios(supabase: any, rows: Record<string, any>[])
 // ============================================================
 // NEW SYNC 4: Ventas Aliados → ventas_diarias
 // ============================================================
-async function syncVentasAliados(supabase: any, rows: Record<string, any>[]) {
+async function syncVentasAliados(supabase: any, rows: Record<string, any>[], mesFilter?: string) {
   let synced = 0;
   const errores: string[] = [];
 
   const currentYear = 2026;
-  const { error: clearVentasError } = await supabase
-    .from("ventas_diarias")
-    .delete()
-    .eq("canal_direccion", "Aliados")
-    .gte("fecha", `${currentYear}-01-01`);
+  const mesNum = mesNombreANumero(mesFilter);
+
+  const ventasDel = supabase.from("ventas_diarias").delete().eq("canal_direccion", "Aliados");
+  if (mesNum) {
+    const start = `${currentYear}-${String(mesNum).padStart(2, "0")}-01`;
+    const endMonth = mesNum === 12 ? 1 : mesNum + 1;
+    const endYear = mesNum === 12 ? currentYear + 1 : currentYear;
+    const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+    ventasDel.gte("fecha", start).lt("fecha", end);
+  } else {
+    ventasDel.gte("fecha", `${currentYear}-01-01`);
+  }
+  const { error: clearVentasError } = await ventasDel;
   if (clearVentasError) errores.push(`Limpieza ventas_diarias Aliados: ${clearVentasError.message}`);
 
-  const { error: clearEjecError } = await supabase
-    .from("ejecucion_asesores")
-    .delete()
-    .eq("canal_direccion", "Aliados")
-    .gte("periodo", `${currentYear}01`);
+  const ejecDel = supabase.from("ejecucion_asesores").delete().eq("canal_direccion", "Aliados");
+  if (mesNum) {
+    ejecDel.eq("periodo", `${currentYear}${String(mesNum).padStart(2, "0")}`);
+  } else {
+    ejecDel.gte("periodo", `${currentYear}01`);
+  }
+  const { error: clearEjecError } = await ejecDel;
   if (clearEjecError) errores.push(`Limpieza ejecucion_asesores Aliados: ${clearEjecError.message}`);
 
   const registroCounters = new Map<string, number>();
@@ -1878,7 +1919,7 @@ async function runVentasEmpresariosCombo({ supabase, mesFilter }: { supabase: an
       totalRows += rows.length;
 
       const [empresariosResult, vnResult] = await Promise.allSettled([
-        syncVentasEmpresarios(supabase, rows),
+        syncVentasEmpresarios(supabase, rows, mes),
         syncVentasVN(supabase, rows, "VN_EMPRESARIOS"),
       ]);
 
@@ -1911,7 +1952,7 @@ async function runVentasAliadosCombo({ supabase, mesFilter }: { supabase: any; m
       totalRows += rows.length;
 
       const [aliadosResult, vnResult] = await Promise.allSettled([
-        syncVentasAliados(supabase, rows),
+        syncVentasAliados(supabase, rows, mes),
         syncVentasVN(supabase, rows, "VN_ALIADOS"),
       ]);
 
