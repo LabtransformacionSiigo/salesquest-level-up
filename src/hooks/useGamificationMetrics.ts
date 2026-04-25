@@ -33,6 +33,7 @@ interface MonthlyCumplimiento {
   pct_fe?: number;
   pct_nube?: number;
   pct_total?: number;
+  sp?: number;
 }
 
 export interface EjecucionAsesor {
