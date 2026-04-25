@@ -174,13 +174,19 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
       >
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">🎯</span> {showVCTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
+          <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
-        {showVCTeam ? (
+        {showVNTeam ? (
+          <EquipoRendimientoMes
+            asesores={teamAsesorPerformance!}
+            periodoSeleccionado={periodoSeleccionado || ''}
+            canal={canal}
+          />
+        ) : showVCTeam ? (
           /* ── VC Gerente: ACV+ por comercial ── */
           <div className="flex flex-col gap-4 flex-1">
             {/* Resumen total del equipo */}
