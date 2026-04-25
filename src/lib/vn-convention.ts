@@ -342,6 +342,8 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
       let pctTotal = metaTotal > 0 && ventasTotal > 0 ? Math.round((ventasTotal / metaTotal) * 100) : 0;
       if (pctTotal > CAP) pctTotal = CAP;
 
+      // FÓRMULA SP CONVENCIÓN VN — Regla de Oro
+      // SP_mes = cap(%FE) + (cap(%NUBE) × 2) + cap(%ACV). NO incluye %Uds.
       return {
         period,
         acv,
@@ -356,7 +358,7 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
         pctFe,
         pctNube,
         pctTotal,
-        sp: pctAcv + pctFe + pctNube * 2,
+        sp: pctFe + pctNube * 2 + pctAcv,
       };
     });
 };
