@@ -101,12 +101,22 @@ const AdminMetasAcv = () => {
     let q = supabase
       .from('metas_acv_gerentes' as any)
       .select('*')
-      .order('mes', { ascending: false })
       .order('celula', { ascending: true })
-      .limit(500);
-    if (filterMes) q = q.eq('mes', filterMes);
+      .limit(2000);
+    if (filterMes) q = q.ilike('mes', `${filterMes}%`);
     const { data } = await q;
-    setHistorial((data as any[]) || []);
+    // Ordenamos en cliente por mes cronológico (Ene, Feb, Mar, Abr...) y luego célula.
+    const MES_ORDER: Record<string, number> = {
+      Ene: 1, Feb: 2, Mar: 3, Abr: 4, May: 5, Jun: 6,
+      Jul: 7, Ago: 8, Sep: 9, Oct: 10, Nov: 11, Dic: 12,
+    };
+    const sorted = ((data as any[]) || []).slice().sort((a, b) => {
+      const ma = MES_ORDER[String(a.mes || '').slice(0, 3)] || 99;
+      const mb = MES_ORDER[String(b.mes || '').slice(0, 3)] || 99;
+      if (ma !== mb) return ma - mb;
+      return String(a.celula || '').localeCompare(String(b.celula || ''));
+    });
+    setHistorial(sorted);
   };
 
   useEffect(() => {
@@ -326,13 +336,33 @@ const AdminMetasAcv = () => {
 
         {/* Historial */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
-            <h3 className="text-sm font-bold text-foreground">Metas registradas</h3>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30 gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-foreground">Metas registradas</h3>
+              {(['Ene', 'Feb', 'Mar', 'Abr'] as const).map((m) => {
+                const count = historial.filter((h) => String(h.mes || '').startsWith(m)).length;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setFilterMes(filterMes === m ? '' : m)}
+                    className={cn(
+                      'text-[10px] font-semibold px-2 py-0.5 rounded-full border transition',
+                      filterMes === m
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                    )}
+                  >
+                    {m} · {count}
+                  </button>
+                );
+              })}
+            </div>
             <input
               type="text"
               value={filterMes}
               onChange={(e) => setFilterMes(e.target.value)}
-              placeholder="Filtrar mes (ej: 2026-01)"
+              placeholder="Filtrar mes (ej: Ene, Feb, Mar, Abr)"
               className="h-8 text-xs rounded-lg border border-border bg-background px-2"
             />
           </div>
