@@ -989,9 +989,11 @@ export const useGamificationMetrics = (
 
           // Recolectar todos los periodos donde haya metas para el equipo del gerente
           const metaPeriods = new Set<string>();
-          (vnMetasAsesores || []).forEach((r: any) => {
+          ((vnMetasRes?.data as any[]) || []).forEach((r: any) => {
             const p = String(r.anio_mes || '');
-            if (/^\d{6}$/.test(p) && getTeamMetaRowsForPeriod(p).length > 0) metaPeriods.add(p);
+            if (!/^\d{6}$/.test(p)) return;
+            const ctx = getMetaContextForPeriod(p);
+            if (ctx.metaFe > 0 || ctx.metaNube > 0 || ctx.metaTotal > 0) metaPeriods.add(p);
           });
 
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
