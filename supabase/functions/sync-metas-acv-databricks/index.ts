@@ -139,28 +139,32 @@ Deno.serve(async (req) => {
     const filterMes: string | undefined = body?.mes;
     const filterPais: string | undefined = body?.pais;
 
-    const where: string[] = ["mes IS NOT NULL", "celula IS NOT NULL", "celula <> ''"];
-    if (filterMes) where.push(`LOWER(mes) = LOWER('${filterMes.replace(/'/g, "''")}')`);
-    if (filterPais) where.push(`LOWER(pais) = LOWER('${filterPais.replace(/'/g, "''")}')`);
+    // Filtros opcionales — aplicados sobre la tabla tbl_brz_cuotas_gerentes.
+    // El mes vive en `_archivo_origen` (ej: "Cuotas 2026 Abr_Inicio").
+    const where: string[] = ["celula IS NOT NULL", "celula <> ''", "_archivo_origen IS NOT NULL"];
+    if (filterMes) {
+      where.push(`LOWER(_archivo_origen) LIKE '%${filterMes.toLowerCase().replace(/'/g, "''")}_%'`);
+    }
+    if (filterPais) {
+      where.push(`LOWER(pais_gestion) = LOWER('${filterPais.replace(/'/g, "''")}')`);
+    }
 
-    // Agregamos por (pais, canal, director, celula, mes, archivo).
-    // Para cada combinación celula+mes podemos tener múltiples archivos.
-    // Procesamos primero "Inicio" y luego "Cierre" para que Cierre prevalezca.
+    // Leemos directamente las filas (una por célula) — no hay duplicados a agregar.
+    // La tabla tbl_brz_cuotas_gerentes ya viene a nivel célula+mes+archivo.
     const sql = `
       SELECT
-        pais,
+        pais_gestion AS pais,
         canal_direccion,
-        MAX(director) AS director,
+        director,
         celula,
-        mes,
-        archivo,
-        SUM(CAST(NULLIF(meta_total, '') AS DOUBLE)) AS meta_total_und,
-        COUNT(*) AS asesores
-      FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
+        _archivo_origen AS archivo_origen,
+        meta_total_und,
+        meta_total_acv,
+        cuota
+      FROM hive_metastore.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
-      GROUP BY pais, canal_direccion, celula, mes, archivo
-      ORDER BY mes, pais, canal_direccion, celula,
-               CASE WHEN LOWER(archivo) LIKE '%inicio%' THEN 0 ELSE 1 END
+      ORDER BY _archivo_origen, pais_gestion, canal_direccion, celula,
+               CASE WHEN LOWER(_archivo_origen) LIKE '%inicio%' THEN 0 ELSE 1 END
     `;
 
     const { rows } = await executeDatabricksQuery(sql);
@@ -176,18 +180,19 @@ Deno.serve(async (req) => {
     const errors: Array<{ row: any; error: string }> = [];
 
     for (const r of rows) {
-      const [pais, canal, director, celula, mes, archivoRaw, metaUnd] = r;
+      const [pais, canal, director, celula, archivoRaw, metaUnd, metaAcv, cuota] = r;
       const archivo = deriveArchivo(String(archivoRaw || ""));
+      const mes = deriveMesFromArchivo(String(archivoRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
         summary.invalid++;
         continue;
       }
 
       const meta_total_und = Math.round(toNum(metaUnd));
-      // En esta tabla NO hay ACV monetario explícito; meta_total son UNIDADES.
-      // Guardamos las unidades como meta_total_und y replicamos en meta_total_acv
-      // para mantener compat con consumidores actuales que leen meta_total_acv.
-      const meta_total_acv = toNum(metaUnd);
+      // ACV monetario REAL (ej: 393433136 ≈ 393M COP) — viene de la columna
+      // `meta_total_acv` de la tabla de gerentes. NUNCA es igual a unidades.
+      const meta_total_acv = toNum(metaAcv);
+      const cuotaNum = toNum(cuota);
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
@@ -195,10 +200,10 @@ Deno.serve(async (req) => {
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
         p_esquema: null,
-        p_cuota: 0,
+        p_cuota: cuotaNum,
         p_meta_total_und: meta_total_und,
         p_meta_total_acv: meta_total_acv,
-        p_mes: normMes(String(mes)),
+        p_mes: mes,
         p_archivo: archivo,
       });
 
