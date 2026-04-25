@@ -80,6 +80,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
 
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
   const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
+  const showVNTeam = isVN && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
   // For VN: always show FE / Nube / Total / ACV+ progress bars even if data is
   // partially missing — fall back to zeros so the user sees the meta and the
