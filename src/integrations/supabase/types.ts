@@ -927,6 +927,7 @@ export type Database = {
       }
       metas_gerentes: {
         Row: {
+          anio_mes: string | null
           canal_direccion: string
           celula: string
           coi: number | null
@@ -949,6 +950,7 @@ export type Database = {
           siigo_fiscal: number | null
         }
         Insert: {
+          anio_mes?: string | null
           canal_direccion: string
           celula: string
           coi?: number | null
@@ -971,6 +973,7 @@ export type Database = {
           siigo_fiscal?: number | null
         }
         Update: {
+          anio_mes?: string | null
           canal_direccion?: string
           celula?: string
           coi?: number | null
