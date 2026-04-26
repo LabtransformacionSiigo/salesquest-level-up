@@ -361,6 +361,9 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
+          // SP Convención = suma del año del historial mensual de la célula.
+          // NO usar gerentes.sp_convencion porque persiste solo el mes actual.
+          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
@@ -378,7 +381,7 @@ const Rankings = () => {
             pct_cumplimiento: pct,
             pct_fe: currentMonthly?.pctFe || 0,
             pct_nube: currentMonthly?.pctNube || 0,
-            sp_totales: gerenteInfo?.sp_convencion || 0,
+            sp_totales: spFinal,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
             posicion: 0,
