@@ -709,7 +709,7 @@ export const useGamificationMetrics = (
           const metaSplitSeed = (() => {
             let fe = 0;
             let nube = 0;
-            const periods = new Set(vnMetasAsesores.map((r: any) => String(r.anio_mes || '')).filter((p: string) => /^\d{6}$/.test(p)));
+            const periods = new Set<string>(vnMetasAsesores.map((r: any) => String(r.anio_mes || '')).filter((p: string) => /^\d{6}$/.test(p)));
             periods.forEach((period) => {
               const ctx = getMetaContextForPeriod(period);
               if (ctx.metaFe > 0 || ctx.metaNube > 0) {
@@ -728,11 +728,6 @@ export const useGamificationMetrics = (
             return { metaTotal: total, metaFe: fe, metaNube: nube };
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
-
-          if (acvOficial) {
-            const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-            return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
-          }
 
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
