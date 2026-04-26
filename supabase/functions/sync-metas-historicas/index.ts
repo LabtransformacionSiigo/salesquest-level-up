@@ -18,9 +18,18 @@ const corsHeaders = {
 };
 
 const MES_A_NUM: Record<string, string> = {
-  enero: "01", febrero: "02", marzo: "03", abril: "04",
-  mayo: "05", junio: "06", julio: "07", agosto: "08",
-  septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+  enero: "01", ene: "01",
+  febrero: "02", feb: "02",
+  marzo: "03", mar: "03",
+  abril: "04", abr: "04",
+  mayo: "05", may: "05",
+  junio: "06", jun: "06",
+  julio: "07", jul: "07",
+  agosto: "08", ago: "08",
+  septiembre: "09", sep: "09", sept: "09",
+  octubre: "10", oct: "10",
+  noviembre: "11", nov: "11",
+  diciembre: "12", dic: "12",
 };
 
 function normalizePeriodo(mes: string | null): string | null {
