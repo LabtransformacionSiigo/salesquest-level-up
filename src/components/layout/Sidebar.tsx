@@ -55,7 +55,8 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
-  const spDisplay = profile?.sp_totales ?? 0;
+  const spAnual = useSpConvencionAnual();
+  const spDisplay = spAnual ?? profile?.sp_totales ?? 0;
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
