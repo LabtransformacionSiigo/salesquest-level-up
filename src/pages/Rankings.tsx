@@ -370,6 +370,12 @@ const Rankings = () => {
           }
           celulaAgg.set(celula, agg);
         });
+        const spInputsGer = {
+          vgmRows: vgmGerRes.data || [],
+          metaAsesorRows: metasAsesoresRes.data || [],
+          metaAcvRows: metasAcvGerRes.data || [],
+          year: String(currentConventionYear),
+        };
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
           const monthlyRows = buildVnConventionMonthlyRows({
@@ -382,9 +388,9 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          // SP Convención = suma del año del historial mensual de la célula.
-          // NO usar gerentes.sp_convencion porque persiste solo el mes actual.
-          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
+          // SP Convención = MISMO cálculo que MiPerformance/EquipoMensualGrid:
+          // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
+          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
