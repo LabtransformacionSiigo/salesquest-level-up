@@ -222,10 +222,9 @@ const Rankings = () => {
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
-          // SP Convención dinámico (suma año) — fallback si tabla asesores no tiene sp_convencion
-          const spDynamic = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
-          const spPersisted = asesorInfo?.sp_convencion || 0;
-          const spFinal = spPersisted > 0 ? spPersisted : spDynamic;
+          // SP Convención = suma del año del historial mensual (cap aplicado en buildVnConventionMonthlyRows).
+          // NO usar asesores.sp_convencion porque persiste solo el mes actual.
+          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
