@@ -35,6 +35,9 @@ const InfoTip = ({ text }: { text: string }) => (
 const MiPerformance = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const metrics = useGamificationMetrics(profile);
+  const spAnualStore = useSpConvencionAnual();
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const spConvencionDisplay = spAnualStore ?? spAnualSelf ?? 0;
 
   const canal = profile?.canal;
   const isAliados = canal === 'VN_ALIADOS';
