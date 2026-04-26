@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, popIn } from '@/lib/animations';
 import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
 import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
@@ -35,7 +37,9 @@ const Dashboard = () => {
   const periodoActivo = showPeriodoSelector ? periodo : undefined;
   const metrics = useGamificationMetrics(profile, periodoActivo);
 
-  const sp = profile?.sp_totales || 0;
+  const spAnualStore = useSpConvencionAnual();
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const sp = spAnualStore ?? spAnualSelf ?? 0;
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
   // Period options: current year months + last 3 months of previous year
