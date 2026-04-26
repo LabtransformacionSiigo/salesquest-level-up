@@ -48,7 +48,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           .limit(20000),
         supabase
           .from('metas_acv_gerentes')
-          .select('celula, mes, meta_total_acv')
+          .select('celula, mes, meta_total_acv, meta_total_und')
           .limit(2000),
       ]);
 

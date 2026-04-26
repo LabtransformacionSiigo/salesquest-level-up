@@ -41,6 +41,7 @@ export interface MetaAcvGerenteRow {
   celula?: string | null;
   mes?: string | null;
   meta_total_acv?: number | null;
+  meta_total_und?: number | null;
 }
 
 export interface SpAnualInputs {
@@ -101,6 +102,44 @@ export function computeSpConvencionAnualForCelula(
       const periodo = `${year}${mm}`;
       metasAcvPorPeriodo.set(periodo, (metasAcvPorPeriodo.get(periodo) ?? 0) + (Number(row.meta_total_acv) || 0));
     });
+
+  // 3.5) Fallback proporcional: si un periodo tiene meta_total_und (de metas_acv_gerentes)
+  // pero no tiene meta_fe/meta_nube en metas_asesores, derivar usando el feRatio del primer
+  // periodo con metas reales. Replica la lógica de useGamificationMetrics.
+  const metaTotalUndPorPeriodo = new Map<string, number>();
+  metaAcvRows
+    .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
+    .forEach((row) => {
+      const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
+      const mm = MES3_TO_MM[mesKey];
+      if (!mm) return;
+      const periodo = `${year}${mm}`;
+      const v = Number(row.meta_total_und) || 0;
+      if (v > 0) metaTotalUndPorPeriodo.set(periodo, v);
+    });
+
+  let feRatio: number | null = null;
+  metasPorPeriodo.forEach(({ meta_fe, meta_nube, meta_total }) => {
+    if (feRatio !== null) return;
+    if (meta_fe > 0 && meta_nube > 0 && meta_total > 0) {
+      feRatio = meta_fe / meta_total;
+    }
+  });
+
+  if (feRatio !== null) {
+    metaTotalUndPorPeriodo.forEach((totalUnd, periodo) => {
+      const existing = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
+      if (existing.meta_fe === 0 || existing.meta_nube === 0) {
+        const fe = existing.meta_fe > 0 ? existing.meta_fe : Math.round(totalUnd * feRatio!);
+        const nube = existing.meta_nube > 0 ? existing.meta_nube : Math.max(0, totalUnd - fe);
+        metasPorPeriodo.set(periodo, {
+          meta_fe: fe,
+          meta_nube: nube,
+          meta_total: totalUnd,
+        });
+      }
+    });
+  }
 
   // 4) Combine all periods
   const periodSet = new Set<string>();
