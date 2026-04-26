@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 import ChangePasswordDialog from './ChangePasswordDialog';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
 
