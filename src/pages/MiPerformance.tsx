@@ -13,7 +13,8 @@ import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
 import EquipoMensualGrid from '@/components/performance/EquipoMensualGrid';
-import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { setSpConvencionAnual, useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
