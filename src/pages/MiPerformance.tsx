@@ -447,6 +447,9 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   });
   const totalSp = spByMonth.reduce((s, v) => s + v, 0);
   const mesesConDatos = spByMonth.filter((v) => v > 0).length;
+  useEffect(() => {
+    setSpConvencionAnual(totalSp);
+  }, [totalSp]);
   return (
     <>
       <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
