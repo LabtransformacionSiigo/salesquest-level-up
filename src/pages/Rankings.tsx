@@ -214,6 +214,22 @@ const Rankings = () => {
         });
         // Build ranking entries
         const entries: any[] = [];
+        const spInputs = {
+          vgmRows: vgmRes.data || [],
+          metaAsesorRows: metasAsesoresRes.data || [],
+          metaAcvRows: metasAcvRes.data || [],
+          year: String(currentConventionYear),
+        };
+        // Cache SP por celula para no recalcular múltiples veces.
+        const spByCelulaCache = new Map<string, number>();
+        const getSpForCelula = (celula: string | null | undefined) => {
+          const key = String(celula || '').toLowerCase().trim();
+          if (!key) return 0;
+          if (spByCelulaCache.has(key)) return spByCelulaCache.get(key)!;
+          const v = computeSpConvencionAnualForCelula(spInputs, celula);
+          spByCelulaCache.set(key, v);
+          return v;
+        };
         advisorAgg.forEach((agg, key) => {
           const monthlyRows = buildVnConventionMonthlyRows({
             productivityRows: (productividadRes.data || []).filter((row: any) => normalizePersonName(row.asesor) === key),
@@ -225,9 +241,9 @@ const Rankings = () => {
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
-          // SP Convención = suma del año del historial mensual (cap aplicado en buildVnConventionMonthlyRows).
-          // NO usar asesores.sp_convencion porque persiste solo el mes actual.
-          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
+          // SP Convención = MISMO cálculo que MiPerformance/EquipoMensualGrid:
+          // suma anual de SP por mes de la CÉLULA del asesor (fuente única: ventas_gerente_mensual + metas_acv_gerentes).
+          const spFinal = getSpForCelula(agg.celula);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
