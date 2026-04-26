@@ -177,9 +177,9 @@ Deno.serve(async (req) => {
       if (!canal) { descartesPorMes[mesKey].sin_canal++; continue; }
       if (!celula) { descartesPorMes[mesKey].sin_celula++; continue; }
 
-      const fe = toInt(r.fe);
-      const nube = toInt(r.nube);
-      const total = toInt(r.meta_total_und);
+      const fe = toInt(r.meta_fe);
+      const nube = toInt(r.meta_nube);
+      const total = toInt(r.meta_total);
 
       // ── (1) Asesor individual ──
       if (documento && nombre) {
