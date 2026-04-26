@@ -22,7 +22,8 @@ const Header = ({ title }: HeaderProps) => {
   const [racha, setRacha] = useState<any>(null);
   const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
-  const spDisplay = profile?.sp_totales ?? 0;
+  const spAnual = useSpConvencionAnual();
+  const spDisplay = spAnual ?? profile?.sp_totales ?? 0;
 
   useEffect(() => {
     if (!profile?.id) return;
