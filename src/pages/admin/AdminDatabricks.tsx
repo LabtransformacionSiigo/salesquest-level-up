@@ -193,9 +193,10 @@ const AdminDatabricks = () => {
       } else {
         const periodos = Object.entries(r.por_periodo || {})
           .sort(([a], [b]) => String(a).localeCompare(String(b)))
-          .map(([p, n]) => `${p}:${n}`).join(' · ');
+          .map(([p, n]: [string, any]) => `${p}: ${n?.asesores ?? 0} asesores + ${n?.celulas ?? 0} células`)
+          .join(' · ');
         setHistoricasMsg(
-          `✓ ${r.registros_upserted} registros upserted (${r.registros_agregados} células × mes desde ${r.filas_databricks} filas DBX). ${periodos}`
+          `✓ ${r.registros_upserted} registros upserted (${r.asesor_individual ?? 0} asesores + ${r.agregado_celula ?? 0} células desde ${r.filas_databricks} filas DBX). ${periodos}`
         );
       }
     } catch (err: any) {
