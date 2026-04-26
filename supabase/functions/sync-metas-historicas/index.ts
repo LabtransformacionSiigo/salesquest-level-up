@@ -1,12 +1,13 @@
-// Sincroniza metas históricas (Enero-Abril 2026) desde Databricks
+// Sincroniza TODAS las metas históricas desde Databricks
 // hive_metastore.db_comercial.tbl_brz_cuotas_asesores → metas_asesores
 //
-// Diferencia con sync-databricks (metas_asesores_sync):
-//   - Trae metas a NIVEL CÉLULA (sin documento_asesor)
-//   - Mapea texto de mes ('Enero','Febrero',...) a anio_mes 'YYYYMM'
-//   - Solo Aliados / SMBS / Empresarios
-//   - Usa documento sintético `CELULA::ANIO_MES` para no chocar con la PK
-//     de metas_asesores (UNIQUE documento_asesor,canal_direccion,anio_mes)
+// Inserta DOS niveles:
+//   1) Fila por ASESOR individual (cuando viene documento_asesor + nombre_asesor)
+//   2) Fila AGREGADA por CÉLULA (documento sintético `CEL_<celula>_<periodo>`)
+//      para que la UI siga teniendo totales aún si faltan asesores individuales.
+//
+// Mapea mes texto ('Enero','Febrero','Marzo','Abril') → 'YYYYMM' (asume 2026).
+// Canales: Aliados, SMBS, Empresarios → VN_ALIADOS / VN_EMPRESARIOS.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -27,7 +28,6 @@ function normalizePeriodo(mes: string | null): string | null {
   const k = String(mes).trim().toLowerCase();
   const num = MES_A_NUM[k];
   if (!num) return null;
-  // Asumir 2026
   return `2026${num}`;
 }
 
@@ -36,7 +36,7 @@ function normalizeCanal(c: string | null): string | null {
   const u = String(c).trim().toUpperCase();
   if (u === "ALIADOS" || u === "VENTA NUEVA ALIADOS") return "VN_ALIADOS";
   if (u === "EMPRESARIOS" || u === "VENTA NUEVA EMPRESARIOS") return "VN_EMPRESARIOS";
-  if (u === "SMBS") return "VN_EMPRESARIOS"; // SMBS se trata como Empresarios
+  if (u === "SMBS") return "VN_EMPRESARIOS";
   if (u === "VN_ALIADOS" || u === "VN_EMPRESARIOS") return u;
   return u;
 }
@@ -44,6 +44,12 @@ function normalizeCanal(c: string | null): string | null {
 function toInt(v: any): number {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+function clean(v: any): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
 }
 
 async function runDatabricksQuery(sql: string): Promise<Record<string, any>[]> {
@@ -113,9 +119,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Traemos TODAS las columnas relevantes (asesor + célula)
     const sql = `
-      SELECT pais_gestion, canal_direccion, director, celula,
-             fe, nube, meta_total_und, meta_total_acv, mes
+      SELECT pais_gestion, canal_direccion, director, gerente,
+             documento_asesor, nombre_asesor, celula,
+             fe, nube, meta_total_und, meta_total_acv, mes,
+             novedad
       FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
       WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
         AND meta_total_und IS NOT NULL
@@ -126,51 +135,99 @@ Deno.serve(async (req) => {
     const rows = await runDatabricksQuery(sql);
     console.log(`[sync-metas-historicas] Filas recibidas: ${rows.length}`);
 
-    // Agregar por (celula, canal, anio_mes) sumando fe/nube/meta_total
-    const aggMap = new Map<string, {
-      celula: string;
-      canal_direccion: string;
-      gerente: string | null;
-      pais: string;
-      anio_mes: string;
-      meta_fe: number;
-      meta_nube: number;
-      meta_total: number;
+    // ────────────────────────────────────────────────
+    // Diagnóstico de descartes
+    // ────────────────────────────────────────────────
+    const mesesNoMapeados = new Map<string, number>();
+    const descartesPorMes: Record<string, { sin_canal: number; sin_celula: number; sin_periodo: number; total: number }> = {};
+
+    // ────────────────────────────────────────────────
+    // 1) Filas a nivel ASESOR individual
+    // ────────────────────────────────────────────────
+    const asesorMap = new Map<string, any>();
+    // 2) Agregado por CÉLULA
+    const celulaMap = new Map<string, {
+      celula: string; canal_direccion: string; gerente: string | null;
+      pais: string; anio_mes: string;
+      meta_fe: number; meta_nube: number; meta_total: number;
     }>();
 
-    let descartadas = 0;
     for (const r of rows) {
-      const celula = r.celula ? String(r.celula).trim() : "";
-      const canal = normalizeCanal(r.canal_direccion);
-      const periodo = normalizePeriodo(r.mes);
-      if (!celula || !canal || !periodo) { descartadas++; continue; }
+      const mesRaw = clean(r.mes);
+      const periodo = normalizePeriodo(mesRaw);
+      const canal = normalizeCanal(clean(r.canal_direccion));
+      const celula = clean(r.celula);
+      const pais = (clean(r.pais_gestion) || "COL").toUpperCase();
+      const documento = clean(r.documento_asesor);
+      const nombre = clean(r.nombre_asesor);
+      const gerente = clean(r.gerente) || clean(r.director);
+      const novedad = clean(r.novedad) || "Sin novedad";
 
-      const key = `${celula}|${canal}|${periodo}`;
-      const cur = aggMap.get(key) || {
-        celula,
-        canal_direccion: canal,
-        gerente: r.director ? String(r.director).trim() : null,
-        pais: String(r.pais_gestion || "COL").trim().toUpperCase(),
-        anio_mes: periodo,
-        meta_fe: 0,
-        meta_nube: 0,
-        meta_total: 0,
+      const mesKey = mesRaw || "(null)";
+      if (!descartesPorMes[mesKey]) {
+        descartesPorMes[mesKey] = { sin_canal: 0, sin_celula: 0, sin_periodo: 0, total: 0 };
+      }
+      descartesPorMes[mesKey].total++;
+
+      if (!periodo) {
+        mesesNoMapeados.set(mesKey, (mesesNoMapeados.get(mesKey) || 0) + 1);
+        descartesPorMes[mesKey].sin_periodo++;
+        continue;
+      }
+      if (!canal) { descartesPorMes[mesKey].sin_canal++; continue; }
+      if (!celula) { descartesPorMes[mesKey].sin_celula++; continue; }
+
+      const fe = toInt(r.fe);
+      const nube = toInt(r.nube);
+      const total = toInt(r.meta_total_und);
+
+      // ── (1) Asesor individual ──
+      if (documento && nombre) {
+        const key = `${documento}|${canal}|${periodo}`;
+        // Si ya existe (duplicado), sumamos para no perder filas
+        const cur = asesorMap.get(key);
+        if (cur) {
+          cur.meta_fe += fe;
+          cur.meta_nube += nube;
+          cur.meta_total += total;
+        } else {
+          asesorMap.set(key, {
+            documento_asesor: documento,
+            nombre_asesor: nombre,
+            pais,
+            canal_direccion: canal,
+            celula,
+            gerente,
+            anio_mes: periodo,
+            meta_fe: fe,
+            meta_nube: nube,
+            meta_total: total,
+            novedad,
+          });
+        }
+      }
+
+      // ── (2) Agregado por célula (siempre) ──
+      const ckey = `${celula}|${canal}|${periodo}`;
+      const cAgg = celulaMap.get(ckey) || {
+        celula, canal_direccion: canal, gerente, pais, anio_mes: periodo,
+        meta_fe: 0, meta_nube: 0, meta_total: 0,
       };
-      cur.meta_fe += toInt(r.fe);
-      cur.meta_nube += toInt(r.nube);
-      cur.meta_total += toInt(r.meta_total_und);
-      if (!cur.gerente && r.director) cur.gerente = String(r.director).trim();
-      aggMap.set(key, cur);
+      cAgg.meta_fe += fe;
+      cAgg.meta_nube += nube;
+      cAgg.meta_total += total;
+      if (!cAgg.gerente && gerente) cAgg.gerente = gerente;
+      celulaMap.set(ckey, cAgg);
     }
 
-    const upsertRows = Array.from(aggMap.values()).map((a) => ({
-      // Documento sintético para no colisionar con asesores reales y respetar PK
+    const asesorRows = Array.from(asesorMap.values());
+    const celulaRows = Array.from(celulaMap.values()).map((a) => ({
       documento_asesor: `CEL_${a.celula}_${a.anio_mes}`.toUpperCase().replace(/\s+/g, "_"),
+      nombre_asesor: null,
       pais: a.pais,
       canal_direccion: a.canal_direccion,
       celula: a.celula,
       gerente: a.gerente,
-      nombre_asesor: null,
       anio_mes: a.anio_mes,
       meta_fe: a.meta_fe,
       meta_nube: a.meta_nube,
@@ -178,14 +235,17 @@ Deno.serve(async (req) => {
       novedad: "Sin novedad",
     }));
 
-    console.log(`[sync-metas-historicas] Agregados: ${upsertRows.length} (descartadas: ${descartadas})`);
+    const allUpsert = [...asesorRows, ...celulaRows];
+    console.log(`[sync-metas-historicas] Asesor: ${asesorRows.length} | Célula: ${celulaRows.length} | Total: ${allUpsert.length}`);
 
+    // ────────────────────────────────────────────────
     // Upsert en lotes
+    // ────────────────────────────────────────────────
     const BATCH = 500;
     let upserted = 0;
     const errores: string[] = [];
-    for (let i = 0; i < upsertRows.length; i += BATCH) {
-      const batch = upsertRows.slice(i, i + BATCH);
+    for (let i = 0; i < allUpsert.length; i += BATCH) {
+      const batch = allUpsert.slice(i, i + BATCH);
       const { error, count } = await supabase
         .from("metas_asesores")
         .upsert(batch, { onConflict: "documento_asesor,canal_direccion,anio_mes", count: "exact" });
@@ -198,16 +258,26 @@ Deno.serve(async (req) => {
     }
 
     // Resumen por periodo
-    const porPeriodo: Record<string, number> = {};
-    upsertRows.forEach((r) => { porPeriodo[r.anio_mes] = (porPeriodo[r.anio_mes] || 0) + 1; });
+    const porPeriodo: Record<string, { asesores: number; celulas: number }> = {};
+    asesorRows.forEach((r) => {
+      porPeriodo[r.anio_mes] = porPeriodo[r.anio_mes] || { asesores: 0, celulas: 0 };
+      porPeriodo[r.anio_mes].asesores++;
+    });
+    celulaRows.forEach((r) => {
+      porPeriodo[r.anio_mes] = porPeriodo[r.anio_mes] || { asesores: 0, celulas: 0 };
+      porPeriodo[r.anio_mes].celulas++;
+    });
 
     return new Response(JSON.stringify({
       success: errores.length === 0,
       filas_databricks: rows.length,
-      registros_agregados: upsertRows.length,
+      asesor_individual: asesorRows.length,
+      agregado_celula: celulaRows.length,
+      total_upsert: allUpsert.length,
       registros_upserted: upserted,
       por_periodo: porPeriodo,
-      descartadas,
+      meses_no_mapeados: Object.fromEntries(mesesNoMapeados),
+      descartes_por_mes: descartesPorMes,
       errores: errores.slice(0, 10),
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
