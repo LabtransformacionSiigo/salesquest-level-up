@@ -234,8 +234,6 @@ const Rankings = () => {
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
-          // Find original name from data
-          const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
             id: asesorInfo?.id || key,
             nombre: originalName,
