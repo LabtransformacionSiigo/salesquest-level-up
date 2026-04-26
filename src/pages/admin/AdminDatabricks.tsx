@@ -180,6 +180,31 @@ const AdminDatabricks = () => {
     }
   };
 
+  const handleSyncMetasHistoricas = async () => {
+    if (!confirm('Sincronizará las metas históricas (Enero–Abril 2026) desde Databricks a metas_asesores. ¿Continuar?')) return;
+    setHistoricasRunning(true);
+    setHistoricasMsg('Consultando Databricks (puede tardar 30–60s)...');
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-historicas', { body: {} });
+      if (error) throw new Error(error.message);
+      const r = data as any;
+      if (!r?.success) {
+        setHistoricasMsg(`✗ Error: ${r?.error || (r?.errores || []).join('; ') || 'desconocido'}`);
+      } else {
+        const periodos = Object.entries(r.por_periodo || {})
+          .sort(([a], [b]) => String(a).localeCompare(String(b)))
+          .map(([p, n]) => `${p}:${n}`).join(' · ');
+        setHistoricasMsg(
+          `✓ ${r.registros_upserted} registros upserted (${r.registros_agregados} células × mes desde ${r.filas_databricks} filas DBX). ${periodos}`
+        );
+      }
+    } catch (err: any) {
+      setHistoricasMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    } finally {
+      setHistoricasRunning(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />;
