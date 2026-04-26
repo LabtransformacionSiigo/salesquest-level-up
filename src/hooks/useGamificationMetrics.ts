@@ -502,6 +502,12 @@ export const useGamificationMetrics = (
           metaNube: 0,
           metaTotal: 0,
         });
+        let getMetaTotalUndForPeriod = (_period: string) => 0;
+        let getMetaSplitFallbackForPeriod = (_period: string, metaTotal: number, metaFe: number, metaNube: number) => ({
+          metaTotal,
+          metaFe,
+          metaNube,
+        });
 
         if (isVC) {
           const acvRow = acvRows[0];
@@ -692,11 +698,36 @@ export const useGamificationMetrics = (
             '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
             '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
           };
-          const mesActualMes3 = mesNumToMes3[String(mesActual).slice(-2)] || '';
-          const acvOficial = acvCatalogRows.find((r: any) => {
-            const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-            return rowMes === mesActualMes3 && normalizeComparableText(r.celula) === celulaGerente;
-          });
+          const getAcvCatalogRowForPeriod = (period: string) => {
+            const mes3 = mesNumToMes3[String(period).slice(-2)] || '';
+            return acvCatalogRows.find((r: any) => {
+              const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+              return rowMes === mes3 && normalizeComparableText(r.celula) === celulaGerente;
+            });
+          };
+          getMetaTotalUndForPeriod = (period: string) => Math.round(Number(getAcvCatalogRowForPeriod(period)?.meta_total_und) || 0);
+          const metaSplitSeed = (() => {
+            let fe = 0;
+            let nube = 0;
+            const periods = new Set<string>(vnMetasAsesores.map((r: any) => String(r.anio_mes || '')).filter((p: string) => /^\d{6}$/.test(p)));
+            periods.forEach((period) => {
+              const ctx = getMetaContextForPeriod(period);
+              if (ctx.metaFe > 0 || ctx.metaNube > 0) {
+                fe += ctx.metaFe;
+                nube += ctx.metaNube;
+              }
+            });
+            const total = fe + nube;
+            return total > 0 ? { feRatio: fe / total, nubeRatio: nube / total } : null;
+          })();
+          getMetaSplitFallbackForPeriod = (period: string, metaTotal: number, metaFe: number, metaNube: number) => {
+            const total = metaTotal > 0 ? metaTotal : getMetaTotalUndForPeriod(period);
+            if (total <= 0 || !metaSplitSeed || (metaFe > 0 && metaNube > 0)) return { metaTotal: total, metaFe, metaNube };
+            const fe = metaFe > 0 ? metaFe : Math.round(total * metaSplitSeed.feRatio);
+            const nube = metaNube > 0 ? metaNube : Math.max(0, total - fe);
+            return { metaTotal: total, metaFe: fe, metaNube: nube };
+          };
+          const acvOficial = getAcvCatalogRowForPeriod(mesActual);
 
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
@@ -963,9 +994,10 @@ export const useGamificationMetrics = (
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
             const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             const metaContext = getMetaContextForPeriod(period);
-            const mFe = metaContext.metaFe;
-            const mNube = metaContext.metaNube;
-            const mTotal = metaContext.metaTotal;
+            const metas = getMetaSplitFallbackForPeriod(period, metaContext.metaTotal, metaContext.metaFe, metaContext.metaNube);
+            const mFe = metas.metaFe;
+            const mNube = metas.metaNube;
+            const mTotal = metas.metaTotal;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const metaAcvFinal = base.meta;
@@ -999,6 +1031,9 @@ export const useGamificationMetrics = (
             if (!/^\d{6}$/.test(p)) return;
             const ctx = getMetaContextForPeriod(p);
             if (ctx.metaFe > 0 || ctx.metaNube > 0 || ctx.metaTotal > 0) metaPeriods.add(p);
+          });
+          Array.from({ length: 12 }, (_, i) => `${anioActual}${String(i + 1).padStart(2, '0')}`).forEach((period) => {
+            if (getMetaTotalUndForPeriod(period) > 0) metaPeriods.add(period);
           });
 
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
