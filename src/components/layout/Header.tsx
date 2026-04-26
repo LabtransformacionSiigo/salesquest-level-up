@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
 
