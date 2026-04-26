@@ -994,9 +994,10 @@ export const useGamificationMetrics = (
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
             const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             const metaContext = getMetaContextForPeriod(period);
-            const mFe = metaContext.metaFe;
-            const mNube = metaContext.metaNube;
-            const mTotal = metaContext.metaTotal;
+            const metas = getMetaSplitFallbackForPeriod(period, metaContext.metaTotal, metaContext.metaFe, metaContext.metaNube);
+            const mFe = metas.metaFe;
+            const mNube = metas.metaNube;
+            const mTotal = metas.metaTotal;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const metaAcvFinal = base.meta;
