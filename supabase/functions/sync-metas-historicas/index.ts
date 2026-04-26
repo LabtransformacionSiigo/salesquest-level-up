@@ -123,12 +123,12 @@ Deno.serve(async (req) => {
     const sql = `
       SELECT pais_gestion, canal_direccion, director, gerente,
              documento_asesor, nombre_asesor, celula,
-             fe, nube, meta_total_und, meta_total_acv, mes,
+             meta_fe, meta_nube, meta_total, mes,
              novedad
       FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
       WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
-        AND meta_total_und IS NOT NULL
-        AND meta_total_und > 0
+        AND meta_total IS NOT NULL
+        AND meta_total > 0
     `;
 
     console.log("[sync-metas-historicas] Ejecutando query Databricks...");
