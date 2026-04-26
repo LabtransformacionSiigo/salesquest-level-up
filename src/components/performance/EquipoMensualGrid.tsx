@@ -250,8 +250,7 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
     );
   }
 
-  const totalSp = meses.reduce((s, m) => s + (m.sp_mes || 0), 0);
-  const mesesConDatos = meses.filter((m) => (m.sp_mes || 0) > 0).length;
+
 
   return (
     <div className="space-y-4">
@@ -310,24 +309,6 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         })}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: meses.length * 0.05 + 0.05 }}
-        className="rounded-2xl p-5 border-2 border-orange/40 bg-gradient-to-r from-orange/15 to-primary/10 shadow-smooth-sm flex items-center justify-between gap-3 flex-wrap"
-      >
-        <div className="flex flex-col">
-          <span className="text-sm md:text-base font-black font-heading text-orange flex items-center gap-2">
-            <span>⚡</span> Total SP Convención 2026
-          </span>
-          <span className="text-[11px] text-muted-foreground font-medium">
-            Acumulado {mesesConDatos} {mesesConDatos === 1 ? 'mes' : 'meses'}
-          </span>
-        </div>
-        <span className="text-3xl md:text-4xl font-scoreboard font-black text-orange leading-none">
-          +{totalSp.toLocaleString()} <span className="text-base md:text-lg align-middle">SP</span>
-        </span>
-      </motion.div>
     </div>
   );
 };

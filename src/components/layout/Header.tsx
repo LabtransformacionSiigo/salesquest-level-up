@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 import ChangePasswordDialog from './ChangePasswordDialog';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
 
@@ -21,7 +22,8 @@ const Header = ({ title }: HeaderProps) => {
   const [racha, setRacha] = useState<any>(null);
   const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
-  const spDisplay = profile?.sp_totales ?? 0;
+  const spAnual = useSpConvencionAnual();
+  const spDisplay = spAnual ?? profile?.sp_totales ?? 0;
 
   useEffect(() => {
     if (!profile?.id) return;
