@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
+import { computeSpConvencionAnualForCelula } from '@/lib/sp-convencion-anual';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -156,11 +157,13 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
-          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
+          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
+          supabase.from('metas_acv_gerentes').select('celula, mes, meta_total_acv').limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -211,6 +214,22 @@ const Rankings = () => {
         });
         // Build ranking entries
         const entries: any[] = [];
+        const spInputs = {
+          vgmRows: vgmRes.data || [],
+          metaAsesorRows: metasAsesoresRes.data || [],
+          metaAcvRows: metasAcvRes.data || [],
+          year: String(currentConventionYear),
+        };
+        // Cache SP por celula para no recalcular múltiples veces.
+        const spByCelulaCache = new Map<string, number>();
+        const getSpForCelula = (celula: string | null | undefined) => {
+          const key = String(celula || '').toLowerCase().trim();
+          if (!key) return 0;
+          if (spByCelulaCache.has(key)) return spByCelulaCache.get(key)!;
+          const v = computeSpConvencionAnualForCelula(spInputs, celula);
+          spByCelulaCache.set(key, v);
+          return v;
+        };
         advisorAgg.forEach((agg, key) => {
           const monthlyRows = buildVnConventionMonthlyRows({
             productivityRows: (productividadRes.data || []).filter((row: any) => normalizePersonName(row.asesor) === key),
@@ -222,9 +241,9 @@ const Rankings = () => {
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
-          // SP Convención = suma del año del historial mensual (cap aplicado en buildVnConventionMonthlyRows).
-          // NO usar asesores.sp_convencion porque persiste solo el mes actual.
-          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
+          // SP Convención = MISMO cálculo que MiPerformance/EquipoMensualGrid:
+          // suma anual de SP por mes de la CÉLULA del asesor (fuente única: ventas_gerente_mensual + metas_acv_gerentes).
+          const spFinal = getSpForCelula(agg.celula);
           // Find original name from data
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           entries.push({
@@ -254,12 +273,14 @@ const Rankings = () => {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 5000),
+          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
+          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
+          supabase.from('metas_acv_gerentes').select('celula, mes, meta_total_acv').limit(2000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -349,6 +370,12 @@ const Rankings = () => {
           }
           celulaAgg.set(celula, agg);
         });
+        const spInputsGer = {
+          vgmRows: vgmGerRes.data || [],
+          metaAsesorRows: metasAsesoresRes.data || [],
+          metaAcvRows: metasAcvGerRes.data || [],
+          year: String(currentConventionYear),
+        };
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
           const monthlyRows = buildVnConventionMonthlyRows({
@@ -361,9 +388,9 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
-          // SP Convención = suma del año del historial mensual de la célula.
-          // NO usar gerentes.sp_convencion porque persiste solo el mes actual.
-          const spFinal = monthlyRows.reduce((s, r) => s + (Number(r.sp) || 0), 0);
+          // SP Convención = MISMO cálculo que MiPerformance/EquipoMensualGrid:
+          // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
+          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,

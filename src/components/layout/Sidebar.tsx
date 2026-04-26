@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, slideInLeft } from '@/lib/animations';
 import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>
@@ -56,7 +57,8 @@ const Sidebar = () => {
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
   const spAnual = useSpConvencionAnual();
-  const spDisplay = spAnual ?? profile?.sp_totales ?? 0;
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const spDisplay = spAnual ?? spAnualSelf ?? profile?.sp_totales ?? 0;
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
