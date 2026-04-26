@@ -5,6 +5,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, slideInLeft } from '@/lib/animations';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn("material-icons-round", className)}>{icon}</span>
