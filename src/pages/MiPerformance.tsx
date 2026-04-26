@@ -13,7 +13,8 @@ import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import bannerPerformance from '@/assets/banner-performance.png';
 import EquipoMensualGrid from '@/components/performance/EquipoMensualGrid';
-import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { setSpConvencionAnual, useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 
 const FLAG_MAP: Record<string, string> = { COL: '🇨🇴', MEX: '🇲🇽', ECU: '🇪🇨' };
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
@@ -34,6 +35,9 @@ const InfoTip = ({ text }: { text: string }) => (
 const MiPerformance = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const metrics = useGamificationMetrics(profile);
+  const spAnualStore = useSpConvencionAnual();
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const spConvencionDisplay = spAnualStore ?? spAnualSelf ?? 0;
 
   const canal = profile?.canal;
   const isAliados = canal === 'VN_ALIADOS';
@@ -133,7 +137,7 @@ const MiPerformance = () => {
                       animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4 }}
                     >⚡</motion.span>
-                    <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                    <AnimatedCounter value={spConvencionDisplay} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                   </div>
                   <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
                 </div>

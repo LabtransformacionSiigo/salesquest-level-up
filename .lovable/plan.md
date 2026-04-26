@@ -1,45 +1,62 @@
-## Objetivo
+Plan de corrección definitiva para SP Convención
 
-Agregar una fila/card de **Total SP Convención 2026** al final del Historial Mensual, mostrando la suma de los SP mensuales ya calculados. No se modifica ninguna fórmula, fuente de datos ni hook (`useGamificationMetrics` queda intacto).
+Objetivo: que MiPerformance, Ranking, Header y Sidebar muestren exactamente el mismo SP Convención anual acumulado, sin usar `profile.sp_totales`, `sp_convencion` ni el SP mensual de `useGamificationMetrics` para esta moneda.
 
-## Cambios visuales
+Cambios propuestos
 
-### 1. `src/pages/MiPerformance.tsx` — `VnHistorialSection` (tabla)
+1. Centralizar el cálculo anual en `src/lib/sp-convencion-anual.ts`
+- Mantener `computeSpConvencionAnualForCelula` como fuente para gerentes/equipos VN.
+- Ajustarla para que replique el cálculo que hoy da 1,414 en MiPerformance/Header/Sidebar:
+  - aplicar fallback de split FE/Nube cuando meses antiguos tienen `meta_fe/meta_nube = 0` pero sí tienen `meta_total` o `meta_total_und`;
+  - conservar la fórmula exacta por mes:
+    `cap(pct_fe,300) + cap(pct_nube * 2,300) + cap(pct_acv,300)`;
+  - mantener match por célula y fallback por nombre normalizado del gerente.
+- Agregar `computeSpConvencionAnualForAsesor`, pero adaptado al esquema real del proyecto:
+  - `ejecucion_asesores` no tiene `familia`, `unidades` ni `nombre_asesor`; usa `ventas_fe`, `ventas_nube`, `ventas_total`, `acv_total`, `documento_asesor`;
+  - `productividad_asesores` usa `anio_mes`, `asesor`, `meta`, `acv_f`, no `mes/meta_acv/nombre_asesor`;
+  - matching por nombre normalizado y, cuando exista, por documento desde `metas_asesores`.
 
-Aplica a **asesores y gerentes** de todos los canales VN (VN_ALIADOS, VN_EMPRESARIOS) en COL, MEX, ECU, URU, ya que esta misma sección se usa para todos.
+2. Corregir la card hero de `src/pages/MiPerformance.tsx`
+- Crear estado local `spConvencionAnualDisplay`.
+- Para VN gerentes/equipos: calcular con `computeSpConvencionAnualForCelula` usando célula + nombre del perfil.
+- Para VN asesores: calcular con `computeSpConvencionAnualForAsesor`.
+- Reemplazar el valor actual de la card hero (`profile?.sp_totales || 0`) por ese valor anual.
+- Mantener SP Canje como está.
+- Seguir sincronizando el total anual al store global para que Header/Sidebar permanezcan alineados.
 
-- Calcular `totalSp` como la suma de `spTotal` por mes usando exactamente la fórmula ya existente:
-  `spTotal = (hasMetaFe ? cap(pct_fe) : 0) + (hasMetaNube ? cap(pct_nube)*2 : 0) + (hasMetaAcv ? cap(pct) : 0)` con `cap = min(300, round(v))`.
-- Contar `mesesConDatos` como la cantidad de meses cuyo `spTotal > 0` (meses futuros sin datos quedan en 0 y no cuentan, según test 6).
-- Agregar un `<tfoot>` al final de la tabla con una fila destacada:
-  - Celda izquierda (colSpan 9): `⚡ Total SP Convención 2026` + subtítulo `Acumulado {mesesConDatos} meses`.
-  - Celda derecha: badge grande naranja/dorado con `+{totalSp.toLocaleString()}`.
-  - Estilos: fondo `bg-orange/10`, borde superior, texto `text-orange` grande y negrita (`text-2xl font-scoreboard font-black`).
+3. Corregir Ranking VN en `src/pages/Rankings.tsx`
+- Tab Asesores/Comerciales:
+  - dejar de asignar SP por célula a cada asesor;
+  - calcular `sp_totales` con `computeSpConvencionAnualForAsesor` para cada asesor.
+- Tab Gerentes/Equipos:
+  - usar exclusivamente `computeSpConvencionAnualForCelula`;
+  - pasar siempre `celula` y `gerenteInfo?.nombre` como fallback;
+  - garantizar que las filas `ventas_gerente_mensual`, `metas_asesores` y `metas_acv_gerentes` incluyan país/canal para evitar cruces incorrectos;
+  - eliminar dependencias de `sp_convencion`/`sp_totales` para ordenar o mostrar SP Convención VN.
 
-### 2. `src/components/performance/EquipoMensualGrid.tsx` — grid de cards (vista equipo gerente)
+4. No tocar Header/Sidebar
+- No modificar `src/components/layout/Header.tsx` ni `src/components/layout/Sidebar.tsx`, salvo que el build obligue a ajustar imports por tipos.
+- Deben seguir mostrando el valor correcto ya observado: 1,414.
 
-- Calcular `totalSp = meses.reduce((s, m) => s + m.sp_mes, 0)` (los `sp_mes` ya están con cap aplicado).
-- Calcular `mesesConDatos = meses.filter(m => m.sp_mes > 0).length`.
-- Después del `grid` de cards, agregar una **card destacada** con:
-  - Fondo `bg-gradient-to-r from-orange/15 to-primary/10` con borde `border-orange/40`.
-  - Título: `⚡ Total SP Convención 2026`.
-  - Valor grande (`text-4xl font-scoreboard font-black text-orange`): `+{totalSp.toLocaleString()}` SP.
-  - Subtítulo: `Acumulado {mesesConDatos} mes(es)`.
+5. Verificación
+- Validar en código que ya no exista uso de `profile.sp_totales`, `sp_convencion` o `useGamificationMetrics.spConvencion` para mostrar SP Convención en:
+  - card hero de MiPerformance;
+  - Ranking asesores;
+  - Ranking gerentes.
+- Ejecutar búsqueda y build/lint si está disponible.
+- Verificar el caso Diana Maria Naranjo Mattheus:
+  - Header: 1,414;
+  - Sidebar: 1,414;
+  - Card hero MiPerformance: 1,414;
+  - Ranking: SP = 1,414 para su fila/equipo correspondiente.
 
-## Notas de cumplimiento de tests
+Archivos a modificar
+- `src/lib/sp-convencion-anual.ts`
+- `src/pages/MiPerformance.tsx`
+- `src/pages/Rankings.tsx`
 
-- **Test 1–4** (Aliados/Empresarios COL y México, asesores y gerentes): la suma se hace sobre el mismo arreglo que ya alimenta la tabla, así que será idéntica al ejemplo 211 + 313 + 383 + 507 = 1414.
-- **Test 5** (mes con fallback proporcional): si `spTotal > 0` se incluye automáticamente.
-- **Test 6** (meses futuros): `sp = 0` ⇒ no suma y no incrementa el contador de meses.
-- **Test 7** (cap 300%): el cap ya está aplicado en `spTotal`/`sp_mes`, la suma lo respeta.
-
-## Lo que NO se toca
-
-- `useGamificationMetrics`, fórmula SP, fuentes de datos (`ventas_gerente_mensual`, `metas_asesores`, `productividad_asesores`, `metas_acv_gerentes`).
-- Edge functions de sincronización (incluyendo `sync-vn-mexico`, que ya alimenta las mismas tablas).
-- Lógica de carga por país/canal: México ya entra por la misma ruta de datos consolidados.
-
-## Archivos a editar
-
-- `src/pages/MiPerformance.tsx` (componente `VnHistorialSection`)
-- `src/components/performance/EquipoMensualGrid.tsx`
+Archivos a no modificar
+- `src/hooks/useGamificationMetrics.ts`
+- `src/components/layout/Header.tsx`
+- `src/components/layout/Sidebar.tsx`
+- archivos autogenerados de la integración backend.
