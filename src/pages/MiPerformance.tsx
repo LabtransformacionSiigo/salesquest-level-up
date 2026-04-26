@@ -434,6 +434,18 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   const pctClass = (p: number) =>
     p >= 100 ? 'bg-accent/10 text-accent' : p >= 70 ? 'bg-primary/10 text-primary' : p > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground';
   const fmtPct = (p?: number, hasMeta?: boolean) => (hasMeta && p != null ? `${p}%` : '—');
+  const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
+  const spByMonth = data.map((m: any) => {
+    const hasMetaFe = (m.meta_fe ?? 0) > 0;
+    const hasMetaNube = (m.meta_nube ?? 0) > 0;
+    const hasMetaAcv = (m.meta ?? 0) > 0;
+    const spFe = hasMetaFe ? cap(m.pct_fe) : 0;
+    const spNube = hasMetaNube ? cap(m.pct_nube) * 2 : 0;
+    const spAcv = hasMetaAcv ? cap(m.pct) : 0;
+    return typeof m.sp === 'number' && m.sp > 0 ? m.sp : (spFe + spNube + spAcv);
+  });
+  const totalSp = spByMonth.reduce((s, v) => s + v, 0);
+  const mesesConDatos = spByMonth.filter((v) => v > 0).length;
   return (
     <>
       <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
@@ -459,12 +471,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               const hasMetaFe = (m.meta_fe ?? 0) > 0;
               const hasMetaNube = (m.meta_nube ?? 0) > 0;
               const hasMetaAcv = (m.meta ?? 0) > 0;
-              // SP mensual VN = cap(%FE) + cap(%Nube)×2 + cap(%ACV). NO incluye %Uds.
-              const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
-              const spFe = hasMetaFe ? cap(m.pct_fe) : 0;
-              const spNube = hasMetaNube ? cap(m.pct_nube) * 2 : 0;
-              const spAcv = hasMetaAcv ? cap(m.pct) : 0;
-              const spTotal = typeof m.sp === 'number' && m.sp > 0 ? m.sp : (spFe + spNube + spAcv);
+              const spTotal = spByMonth[i];
               return (
                 <motion.tr
                   key={m.mes}
@@ -491,6 +498,25 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="bg-orange/10 border-t-2 border-orange/40">
+              <td colSpan={9} className="px-4 py-4">
+                <div className="flex flex-col">
+                  <span className="text-sm md:text-base font-black font-heading text-orange flex items-center gap-2">
+                    <span>⚡</span> Total SP Convención 2026
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    Acumulado {mesesConDatos} {mesesConDatos === 1 ? 'mes' : 'meses'}
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-4 text-right">
+                <span className="inline-block text-2xl md:text-3xl font-scoreboard font-black text-orange leading-none">
+                  +{totalSp.toLocaleString()}
+                </span>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </motion.div>
     </>

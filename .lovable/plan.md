@@ -1,62 +1,45 @@
-## Plan de corrección
+## Objetivo
 
-### Qué voy a corregir
-1. Unificar la fórmula de SP Convención VN en toda la app para que siempre sea:
-   `SP mensual = %Uds + %FE + (%Nube × 2) + %ACV`
-2. Hacer que el historial mensual, el banner de Mi Performance, el header/sidebar, el ranking y el perfil autenticado usen exactamente la misma fuente de cálculo.
-3. Ejecutar un recálculo masivo 2026 y persistir el total correcto en backend para todos los gerentes y asesores VN de Colombia, México, Ecuador y Uruguay.
+Agregar una fila/card de **Total SP Convención 2026** al final del Historial Mensual, mostrando la suma de los SP mensuales ya calculados. No se modifica ninguna fórmula, fuente de datos ni hook (`useGamificationMetrics` queda intacto).
 
-### Hallazgos confirmados
-- `src/lib/vn-convention.ts` ya suma correctamente `pctTotal + pctAcv + pctFe + pctNube * 2`.
-- `src/pages/MiPerformance.tsx` todavía muestra mal la columna SP del historial mensual: allí se está calculando solo `ACV + FE + Nube*2` y se está omitiendo `%Uds`. Por eso una tabla puede mostrar 187 cuando la suma esperada incluye otro componente, o viceversa.
-- `src/hooks/useSupabaseAuth.ts` para gerentes VN sigue calculando el total con una ruta separada basada en `productividad_asesores + metas_asesores + synthetic ventas_diarias`, en vez de reutilizar la misma ruta oficial de historial mensual.
-- En backend hay valores persistidos desactualizados: por ejemplo, `gerentes.sp_convencion` para Diana Maria Naranjo Mattheus hoy está en `394`, mientras el caso que muestras apunta a `414`.
-- No existen filas de `sp_acumulados` de convención para Diana ni Grace; hoy la persistencia real está dependiendo de `gerentes.sp_convencion` / `asesores.sp_convencion`.
+## Cambios visuales
 
-### Implementación
-1. Corregir el historial mensual VN
-   - Ajustar `VnHistorialSection` para que la columna `SP` use exactamente el mismo total del motor (`%Uds + %FE + (%Nube × 2) + %ACV`).
-   - Evitar recomputaciones parciales en el componente y preferir el `sp` ya calculado por la capa de datos cuando esté disponible.
+### 1. `src/pages/MiPerformance.tsx` — `VnHistorialSection` (tabla)
 
-2. Unificar la fuente de verdad en frontend
-   - Extraer/usar un único builder para VN mensual en `src/lib/vn-convention.ts`.
-   - Hacer que `useGamificationMetrics.ts`, `useSupabaseAuth.ts` y `Rankings.tsx` consuman ese mismo builder.
-   - Para gerentes VN, priorizar `ventas_gerente_mensual` como fuente oficial de FE/Nube/Unidades/ACV por mes, combinada con `metas_asesores` y `productividad_asesores` para metas y ACV meta.
-   - Para asesores VN, usar la misma fórmula mensual y misma normalización de país/ACV.
+Aplica a **asesores y gerentes** de todos los canales VN (VN_ALIADOS, VN_EMPRESARIOS) en COL, MEX, ECU, URU, ya que esta misma sección se usa para todos.
 
-3. Persistir los totales correctos en backend
-   - Crear una rutina de recálculo masivo para ciclo 2026 de todos los usuarios VN (`VN_ALIADOS` y `VN_EMPRESARIOS`) en `COL`, `MEX`, `ECU`, `URU`.
-   - Recalcular mes a mes y luego guardar la sumatoria anual en:
-     - `gerentes.sp_convencion`
-     - `asesores.sp_convencion`
-   - Si conviene para trazabilidad, también dejar una salida estructurada por periodo antes de actualizar para validar muestras como Diana y Grace.
+- Calcular `totalSp` como la suma de `spTotal` por mes usando exactamente la fórmula ya existente:
+  `spTotal = (hasMetaFe ? cap(pct_fe) : 0) + (hasMetaNube ? cap(pct_nube)*2 : 0) + (hasMetaAcv ? cap(pct) : 0)` con `cap = min(300, round(v))`.
+- Contar `mesesConDatos` como la cantidad de meses cuyo `spTotal > 0` (meses futuros sin datos quedan en 0 y no cuentan, según test 6).
+- Agregar un `<tfoot>` al final de la tabla con una fila destacada:
+  - Celda izquierda (colSpan 9): `⚡ Total SP Convención 2026` + subtítulo `Acumulado {mesesConDatos} meses`.
+  - Celda derecha: badge grande naranja/dorado con `+{totalSp.toLocaleString()}`.
+  - Estilos: fondo `bg-orange/10`, borde superior, texto `text-orange` grande y negrita (`text-2xl font-scoreboard font-black`).
 
-4. Validación final
-   - Verificar manualmente casos conocidos como Diana y Grace comparando:
-     - Historial mensual en UI
-     - Suma anual mostrada en perfil/header/ranking
-     - Valor persistido en backend
-   - Confirmar que los totales coinciden en todos los puntos de la plataforma.
+### 2. `src/components/performance/EquipoMensualGrid.tsx` — grid de cards (vista equipo gerente)
 
-### Detalles técnicos
-- Archivos a tocar:
-  - `src/lib/vn-convention.ts`
-  - `src/hooks/useGamificationMetrics.ts`
-  - `src/hooks/useSupabaseAuth.ts`
-  - `src/pages/MiPerformance.tsx`
-  - `src/pages/Rankings.tsx`
-- Datos usados:
-  - `ventas_gerente_mensual` para ejecución oficial de gerente VN por mes
-  - `metas_asesores` para `meta_fe`, `meta_nube`, `meta_total` y exclusión por novedad
-  - `productividad_asesores` para `acv_f` y `meta ACV` con escala por país
-- Persistencia a actualizar:
-  - `gerentes.sp_convencion`
-  - `asesores.sp_convencion`
+- Calcular `totalSp = meses.reduce((s, m) => s + m.sp_mes, 0)` (los `sp_mes` ya están con cap aplicado).
+- Calcular `mesesConDatos = meses.filter(m => m.sp_mes > 0).length`.
+- Después del `grid` de cards, agregar una **card destacada** con:
+  - Fondo `bg-gradient-to-r from-orange/15 to-primary/10` con borde `border-orange/40`.
+  - Título: `⚡ Total SP Convención 2026`.
+  - Valor grande (`text-4xl font-scoreboard font-black text-orange`): `+{totalSp.toLocaleString()}` SP.
+  - Subtítulo: `Acumulado {mesesConDatos} mes(es)`.
 
-### Resultado esperado
-- Si una fila mensual muestra 54% Uds, 57% FE, 46% Nube y 38% ACV, el SP del mes quedará exactamente en `54 + 57 + 92 + 38 = 241`.
-- El total anual será la suma de la columna SP mes a mes.
-- Ese mismo total quedará igual en Mi Performance, header, sidebar, ranking y backend.
-- Diana, Grace y el resto de VN en Colombia, México, Ecuador y Uruguay quedarán alineados con la tabla mensual oficial.
+## Notas de cumplimiento de tests
 
-Apenas apruebes, hago la corrección y corro el recálculo masivo.
+- **Test 1–4** (Aliados/Empresarios COL y México, asesores y gerentes): la suma se hace sobre el mismo arreglo que ya alimenta la tabla, así que será idéntica al ejemplo 211 + 313 + 383 + 507 = 1414.
+- **Test 5** (mes con fallback proporcional): si `spTotal > 0` se incluye automáticamente.
+- **Test 6** (meses futuros): `sp = 0` ⇒ no suma y no incrementa el contador de meses.
+- **Test 7** (cap 300%): el cap ya está aplicado en `spTotal`/`sp_mes`, la suma lo respeta.
+
+## Lo que NO se toca
+
+- `useGamificationMetrics`, fórmula SP, fuentes de datos (`ventas_gerente_mensual`, `metas_asesores`, `productividad_asesores`, `metas_acv_gerentes`).
+- Edge functions de sincronización (incluyendo `sync-vn-mexico`, que ya alimenta las mismas tablas).
+- Lógica de carga por país/canal: México ya entra por la misma ruta de datos consolidados.
+
+## Archivos a editar
+
+- `src/pages/MiPerformance.tsx` (componente `VnHistorialSection`)
+- `src/components/performance/EquipoMensualGrid.tsx`
