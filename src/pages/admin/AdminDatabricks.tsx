@@ -77,6 +77,8 @@ const AdminDatabricks = () => {
   const [forceRunning, setForceRunning] = useState(false);
   const [recalcRunning, setRecalcRunning] = useState(false);
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
+  const [historicasRunning, setHistoricasRunning] = useState(false);
+  const [historicasMsg, setHistoricasMsg] = useState<string | null>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
@@ -178,6 +180,31 @@ const AdminDatabricks = () => {
     }
   };
 
+  const handleSyncMetasHistoricas = async () => {
+    if (!confirm('Sincronizará las metas históricas (Enero–Abril 2026) desde Databricks a metas_asesores. ¿Continuar?')) return;
+    setHistoricasRunning(true);
+    setHistoricasMsg('Consultando Databricks (puede tardar 30–60s)...');
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-historicas', { body: {} });
+      if (error) throw new Error(error.message);
+      const r = data as any;
+      if (!r?.success) {
+        setHistoricasMsg(`✗ Error: ${r?.error || (r?.errores || []).join('; ') || 'desconocido'}`);
+      } else {
+        const periodos = Object.entries(r.por_periodo || {})
+          .sort(([a], [b]) => String(a).localeCompare(String(b)))
+          .map(([p, n]) => `${p}:${n}`).join(' · ');
+        setHistoricasMsg(
+          `✓ ${r.registros_upserted} registros upserted (${r.registros_agregados} células × mes desde ${r.filas_databricks} filas DBX). ${periodos}`
+        );
+      }
+    } catch (err: any) {
+      setHistoricasMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    } finally {
+      setHistoricasRunning(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />;
@@ -247,6 +274,45 @@ const AdminDatabricks = () => {
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Sincronizar Metas Históricas (Ene-Abr) */}
+        <div className="bg-gradient-to-br from-primary/10 to-secondary/5 border border-primary/30 rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <MI icon="history_edu" className="text-primary" />
+                Sincronizar Metas Históricas (Ene–Abr 2026)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Carga las metas históricas a nivel <strong>célula</strong> desde <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">tbl_brz_cuotas_asesores</code> (Aliados / SMBS / Empresarios) hacia <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>. Útil cuando el Historial Mensual del equipo muestra "—" en FE/Nube/Total para meses anteriores.
+              </p>
+              {historicasMsg && (
+                <p className={cn("text-xs font-semibold mt-2", historicasMsg.startsWith('✓') ? 'text-secondary' : historicasMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
+                  {historicasMsg}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleSyncMetasHistoricas}
+              disabled={historicasRunning}
+              variant="default"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+            >
+              {historicasRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
+                  Sincronizando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MI icon="cloud_download" className="text-sm" />
+                  Sincronizar Metas Históricas
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 

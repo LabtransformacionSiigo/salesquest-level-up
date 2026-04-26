@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.evaluar-retos-vc]
 verify_jwt = false
+
+[functions.sync-metas-historicas]
+verify_jwt = false
