@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
 
     // Traemos TODAS las columnas relevantes (asesor + célula)
     const sql = `
-      SELECT pais_gestion, canal_direccion, director, gerente,
+      SELECT pais, canal_direccion, director, gerente,
              documento_asesor, nombre_asesor, celula,
              meta_fe, meta_nube, meta_total, mes,
              novedad
