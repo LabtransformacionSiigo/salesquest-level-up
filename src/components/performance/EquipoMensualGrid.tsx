@@ -250,8 +250,7 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
     );
   }
 
-  const totalSp = meses.reduce((s, m) => s + (m.sp_mes || 0), 0);
-  const mesesConDatos = meses.filter((m) => (m.sp_mes || 0) > 0).length;
+
 
   return (
     <div className="space-y-4">
