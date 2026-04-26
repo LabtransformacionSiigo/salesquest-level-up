@@ -1032,6 +1032,13 @@ export const useGamificationMetrics = (
             const ctx = getMetaContextForPeriod(p);
             if (ctx.metaFe > 0 || ctx.metaNube > 0 || ctx.metaTotal > 0) metaPeriods.add(p);
           });
+          acvCatalogRows.forEach((r: any) => {
+            const mes3 = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+            const month = Object.entries(mesNumToMes3).find(([, label]) => label === mes3)?.[0];
+            if (month && normalizeComparableText(r.celula) === celulaGerente && Number(r.meta_total_und) > 0) {
+              metaPeriods.add(`${anioActual}${month}`);
+            }
+          });
 
           if (celulaRows.length > 0 && profile.role !== 'asesor') {
             // Aggregate by month from celula productividad
