@@ -454,6 +454,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
             </tr>
           </thead>
           <tbody>
+            {(() => null)()}
             {data.map((m, i) => {
               const hasMetaTotal = (m.meta_total ?? 0) > 0;
               const hasMetaFe = (m.meta_fe ?? 0) > 0;
