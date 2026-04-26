@@ -137,7 +137,7 @@ const MiPerformance = () => {
                       animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4 }}
                     >⚡</motion.span>
-                    <AnimatedCounter value={profile?.sp_totales || 0} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
+                    <AnimatedCounter value={spConvencionDisplay} className="text-3xl font-black font-scoreboard text-white drop-shadow-lg" duration={1.5} />
                   </div>
                   <p className="text-[10px] text-white/70 font-scoreboard tracking-widest mt-0.5">SIIGO POINTS</p>
                 </div>
