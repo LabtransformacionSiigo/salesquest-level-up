@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
-import { computeSpConvencionAnualForCelula } from '@/lib/sp-convencion-anual';
+import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor } from '@/lib/sp-convencion-anual';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
