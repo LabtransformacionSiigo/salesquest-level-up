@@ -45,6 +45,7 @@ export interface MetaAcvGerenteRow {
   meta_nube?: number | null;
   meta_total_acv?: number | null;
   meta_total_und?: number | null;
+  archivo?: string | null;
 }
 
 export interface SpAnualInputs {
@@ -70,7 +71,8 @@ export function computeSpConvencionAnualForCelula(
   const { vgmRows, metaAcvRows, year } = inputs;
 
   // 1) Metas (FE / Nube / ACV) por periodo desde metas_acv_gerentes (fuente única).
-  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
+  //    Cierre tiene prioridad sobre Inicio — NUNCA sumar ambas para no duplicar meta.
+  const metasAcvTemp = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; archivo: string }>();
   metaAcvRows
     .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
     .forEach((row) => {
@@ -78,12 +80,19 @@ export function computeSpConvencionAnualForCelula(
       const mm = MES3_TO_MM[mesKey];
       if (!mm) return;
       const periodo = `${year}${mm}`;
-      const cur = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
-      cur.meta_fe += Number(row.meta_fe) || 0;
-      cur.meta_nube += Number(row.meta_nube) || 0;
-      cur.meta_acv += Number(row.meta_total_acv) || 0;
-      metasPorPeriodo.set(periodo, cur);
+      const archivo = String((row as any).archivo ?? '').toLowerCase();
+      const existing = metasAcvTemp.get(periodo);
+      if (!existing || (archivo.includes('cierre') && !existing.archivo.includes('cierre'))) {
+        metasAcvTemp.set(periodo, {
+          meta_fe: Number(row.meta_fe) || 0,
+          meta_nube: Number(row.meta_nube) || 0,
+          meta_acv: Number(row.meta_total_acv) || 0,
+          archivo,
+        });
+      }
     });
+  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
+  metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
   // 2) Ventas reales desde ventas_gerente_mensual (match por celula o gerente_normalizado).
   const vgmFiltrados = vgmRows.filter((row) => {
