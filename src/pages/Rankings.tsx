@@ -217,10 +217,13 @@ const Rankings = () => {
         });
         // Build ranking entries
         const entries: any[] = [];
+        const esMexico = userPais === 'MEX';
+        const mesActualNro = new Date().getMonth() + 1;
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
           productividadRows: productividadRes.data || [],
+          vnMetricasRows: (vnMetricasMexRes?.data as any[]) || [],
           year: String(currentConventionYear),
         };
         advisorAgg.forEach((agg, key) => {
