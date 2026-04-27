@@ -143,6 +143,22 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         .select('celula, mes, meta_fe, meta_nube, meta_total_acv')
         .limit(500);
 
+      // [VERIFY] Primeros 5 registros de metasAcvRaw — confirmar meta_fe/meta_nube no nulos
+      console.log('[EquipoMensualGrid][VERIFY] metasAcvRaw sample (5):',
+        (metasAcvRaw || []).slice(0, 5).map((r: any) => ({
+          celula: r.celula,
+          mes: r.mes,
+          meta_fe: r.meta_fe,
+          meta_nube: r.meta_nube,
+          meta_total_acv: r.meta_total_acv,
+          meta_fe_type: typeof r.meta_fe,
+          meta_nube_type: typeof r.meta_nube,
+        }))
+      );
+      console.log('[EquipoMensualGrid][VERIFY] celulaNorm filtro:', celulaNorm,
+        '— matches:', (metasAcvRaw || []).filter((r: any) => celulaNorm && normalizeText(r.celula) === celulaNorm).length
+      );
+
       const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
       (metasAcvRaw || [])
         .filter((row: any) => celulaNorm && normalizeText(row.celula) === celulaNorm)
