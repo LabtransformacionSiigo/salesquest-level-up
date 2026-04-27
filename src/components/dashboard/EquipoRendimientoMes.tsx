@@ -99,7 +99,7 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Pr
   const sortOptions: { key: SortKey; label: string }[] = [
     { key: 'acv', label: 'ACV%' },
     { key: 'fe', label: 'FE%' },
-    { key: 'nube', label: 'Nube%' },
+    { key: 'nube', label: `${labelNube}%` },
     { key: 'total', label: 'Uds%' },
   ];
 
