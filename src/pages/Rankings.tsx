@@ -306,6 +306,63 @@ const Rankings = () => {
             nivel: null,
           });
         });
+
+        // México: agregar asesores que están en vn_metricas_optimizadas pero no en productividad_asesores
+        if (esMexico) {
+          const vnMexData = ((vnMetricasMexRes?.data as any[]) || []);
+          const mexAdvisorMap = new Map<string, { nombre: string; celula: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+          vnMexData.forEach((r: any) => {
+            const key = normalizePersonName(r.asesor ?? '');
+            if (!key) return;
+            const cur = mexAdvisorMap.get(key) ?? {
+              nombre: r.asesor, celula: r.celula ?? '', gerente: r.gerente ?? '',
+              fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0,
+            };
+            if (!cur.celula && r.celula) cur.celula = r.celula;
+            if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
+            const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+            const v = Number(r.ventas) || 0;
+            const acv = Number(r.acv_total) || 0;
+            if (tipo === 'FE') cur.fe += v;
+            if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
+            cur.acv += acv;
+            if (Number(r.mes_nro) === mesActualNro) {
+              if (tipo === 'FE') cur.feMes += v;
+              if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += v;
+              cur.acvMes += acv;
+            }
+            mexAdvisorMap.set(key, cur);
+          });
+
+          const existingKeys = new Set(entries.map((e: any) => normalizePersonName(e.nombre)));
+          mexAdvisorMap.forEach((agg, key) => {
+            if (existingKeys.has(key)) return;
+            const asesorInfo = asesorInfoMap.get(key);
+            const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            entries.push({
+              id: asesorInfo?.id || key,
+              nombre: agg.nombre,
+              gerente_nombre: agg.celula || agg.gerente,
+              kpi_value: Math.round(agg.acvMes),
+              meta_acv: 0,
+              meta_unidades: 0,
+              unidades_logradas: agg.feMes + agg.nubeMes,
+              unidades_total: agg.fe + agg.nube,
+              cant_recomendados: 0,
+              pct_cumplimiento: 0,
+              pct_fe: 0,
+              pct_nube: 0,
+              ventas_count: agg.feMes + agg.nubeMes,
+              posicion: 0,
+              canal: profile.canal,
+              pais: 'MEX',
+              sp_totales: spFinal,
+              sp_canje: asesorInfo?.sp_canje || 0,
+              nivel: null,
+            });
+          });
+        }
+
         setRanking(entries);
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
