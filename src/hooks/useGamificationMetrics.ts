@@ -1004,8 +1004,18 @@ export const useGamificationMetrics = (
             const mTotal = metas.metaTotal;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
-            // Meta ACV: priorizar metas_acv_gerentes (Cierre>Inicio ya aplicado en getAcvCatalogRowForPeriod)
-            const catalogRowForAcv = getAcvCatalogRowForPeriod(period);
+            // Meta ACV: priorizar metas_acv_gerentes (Cierre > Inicio, NUNCA sumar ambas)
+            const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
+            const mes3ForAcv: Record<string, string> = {
+              '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
+              '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
+            };
+            const targetMes3 = mes3ForAcv[String(period).slice(-2)] || '';
+            const catalogMatches = acvCatalogRows.filter((r: any) => {
+              const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
+              return rowMes === targetMes3 && normalizeComparableText(r.celula) === celulaGerente;
+            });
+            const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
