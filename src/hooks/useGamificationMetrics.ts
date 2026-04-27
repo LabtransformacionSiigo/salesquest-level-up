@@ -462,12 +462,15 @@ export const useGamificationMetrics = (
                 .lte('periodo', `${anioActual}12`)
                 .limit(500)
             : Promise.resolve({ data: [] }),
-          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks). */
+          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks).
+                  No filtrar por celula en DB: hay diferencias de tildes (México/Mexico).
+                  El match se hace normalizado en getAcvCatalogRowForPeriod. */
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
                 .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und')
-                .eq('celula', profile.celula)
+                .eq('pais', String(profile.pais || '').toUpperCase())
+                .limit(1000)
             : Promise.resolve({ data: [] }),
         ];
 
