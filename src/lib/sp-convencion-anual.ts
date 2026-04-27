@@ -118,13 +118,23 @@ export function computeSpConvencionAnualForCelula(
       if (v > 0) metaTotalUndPorPeriodo.set(periodo, v);
     });
 
+  // Buscar feRatio: primero ideal (FE+Nube+Total), luego sólo con meta_total>0 (algún FE),
+  // y como último recurso 0.5 (split simétrico). Esto cubre países como MEX Aliados / URU
+  // donde Abril tiene meta_nube=0 o meta_fe=0 y se necesitan estimar Ene/Feb/Mar.
   let feRatio: number | null = null;
   metasPorPeriodo.forEach(({ meta_fe, meta_nube, meta_total }) => {
     if (feRatio !== null) return;
-    if (meta_fe > 0 && meta_nube > 0 && meta_total > 0) {
-      feRatio = meta_fe / meta_total;
-    }
+    if (meta_fe > 0 && meta_nube > 0 && meta_total > 0) feRatio = meta_fe / meta_total;
   });
+  if (feRatio === null) {
+    metasPorPeriodo.forEach(({ meta_fe, meta_total }) => {
+      if (feRatio !== null) return;
+      if (meta_fe > 0 && meta_total > 0) feRatio = meta_fe / meta_total;
+    });
+  }
+  if (feRatio === null && metaTotalUndPorPeriodo.size > 0) {
+    feRatio = 0.5; // fallback simétrico cuando no hay ningún mes con desglose FE
+  }
 
   if (feRatio !== null) {
     metaTotalUndPorPeriodo.forEach((totalUnd, periodo) => {
