@@ -706,26 +706,25 @@ export const useGamificationMetrics = (
             });
           };
           getMetaTotalUndForPeriod = (period: string) => Math.round(Number(getAcvCatalogRowForPeriod(period)?.meta_total_und) || 0);
-          const metaSplitSeed = (() => {
-            let fe = 0;
-            let nube = 0;
-            const periods = new Set<string>(vnMetasAsesores.map((r: any) => String(r.anio_mes || '')).filter((p: string) => /^\d{6}$/.test(p)));
-            periods.forEach((period) => {
-              const ctx = getMetaContextForPeriod(period);
-              if (ctx.metaFe > 0 || ctx.metaNube > 0) {
-                fe += ctx.metaFe;
-                nube += ctx.metaNube;
-              }
-            });
-            const total = fe + nube;
-            return total > 0 ? { feRatio: fe / total, nubeRatio: nube / total } : null;
-          })();
+          // FUENTE ÚNICA para meta_fe/meta_nube por gerente: metas_acv_gerentes
+          // (origen Databricks tbl_brz_cuotas_gerentes). El catálogo trae el
+          // split FE/Nube ya agregado a nivel célula/mes, sin fallback proporcional.
           getMetaSplitFallbackForPeriod = (period: string, metaTotal: number, metaFe: number, metaNube: number) => {
-            const total = metaTotal > 0 ? metaTotal : getMetaTotalUndForPeriod(period);
-            if (total <= 0 || !metaSplitSeed || (metaFe > 0 && metaNube > 0)) return { metaTotal: total, metaFe, metaNube };
-            const fe = metaFe > 0 ? metaFe : Math.round(total * metaSplitSeed.feRatio);
-            const nube = metaNube > 0 ? metaNube : Math.max(0, total - fe);
-            return { metaTotal: total, metaFe: fe, metaNube: nube };
+            const catalogRow = getAcvCatalogRowForPeriod(period);
+            const catalogFe = Math.round(Number(catalogRow?.meta_fe) || 0);
+            const catalogNube = Math.round(Number(catalogRow?.meta_nube) || 0);
+            const catalogTotalUnd = Math.round(Number(catalogRow?.meta_total_und) || 0);
+            if (catalogFe > 0 || catalogNube > 0) {
+              return {
+                metaTotal: catalogTotalUnd > 0 ? catalogTotalUnd : (catalogFe + catalogNube),
+                metaFe: catalogFe,
+                metaNube: catalogNube,
+              };
+            }
+            // Sin datos en metas_acv_gerentes para este periodo: respetar lo que
+            // venga de metas_asesores (puede ser 0).
+            const total = metaTotal > 0 ? metaTotal : catalogTotalUnd;
+            return { metaTotal: total, metaFe, metaNube };
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
 
