@@ -472,12 +472,25 @@ export const useGamificationMetrics = (
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(1000)
             : Promise.resolve({ data: [] }),
+          /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
+                  ventas FE/NUBE por asesor del equipo de un gerente VN. Reemplaza
+                  el fallback inexacto desde ejecucion_asesores/ventas_diarias. */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? supabase
+                .from('vn_metricas_optimizadas' as any)
+                .select('pais, mes_nro, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
+                .ilike('gerente_normalizado', normalizeComparableText(profile.nombre))
+                .eq('scope', 'asesor')
+                .gte('mes_nro', 1)
+                .lte('mes_nro', 12)
+                .limit(5000)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes] = results as any[];
 
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
@@ -1113,7 +1126,7 @@ export const useGamificationMetrics = (
 
         // Build VN team asesor performance dashboard (only for gerentes VN)
         let teamAsesorPerformance: AsesorPerformance[] = [];
-        if (isVN && profile.role !== 'asesor' && (vnCelulaRows.length > 0 || vnVentasDiariasRows.length > 0)) {
+        if (isVN && profile.role !== 'asesor' && (vnCelulaRows.length > 0 || vnVentasDiariasRows.length > 0 || (vnMetricasAsesorRes?.data || []).length > 0)) {
           const metaContextActual = getMetaContextForPeriod(mesActual);
           const teamMetaRows = metaContextActual.rows;
 
@@ -1129,25 +1142,45 @@ export const useGamificationMetrics = (
             }
           });
 
-          // SOURCE OF TRUTH per asesor: ventas_diarias raw aggregated by asesor name,
-          // reclasificada por familia oficial (producto + país).
+          // SOURCE OF TRUTH per asesor: vn_metricas_optimizadas (Databricks pre-agregado
+          // por asesor/mes/familia). Fallback a ventas_diarias si no hay filas.
           const paisProfileForAsesor = String(profile.pais || '').toUpperCase();
           const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
-          vnVentasDiariasRows
-            .filter((row: any) => getPeriodFromDate(row.fecha) === mesActual)
-            .forEach((row: any) => {
-              const key = normalizeComparableText(row.asesor);
+
+          const mesActualNro = parseInt(mesActual.slice(4), 10); // 1-12 desde YYYYMM
+          const vnMetricasAsesor: any[] = vnMetricasAsesorRes?.data || [];
+          const vnMetricasMes = vnMetricasAsesor.filter((r: any) => Number(r.mes_nro) === mesActualNro);
+
+          if (vnMetricasMes.length > 0) {
+            vnMetricasMes.forEach((r: any) => {
+              const key = normalizeComparableText(r.asesor);
               if (!key) return;
               const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              const u = Number(row.unidades) || 0;
-              const fam = resolveProductFamily(row.producto, row.pais || paisProfileForAsesor)
-                ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+              const u = Number(r.ventas) || 0;
+              const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
               cur.total += u;
-              cur.acv += Number(row.acv) || 0;
+              cur.acv += Number(r.acv_total) || 0;
               if (fam === 'FE') cur.fe += u;
               else if (fam === 'NUBE') cur.nube += u;
               ventasPorAsesor.set(key, cur);
             });
+          } else {
+            vnVentasDiariasRows
+              .filter((row: any) => getPeriodFromDate(row.fecha) === mesActual)
+              .forEach((row: any) => {
+                const key = normalizeComparableText(row.asesor);
+                if (!key) return;
+                const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
+                const u = Number(row.unidades) || 0;
+                const fam = resolveProductFamily(row.producto, row.pais || paisProfileForAsesor)
+                  ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+                cur.total += u;
+                cur.acv += Number(row.acv) || 0;
+                if (fam === 'FE') cur.fe += u;
+                else if (fam === 'NUBE') cur.nube += u;
+                ventasPorAsesor.set(key, cur);
+              });
+          }
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
           const prodByName = new Map<string, any>();
