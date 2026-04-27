@@ -41,19 +41,23 @@ export interface MetaAsesorRow {
 export interface MetaAcvGerenteRow {
   celula?: string | null;
   mes?: string | null;
+  meta_fe?: number | null;
+  meta_nube?: number | null;
   meta_total_acv?: number | null;
   meta_total_und?: number | null;
 }
 
 export interface SpAnualInputs {
   vgmRows: VgmRow[];
-  metaAsesorRows: MetaAsesorRow[];
+  /** @deprecated kept for back-compat, no longer used by computeSpConvencionAnualForCelula */
+  metaAsesorRows?: MetaAsesorRow[];
   metaAcvRows: MetaAcvGerenteRow[];
   year: string; // e.g. "2026"
 }
 
 /**
  * Compute SP Convención anual for a single celula (or by gerente_normalizado fallback).
+ * Single source for goals: metas_acv_gerentes (meta_fe, meta_nube, meta_total_acv).
  * @returns total SP across all months with data
  */
 export function computeSpConvencionAnualForCelula(
@@ -63,100 +67,36 @@ export function computeSpConvencionAnualForCelula(
 ): number {
   const celulaNorm = normalizeSpText(celula);
   const gerenteNorm = normalizeSpText(gerenteNombre);
-  const { vgmRows, metaAsesorRows, metaAcvRows, year } = inputs;
+  const { vgmRows, metaAcvRows, year } = inputs;
 
-  // 1) Filter ventas_gerente_mensual by celula or gerente_normalizado
-  const vgm = vgmRows.filter((row) => {
+  // 1) Metas (FE / Nube / ACV) por periodo desde metas_acv_gerentes (fuente única).
+  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
+  metaAcvRows
+    .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
+    .forEach((row) => {
+      const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
+      const mm = MES3_TO_MM[mesKey];
+      if (!mm) return;
+      const periodo = `${year}${mm}`;
+      const cur = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
+      cur.meta_fe += Number(row.meta_fe) || 0;
+      cur.meta_nube += Number(row.meta_nube) || 0;
+      cur.meta_acv += Number(row.meta_total_acv) || 0;
+      metasPorPeriodo.set(periodo, cur);
+    });
+
+  // 2) Ventas reales desde ventas_gerente_mensual (match por celula o gerente_normalizado).
+  const vgmFiltrados = vgmRows.filter((row) => {
     if (celulaNorm && normalizeSpText(row.celula) === celulaNorm) return true;
     if (gerenteNorm && normalizeSpText(row.gerente_normalizado) === gerenteNorm) return true;
     return false;
   });
 
-  // 2) Filter metas_asesores by celula or gerente, exclude novedad
-  const metasFiltered = metaAsesorRows.filter((row) => {
-    const nov = String(row.novedad ?? '').trim();
-    if (nov && nov !== 'Sin novedad') return false;
-    if (celulaNorm && normalizeSpText(row.celula) === celulaNorm) return true;
-    if (gerenteNorm && normalizeSpText(row.gerente) === gerenteNorm) return true;
-    return false;
-  });
-
-  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_total: number }>();
-  metasFiltered.forEach((row) => {
-    const p = String(row.anio_mes ?? '');
-    if (!/^\d{6}$/.test(p)) return;
-    const cur = metasPorPeriodo.get(p) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-    cur.meta_fe += Number(row.meta_fe) || 0;
-    cur.meta_nube += Number(row.meta_nube) || 0;
-    cur.meta_total += Number(row.meta_total) || 0;
-    metasPorPeriodo.set(p, cur);
-  });
-
-  // 3) Filter metas_acv_gerentes by celula
-  const metasAcvPorPeriodo = new Map<string, number>();
-  metaAcvRows
-    .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
-    .forEach((row) => {
-      const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
-      const mm = MES3_TO_MM[mesKey];
-      if (!mm) return;
-      const periodo = `${year}${mm}`;
-      metasAcvPorPeriodo.set(periodo, (metasAcvPorPeriodo.get(periodo) ?? 0) + (Number(row.meta_total_acv) || 0));
-    });
-
-  // 3.5) Fallback proporcional: si un periodo tiene meta_total_und (de metas_acv_gerentes)
-  // pero no tiene meta_fe/meta_nube en metas_asesores, derivar usando el feRatio del primer
-  // periodo con metas reales. Replica la lógica de useGamificationMetrics.
-  const metaTotalUndPorPeriodo = new Map<string, number>();
-  metaAcvRows
-    .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
-    .forEach((row) => {
-      const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
-      const mm = MES3_TO_MM[mesKey];
-      if (!mm) return;
-      const periodo = `${year}${mm}`;
-      const v = Number(row.meta_total_und) || 0;
-      if (v > 0) metaTotalUndPorPeriodo.set(periodo, v);
-    });
-
-  // --- SEED feRatio (idéntico a useGamificationMetrics metaSplitSeed) ---
-  let seedFe = 0, seedNube = 0;
-  metasPorPeriodo.forEach(({ meta_fe, meta_nube }) => {
-    seedFe += meta_fe;
-    seedNube += meta_nube;
-  });
-  const seedTotal = seedFe + seedNube;
-  const feRatio: number | null = seedTotal > 0 ? seedFe / seedTotal : null;
-
-  // --- FALLBACK proporcional para periodos sin meta_fe/nube ---
-  if (feRatio !== null) {
-    metaTotalUndPorPeriodo.forEach((totalUnd, periodo) => {
-      const existing = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-      if (existing.meta_fe === 0 && existing.meta_nube === 0) {
-        const fe_est = Math.round(totalUnd * feRatio);
-        const nube_est = Math.max(0, totalUnd - fe_est);
-        metasPorPeriodo.set(periodo, {
-          meta_fe: fe_est,
-          meta_nube: nube_est,
-          meta_total: totalUnd,
-        });
-      }
-    });
-  }
-  // Si feRatio === null: no se aplica fallback — periodos sin meta_fe/nube
-  // suman solo pct_acv al SP total (correcto para URU).
-
-  // 4) Combine all periods
-  const periodSet = new Set<string>();
-  vgm.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
-  metasPorPeriodo.forEach((_, p) => periodSet.add(p));
-  metasAcvPorPeriodo.forEach((_, p) => periodSet.add(p));
-
+  // 3) SP acumulado: solo periodos con metas reales.
   let totalSp = 0;
-  periodSet.forEach((periodo) => {
-    const periodVgm = vgm.filter((r) => String(r.periodo) === periodo);
-    const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-    const metaAcv = metasAcvPorPeriodo.get(periodo) ?? 0;
+  metasPorPeriodo.forEach((metas, periodo) => {
+    if (!periodo.startsWith(String(year))) return;
+    const periodVgm = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
     periodVgm.forEach((r) => {
@@ -170,7 +110,7 @@ export function computeSpConvencionAnualForCelula(
 
     const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
     const pct_nube = metas.meta_nube > 0 ? cap((ventas_nube / metas.meta_nube) * 100) : 0;
-    const pct_acv = metaAcv > 0 ? cap((acv_total / metaAcv) * 100) : 0;
+    const pct_acv = metas.meta_acv > 0 ? cap((acv_total / metas.meta_acv) * 100) : 0;
     totalSp += pct_fe + pct_nube * 2 + pct_acv;
   });
 
