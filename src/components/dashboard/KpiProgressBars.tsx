@@ -16,6 +16,7 @@ interface KpiProgressBarsProps {
   pctCumplimiento?: number;
   sp?: number;
   canal?: string | null;
+  pais?: string | null;
   ejecucion?: EjecucionAsesor | null;
   metaAsesor?: MetaAsesor | null;
   isVCGerente?: boolean;
