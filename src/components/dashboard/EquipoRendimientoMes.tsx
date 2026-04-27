@@ -7,6 +7,7 @@ interface Props {
   asesores: AsesorPerformance[];
   periodoSeleccionado: string;
   canal?: string | null;
+  pais?: string | null;
 }
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
