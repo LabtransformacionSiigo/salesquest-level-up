@@ -149,45 +149,36 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         return false;
       });
 
-      const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_total: number }>();
-      metasFiltradas.forEach((row: any) => {
-        const p = String(row.anio_mes);
-        const cur = metasPorPeriodo.get(p) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-        cur.meta_fe += Number(row.meta_fe) || 0;
-        cur.meta_nube += Number(row.meta_nube) || 0;
-        cur.meta_total += Number(row.meta_total) || 0;
-        metasPorPeriodo.set(p, cur);
-      });
-
-      // 3) metas_acv_gerentes — filtrar por celula en cliente
+      // metas_acv_gerentes — fuente única de meta_fe / meta_nube / meta_acv para gerentes
       const { data: metasAcvRaw } = await supabase
         .from('metas_acv_gerentes')
-        .select('celula, mes, meta_total_acv, canal')
+        .select('celula, mes, meta_fe, meta_nube, meta_total_acv')
         .limit(500);
 
-      const metasAcvPorPeriodo = new Map<string, number>();
+      const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
       (metasAcvRaw || [])
         .filter((row: any) => celulaNorm && normalizeText(row.celula) === celulaNorm)
         .forEach((row: any) => {
           const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
           const periodo = MES3_TO_YYYYMM[mesKey];
-          if (periodo) {
-            metasAcvPorPeriodo.set(periodo, (metasAcvPorPeriodo.get(periodo) ?? 0) + (Number(row.meta_total_acv) || 0));
-          }
+          if (!periodo) return;
+          const cur = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
+          cur.meta_fe += Number(row.meta_fe) || 0;
+          cur.meta_nube += Number(row.meta_nube) || 0;
+          cur.meta_acv += Number(row.meta_total_acv) || 0;
+          metasPorPeriodo.set(periodo, cur);
         });
 
-      // 4) Combinar todos los periodos posibles
+      // Combinar todos los periodos posibles (ventas + metas gerente)
       const periodSet = new Set<string>();
       vgmFiltradas.forEach((r: any) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
       metasPorPeriodo.forEach((_, p) => periodSet.add(p));
-      metasAcvPorPeriodo.forEach((_, p) => periodSet.add(p));
 
       const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
 
       const arr: MonthData[] = [...periodSet].map((periodo) => {
         const vgm = vgmFiltradas.filter((r: any) => String(r.periodo) === periodo);
-        const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-        const metaAcv = metasAcvPorPeriodo.get(periodo) ?? 0;
+        const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
         let ventas_fe = 0, ventas_nube = 0, ventas_total = 0, acv_total = 0;
         vgm.forEach((r: any) => {
@@ -200,16 +191,20 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
           acv_total += acv;
         });
 
+        const meta_total = metas.meta_fe + metas.meta_nube;
         const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
         const pct_nube = metas.meta_nube > 0 ? cap((ventas_nube / metas.meta_nube) * 100) : 0;
-        const pct_total = metas.meta_total > 0 ? cap((ventas_total / metas.meta_total) * 100) : 0;
-        const pct_acv = metaAcv > 0 ? cap((acv_total / metaAcv) * 100) : 0;
+        const pct_total = meta_total > 0 ? cap((ventas_total / meta_total) * 100) : 0;
+        const pct_acv = metas.meta_acv > 0 ? cap((acv_total / metas.meta_acv) * 100) : 0;
         const sp_mes = pct_fe + pct_nube * 2 + pct_acv;
 
         return {
           periodo,
           ventas_fe, ventas_nube, ventas_total, acv_total,
-          meta_fe: metas.meta_fe, meta_nube: metas.meta_nube, meta_total: metas.meta_total, meta_acv: metaAcv,
+          meta_fe: metas.meta_fe,
+          meta_nube: metas.meta_nube,
+          meta_total,
+          meta_acv: metas.meta_acv,
           pct_fe, pct_nube, pct_total, pct_acv, sp_mes,
         };
       });
