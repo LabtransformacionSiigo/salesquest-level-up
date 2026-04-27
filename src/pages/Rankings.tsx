@@ -157,13 +157,16 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
+          userPais === 'MEX'
+            ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(5000)
+            : Promise.resolve({ data: [] as any[] }),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -214,10 +217,13 @@ const Rankings = () => {
         });
         // Build ranking entries
         const entries: any[] = [];
+        const esMexico = userPais === 'MEX';
+        const mesActualNro = new Date().getMonth() + 1;
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
           productividadRows: productividadRes.data || [],
+          vnMetricasRows: (vnMetricasMexRes?.data as any[]) || [],
           year: String(currentConventionYear),
         };
         advisorAgg.forEach((agg, key) => {
@@ -247,8 +253,24 @@ const Rankings = () => {
             String(r.periodo) === currentMonth
           );
           const ejecRowsCurrent = ejecMesActual.length > 0 ? ejecMesActual : ejecMesActualByName;
-          const currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          const currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+          let currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          let currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+
+          // México: leer del mes actual desde vn_metricas_optimizadas (CAMPANA = NUBE)
+          if (esMexico) {
+            const vnMex = ((vnMetricasMexRes?.data as any[]) || []).filter((r: any) =>
+              normalizePersonName(r.asesor) === key && Number(r.mes_nro) === mesActualNro
+            );
+            currentFe = vnMex
+              .filter((r: any) => String(r.tipo_producto1 ?? '').toUpperCase().trim() === 'FE')
+              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+            currentNube = vnMex
+              .filter((r: any) => {
+                const t = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+                return t === 'CAMPANA' || t === 'CAMPAÑA' || t === 'NUBE';
+              })
+              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+          }
 
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
           const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
@@ -752,7 +774,7 @@ const Rankings = () => {
                         <>
                            <th className="text-right px-4 py-3">% Cumpl. ACV</th>
                            <th className="text-right px-4 py-3">% FE</th>
-                           <th className="text-right px-4 py-3">% Nube</th>
+                           <th className="text-right px-4 py-3">{userPais === 'MEX' ? '% Campaña' : '% Nube'}</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">ACV</th>
