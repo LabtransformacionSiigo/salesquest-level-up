@@ -301,6 +301,19 @@ const Rankings = () => {
           if (row.user_id && row.role) roleByUserId.set(row.user_id, row.role);
         });
 
+        // Nombre del gerente por célula — fuente: metas_asesores.gerente (Databricks RRHH)
+        // Preferimos el nombre más largo (más completo) cuando hay variantes.
+        const gerenteNombreByCelula = new Map<string, string>();
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          const celulaKey = normalizeComparableText(row.celula);
+          const gerenteName = row.gerente ? String(row.gerente).trim() : '';
+          if (!celulaKey || !gerenteName || gerenteName === '0') return;
+          const existing = gerenteNombreByCelula.get(celulaKey);
+          if (!existing || gerenteName.length > existing.length) {
+            gerenteNombreByCelula.set(celulaKey, gerenteName);
+          }
+        });
+
         const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
         const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
@@ -311,27 +324,46 @@ const Rankings = () => {
           gerentesByCell.set(celulaKey, list);
         });
 
-        gerentesByCell.forEach((members, celula) => {
-          const roleMatches = members.filter((member) => {
-            if (!member.user_id) return false;
-            const role = roleByUserId.get(member.user_id);
+        // Unión de células: las que tienen miembros en `gerentes` Y las que tienen nombre desde Databricks.
+        const allCelulas = new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
+        allCelulas.forEach((celulaKey) => {
+          const members = gerentesByCell.get(celulaKey) || [];
+
+          // 1. Prioridad: nombre del gerente desde Databricks (metas_asesores.gerente)
+          const nombreDatabricks = gerenteNombreByCelula.get(celulaKey);
+          if (nombreDatabricks) {
+            const normDatabricks = normalizePersonName(nombreDatabricks);
+            // Buscar en members el que coincida con el nombre de Databricks (match exacto o por inclusión)
+            const matchDB = members.find((m) => {
+              const normMember = normalizePersonName(m.nombre);
+              return normMember === normDatabricks
+                || normMember.includes(normDatabricks)
+                || normDatabricks.includes(normMember);
+            });
+            if (matchDB) {
+              gerentesByCelula.set(celulaKey, matchDB);
+              return;
+            }
+            // No tiene cuenta en Arena: entrada mínima con el nombre real
+            gerentesByCelula.set(celulaKey, { nombre: nombreDatabricks, sp_canje: 0, sp_convencion: 0 });
+            return;
+          }
+
+          // 2. Fallback: miembro con role='gerente' o 'admin' en user_roles
+          const roleMatch = members.find((m) => {
+            if (!m.user_id) return false;
+            const role = roleByUserId.get(m.user_id);
             return role === 'gerente' || role === 'admin';
           });
-
-          const explicitLeader = roleMatches.find((member) => !asesorNames.has(normalizePersonName(member.nombre))) || roleMatches[0];
-          if (explicitLeader) {
-            gerentesByCelula.set(celula, explicitLeader);
+          if (roleMatch) {
+            gerentesByCelula.set(celulaKey, roleMatch);
             return;
           }
 
-          const nonAsesor = members.find((member) => !asesorNames.has(normalizePersonName(member.nombre)));
+          // 3. Último fallback: primer miembro que NO sea asesor conocido
+          const nonAsesor = members.find((m) => !asesorNames.has(normalizePersonName(m.nombre)));
           if (nonAsesor) {
-            gerentesByCelula.set(celula, nonAsesor);
-            return;
-          }
-
-          if (members.length > 0) {
-            gerentesByCelula.set(celula, members[0]);
+            gerentesByCelula.set(celulaKey, nonAsesor);
           }
         });
 
