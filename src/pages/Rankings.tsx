@@ -253,8 +253,24 @@ const Rankings = () => {
             String(r.periodo) === currentMonth
           );
           const ejecRowsCurrent = ejecMesActual.length > 0 ? ejecMesActual : ejecMesActualByName;
-          const currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          const currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+          let currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          let currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+
+          // México: leer del mes actual desde vn_metricas_optimizadas (CAMPANA = NUBE)
+          if (esMexico) {
+            const vnMex = ((vnMetricasMexRes?.data as any[]) || []).filter((r: any) =>
+              normalizePersonName(r.asesor) === key && Number(r.mes_nro) === mesActualNro
+            );
+            currentFe = vnMex
+              .filter((r: any) => String(r.tipo_producto1 ?? '').toUpperCase().trim() === 'FE')
+              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+            currentNube = vnMex
+              .filter((r: any) => {
+                const t = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+                return t === 'CAMPANA' || t === 'CAMPAÑA' || t === 'NUBE';
+              })
+              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+          }
 
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
           const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
