@@ -1011,9 +1011,10 @@ export const useGamificationMetrics = (
               '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic',
             };
             const targetMes3 = mes3ForAcv[String(period).slice(-2)] || '';
+            const celulaGerenteNorm = normalizeComparableText(profile.celula);
             const catalogMatches = acvCatalogRows.filter((r: any) => {
               const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-              return rowMes === targetMes3 && normalizeComparableText(r.celula) === celulaGerente;
+              return rowMes === targetMes3 && normalizeComparableText(r.celula) === celulaGerenteNorm;
             });
             const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
