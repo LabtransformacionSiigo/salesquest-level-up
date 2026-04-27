@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
     const errors: Array<{ row: any; error: string }> = [];
 
     for (const r of rows) {
-      const [pais, canal, director, celula, mesRaw, archivoRaw, metaUnd, metaAcv, cuota] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
       const archivo = deriveArchivo(String(archivoRaw || ""));
       const mes = normMes(String(mesRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
@@ -207,6 +207,9 @@ Deno.serve(async (req) => {
       // símbolos y separadores. NUNCA es igual a unidades.
       const meta_total_acv = toNum(metaAcv);
       const cuotaNum = toNum(cuota);
+      // fe / nube vienen ya agregados por gerente desde tbl_brz_cuotas.
+      const meta_fe = Math.round(toNum(feRaw));
+      const meta_nube = Math.round(toNum(nubeRaw));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
@@ -219,6 +222,8 @@ Deno.serve(async (req) => {
         p_meta_total_acv: meta_total_acv,
         p_mes: mes,
         p_archivo: archivo,
+        p_meta_fe: meta_fe,
+        p_meta_nube: meta_nube,
       });
 
       if (error) {
