@@ -1004,7 +1004,12 @@ export const useGamificationMetrics = (
             const mTotal = metas.metaTotal;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
-            const metaAcvFinal = base.meta;
+            // Meta ACV: priorizar metas_acv_gerentes (Cierre>Inicio ya aplicado en getAcvCatalogRowForPeriod)
+            const catalogRowForAcv = getAcvCatalogRowForPeriod(period);
+            const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
+              ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
+              : 0;
+            const metaAcvFinal = catalogMetaAcv > 0 ? catalogMetaAcv : base.meta;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
