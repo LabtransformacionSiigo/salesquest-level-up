@@ -186,6 +186,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             asesores={teamAsesorPerformance!}
             periodoSeleccionado={periodoSeleccionado || ''}
             canal={canal}
+            pais={pais}
           />
         ) : showVCTeam ? (
           /* ── VC Gerente: ACV por comercial ── */
