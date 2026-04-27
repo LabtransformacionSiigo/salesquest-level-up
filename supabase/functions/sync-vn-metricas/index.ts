@@ -273,6 +273,86 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ vn_metricas_optimizadas insertadas: ${inserted}`);
 
+    // ── Replicar datos de gerente a ventas_gerente_mensual ──────────────────
+    // ventas_gerente_mensual es la fuente que lee el dashboard en tiempo real.
+    // Se agrega por (pais, canal_direccion, anio, mes, gerente_normalizado, celula, familia)
+    // sumando todas las variantes de tipo_producto1 dentro de la misma familia.
+    const YEAR = new Date().getFullYear();
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+
+    const filasGerente = records.filter((r: any) => r.scope === "gerente");
+
+    type VgmRow = {
+      pais: string;
+      canal_direccion: string;
+      periodo: string;
+      anio: number;
+      mes: number;
+      gerente: string;
+      gerente_normalizado: string;
+      celula: string | null;
+      familia: string;
+      unidades: number;
+      acv: number;
+    };
+
+    const vgmMap = new Map<string, VgmRow>();
+    for (const r of filasGerente) {
+      const anio = Number(r.anio) || YEAR;
+      const mes = Number(r.mes_nro);
+      const gnorm = r.gerente_normalizado ?? "";
+      const gname = r.gerente ?? gnorm;
+      const fam = r.familia ?? "OTRO";
+      if (!gnorm || !mes) continue;
+      const key = [r.pais, r.canal_direccion, anio, mes, gnorm, r.celula ?? "", fam].join("|");
+      const existing = vgmMap.get(key);
+      if (existing) {
+        existing.unidades += Number(r.ventas) || 0;
+        existing.acv += Number(r.acv_total) || 0;
+      } else {
+        vgmMap.set(key, {
+          pais: r.pais,
+          canal_direccion: r.canal_direccion,
+          periodo: `${anio}${pad2(mes)}`,
+          anio,
+          mes,
+          gerente: gname,
+          gerente_normalizado: gnorm,
+          celula: r.celula ?? null,
+          familia: fam,
+          unidades: Math.round(Number(r.ventas) || 0),
+          acv: Number(r.acv_total) || 0,
+        });
+      }
+    }
+
+    const vgmRows = [...vgmMap.values()];
+    let vgmInserted = 0;
+
+    if (vgmRows.length > 0) {
+      // DELETE año actual por país tocado, luego INSERT limpio
+      const paisesVgm = [...new Set(vgmRows.map((r) => r.pais))];
+      const { error: vgmDelErr } = await sb
+        .from("ventas_gerente_mensual")
+        .delete()
+        .in("pais", paisesVgm)
+        .gte("periodo", `${YEAR}01`)
+        .lte("periodo", `${YEAR}12`);
+      if (vgmDelErr) console.error(`[vgm] delete previo:`, vgmDelErr.message);
+
+      const BATCH_VGM = 500;
+      for (let i = 0; i < vgmRows.length; i += BATCH_VGM) {
+        const slice = vgmRows.slice(i, i + BATCH_VGM);
+        const { error } = await sb.from("ventas_gerente_mensual").insert(slice);
+        if (error) {
+          console.error(`[vgm] insert batch ${i}:`, error.message);
+        } else {
+          vgmInserted += slice.length;
+        }
+      }
+      console.log(`✓ ventas_gerente_mensual actualizadas: ${vgmInserted} filas (de ${vgmRows.length})`);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -280,6 +360,7 @@ Deno.serve(async (req) => {
         rows_dbx_asesor_sa: rowsB.length,
         rows_dbx_asesor_mx: rowsC.length,
         inserted,
+        vgm_inserted: vgmInserted,
         paises: [...paisesTocados],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
