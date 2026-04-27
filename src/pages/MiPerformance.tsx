@@ -179,15 +179,10 @@ const MiPerformance = () => {
 
               {isAliados && (
                 <>
-                  <SectionTitle icon="bar_chart" title="Unidades · ACV · Referidos" />
-                  <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV" />
+                  <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" />
                     <KPICard icon="trending_up" label="ACV" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
-                    <KPICard icon="person_add" label="Referidos del Contador" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos de aliados" color="text-accent" />
-                  </motion.div>
-                  <SectionTitle icon="emoji_events" title="Retos Semanales" />
-                  <motion.div className="grid grid-cols-1 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                    <RetoCard icon="handshake" label="Efectividad Referidos" value={`${kpis?.efectividad_referidos_pct || 0}%`} progress={Number(kpis?.efectividad_referidos_pct || 0)} description="% referidos convertidos" />
                   </motion.div>
                   <VnCumplimientoSection kpis={kpis} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} />
                   {profile?.role !== 'asesor' && metrics.teamAsesorPerformance?.length > 0 && (
@@ -643,9 +638,6 @@ const EquipoRendimientoSection = ({
                     <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Con novedad</span>
                   )}
                 </div>
-                <span className={cn('text-base font-black font-scoreboard px-3 py-1 rounded-full', cfg.bg, cfg.color)}>
-                  {asesor.meta_acv > 0 ? `${asesor.pct_acv}% ACV` : '— ACV'}
-                </span>
               </div>
 
               {/* Métricas en 4 columnas */}
