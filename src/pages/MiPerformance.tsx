@@ -158,10 +158,10 @@ const MiPerformance = () => {
             <>
               {isEmpresarios && (
                 <>
-                  <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" tip="Métricas principales que alimentan tu puntaje." />
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV · Referidos" tip="Métricas principales que alimentan tu puntaje." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" tip="Unidades vendidas este mes vs meta asignada." />
-                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
+                    <KPICard icon="trending_up" label="ACV" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
                     <KPICard icon="group_add" label="# de Referidos" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos semanales para SP extra." />
@@ -179,10 +179,10 @@ const MiPerformance = () => {
 
               {isAliados && (
                 <>
-                  <SectionTitle icon="bar_chart" title="Unidades · ACV+ · Referidos" />
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV · Referidos" />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" />
-                    <KPICard icon="trending_up" label="ACV+" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
+                    <KPICard icon="trending_up" label="ACV" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" />
                     <KPICard icon="person_add" label="Referidos del Contador" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos de aliados" color="text-accent" />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" />
@@ -199,11 +199,11 @@ const MiPerformance = () => {
 
               {isVC && (
                 <>
-                  <SectionTitle icon="bar_chart" title="ACV+" />
+                  <SectionTitle icon="bar_chart" title="ACV" />
                   <motion.div className="bg-white border border-border rounded-2xl p-8 text-center shadow-smooth-sm" variants={fadeUpItem}>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-heading">
-                      {isVcAdvisor ? 'ACV+ Acumulado' : 'ACV+ del Mes'}
+                      {isVcAdvisor ? 'ACV Acumulado' : 'ACV del Mes'}
                     </p>
                     <p className="text-4xl font-bold font-scoreboard text-primary">{formatMoney(vcHeadlineValue)}</p>
                     <p className="text-sm text-muted-foreground mt-2">{vcUnitsLabel}</p>
@@ -234,13 +234,13 @@ const MiPerformance = () => {
                   {/* Historial Mensual: ACV vs Meta */}
                   {vcMonthlyCumplimiento.length > 0 && (
                     <>
-                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta por mes, con % de cumplimiento." />
+                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV logrado vs Meta por mes, con % de cumplimiento." />
                       <motion.div className="bg-white border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
                         <table className="w-full">
                           <thead>
                             <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                               <th className="text-left px-4 py-3">Mes</th>
-                              <th className="text-right px-4 py-3">ACV+</th>
+                              <th className="text-right px-4 py-3">ACV</th>
                               <th className="text-right px-4 py-3">Meta</th>
                               <th className="text-right px-4 py-3">% Cumpl.</th>
                             </tr>
@@ -342,7 +342,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
 
   return (
     <>
-      <SectionTitle icon="donut_large" title="Rendimiento del Mes" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV+." />
+      <SectionTitle icon="donut_large" title="Rendimiento del Mes" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
         <div className="space-y-5">
           <ProgressMetricRow
@@ -371,7 +371,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
           />
           <ProgressMetricRow
             icon="trending_up"
-            label="ACV+"
+            label="ACV"
             currentValue={acv}
             goalValue={metaAcv}
             percentage={pctAcv}
@@ -440,7 +440,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   }, [totalSp]);
   return (
     <>
-      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV+ con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
+      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
       <motion.div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-smooth-sm" variants={fadeUpItem}>
         <table className="w-full min-w-[820px]">
           <thead>
@@ -452,7 +452,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               <th className="text-right px-4 py-3">% FE</th>
               <th className="text-right px-4 py-3">Nube</th>
               <th className="text-right px-4 py-3">% Nube</th>
-              <th className="text-right px-4 py-3">ACV+</th>
+              <th className="text-right px-4 py-3">ACV</th>
               <th className="text-right px-4 py-3">% ACV</th>
               <th className="text-right px-4 py-3">⚡ SP</th>
             </tr>
@@ -573,7 +573,7 @@ const EquipoRendimientoSection = ({
       <SectionTitle
         icon="groups"
         title={`Rendimiento del Equipo (${asesores.length} asesores)`}
-        tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV+."
+        tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV."
       />
 
       {/* Resumen tipo semáforo */}
@@ -759,7 +759,7 @@ const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[
   ];
 
   const sortOptions = [
-    { key: 'acv', label: 'ACV+' },
+    { key: 'acv', label: 'ACV' },
     { key: 'pct', label: '% Cumpl.' },
   ] as const;
 
@@ -768,13 +768,13 @@ const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[
       <SectionTitle
         icon="groups"
         title={`Rendimiento del Equipo (${asesores.length} comerciales)`}
-        tip="Vista de semáforo de tu equipo VC: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV+ vs Meta."
+        tip="Vista de semáforo de tu equipo VC: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV vs Meta."
       />
 
       {/* Resumen total */}
       <motion.div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-smooth-sm" variants={popIn}>
         <div>
-          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV+</p>
+          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV</p>
           <p className="text-2xl font-black font-scoreboard text-foreground">{formatMoney(totalAcv)}</p>
           <p className="text-xs text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatMoney(totalMeta)}</span></p>
         </div>

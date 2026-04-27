@@ -82,7 +82,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
   const showVCTeam = !!isVCGerente && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
   const showVNTeam = isVN && Array.isArray(teamAsesorPerformance) && teamAsesorPerformance.length > 0;
 
-  // For VN: always show FE / Nube / Total / ACV+ progress bars even if data is
+  // For VN: always show FE / Nube / Total / ACV progress bars even if data is
   // partially missing — fall back to zeros so the user sees the meta and the
   // progress (or lack of it) instead of an empty card.
   const vnEjecucion = isVN
@@ -177,7 +177,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
         {showVNTeam ? (
@@ -187,7 +187,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             canal={canal}
           />
         ) : showVCTeam ? (
-          /* ── VC Gerente: ACV+ por comercial ── */
+          /* ── VC Gerente: ACV por comercial ── */
           <div className="flex flex-col gap-4 flex-1">
             {/* Resumen total del equipo */}
             <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center justify-between">
@@ -222,7 +222,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <VnProgressRow label="Total Unidades" current={vnEjecucion.ventas_total} goal={vnMeta.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="FE" current={vnEjecucion.ventas_fe} goal={vnMeta.meta_fe} icon="receipt_long" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="Nube" current={vnEjecucion.ventas_nube} goal={vnMeta.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
-            <VnProgressRow label="ACV+" current={vnEjecucion.acv_total} goal={metaAcvValue || vnMeta.meta_acv} icon="trending_up" formatter={fmt} />
+            <VnProgressRow label="ACV" current={vnEjecucion.acv_total} goal={metaAcvValue || vnMeta.meta_acv} icon="trending_up" formatter={fmt} />
 
             {/* Extras: Productividad + Recomendados */}
             <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
@@ -273,7 +273,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div className="flex-1 flex flex-col justify-between gap-5 w-full">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-muted-foreground">{isVcAdvisor ? 'ACV+' : 'Ventas'}</span>
+                  <span className="text-muted-foreground">{isVcAdvisor ? 'ACV' : 'Ventas'}</span>
                   <span className="text-primary font-scoreboard">{fmt(ventasValue)}</span>
                 </div>
                 {metaValue > 0 && (

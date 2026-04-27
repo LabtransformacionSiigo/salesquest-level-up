@@ -681,7 +681,7 @@ const Rankings = () => {
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -701,7 +701,7 @@ const Rankings = () => {
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -715,7 +715,7 @@ const Rankings = () => {
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && g.kpi_value > 0 && (
                         <div>
                           <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
-                          <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV+</p>
+                          <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
                         </div>
                       )}
                     </div>
@@ -744,7 +744,7 @@ const Rankings = () => {
                       {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
-                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">ACV</th>
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
@@ -755,14 +755,14 @@ const Rankings = () => {
                            <th className="text-right px-4 py-3">% Nube</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
-                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">ACV</th>
                            <th className="text-right px-4 py-3">Meta ACV</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                         <>
-                          <th className="text-right px-4 py-3">ACV+</th>
+                          <th className="text-right px-4 py-3">ACV</th>
                           <th className="text-left px-4 py-3">Nivel</th>
                         </>
                       )}

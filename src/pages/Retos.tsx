@@ -45,9 +45,9 @@ const RETOS_SEMANALES: RetoConfig[] = [
 ];
 
 const RETOS_MENSUALES: RetoConfig[] = [
-  { id: 'meta_conquistada', nombre: 'Meta Conquistada', sp: 5, desc: 'Cumple al 100% de la meta de ACV+', umbral: 100, tipo: 'mensual', emoji: '✅' },
-  { id: 'performance_elite', nombre: 'Performance Élite', sp: 7, desc: 'Cumple al 125% de la meta de ACV+', umbral: 125, tipo: 'mensual', emoji: '⚡' },
-  { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 10, desc: 'Cumple al 150% de la meta de ACV+', umbral: 150, tipo: 'mensual', emoji: '🌟' },
+  { id: 'meta_conquistada', nombre: 'Meta Conquistada', sp: 5, desc: 'Cumple al 100% de la meta de ACV', umbral: 100, tipo: 'mensual', emoji: '✅' },
+  { id: 'performance_elite', nombre: 'Performance Élite', sp: 7, desc: 'Cumple al 125% de la meta de ACV', umbral: 125, tipo: 'mensual', emoji: '⚡' },
+  { id: 'mes_legendario', nombre: 'Mes Legendario', sp: 10, desc: 'Cumple al 150% de la meta de ACV', umbral: 150, tipo: 'mensual', emoji: '🌟' },
 ];
 
 interface VcCatalogReto {
@@ -235,7 +235,7 @@ const Retos = () => {
 
   const kpiLabel = (kpi?: string | null) => {
     switch (kpi) {
-      case 'acv_plus': return 'ACV+';
+      case 'acv_plus': return 'ACV';
       case 'upgrades': return 'Upgrades';
       case 'conversiones': return 'Conversiones';
       case 'cumplimiento_pct': return '% Cumplimiento';

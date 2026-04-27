@@ -165,7 +165,7 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal }: Props) =
                   <p className={cn('text-lg font-black font-scoreboard', colorText(a.pct_acv, a.meta_acv > 0))}>
                     {a.meta_acv > 0 ? `${a.pct_acv}%` : '—'}
                   </p>
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground">ACV+</p>
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground">ACV</p>
                 </div>
               </div>
 

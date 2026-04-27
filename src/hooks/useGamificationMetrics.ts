@@ -427,7 +427,7 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 17 – ELIMINADO: metas_gerentes reemplazada por metas_acv_gerentes (query 21) */
           Promise.resolve({ data: null }),
-          /* 18 – VC team per-comercial ACV+ vs meta for selected month */
+          /* 18 – VC team per-comercial ACV vs meta for selected month */
           isVC
             ? supabase.from('ventas')
                 .select('comercial, acv_plus, meta')
@@ -1208,7 +1208,7 @@ export const useGamificationMetrics = (
           });
         }
 
-        // Build VC team performance dashboard (only for gerentes VC) — only ACV+
+        // Build VC team performance dashboard (only for gerentes VC) — only ACV
         if (isVC && profile.role !== 'asesor') {
           const ventasRows = (vcTeamRes?.data || []) as any[];
           const porComercial = new Map<string, { acv: number; meta: number }>();

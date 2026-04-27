@@ -21,7 +21,7 @@ const CANALES = [
 const CONDICION_TIPOS = [
   { value: 'ventas_semanales', label: 'Ventas Semanales', desc: 'Suma de valor_producto en la semana' },
   { value: 'referidos_semanales', label: 'Referidos Semanales', desc: 'Cantidad de referidos en la semana' },
-  { value: 'acv_semanal', label: 'ACV+ Semanal', desc: 'ACV+ acumulado en la semana' },
+  { value: 'acv_semanal', label: 'ACV Semanal', desc: 'ACV acumulado en la semana' },
   { value: 'conversiones_semanales', label: 'Conversiones Semanales', desc: 'Número de conversiones en la semana' },
 ];
 

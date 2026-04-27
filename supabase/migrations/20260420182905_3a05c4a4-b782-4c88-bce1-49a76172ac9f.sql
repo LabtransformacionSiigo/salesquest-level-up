@@ -99,7 +99,7 @@ CREATE POLICY "Especialista manage retos in scope" ON public.catalogo_retos FOR 
 INSERT INTO public.catalogo_retos (nombre, objetivo_descripcion, ventana_tiempo, tipo_metrica, familia, umbral, sp_otorgados, emoji, activo) VALUES
   ('Sin irme en 0', 'Logra al menos 5 ventas en el día', 'DIARIO', 'UNIDADES', NULL, 5, 2, '🎯', false),
   ('Semana Redonda', 'Logra $20''000.000 en ACV en ventas de productos Nube', 'SEMANAL', 'ACV', 'NUBE', 20000000, 7, '☁️', false),
-  ('Conquista Legendaria', 'Logra cumplir tu meta de ACV+ en más del 120%', 'MENSUAL', 'CUMPLIMIENTO_META_ACV_PLUS', NULL, 120, 15, '👑', false);
+  ('Conquista Legendaria', 'Logra cumplir tu meta de ACV en más del 120%', 'MENSUAL', 'CUMPLIMIENTO_META_ACV_PLUS', NULL, 120, 15, '👑', false);
 
 INSERT INTO public.config_rachas (canal, nombre, objetivo_descripcion, condicion_tipo, umbral_verde, multiplicador_sp, dias_requeridos, activo) VALUES
   ('VC', 'Racha de ventas', 'Lograr al menos 1 venta por día durante 1 semana', 'VENTA_DIARIA_CONSECUTIVA', 1, 1.5, 7, false);
