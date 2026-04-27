@@ -648,6 +648,8 @@ const Rankings = () => {
         }
 
         setRanking(entries);
+      }
+    } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
         supabase.from('ranking_general').select('*').eq('canal', profile.canal).eq('pais', userPais),
         supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', profile.canal),
