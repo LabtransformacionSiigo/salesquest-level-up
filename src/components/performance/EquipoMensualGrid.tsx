@@ -133,21 +133,15 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         return false;
       });
 
-      // 2) metas_asesores — sin filtro de canal en WHERE, límite alto, filtrar en cliente
-      const { data: metasRaw } = await supabase
+      // metas_asesores — query reservada para vista individual de asesor.
+      // Para gerentes VN, meta_fe/meta_nube vienen de metas_acv_gerentes (abajo).
+      await supabase
         .from('metas_asesores')
-        .select('anio_mes, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, canal_direccion')
+        .select('anio_mes')
         .gte('anio_mes', `${year}01`)
         .lte('anio_mes', `${year}12`)
-        .limit(20000);
+        .limit(1);
 
-      const metasFiltradas = (metasRaw || []).filter((row: any) => {
-        const nov = String(row.novedad ?? '').trim();
-        if (nov && nov !== 'Sin novedad') return false;
-        if (celulaNorm && normalizeText(row.celula) === celulaNorm) return true;
-        if (gerenteNorm && normalizeText(row.gerente) === gerenteNorm) return true;
-        return false;
-      });
 
       // metas_acv_gerentes — fuente única de meta_fe / meta_nube / meta_acv para gerentes
       const { data: metasAcvRaw } = await supabase
