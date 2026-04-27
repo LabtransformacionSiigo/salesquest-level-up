@@ -61,10 +61,12 @@ const Bar = ({ label, current, meta, pct }: { label: string; current: number; me
   );
 };
 
-const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal }: Props) => {
+const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Props) => {
   const [sortBy, setSortBy] = useState<SortKey>('acv');
 
   const refLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
+  const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(String(pais ?? '').toUpperCase());
+  const labelNube = esMexico ? 'Campaña' : 'Nube';
 
   const mesLabel = useMemo(() => {
     if (!/^\d{6}$/.test(periodoSeleccionado || '')) return '';
