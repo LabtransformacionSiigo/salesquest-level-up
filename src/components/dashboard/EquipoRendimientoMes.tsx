@@ -7,6 +7,7 @@ interface Props {
   asesores: AsesorPerformance[];
   periodoSeleccionado: string;
   canal?: string | null;
+  pais?: string | null;
 }
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -60,10 +61,12 @@ const Bar = ({ label, current, meta, pct }: { label: string; current: number; me
   );
 };
 
-const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal }: Props) => {
+const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Props) => {
   const [sortBy, setSortBy] = useState<SortKey>('acv');
 
   const refLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
+  const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(String(pais ?? '').toUpperCase());
+  const labelNube = esMexico ? 'Campaña' : 'Nube';
 
   const mesLabel = useMemo(() => {
     if (!/^\d{6}$/.test(periodoSeleccionado || '')) return '';
@@ -96,7 +99,7 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal }: Props) =
   const sortOptions: { key: SortKey; label: string }[] = [
     { key: 'acv', label: 'ACV%' },
     { key: 'fe', label: 'FE%' },
-    { key: 'nube', label: 'Nube%' },
+    { key: 'nube', label: `${labelNube}%` },
     { key: 'total', label: 'Uds%' },
   ];
 
@@ -172,7 +175,7 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal }: Props) =
               {showBars && (
                 <div className="grid grid-cols-4 gap-2 mt-2">
                   <Bar label="FE" current={a.ventas_fe} meta={a.meta_fe} pct={a.pct_fe} />
-                  <Bar label="Nube" current={a.ventas_nube} meta={a.meta_nube} pct={a.pct_nube} />
+                  <Bar label={labelNube} current={a.ventas_nube} meta={a.meta_nube} pct={a.pct_nube} />
                   <Bar label="Uds" current={a.ventas_total} meta={a.meta_total} pct={a.pct_total} />
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px] font-semibold">
