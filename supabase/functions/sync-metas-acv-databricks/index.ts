@@ -158,6 +158,10 @@ Deno.serve(async (req) => {
 
     // Una fila por célula+mes+archivo. La columna mes viene como palabra completa
     // ("Enero"), la normalizamos a 3 letras Title-case ("Ene") al escribir.
+    // Una fila por célula+mes+archivo. La columna mes viene como palabra completa
+    // ("Enero"), la normalizamos a 3 letras Title-case ("Ene") al escribir.
+    // Incluimos fe y nube — meta de unidades por familia a nivel gerente
+    // (ya agregadas en tbl_brz_cuotas), fuente única para meta_fe / meta_nube.
     const sql = `
       SELECT
         pais_gestion AS pais,
@@ -166,6 +170,8 @@ Deno.serve(async (req) => {
         celula,
         mes,
         archivo,
+        fe,
+        nube,
         meta_total_und,
         meta_total_acv,
         cuota
@@ -188,7 +194,7 @@ Deno.serve(async (req) => {
     const errors: Array<{ row: any; error: string }> = [];
 
     for (const r of rows) {
-      const [pais, canal, director, celula, mesRaw, archivoRaw, metaUnd, metaAcv, cuota] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
       const archivo = deriveArchivo(String(archivoRaw || ""));
       const mes = normMes(String(mesRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
@@ -201,6 +207,9 @@ Deno.serve(async (req) => {
       // símbolos y separadores. NUNCA es igual a unidades.
       const meta_total_acv = toNum(metaAcv);
       const cuotaNum = toNum(cuota);
+      // fe / nube vienen ya agregados por gerente desde tbl_brz_cuotas.
+      const meta_fe = Math.round(toNum(feRaw));
+      const meta_nube = Math.round(toNum(nubeRaw));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
@@ -213,6 +222,8 @@ Deno.serve(async (req) => {
         p_meta_total_acv: meta_total_acv,
         p_mes: mes,
         p_archivo: archivo,
+        p_meta_fe: meta_fe,
+        p_meta_nube: meta_nube,
       });
 
       if (error) {

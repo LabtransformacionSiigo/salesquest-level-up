@@ -795,6 +795,8 @@ export type Database = {
           esquema: string | null
           id: string
           mes: string
+          meta_fe: number
+          meta_nube: number
           meta_total_acv: number | null
           meta_total_und: number | null
           pais: string
@@ -810,6 +812,8 @@ export type Database = {
           esquema?: string | null
           id?: string
           mes: string
+          meta_fe?: number
+          meta_nube?: number
           meta_total_acv?: number | null
           meta_total_und?: number | null
           pais: string
@@ -825,6 +829,8 @@ export type Database = {
           esquema?: string | null
           id?: string
           mes?: string
+          meta_fe?: number
+          meta_nube?: number
           meta_total_acv?: number | null
           meta_total_und?: number | null
           pais?: string
@@ -2234,21 +2240,39 @@ export type Database = {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
       }
-      upsert_meta_acv_gerente: {
-        Args: {
-          p_archivo: string
-          p_canal: string
-          p_celula: string
-          p_cuota: number
-          p_director: string
-          p_esquema: string
-          p_mes: string
-          p_meta_total_acv: number
-          p_meta_total_und: number
-          p_pais: string
-        }
-        Returns: Json
-      }
+      upsert_meta_acv_gerente:
+        | {
+            Args: {
+              p_archivo: string
+              p_canal: string
+              p_celula: string
+              p_cuota: number
+              p_director: string
+              p_esquema: string
+              p_mes: string
+              p_meta_total_acv: number
+              p_meta_total_und: number
+              p_pais: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_archivo: string
+              p_canal: string
+              p_celula: string
+              p_cuota: number
+              p_director: string
+              p_esquema: string
+              p_mes: string
+              p_meta_fe?: number
+              p_meta_nube?: number
+              p_meta_total_acv: number
+              p_meta_total_und: number
+              p_pais: string
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "gerente" | "asesor" | "especialista"
