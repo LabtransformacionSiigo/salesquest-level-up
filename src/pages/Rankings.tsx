@@ -165,7 +165,7 @@ const Rankings = () => {
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
           userPais === 'MEX'
-            ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(5000)
+            ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, gerente, gerente_normalizado, celula, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
         ]);
         // Build set of asesor names WITH novedad
@@ -306,12 +306,69 @@ const Rankings = () => {
             nivel: null,
           });
         });
+
+        // México: agregar asesores que están en vn_metricas_optimizadas pero no en productividad_asesores
+        if (esMexico) {
+          const vnMexData = ((vnMetricasMexRes?.data as any[]) || []);
+          const mexAdvisorMap = new Map<string, { nombre: string; celula: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+          vnMexData.forEach((r: any) => {
+            const key = normalizePersonName(r.asesor ?? '');
+            if (!key) return;
+            const cur = mexAdvisorMap.get(key) ?? {
+              nombre: r.asesor, celula: r.celula ?? '', gerente: r.gerente ?? '',
+              fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0,
+            };
+            if (!cur.celula && r.celula) cur.celula = r.celula;
+            if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
+            const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+            const v = Number(r.ventas) || 0;
+            const acv = Number(r.acv_total) || 0;
+            if (tipo === 'FE') cur.fe += v;
+            if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
+            cur.acv += acv;
+            if (Number(r.mes_nro) === mesActualNro) {
+              if (tipo === 'FE') cur.feMes += v;
+              if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += v;
+              cur.acvMes += acv;
+            }
+            mexAdvisorMap.set(key, cur);
+          });
+
+          const existingKeys = new Set(entries.map((e: any) => normalizePersonName(e.nombre)));
+          mexAdvisorMap.forEach((agg, key) => {
+            if (existingKeys.has(key)) return;
+            const asesorInfo = asesorInfoMap.get(key);
+            const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            entries.push({
+              id: asesorInfo?.id || key,
+              nombre: agg.nombre,
+              gerente_nombre: agg.celula || agg.gerente,
+              kpi_value: Math.round(agg.acvMes),
+              meta_acv: 0,
+              meta_unidades: 0,
+              unidades_logradas: agg.feMes + agg.nubeMes,
+              unidades_total: agg.fe + agg.nube,
+              cant_recomendados: 0,
+              pct_cumplimiento: 0,
+              pct_fe: 0,
+              pct_nube: 0,
+              ventas_count: agg.feMes + agg.nubeMes,
+              posicion: 0,
+              canal: profile.canal,
+              pais: 'MEX',
+              sp_totales: spFinal,
+              sp_canje: asesorInfo?.sp_canje || 0,
+              nivel: null,
+            });
+          });
+        }
+
         setRanking(entries);
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
@@ -319,6 +376,9 @@ const Rankings = () => {
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
+          userPais === 'MEX'
+            ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, gerente, gerente_normalizado, celula, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(10000)
+            : Promise.resolve({ data: [] as any[] }),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -524,6 +584,69 @@ const Rankings = () => {
             posicion: 0,
           });
         });
+
+        // México: agregar células presentes en vn_metricas_optimizadas pero ausentes en productividad_asesores
+        if (userPais === 'MEX') {
+          const vnMex = ((vnMetricasMexGerRes?.data as any[]) || []);
+          const mesActualNro = new Date().getMonth() + 1;
+          const mexCelulaMap = new Map<string, { celulaNombre: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+          vnMex.forEach((r: any) => {
+            const celulaRaw = String(r.celula ?? '').trim();
+            if (!celulaRaw) return;
+            const key = normalizeComparableText(celulaRaw);
+            const cur = mexCelulaMap.get(key) ?? {
+              celulaNombre: celulaRaw, gerente: r.gerente ?? '',
+              fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0,
+            };
+            if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
+            const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+            const v = Number(r.ventas) || 0;
+            const acv = Number(r.acv_total) || 0;
+            if (tipo === 'FE') cur.fe += v;
+            if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
+            cur.acv += acv;
+            if (Number(r.mes_nro) === mesActualNro) {
+              if (tipo === 'FE') cur.feMes += v;
+              if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += v;
+              cur.acvMes += acv;
+            }
+            mexCelulaMap.set(key, cur);
+          });
+
+          const existingCelulaKeys = new Set(entries.map((e: any) => String(e.id)));
+          mexCelulaMap.forEach((agg, celulaKey) => {
+            if (existingCelulaKeys.has(celulaKey)) return;
+            const gerenteInfo = gerentesByCelula.get(celulaKey);
+            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            entries.push({
+              id: celulaKey,
+              nombre: gerenteInfo?.nombre || agg.gerente || agg.celulaNombre,
+              celula_nombre: agg.celulaNombre,
+              canal: profile.canal,
+              pais: 'MEX',
+              kpi_value: Math.round(agg.acvMes),
+              acv_total_year: Math.round(agg.acv),
+              meta_total: 0,
+              meta_acv: 0,
+              meta_unidades: 0,
+              unidades_logradas: agg.feMes + agg.nubeMes,
+              unidades_total: agg.fe + agg.nube,
+              cant_recomendados: 0,
+              pct_cumplimiento: 0,
+              pct_fe: 0,
+              pct_nube: 0,
+              unidades_fe_mes: agg.feMes,
+              unidades_nube_mes: agg.nubeMes,
+              meta_fe_mes: 0,
+              meta_nube_mes: 0,
+              sp_totales: spFinal,
+              sp_canje: gerenteInfo?.sp_canje || 0,
+              nivel: null,
+              posicion: 0,
+            });
+          });
+        }
+
         setRanking(entries);
       }
     } else {
