@@ -774,7 +774,7 @@ const Rankings = () => {
                         <>
                            <th className="text-right px-4 py-3">% Cumpl. ACV</th>
                            <th className="text-right px-4 py-3">% FE</th>
-                           <th className="text-right px-4 py-3">% Nube</th>
+                           <th className="text-right px-4 py-3">{userPais === 'MEX' ? '% Campaña' : '% Nube'}</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">ACV</th>
