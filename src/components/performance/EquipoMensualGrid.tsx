@@ -133,14 +133,8 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         return false;
       });
 
-      // metas_asesores — query reservada para vista individual de asesor.
-      // Para gerentes VN, meta_fe/meta_nube vienen de metas_acv_gerentes (abajo).
-      await supabase
-        .from('metas_asesores')
-        .select('anio_mes')
-        .gte('anio_mes', `${year}01`)
-        .lte('anio_mes', `${year}12`)
-        .limit(1);
+      // metas_acv_gerentes es la fuente única de meta_fe/meta_nube/meta_acv para gerentes VN.
+      // metas_asesores se reserva para la vista individual de asesor (no se usa aquí).
 
 
       // metas_acv_gerentes — fuente única de meta_fe / meta_nube / meta_acv para gerentes
