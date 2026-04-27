@@ -1126,7 +1126,7 @@ export const useGamificationMetrics = (
 
         // Build VN team asesor performance dashboard (only for gerentes VN)
         let teamAsesorPerformance: AsesorPerformance[] = [];
-        if (isVN && profile.role !== 'asesor' && (vnCelulaRows.length > 0 || vnVentasDiariasRows.length > 0)) {
+        if (isVN && profile.role !== 'asesor' && (vnCelulaRows.length > 0 || vnVentasDiariasRows.length > 0 || (vnMetricasAsesorRes?.data || []).length > 0)) {
           const metaContextActual = getMetaContextForPeriod(mesActual);
           const teamMetaRows = metaContextActual.rows;
 
