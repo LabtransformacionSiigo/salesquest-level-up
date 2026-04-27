@@ -158,6 +158,10 @@ Deno.serve(async (req) => {
 
     // Una fila por célula+mes+archivo. La columna mes viene como palabra completa
     // ("Enero"), la normalizamos a 3 letras Title-case ("Ene") al escribir.
+    // Una fila por célula+mes+archivo. La columna mes viene como palabra completa
+    // ("Enero"), la normalizamos a 3 letras Title-case ("Ene") al escribir.
+    // Incluimos fe y nube — meta de unidades por familia a nivel gerente
+    // (ya agregadas en tbl_brz_cuotas), fuente única para meta_fe / meta_nube.
     const sql = `
       SELECT
         pais_gestion AS pais,
@@ -166,6 +170,8 @@ Deno.serve(async (req) => {
         celula,
         mes,
         archivo,
+        fe,
+        nube,
         meta_total_und,
         meta_total_acv,
         cuota
