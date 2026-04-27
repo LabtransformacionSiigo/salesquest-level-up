@@ -66,7 +66,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, pais, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado }: KpiProgressBarsProps) => {
   const NIVELES = getNivelesByCanal(canal);
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
