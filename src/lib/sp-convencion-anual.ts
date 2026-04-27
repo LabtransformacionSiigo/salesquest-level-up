@@ -1,11 +1,12 @@
 // Single source of truth for SP Convención anual (VN channels).
-// Mirrors EquipoMensualGrid + VnHistorialSection exactly:
-//   - units FE/Nube/Total: ventas_gerente_mensual (filtered by celula or gerente_normalizado)
-//   - meta FE/Nube/Total: metas_asesores (filtered by celula or gerente, "Sin novedad")
+// FUENTE ÚNICA para metas de gerente: metas_acv_gerentes (origen Databricks
+// tbl_brz_cuotas_gerentes), que ya trae meta_fe, meta_nube y meta_total_acv
+// agregados a nivel célula/mes.
+//   - units FE/Nube: ventas_gerente_mensual (filtered by celula or gerente_normalizado)
 //   - ACV total: sum of ventas_gerente_mensual.acv (same filter)
-//   - meta ACV: metas_acv_gerentes (filtered by celula)
+//   - meta FE / meta Nube / meta ACV: metas_acv_gerentes (filtered by celula)
 // Formula per month: SP = cap(%FE) + cap(%Nube)*2 + cap(%ACV); cap = min(300, max(0, round(v))).
-// Total = sum of monthly SP.
+// Total = sum of monthly SP. NO se usa metas_asesores ni fallback proporcional.
 
 const MES3_TO_MM: Record<string, string> = {
   ene: '01', feb: '02', mar: '03', abr: '04',
