@@ -457,7 +457,7 @@ export const useGamificationMetrics = (
             ? supabase
                 .from('ventas_gerente_mensual' as any)
                 .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
-                .eq('gerente_normalizado', normalizeComparableText(profile.nombre))
+                .ilike('gerente_normalizado', normalizeComparableText(profile.nombre))
                 .gte('periodo', `${anioActual}01`)
                 .lte('periodo', `${anioActual}12`)
                 .limit(500)
