@@ -408,6 +408,42 @@ const Rankings = () => {
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
           const gerenteInfo = gerentesByCelula.get(celula);
+
+          // Ventas FE/Nube del mes actual desde ventas_gerente_mensual (fuente correcta para gerentes VN)
+          const vgmMesActual = (vgmGerRes.data || []).filter((r: any) =>
+            normalizeComparableText(r.celula) === celula &&
+            String(r.periodo) === currentMonth
+          );
+          let currentFe = 0, currentNube = 0;
+          vgmMesActual.forEach((r: any) => {
+            const fam = String(r.familia ?? '').toUpperCase();
+            if (fam === 'FE') currentFe += Math.round(Number(r.unidades) || 0);
+            if (fam === 'NUBE') currentNube += Math.round(Number(r.unidades) || 0);
+          });
+          // Metas FE/Nube del mes actual desde metas_acv_gerentes (Cierre prioritario sobre Inicio)
+          const MES_MAP: Record<string, string> = {
+            ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',
+            jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'
+          };
+          const metasAcvMesActual =
+            (metasAcvGerRes.data || []).find((r: any) => {
+              if (normalizeComparableText(r.celula) !== celula) return false;
+              const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
+              const mm = MES_MAP[mes3];
+              return mm && currentMonth.endsWith(mm) &&
+                !String(r.archivo ?? '').toLowerCase().includes('inicio');
+            }) ||
+            (metasAcvGerRes.data || []).find((r: any) => {
+              if (normalizeComparableText(r.celula) !== celula) return false;
+              const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
+              const mm = MES_MAP[mes3];
+              return mm && currentMonth.endsWith(mm);
+            });
+          const currentMetaFe = Number(metasAcvMesActual?.meta_fe) || 0;
+          const currentMetaNube = Number(metasAcvMesActual?.meta_nube) || 0;
+          const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
+          const pctFeMes = currentMetaFe > 0 ? capPct((currentFe / currentMetaFe) * 100) : 0;
+          const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
           const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
@@ -426,8 +462,12 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
-            pct_fe: currentMonthly?.pctFe || 0,
-            pct_nube: currentMonthly?.pctNube || 0,
+            pct_fe: pctFeMes,
+            pct_nube: pctNubeMes,
+            unidades_fe_mes: currentFe,
+            unidades_nube_mes: currentNube,
+            meta_fe_mes: currentMetaFe,
+            meta_nube_mes: currentMetaNube,
             sp_totales: spFinal,
             sp_canje: gerenteInfo?.sp_canje || 0,
             nivel: null,
