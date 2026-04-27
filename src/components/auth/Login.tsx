@@ -77,8 +77,8 @@ const Login = () => {
           initial="hidden"
           animate="show"
         >
-          <motion.img src={logoIncentivos} alt="Siigo Arena" className="h-10 mx-auto mb-8" variants={fadeUp} />
-          <motion.h1 className="text-4xl font-black font-heading text-white mb-2" variants={fadeUp}>Siigo Arena</motion.h1>
+          <motion.img src={logoIncentivos} alt="\n" className="h-10 mx-auto mb-8" variants={fadeUp} />
+          <motion.h1 className="text-4xl font-black font-heading text-white mb-2" variants={fadeUp}>{"\n"}</motion.h1>
           <motion.p className="text-xl font-bold text-white/90 mb-2" variants={fadeUp}>Plataforma de Gamificación</motion.p>
           <motion.p className="text-sm text-white/70 max-w-xs mx-auto" variants={fadeUp}>Potencia tus resultados comerciales con Siigo Points</motion.p>
           <motion.div className="mt-10 grid grid-cols-3 gap-6 text-white/80 text-xs" variants={stagger}>
@@ -103,7 +103,7 @@ const Login = () => {
         </motion.div>
         <motion.img
           src={logoIncentivos}
-          alt="Siigo Arena"
+          alt="\n"
           className="absolute bottom-6 right-6 h-6 opacity-40 z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.4 }}
@@ -121,7 +121,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <motion.div className="lg:hidden text-center mb-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
             <img src={siigoLogoBlue} alt="Siigo" className="h-8 mx-auto mb-3" />
-            <p className="text-lg font-bold text-primary font-heading">Siigo Arena</p>
+            <p className="text-lg font-bold text-primary font-heading">{"\n"}</p>
           </motion.div>
           <motion.div
             className="bg-white border border-border rounded-3xl p-8 space-y-6 shadow-smooth-md"
