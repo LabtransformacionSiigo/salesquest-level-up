@@ -466,7 +466,7 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
-                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und')
+                .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und')
                 .eq('celula', profile.celula)
             : Promise.resolve({ data: [] }),
         ];
