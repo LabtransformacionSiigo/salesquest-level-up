@@ -472,6 +472,19 @@ export const useGamificationMetrics = (
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(1000)
             : Promise.resolve({ data: [] }),
+          /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
+                  ventas FE/NUBE por asesor del equipo de un gerente VN. Reemplaza
+                  el fallback inexacto desde ejecucion_asesores/ventas_diarias. */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? supabase
+                .from('vn_metricas_optimizadas' as any)
+                .select('pais, mes_nro, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
+                .ilike('gerente_normalizado', normalizeComparableText(profile.nombre))
+                .eq('scope', 'asesor')
+                .gte('mes_nro', 1)
+                .lte('mes_nro', 12)
+                .limit(5000)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
