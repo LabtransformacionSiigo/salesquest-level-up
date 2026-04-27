@@ -120,6 +120,7 @@ export interface VnAcvCatalogRow {
   mes?: string | null;        // "Mar", "Abr", etc.
   meta_total_acv?: number | null;
   meta_total_und?: number | null;
+  archivo?: string | null;    // "Inicio" | "Cierre" — Cierre tiene prioridad
 }
 
 const MES_3_TO_NUM: Record<string, string> = {
@@ -139,6 +140,7 @@ const periodToMes3 = (period: string): string => {
 
 /**
  * Busca la meta ACV oficial de la célula para un periodo dado.
+ * Cierre tiene prioridad sobre Inicio — NUNCA suma ambas (evita meta duplicada).
  * Devuelve null si no hay registro en el catálogo (para hacer fallback).
  */
 export const getOfficialMetaAcv = (
@@ -150,11 +152,12 @@ export const getOfficialMetaAcv = (
   const mes3 = periodToMes3(period);
   if (!mes3) return null;
   const celulaNorm = normalizeComparableText(celula);
-  const match = catalog.find((r) => {
+  const matches = catalog.filter((r) => {
     const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
     return rowMes === mes3 && normalizeComparableText(r.celula) === celulaNorm;
   });
-  if (!match) return null;
+  if (!matches.length) return null;
+  const match = matches.find((r) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? matches[0];
   const v = Number(match.meta_total_acv) || 0;
   return v > 0 ? v : null;
 };

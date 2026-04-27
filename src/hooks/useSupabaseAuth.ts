@@ -431,7 +431,7 @@ export const useSupabaseAuth = () => {
               // Catálogo oficial de metas ACV (Databricks → metas_acv_gerentes)
               supabase
                 .from('metas_acv_gerentes' as any)
-                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und'),
+                .select('pais, canal, celula, mes, meta_total_acv, meta_total_und, archivo'),
             ]);
             const acvCatalogRows = (acvCatalogRes?.data as any[]) || [];
             if (!vnRes.error && !metasVnRes.error) {
