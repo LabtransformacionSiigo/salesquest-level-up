@@ -1145,6 +1145,14 @@ export const useGamificationMetrics = (
           // SOURCE OF TRUTH per asesor: vn_metricas_optimizadas (Databricks pre-agregado
           // por asesor/mes/familia). Fallback a ventas_diarias si no hay filas.
           const paisProfileForAsesor = String(profile.pais || '').toUpperCase();
+          const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(paisProfileForAsesor);
+          const classifyMexProduct = (tipo: string): 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO' => {
+            const t = String(tipo ?? '').toUpperCase().trim();
+            if (t === 'FE') return 'FE';
+            if (t === 'CAMPANA' || t === 'CAMPAÑA' || t === 'NUBE') return 'NUBE';
+            if (t === 'CONTADOR' || t === 'REFERIDO') return 'CONTADOR';
+            return 'OTRO';
+          };
           const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
 
           const mesActualNro = parseInt(mesActual.slice(4), 10); // 1-12 desde YYYYMM
@@ -1157,7 +1165,10 @@ export const useGamificationMetrics = (
               if (!key) return;
               const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
               const u = Number(r.ventas) || 0;
-              const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+              const rawTipo = String(r.tipo_producto1 || r.familia || '').toUpperCase();
+              const fam = esMexico
+                ? classifyMexProduct(rawTipo)
+                : (String(r.familia || r.tipo_producto1 || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
               cur.total += u;
               cur.acv += Number(r.acv_total) || 0;
               if (fam === 'FE') cur.fe += u;
