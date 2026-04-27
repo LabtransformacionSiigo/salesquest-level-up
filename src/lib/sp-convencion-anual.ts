@@ -156,10 +156,21 @@ export interface MetaAsesorFullRow extends MetaAsesorRow {
   documento_asesor?: string | null;
 }
 
+export interface VnMetricaRow {
+  pais?:           string | null;
+  mes_nro?:        number | null;
+  asesor?:         string | null;
+  tipo_producto1?: string | null;
+  ventas?:         number | null;
+  total_productos?: number | null;
+  acv_total?:      number | null;
+}
+
 export interface SpAnualAsesorInputs {
   metaAsesorRows: MetaAsesorFullRow[];
   ejecAsesorRows: EjecAsesorRow[];
   productividadRows: ProductividadAsesorRow[];
+  vnMetricasRows?: VnMetricaRow[];
   year: string;
 }
 
