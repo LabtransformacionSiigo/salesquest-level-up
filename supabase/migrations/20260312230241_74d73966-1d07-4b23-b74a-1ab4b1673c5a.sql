@@ -131,15 +131,15 @@ INSERT INTO public.catalogo_medallas (canal, nombre, descripcion, condicion_tipo
   ('VC', 'Primera Venta FE', 'Realiza tu primera venta de FE en VC', 'primera_venta', 'FE', 1, 150, '📄'),
   ('VC', 'Primera Venta Nómina-e', 'Realiza tu primera venta de Nómina-e en VC', 'primera_venta', 'Nomina-e', 1, 150, '💼'),
   ('VC', '10 Conversiones', 'Acumula 10 conversiones', 'cantidad', 'Conversiones', 10, 300, '🔁'),
-  ('VC', 'ACV+ $10M', 'Alcanza $10M en ACV+', 'monto', NULL, 10000000, 500, '💰'),
-  ('VC', 'ACV+ $50M', 'Alcanza $50M en ACV+', 'monto', NULL, 50000000, 1000, '🏆');
+  ('VC', 'ACV $10M', 'Alcanza $10M en ACV', 'monto', NULL, 10000000, 500, '💰'),
+  ('VC', 'ACV $50M', 'Alcanza $50M en ACV', 'monto', NULL, 50000000, 1000, '🏆');
 
 -- 7. Seed default racha config per channel
 INSERT INTO public.config_rachas (canal, nombre, descripcion, condicion_tipo, umbral_verde) VALUES
   ('VN_EMPRESARIOS', 'Racha de Ventas', 'Semanas consecutivas con ventas superiores al umbral', 'ventas_semanales', 50000000),
   ('VN_ALIADOS', 'Racha de Ventas', 'Semanas consecutivas con ventas superiores al umbral', 'ventas_semanales', 40000000),
   ('VN_ALIADOS', 'Racha de Referidos', 'Semanas consecutivas generando al menos 1 referido', 'referidos_semanales', 1),
-  ('VC', 'Racha ACV+', 'Semanas consecutivas con ACV+ positivo', 'acv_semanal', 5000000),
+  ('VC', 'Racha ACV', 'Semanas consecutivas con ACV positivo', 'acv_semanal', 5000000),
   ('VC', 'Racha de Conversiones', 'Semanas consecutivas con al menos 1 conversión', 'conversiones_semanales', 1);
 
 -- 8. Function to get user role

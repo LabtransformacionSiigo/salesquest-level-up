@@ -36,7 +36,7 @@ const CANALES_RETOS = [
   { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
 ];
 const KPIS_RETOS = [
-  { value: 'acv_plus', label: 'ACV+', valorLabel: 'Monto ACV+ requerido (COP)' },
+  { value: 'acv_plus', label: 'ACV', valorLabel: 'Monto ACV requerido (COP)' },
   { value: 'upgrades', label: 'Upgrades', valorLabel: 'Upgrades requeridos' },
   { value: 'conversiones', label: 'Conversiones', valorLabel: '% conversión sobre cuota' },
   { value: 'cumplimiento_pct', label: '% Cumplimiento', valorLabel: '% de cumplimiento' },

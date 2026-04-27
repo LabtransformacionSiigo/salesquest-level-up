@@ -40,7 +40,7 @@ type SimResponse = {
 };
 
 const KPI_LABEL: Record<string, string> = {
-  acv_plus: 'ACV+',
+  acv_plus: 'ACV',
   upgrades: 'Upgrades',
   conversiones: 'Conversiones',
   cumplimiento_pct: '% Cumplimiento',
@@ -121,7 +121,7 @@ export default function AdminSimulacion() {
               Simulación Motor VC
             </h1>
             <p className="text-muted-foreground mt-1">
-              Ejecuta el motor de evaluación en modo dry-run para inspeccionar cómo se calculan ACV+, Upgrades,
+              Ejecuta el motor de evaluación en modo dry-run para inspeccionar cómo se calculan ACV, Upgrades,
               Conversiones y % Cumplimiento por gerente y reto.
             </p>
           </div>
