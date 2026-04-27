@@ -795,6 +795,8 @@ export type Database = {
           esquema: string | null
           id: string
           mes: string
+          meta_fe: number
+          meta_nube: number
           meta_total_acv: number | null
           meta_total_und: number | null
           pais: string
@@ -810,6 +812,8 @@ export type Database = {
           esquema?: string | null
           id?: string
           mes: string
+          meta_fe?: number
+          meta_nube?: number
           meta_total_acv?: number | null
           meta_total_und?: number | null
           pais: string
@@ -825,6 +829,8 @@ export type Database = {
           esquema?: string | null
           id?: string
           mes?: string
+          meta_fe?: number
+          meta_nube?: number
           meta_total_acv?: number | null
           meta_total_und?: number | null
           pais?: string
