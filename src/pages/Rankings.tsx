@@ -234,6 +234,34 @@ const Rankings = () => {
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
+
+          // Ventas FE/Nube del mes actual desde ejecucion_asesores (por documento, fallback por nombre)
+          const docAsesor = String(
+            (metasAsesoresRes.data || []).find((m: any) => normalizePersonName(m.nombre_asesor) === key)?.documento_asesor ?? ''
+          );
+          const ejecMesActual = docAsesor
+            ? (ejecAsesoresRes.data || []).filter((r: any) => String(r.documento_asesor) === docAsesor && String(r.periodo) === currentMonth)
+            : [];
+          const ejecMesActualByName = (ejecAsesoresRes.data || []).filter((r: any) =>
+            normalizePersonName((r as any).nombre_asesor ?? (r as any).asesor ?? '') === key &&
+            String(r.periodo) === currentMonth
+          );
+          const ejecRowsCurrent = ejecMesActual.length > 0 ? ejecMesActual : ejecMesActualByName;
+          const currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
+          const currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
+
+          // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
+          const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
+            const nov = String(r.novedad ?? '').trim().toLowerCase();
+            if (nov && nov !== 'sin novedad') return false;
+            return normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth;
+          });
+          const currentMetaFe = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+          const currentMetaNube = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+          const capPctAsesor = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
+          const pctFeMes = currentMetaFe > 0 ? capPctAsesor((currentFe / currentMetaFe) * 100) : 0;
+          const pctNubeMes = currentMetaNube > 0 ? capPctAsesor((currentNube / currentMetaNube) * 100) : 0;
+
           entries.push({
             id: asesorInfo?.id || key,
             nombre: originalName,
@@ -245,8 +273,8 @@ const Rankings = () => {
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
-            pct_fe: currentMonthly?.pctFe || 0,
-            pct_nube: currentMonthly?.pctNube || 0,
+            pct_fe: pctFeMes,
+            pct_nube: pctNubeMes,
             ventas_count: agg.ventas,
             posicion: 0,
             canal: profile.canal,
