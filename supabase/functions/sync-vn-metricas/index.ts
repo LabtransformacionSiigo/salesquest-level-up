@@ -357,6 +357,75 @@ Deno.serve(async (req) => {
       console.log(`✓ ventas_gerente_mensual actualizadas: ${vgmInserted} filas (de ${vgmRows.length})`);
     }
 
+    // ── Replicar rowsB (asesor level) a ejecucion_asesores ─────────────
+    // rowsB ya viene agregado por pais/mes/gerente/celula/asesor/tipo_producto1
+    // desde QUERY_B_ASESOR (tbl_gld_Ventas_SA — fuente única de verdad LATAM).
+    // Schema real: documento_asesor (PK lógica, guarda el fullname), periodo,
+    // canal_direccion, pais, ventas_fe, ventas_nube, ventas_total, acv_total.
+    type EjecRow = {
+      documento_asesor: string;
+      periodo: string;
+      canal_direccion: string;
+      pais: string;
+      ventas_fe: number;
+      ventas_nube: number;
+      ventas_total: number;
+      acv_total: number;
+    };
+
+    const ejecMap = new Map<string, EjecRow>();
+    for (const r of rowsB as any[]) {
+      const nombre = String(r.asesor || "").trim();
+      const mes = Number(r.mes_nro);
+      const anio = Number(r.anio) || YEAR;
+      if (!nombre || !mes) continue;
+      const periodo = `${anio}${MM(mes)}`;
+      const pais = normalizePais(r.pais);
+      const canal_direccion = normalizeCanal(r.equipo);
+      const familia = classifyFamily(r.tipo_producto1);
+      const unidades = Math.round(Number(r.ventas) || 0);
+      const acv = Math.round(Number(r.acv_total) || 0);
+      const key = `${nombre}|${periodo}|${pais}|${canal_direccion}`;
+      const cur = ejecMap.get(key) ?? {
+        documento_asesor: nombre,
+        periodo,
+        canal_direccion,
+        pais,
+        ventas_fe: 0,
+        ventas_nube: 0,
+        ventas_total: 0,
+        acv_total: 0,
+      };
+      if (familia === "FE") cur.ventas_fe += unidades;
+      if (familia === "NUBE") cur.ventas_nube += unidades;
+      cur.ventas_total += unidades;
+      cur.acv_total += acv;
+      ejecMap.set(key, cur);
+    }
+
+    const ejecFinal = [...ejecMap.values()];
+    let ejecInserted = 0;
+
+    if (ejecFinal.length > 0) {
+      const paisesEjec = [...new Set(ejecFinal.map((r) => r.pais))];
+      const { error: ejecDelErr } = await sb
+        .from("ejecucion_asesores")
+        .delete()
+        .in("pais", paisesEjec)
+        .gte("periodo", `${YEAR}01`)
+        .lte("periodo", `${YEAR}12`);
+      if (ejecDelErr) console.error(`[ejec] delete previo:`, ejecDelErr.message);
+
+      const BATCH_EJEC = 500;
+      for (let i = 0; i < ejecFinal.length; i += BATCH_EJEC) {
+        const slice = ejecFinal.slice(i, i + BATCH_EJEC);
+        const { error } = await sb.from("ejecucion_asesores").insert(slice);
+        if (error) console.error(`[ejec] insert batch ${i}:`, error.message);
+        else ejecInserted += slice.length;
+      }
+      console.log(`✓ ejecucion_asesores actualizadas: ${ejecInserted} filas (de ${ejecFinal.length})`);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -365,6 +434,7 @@ Deno.serve(async (req) => {
         rows_dbx_asesor_mx: rowsC.length,
         inserted,
         vgm_inserted: vgmInserted,
+        ejec_inserted: ejecInserted,
         paises: [...paisesTocados],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
