@@ -118,38 +118,32 @@ export function computeSpConvencionAnualForCelula(
       if (v > 0) metaTotalUndPorPeriodo.set(periodo, v);
     });
 
-  // Buscar feRatio: primero ideal (FE+Nube+Total), luego sólo con meta_total>0 (algún FE),
-  // y como último recurso 0.5 (split simétrico). Esto cubre países como MEX Aliados / URU
-  // donde Abril tiene meta_nube=0 o meta_fe=0 y se necesitan estimar Ene/Feb/Mar.
-  let feRatio: number | null = null;
-  metasPorPeriodo.forEach(({ meta_fe, meta_nube, meta_total }) => {
-    if (feRatio !== null) return;
-    if (meta_fe > 0 && meta_nube > 0 && meta_total > 0) feRatio = meta_fe / meta_total;
+  // --- SEED feRatio (idéntico a useGamificationMetrics metaSplitSeed) ---
+  let seedFe = 0, seedNube = 0;
+  metasPorPeriodo.forEach(({ meta_fe, meta_nube }) => {
+    seedFe += meta_fe;
+    seedNube += meta_nube;
   });
-  if (feRatio === null) {
-    metasPorPeriodo.forEach(({ meta_fe, meta_total }) => {
-      if (feRatio !== null) return;
-      if (meta_fe > 0 && meta_total > 0) feRatio = meta_fe / meta_total;
-    });
-  }
-  if (feRatio === null && metaTotalUndPorPeriodo.size > 0) {
-    feRatio = 0.5; // fallback simétrico cuando no hay ningún mes con desglose FE
-  }
+  const seedTotal = seedFe + seedNube;
+  const feRatio: number | null = seedTotal > 0 ? seedFe / seedTotal : null;
 
+  // --- FALLBACK proporcional para periodos sin meta_fe/nube ---
   if (feRatio !== null) {
     metaTotalUndPorPeriodo.forEach((totalUnd, periodo) => {
       const existing = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_total: 0 };
-      if (existing.meta_fe === 0 || existing.meta_nube === 0) {
-        const fe = existing.meta_fe > 0 ? existing.meta_fe : Math.round(totalUnd * feRatio!);
-        const nube = existing.meta_nube > 0 ? existing.meta_nube : Math.max(0, totalUnd - fe);
+      if (existing.meta_fe === 0 && existing.meta_nube === 0) {
+        const fe_est = Math.round(totalUnd * feRatio);
+        const nube_est = Math.max(0, totalUnd - fe_est);
         metasPorPeriodo.set(periodo, {
-          meta_fe: fe,
-          meta_nube: nube,
+          meta_fe: fe_est,
+          meta_nube: nube_est,
           meta_total: totalUnd,
         });
       }
     });
   }
+  // Si feRatio === null: no se aplica fallback — periodos sin meta_fe/nube
+  // suman solo pct_acv al SP total (correcto para URU).
 
   // 4) Combine all periods
   const periodSet = new Set<string>();
