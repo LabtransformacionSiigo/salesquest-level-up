@@ -170,12 +170,12 @@ Deno.serve(async (req) => {
         celula,
         mes,
         archivo,
-        fe,
-        nube,
-        meta_total_und,
+        CAST(fe AS BIGINT)             AS fe,
+        CAST(nube AS BIGINT)           AS nube,
+        CAST(meta_total_und AS BIGINT) AS meta_total_und,
         meta_total_acv,
         cuota
-      FROM hive_metastore.db_comercial.tbl_brz_cuotas
+      FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
       ORDER BY mes, pais_gestion, canal_direccion, celula,
                CASE WHEN LOWER(archivo) LIKE '%inicio%' THEN 0 ELSE 1 END
