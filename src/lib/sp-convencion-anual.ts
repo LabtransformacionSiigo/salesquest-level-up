@@ -242,6 +242,24 @@ export function computeSpConvencionAnualForAsesor(
     ejecPorPeriodo.set(p, cur);
   });
 
+  // Fallback México: ventas desde vn_metricas_optimizadas (CAMPANA = NUBE)
+  const YEAR_NUM = Number(year);
+  (inputs.vnMetricasRows || [])
+    .filter((r) => normalizeSpText(r.asesor) === asesorNorm && resolveCountryCode(r.pais) === 'MEX')
+    .forEach((r) => {
+      const mm = String(r.mes_nro ?? '').padStart(2, '0');
+      const p = `${YEAR_NUM}${mm}`;
+      if (!/^\d{6}$/.test(p)) return;
+      const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+      const v = Math.round(Number(r.ventas ?? r.total_productos) || 0);
+      const acv = Math.round(Number(r.acv_total) || 0);
+      const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0, acv: 0 };
+      if (tipo === 'FE') cur.fe += v;
+      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
+      cur.acv += acv;
+      ejecPorPeriodo.set(p, cur);
+    });
+
   // Productividad: ACV real (acv_f) y meta ACV (meta escalada) por periodo.
   const acvPorPeriodo = new Map<string, number>();
   const metaAcvPorPeriodo = new Map<string, number>();
