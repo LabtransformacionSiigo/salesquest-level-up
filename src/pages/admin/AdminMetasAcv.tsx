@@ -67,9 +67,10 @@ const AdminMetasAcv = () => {
       if (!data?.success) throw new Error(data?.error || 'Sync fallida');
       setSummary(data.summary);
       setErrorList(data.errors || []);
+      const s = data.summary || {};
       toast({
-        title: '✅ Sync Databricks completada',
-        description: `Insertadas: ${data.summary.inserted} · Cierres nuevos: ${data.summary.upgraded_to_cierre} · Bloqueadas: ${data.summary.skipped_cierre_existente}`,
+        title: '✅ Sync Cuotas Gerentes completada',
+        description: `Insertadas: ${s.inserted ?? 0} · Inicio actualizado: ${s.updated_inicio ?? 0} · Cierres nuevos: ${s.upgraded_to_cierre ?? 0} · FE/Nube rellenados: ${s.backfilled_fe_nube ?? 0} · Bloqueadas: ${s.skipped_cierre_existente ?? 0}`,
       });
       fetchHistorial();
     } catch (e: any) {

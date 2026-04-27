@@ -188,6 +188,7 @@ Deno.serve(async (req) => {
       inserted: 0,
       updated_inicio: 0,
       upgraded_to_cierre: 0,
+      backfilled_fe_nube: 0,
       skipped_cierre_existente: 0,
       invalid: 0,
     };
@@ -236,6 +237,7 @@ Deno.serve(async (req) => {
       else if (action === "updated_inicio") summary.updated_inicio++;
       else if (action === "upgraded_to_cierre") summary.upgraded_to_cierre++;
       else if (action === "skipped") summary.skipped_cierre_existente++;
+      else if (action === "backfilled_fe_nube") summary.backfilled_fe_nube++;
     }
 
     return new Response(
