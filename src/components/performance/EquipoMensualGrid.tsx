@@ -140,7 +140,7 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
       // metas_acv_gerentes — fuente única de meta_fe / meta_nube / meta_acv para gerentes
       const { data: metasAcvRaw } = await supabase
         .from('metas_acv_gerentes')
-        .select('celula, mes, meta_fe, meta_nube, meta_total_acv')
+        .select('celula, mes, meta_fe, meta_nube, meta_total_acv, archivo')
         .limit(500);
 
       // [VERIFY] Primeros 5 registros de metasAcvRaw — confirmar meta_fe/meta_nube no nulos
@@ -159,19 +159,27 @@ export const EquipoMensualGrid = ({ gerenteNombre, celula, canalDireccion, pais 
         '— matches:', (metasAcvRaw || []).filter((r: any) => celulaNorm && normalizeText(r.celula) === celulaNorm).length
       );
 
-      const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
+      // Cierre tiene prioridad sobre Inicio — NUNCA sumar ambas (evita duplicar meta).
+      const metasAcvTemp = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; archivo: string }>();
       (metasAcvRaw || [])
         .filter((row: any) => celulaNorm && normalizeText(row.celula) === celulaNorm)
         .forEach((row: any) => {
           const mesKey = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
           const periodo = MES3_TO_YYYYMM[mesKey];
           if (!periodo) return;
-          const cur = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
-          cur.meta_fe += Number(row.meta_fe) || 0;
-          cur.meta_nube += Number(row.meta_nube) || 0;
-          cur.meta_acv += Number(row.meta_total_acv) || 0;
-          metasPorPeriodo.set(periodo, cur);
+          const archivo = String(row.archivo ?? '').toLowerCase();
+          const existing = metasAcvTemp.get(periodo);
+          if (!existing || (archivo.includes('cierre') && !existing.archivo.includes('cierre'))) {
+            metasAcvTemp.set(periodo, {
+              meta_fe: Number(row.meta_fe) || 0,
+              meta_nube: Number(row.meta_nube) || 0,
+              meta_acv: Number(row.meta_total_acv) || 0,
+              archivo,
+            });
+          }
         });
+      const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
+      metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
       // Combinar todos los periodos posibles (ventas + metas gerente)
       const periodSet = new Set<string>();

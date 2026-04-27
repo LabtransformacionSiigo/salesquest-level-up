@@ -468,7 +468,7 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
-                .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und')
+                .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(1000)
             : Promise.resolve({ data: [] }),
@@ -703,10 +703,12 @@ export const useGamificationMetrics = (
           };
           const getAcvCatalogRowForPeriod = (period: string) => {
             const mes3 = mesNumToMes3[String(period).slice(-2)] || '';
-            return acvCatalogRows.find((r: any) => {
+            // Prioridad Cierre > Inicio para evitar duplicación de meta por celula+mes.
+            const rows = acvCatalogRows.filter((r: any) => {
               const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
               return rowMes === mes3 && normalizeComparableText(r.celula) === celulaGerente;
             });
+            return rows.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? rows[0] ?? null;
           };
           getMetaTotalUndForPeriod = (period: string) => Math.round(Number(getAcvCatalogRowForPeriod(period)?.meta_total_und) || 0);
           // FUENTE ÚNICA para meta_fe/meta_nube por gerente: metas_acv_gerentes
