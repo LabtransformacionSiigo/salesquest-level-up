@@ -188,6 +188,7 @@ Deno.serve(async (req) => {
       inserted: 0,
       updated_inicio: 0,
       upgraded_to_cierre: 0,
+      backfilled_fe_nube: 0,
       skipped_cierre_existente: 0,
       invalid: 0,
     };
