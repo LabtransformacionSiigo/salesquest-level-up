@@ -16,6 +16,8 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
 import { getNivelThresholds } from '@/lib/niveles';
+import { supabase } from '@/integrations/supabase/client';
+import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 
 const RETOS_SEMANALES = [
   { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
