@@ -439,6 +439,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     // medalla
     tipo_evento: data.tipo_evento || 'PRIMERA_VENTA',
     cantidad_requerida: data.cantidad_requerida ?? 1,
+    fecha_inicio: data.fecha_inicio || '',
+    fecha_fin: data.fecha_fin || '',
   });
 
   // Mantener canal y métricas sincronizados con la operación
