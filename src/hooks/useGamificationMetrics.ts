@@ -1046,12 +1046,50 @@ export const useGamificationMetrics = (
           // ⭐ Prioridad: ventas_gerente_mensual (Databricks oficial por gerente),
           // luego ventas_diarias, luego ejecucion_asesores como respaldo.
           const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
-          const vgmAllRows: any[] = ventasGerenteMensualRes?.data || [];
-          const vgmPeriodsWithData = new Set<string>(vgmAllRows.map((r: any) => String(r.periodo || '')));
 
+          // ⭐ PRIORIDAD #1: vn_metricas_optimizadas (scope='asesor') por TODOS los meses.
+          // Misma fuente que "Rendimiento del Mes" → garantiza que el Historial Mensual
+          // coincida exactamente con la card del mes actual. Dedupe por (period, asesor, familia)
+          // tomando el max para resolver duplicados por variantes del nombre del gerente.
+          const vmaAllRows: any[] = vnMetricasAsesorRes?.data || [];
+          const vmaPeriodsWithData = new Set<string>();
+          if (vmaAllRows.length > 0) {
+            const vmaPeriodMap = new Map<string, Map<string, { v: number; a: number; fam: string }>>();
+            for (const r of vmaAllRows) {
+              const mn = Number(r.mes_nro);
+              if (!mn) continue;
+              const period = `${anioActual}${String(mn).padStart(2, '0')}`;
+              const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+              const asesor = String(r.asesor || '').trim().toLowerCase();
+              if (!asesor || !fam) continue;
+              const key = `${asesor}::${fam}`;
+              if (!vmaPeriodMap.has(period)) vmaPeriodMap.set(period, new Map());
+              const inner = vmaPeriodMap.get(period)!;
+              const v = Number(r.ventas) || 0;
+              const a = Number(r.acv_total) || 0;
+              const prev = inner.get(key);
+              if (!prev || v > prev.v) inner.set(key, { v, a, fam });
+            }
+            vmaPeriodMap.forEach((inner, period) => {
+              const cur = { fe: 0, nube: 0, total: 0, acv: 0 };
+              inner.forEach((val) => {
+                if (val.fam === 'FE') cur.fe += val.v;
+                else if (val.fam === 'NUBE') cur.nube += val.v;
+                cur.total += val.v;
+                cur.acv += val.a;
+              });
+              ejecByPeriod.set(period, cur);
+              vmaPeriodsWithData.add(period);
+            });
+          }
+
+          // PRIORIDAD #2: ventas_gerente_mensual SOLO para periodos sin data en vma.
+          const vgmAllRows: any[] = ventasGerenteMensualRes?.data || [];
+          const vgmPeriodsWithData = new Set<string>();
           if (vgmAllRows.length > 0) {
             vgmAllRows.forEach((r: any) => {
               const period = String(r.periodo || '');
+              if (vmaPeriodsWithData.has(period)) return; // ya cubierto por vma
               const fam = String(r.familia || '').toUpperCase();
               const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
               const uds = Math.round(Number(r.unidades) || 0);
@@ -1060,6 +1098,7 @@ export const useGamificationMetrics = (
               cur.total += uds; // FE + NUBE + CONTADOR
               cur.acv += Math.round(Number(r.acv) || 0);
               ejecByPeriod.set(period, cur);
+              vgmPeriodsWithData.add(period);
             });
           }
 
