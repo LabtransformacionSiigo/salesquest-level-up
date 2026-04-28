@@ -62,7 +62,7 @@ const Bar = ({ label, current, meta, pct }: { label: string; current: number; me
 };
 
 const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Props) => {
-  const [sortBy, setSortBy] = useState<SortKey>('acv');
+  const [sortBy, setSortBy] = useState<SortKey>('fe');
 
   const refLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
   const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(String(pais ?? '').toUpperCase());
