@@ -69,6 +69,8 @@ const AdminMedallas = () => {
     sp: 100,
     emoji: '🏅',
     activo: true,
+    fecha_inicio: '',
+    fecha_fin: '',
   });
 
   const isAdmin = profile?.role === 'admin';
