@@ -16,6 +16,8 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
 import { getNivelThresholds } from '@/lib/niveles';
+import { supabase } from '@/integrations/supabase/client';
+import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 
 const RETOS_SEMANALES = [
   { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
@@ -44,6 +46,24 @@ const Dashboard = () => {
     ? ((profile as any)?.sp_totales ?? 0)
     : (spAnualStore ?? spAnualSelf ?? (profile as any)?.sp_totales ?? 0);
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
+
+  // Catálogo dinámico de retos semanales filtrado por canal/país del usuario
+  const [catalogRetosSemana, setCatalogRetosSemana] = useState<any[]>([]);
+  useEffect(() => {
+    if (!profile?.canal) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('catalogo_retos')
+        .select('*')
+        .eq('activo', true)
+        .or(`canal.eq.${profile.canal},canal.is.null`);
+      if (cancelled) return;
+      const semanales = (data || []).filter((r: any) => normalizeCatalogWindow(r.ventana_tiempo) === 'SEMANAL');
+      setCatalogRetosSemana(filterCatalogByScope(semanales as any[], profile));
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role]);
 
   // Period options: current year months + last 3 months of previous year
   const periodoOptions = (() => {
@@ -247,7 +267,15 @@ const Dashboard = () => {
                 initial="hidden"
                 animate="show"
               >
-                {RETOS_SEMANALES.map((reto, idx) => {
+                {(catalogRetosSemana.length > 0
+                  ? catalogRetosSemana.slice(0, 3).map((c: any) => ({
+                      id: c.id,
+                      nombre: `${c.emoji || '🎯'} ${c.nombre}`,
+                      sp: Number(c.sp_otorgados) || 0,
+                      umbral: Number(c.umbral) || 1,
+                    }))
+                  : RETOS_SEMANALES
+                ).map((reto, idx) => {
                   const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                   const completed = pct >= 100;
                   return (
