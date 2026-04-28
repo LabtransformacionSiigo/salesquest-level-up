@@ -510,6 +510,31 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
+          /* 23 – vn_metricas_optimizadas (scope=gerente): FUENTE PRIMARIA del
+                  Rendimiento del Mes y del Historial Mensual del gerente VN.
+                  Misma fuente que se usa hoy para "Rendimiento del Mes" — al
+                  consumirla también para el Historial garantizamos consistencia. */
+          isVN && profile.role !== 'asesor' && profile.nombre
+            ? (() => {
+                let q = supabase
+                  .from('vn_metricas_optimizadas' as any)
+                  .select('pais, anio, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
+                  .eq('scope', 'gerente')
+                  .gte('mes_nro', 1)
+                  .lte('mes_nro', 12)
+                  .limit(5000);
+                if (profile.celula) {
+                  q = q.eq('celula', profile.celula);
+                } else {
+                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                                 : null;
+                  if (canalDir) q = q.eq('canal_direccion', canalDir);
+                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                }
+                return q;
+              })()
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
