@@ -394,6 +394,13 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
+        {/* ═══════════════ SECCIÓN VENTA CRUZADA ═══════════════ */}
+        <div className="flex items-center gap-2 pt-2">
+          <MI icon="swap_horiz" className="text-primary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Venta Cruzada</h2>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
         {/* Status cards per table */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Array.from(latestByTable.entries()).map(([tableName, job]) => {
