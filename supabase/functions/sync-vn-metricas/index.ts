@@ -348,12 +348,12 @@ Deno.serve(async (req) => {
 
     if (vgmRows.length > 0) {
       const paisesVgm = [...new Set(vgmRows.map((r) => r.pais))];
+      // CRÍTICO: solo borra el periodo actual. NUNCA toca meses históricos.
       const { error: vgmDelErr } = await sb
         .from("ventas_gerente_mensual")
         .delete()
         .in("pais", paisesVgm)
-        .gte("periodo", `${YEAR}01`)
-        .lte("periodo", `${YEAR}12`);
+        .eq("periodo", periodoActual);
       if (vgmDelErr) console.error(`[vgm] delete previo:`, vgmDelErr.message);
 
       const BATCH_VGM = 500;
