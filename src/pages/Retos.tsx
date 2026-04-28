@@ -98,7 +98,7 @@ const Retos = () => {
 
       if (useVcCatalog) {
         const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
-          supabase.from('catalogo_retos').select('*').eq('activo', true),
+          supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
           supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
           isVcAdvisor ? getVcAdvisorSnapshot(profile) : Promise.resolve(null as any),
         ]);

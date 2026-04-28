@@ -43,7 +43,7 @@ const Medallas = () => {
       }
       const [mRes, cRes] = await Promise.all([
         supabase.from('medallas').select('*').eq('gerente_id', profile.id),
-        supabase.from('catalogo_medallas').select('*').eq('activo', true).order('condicion_tipo').order('nombre'),
+        supabase.from('catalogo_medallas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`).order('condicion_tipo').order('nombre'),
       ]);
       if (cancelled) return;
       setMisMedallas(mRes.data || []);
