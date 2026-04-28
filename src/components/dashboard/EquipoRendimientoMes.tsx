@@ -62,7 +62,7 @@ const Bar = ({ label, current, meta, pct }: { label: string; current: number; me
 };
 
 const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Props) => {
-  const [sortBy, setSortBy] = useState<SortKey>('acv');
+  const [sortBy, setSortBy] = useState<SortKey>('fe');
 
   const refLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
   const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(String(pais ?? '').toUpperCase());
@@ -97,7 +97,6 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Pr
   }, [asesores]);
 
   const sortOptions: { key: SortKey; label: string }[] = [
-    { key: 'acv', label: 'ACV%' },
     { key: 'fe', label: 'FE%' },
     { key: 'nube', label: `${labelNube}%` },
     { key: 'total', label: 'Uds%' },
@@ -163,12 +162,6 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais }: Pr
                     <p className="text-sm font-bold text-foreground truncate">{a.nombre}</p>
                     <p className="text-[10px] uppercase font-bold text-muted-foreground">{st.label}</p>
                   </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className={cn('text-lg font-black font-scoreboard', colorText(a.pct_acv, a.meta_acv > 0))}>
-                    {a.meta_acv > 0 ? `${a.pct_acv}%` : '—'}
-                  </p>
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground">ACV</p>
                 </div>
               </div>
 
