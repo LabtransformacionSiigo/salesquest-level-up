@@ -37,9 +37,12 @@ const MiPerformance = () => {
   const metrics = useGamificationMetrics(profile);
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
-  const spConvencionDisplay = spAnualStore ?? spAnualSelf ?? 0;
 
   const canal = profile?.canal;
+  const isVC = canal === 'VC';
+  const spConvencionDisplay = isVC
+    ? ((profile as any)?.sp_totales ?? 0)
+    : (spAnualStore ?? spAnualSelf ?? 0);
   const isAliados = canal === 'VN_ALIADOS';
   const isEmpresarios = canal === 'VN_EMPRESARIOS';
   const isVCGerente = canal === 'VC' && profile?.role !== 'asesor' && profile?.role !== 'admin' && profile?.role !== 'especialista';
