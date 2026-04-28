@@ -540,7 +540,7 @@ export const useGamificationMetrics = (
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes, vnMetricasGerenteRes] = results as any[];
 
         // Filtrado client-side robusto para gerentes VN: si la query trajo más
         // filas de las del propio gerente (caso fallback sin celula), nos
@@ -560,6 +560,9 @@ export const useGamificationMetrics = (
           }
           if (vnMetricasAsesorRes?.data) {
             vnMetricasAsesorRes.data = (vnMetricasAsesorRes.data as any[]).filter(matchVnRow);
+          }
+          if (vnMetricasGerenteRes?.data) {
+            vnMetricasGerenteRes.data = (vnMetricasGerenteRes.data as any[]).filter(matchVnRow);
           }
         }
 
