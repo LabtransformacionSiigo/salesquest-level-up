@@ -856,7 +856,7 @@ export const useGamificationMetrics = (
           // Deduplicar por (periodo, familia) para evitar doble suma si la tabla
           // contiene filas duplicadas (sync histórico + replicación nueva).
           const vgmAllRowsForMap: any[] = ventasGerenteMensualRes?.data || [];
-          const vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
           // Agrupamos primero por (periodo, familia) tomando el MAX de unidades/acv
           // para colapsar duplicados sin doblar el conteo cuando hay 2 filas idénticas.
           const vgmFamMax = new Map<string, { uds: number; acv: number }>();
