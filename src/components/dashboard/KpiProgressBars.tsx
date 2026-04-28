@@ -178,7 +178,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
           <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
-          {showVCTeam ? 'ACV por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV vs Meta asignada' : 'Ventas vs Meta del mes'}
+          {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
         </p>
 
         {showVNTeam ? (
@@ -275,7 +275,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <div className="flex-1 flex flex-col justify-between gap-5 w-full">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-muted-foreground">{isVcAdvisor ? 'ACV' : 'Ventas'}</span>
+                  <span className="text-muted-foreground">{isVcAdvisor ? 'ACV+' : 'Ventas'}</span>
                   <span className="text-primary font-scoreboard">{fmt(ventasValue)}</span>
                 </div>
                 {metaValue > 0 && (

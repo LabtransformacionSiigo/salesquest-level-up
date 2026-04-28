@@ -826,12 +826,12 @@ const Rankings = () => {
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta ACV</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'Meta ACV+' : 'Meta ACV'}</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -846,7 +846,7 @@ const Rankings = () => {
                               <div className="w-px h-6 bg-border" />
                               <div>
                                 <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
+                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
                               </div>
                               <div className="w-px h-6 bg-border" />
                               <div>
@@ -860,7 +860,7 @@ const Rankings = () => {
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && g.kpi_value > 0 && (
                         <div>
                           <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
-                          <p className="text-[10px] text-muted-foreground font-heading uppercase">ACV</p>
+                          <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
                         </div>
                       )}
                     </div>
@@ -889,25 +889,25 @@ const Rankings = () => {
                       {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
-                          <th className="text-right px-4 py-3">ACV</th>
+                          <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
                       {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
-                           <th className="text-right px-4 py-3">% Cumpl. ACV</th>
+                           <th className="text-right px-4 py-3">{isVC ? '% Cumpl. ACV+' : '% Cumpl. ACV'}</th>
                            <th className="text-right px-4 py-3">% FE</th>
                            <th className="text-right px-4 py-3">{userPais === 'MEX' ? '% Campaña' : '% Nube'}</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
-                          <th className="text-right px-4 py-3">ACV</th>
-                           <th className="text-right px-4 py-3">Meta ACV</th>
+                          <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
+                           <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
                           <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                         <>
-                          <th className="text-right px-4 py-3">ACV</th>
+                          <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
                           <th className="text-left px-4 py-3">Nivel</th>
                         </>
                       )}

@@ -197,11 +197,11 @@ const MiPerformance = () => {
 
               {isVC && (
                 <>
-                  <SectionTitle icon="bar_chart" title="ACV" />
+                  <SectionTitle icon="bar_chart" title="ACV+" />
                   <motion.div className="bg-white border border-border rounded-2xl p-8 text-center shadow-smooth-sm" variants={fadeUpItem}>
                     <MI icon="add_chart" className="text-4xl text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-heading">
-                      {isVcAdvisor ? 'ACV Acumulado' : 'ACV del Mes'}
+                      {isVcAdvisor ? 'ACV+ Acumulado' : 'ACV+ del Mes'}
                     </p>
                     <p className="text-4xl font-bold font-scoreboard text-primary">{formatMoney(vcHeadlineValue)}</p>
                     <p className="text-sm text-muted-foreground mt-2">{vcUnitsLabel}</p>
@@ -232,13 +232,13 @@ const MiPerformance = () => {
                   {/* Historial Mensual: ACV vs Meta */}
                   {vcMonthlyCumplimiento.length > 0 && (
                     <>
-                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV logrado vs Meta por mes, con % de cumplimiento." />
+                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta por mes, con % de cumplimiento." />
                       <motion.div className="bg-white border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
                         <table className="w-full">
                           <thead>
                             <tr className="bg-primary text-white text-[11px] uppercase tracking-wider font-heading">
                               <th className="text-left px-4 py-3">Mes</th>
-                              <th className="text-right px-4 py-3">ACV</th>
+                              <th className="text-right px-4 py-3">ACV+</th>
                               <th className="text-right px-4 py-3">Meta</th>
                               <th className="text-right px-4 py-3">% Cumpl.</th>
                             </tr>
@@ -754,7 +754,7 @@ const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[
   ];
 
   const sortOptions = [
-    { key: 'acv', label: 'ACV' },
+    { key: 'acv', label: 'ACV+' },
     { key: 'pct', label: '% Cumpl.' },
   ] as const;
 
@@ -763,13 +763,13 @@ const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[
       <SectionTitle
         icon="groups"
         title={`Rendimiento del Equipo (${asesores.length} comerciales)`}
-        tip="Vista de semáforo de tu equipo VC: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV vs Meta."
+        tip="Vista de semáforo de tu equipo VC: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV+ vs Meta."
       />
 
       {/* Resumen total */}
       <motion.div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-smooth-sm" variants={popIn}>
         <div>
-          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV</p>
+          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV+</p>
           <p className="text-2xl font-black font-scoreboard text-foreground">{formatMoney(totalAcv)}</p>
           <p className="text-xs text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatMoney(totalMeta)}</span></p>
         </div>
