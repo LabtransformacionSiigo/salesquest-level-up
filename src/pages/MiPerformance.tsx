@@ -769,7 +769,7 @@ const EquipoRendimientoVCSection = ({ asesores }: { asesores: AsesorPerformance[
       {/* Resumen total */}
       <motion.div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-smooth-sm" variants={popIn}>
         <div>
-          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV</p>
+          <p className="text-[10px] uppercase font-heading text-muted-foreground">Total equipo · ACV+</p>
           <p className="text-2xl font-black font-scoreboard text-foreground">{formatMoney(totalAcv)}</p>
           <p className="text-xs text-muted-foreground">Meta: <span className="font-scoreboard text-foreground">{formatMoney(totalMeta)}</span></p>
         </div>
