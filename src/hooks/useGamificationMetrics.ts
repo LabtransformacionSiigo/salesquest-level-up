@@ -493,7 +493,7 @@ export const useGamificationMetrics = (
             ? (() => {
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
-                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
+                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, total_productos:ventas, acv_total')
                   .eq('scope', 'asesor')
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
@@ -864,7 +864,7 @@ export const useGamificationMetrics = (
             const asesor = String(r.asesor || '').trim().toLowerCase();
             if (!asesor || !fam) continue;
             const key = `${asesor}::${fam}`;
-            const v = Number(r.ventas) || 0;
+            const v = Number(r.total_productos ?? r.ventas) || 0;
             const a = Number(r.acv_total) || 0;
             const prev = vmaMap.get(key);
             if (!prev || v > prev.ventas) vmaMap.set(key, { ventas: v, acv: a, familia: fam });
@@ -1316,60 +1316,27 @@ export const useGamificationMetrics = (
             }
           });
 
-          // SOURCE OF TRUTH per asesor: vn_metricas_optimizadas (Databricks pre-agregado
-          // por asesor/mes/familia). Fallback a ventas_diarias si no hay filas.
-          const paisProfileForAsesor = String(profile.pais || '').toUpperCase();
-          const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(paisProfileForAsesor);
-          const classifyMexProduct = (tipo: string): 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO' => {
-            const t = String(tipo ?? '').toUpperCase().trim();
-            if (t === 'FE') return 'FE';
-            if (t === 'CAMPANA' || t === 'CAMPAÑA' || t === 'NUBE') return 'NUBE';
-            if (t === 'CONTADOR' || t === 'REFERIDO') return 'CONTADOR';
-            return 'OTRO';
-          };
-          const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
-
-          const mesActualNro = parseInt(mesActual.slice(4), 10); // 1-12 desde YYYYMM
-          const gerenteKey = normalizeComparableText(profile.nombre || '');
-          const vnMetricasAsesor: any[] = vnMetricasAsesorRes?.data || [];
-          const vnMetricasMes = vnMetricasAsesor.filter((r: any) => Number(r.mes_nro) === mesActualNro);
-
-          if (vnMetricasMes.length > 0) {
-            // FUENTE: vn_metricas_optimizadas scope=asesor — datos reales Databricks
-            vnMetricasMes.forEach((r: any) => {
-              const key = normalizeComparableText(r.asesor);
-              if (!key) return;
-              if (key === gerenteKey) return; // EXCLUIR al gerente explícitamente
-              const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              const u = Number(r.ventas) || 0;
-              const rawTipo = String(r.tipo_producto1 || r.familia || '').toUpperCase();
-              const fam = esMexico
-                ? classifyMexProduct(rawTipo)
-                : (String(r.familia || r.tipo_producto1 || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
-              cur.total += u;
-              cur.acv += Number(r.acv_total) || 0;
-              if (fam === 'FE') cur.fe += u;
-              else if (fam === 'NUBE') cur.nube += u;
+          const gerenteKey = normalizeComparableText(profile.nombre ?? '');
+          const mesActualNro = new Date().getMonth() + 1;
+          const ventasPorAsesor = new Map<string, {fe:number; nube:number; total:number; acv:number}>();
+          // FUENTE ÚNICA: vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
+          // NO usar ventas_diarias (tiene filas diarias → suma incorrecta)
+          const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
+          
+          vnAsesorData
+            .filter((r: any) => Number(r.mes_nro) === mesActualNro)
+            .forEach((r: any) => {
+              const key = normalizeComparableText(r.asesor ?? '');
+              if (!key || key === gerenteKey) return; // excluir gerente
+              const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+              const uds = Math.round(Number(r.total_productos) || 0);
+              const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+              if (tipo === 'FE')                          cur.fe   += uds;
+              if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
+              cur.total += uds;
+              cur.acv   += Math.round(Number(r.acv_total) || 0);
               ventasPorAsesor.set(key, cur);
             });
-          } else {
-            vnVentasDiariasRows
-              .filter((row: any) => getPeriodFromDate(row.fecha) === mesActual)
-              .forEach((row: any) => {
-                const key = normalizeComparableText(row.asesor);
-                if (!key) return;
-                if (key === gerenteKey) return; // EXCLUIR al gerente explícitamente
-                const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
-                const u = Number(row.unidades) || 0;
-                const fam = resolveProductFamily(row.producto, row.pais || paisProfileForAsesor)
-                  ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
-                cur.total += u;
-                cur.acv += Number(row.acv) || 0;
-                if (fam === 'FE') cur.fe += u;
-                else if (fam === 'NUBE') cur.nube += u;
-                ventasPorAsesor.set(key, cur);
-              });
-          }
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
           const prodByName = new Map<string, any>();
@@ -1377,20 +1344,18 @@ export const useGamificationMetrics = (
             prodByName.set(normalizeComparableText(r.asesor), r);
           });
 
-          // FUENTE MAESTRA de identidad: metas_asesores (sin novedad) — nombre oficial.
-          // Evita duplicados por variantes de nombre (truncados, etc.).
           const allAsesorKeys = new Set<string>();
+          // Fuente maestra de identidad: metas_asesores (sin novedad, sin gerente)
           metasPorAsesor.forEach((m, k) => {
-            if (k === gerenteKey) return; // excluir gerente
+            if (k === gerenteKey) return;
             const nov = String(m?.novedad ?? '').trim();
             if (nov === '' || nov === 'Sin novedad') allAsesorKeys.add(k);
           });
-          // Agregar asesores con ventas reales pero sin meta (nuevos en el mes).
-          // NO incluir prodByName.keys() — causa duplicados y trae al gerente.
+          // Agregar asesores con ventas pero sin meta
           ventasPorAsesor.forEach((_, k) => {
-            if (k === gerenteKey) return; // excluir gerente
-            allAsesorKeys.add(k);
+            if (k !== gerenteKey) allAsesorKeys.add(k);
           });
+          // NO usar prodByName.keys() — tiene nombres truncados y al gerente
 
           for (const asesorKey of allAsesorKeys) {
             const meta = metasPorAsesor.get(asesorKey);
