@@ -42,7 +42,7 @@ const AdminRachas = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState<any>({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 });
+  const [form, setForm] = useState<any>({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0, fecha_inicio: '', fecha_fin: '' });
 
   const isAdmin = profile?.role === 'admin';
 
