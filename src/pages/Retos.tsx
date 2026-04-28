@@ -114,9 +114,13 @@ const Retos = () => {
         return;
       }
 
-      const { data: retosData } = await supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id);
+      const [{ data: retosData }, { data: catalogVN }] = await Promise.all([
+        supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        supabase.from('catalogo_retos').select('*').eq('activo', true),
+      ]);
       if (cancelled) return;
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+      setVcCatalog(filterCatalogByScope((catalogVN || []) as VcCatalogReto[], profile));
       const gerenteAuto = new Set<string>();
       gerenteAuto.add(`siempre_en_la_jugada::${periodoHoy}`);
 
