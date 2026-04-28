@@ -1344,20 +1344,18 @@ export const useGamificationMetrics = (
             prodByName.set(normalizeComparableText(r.asesor), r);
           });
 
-          // FUENTE MAESTRA de identidad: metas_asesores (sin novedad) — nombre oficial.
-          // Evita duplicados por variantes de nombre (truncados, etc.).
           const allAsesorKeys = new Set<string>();
+          // Fuente maestra de identidad: metas_asesores (sin novedad, sin gerente)
           metasPorAsesor.forEach((m, k) => {
-            if (k === gerenteKey) return; // excluir gerente
+            if (k === gerenteKey) return;
             const nov = String(m?.novedad ?? '').trim();
             if (nov === '' || nov === 'Sin novedad') allAsesorKeys.add(k);
           });
-          // Agregar asesores con ventas reales pero sin meta (nuevos en el mes).
-          // NO incluir prodByName.keys() — causa duplicados y trae al gerente.
+          // Agregar asesores con ventas pero sin meta
           ventasPorAsesor.forEach((_, k) => {
-            if (k === gerenteKey) return; // excluir gerente
-            allAsesorKeys.add(k);
+            if (k !== gerenteKey) allAsesorKeys.add(k);
           });
+          // NO usar prodByName.keys() — tiene nombres truncados y al gerente
 
           for (const asesorKey of allAsesorKeys) {
             const meta = metasPorAsesor.get(asesorKey);
