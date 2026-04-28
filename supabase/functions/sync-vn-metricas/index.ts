@@ -359,7 +359,9 @@ Deno.serve(async (req) => {
       const BATCH_VGM = 500;
       for (let i = 0; i < vgmRows.length; i += BATCH_VGM) {
         const slice = vgmRows.slice(i, i + BATCH_VGM);
-        const { error } = await sb.from("ventas_gerente_mensual").insert(slice);
+        const { error } = await sb
+          .from("ventas_gerente_mensual")
+          .upsert(slice, { onConflict: "periodo,familia,celula", ignoreDuplicates: false });
         if (error) {
           console.error(`[vgm] insert batch ${i}:`, error.message);
         } else {
