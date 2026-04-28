@@ -93,8 +93,12 @@ Deno.serve(async (req) => {
       supabase.from("gerentes").select("id, nombre, canal").eq("canal", "VC").eq("activo", true),
     ]);
 
-    const retos = retosRes.data || [];
-    const rachas = rachasRes.data || [];
+    const todayStr = now.toISOString().slice(0, 10);
+    const isVigente = (item: { fecha_inicio?: string | null; fecha_fin?: string | null }) =>
+      (!item.fecha_inicio || todayStr >= item.fecha_inicio) &&
+      (!item.fecha_fin || todayStr <= item.fecha_fin);
+    const retos = (retosRes.data || []).filter(isVigente);
+    const rachas = (rachasRes.data || []).filter(isVigente);
     const gerentes = gerentesRes.data || [];
 
     if (gerentes.length === 0) {
