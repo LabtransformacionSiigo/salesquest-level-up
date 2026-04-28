@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
       supabase.from("gerentes").select("id, canal, nombre, pais").eq("activo", true),
-      supabase.from("config_rachas").select("canal, umbral_verde").eq("condicion_tipo", "ventas_semanales").eq("activo", true),
+      supabase.from("config_rachas").select("canal, umbral_verde, fecha_inicio, fecha_fin").eq("condicion_tipo", "ventas_semanales").eq("activo", true),
       supabase.from("catalogo_medallas").select("*").eq("activo", true),
     ]);
 
