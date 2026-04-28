@@ -306,19 +306,29 @@ const AdminMedallas = () => {
 
             {/* Section 3: Valores */}
             <div className="bg-muted/30 rounded-xl p-4 space-y-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valores</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valores y Vigencia</p>
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label={cantidadLabel} hint={cantidadHint}>
                     <input type="number" value={form.cantidad_requerida} onChange={e => setForm(f => ({ ...f, cantidad_requerida: Number(e.target.value) }))} className={inputClass} />
                   </Field>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label="SP otorgados" hint="Puntos que recibe el líder al desbloquear">
                     <input type="number" value={form.sp} onChange={e => setForm(f => ({ ...f, sp: Number(e.target.value) }))} className={inputClass} />
                   </Field>
                 </div>
-                <div className="col-span-4 flex items-end">
+                <div className="col-span-3">
+                  <Field label="Fecha inicio" hint="Desde cuándo aplica (vacío = sin inicio)">
+                    <input type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} className={inputClass} />
+                  </Field>
+                </div>
+                <div className="col-span-3">
+                  <Field label="Fecha fin" hint="Hasta cuándo aplica (vacío = sin límite)">
+                    <input type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} className={inputClass} />
+                  </Field>
+                </div>
+                <div className="col-span-12 flex items-end">
                   <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                     <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
                     <span className="font-medium text-foreground">Medalla activa</span>
