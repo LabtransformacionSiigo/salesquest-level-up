@@ -116,7 +116,7 @@ const Retos = () => {
 
       const [{ data: retosData }, { data: catalogVN }] = await Promise.all([
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
-        supabase.from('catalogo_retos').select('*').eq('activo', true),
+        supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
       ]);
       if (cancelled) return;
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
