@@ -309,6 +309,8 @@ Deno.serve(async (req) => {
     for (const r of rowsA as any[]) {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
+      // SOLO mes en curso para preservar histórico
+      if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const gname = String(r.gerente || "");
       const gnorm = norm(gname);
       const celula = String(r.celula || "");
