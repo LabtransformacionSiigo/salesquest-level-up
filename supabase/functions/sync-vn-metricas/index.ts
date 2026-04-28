@@ -391,6 +391,8 @@ Deno.serve(async (req) => {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
       if (!nombre || !mes) continue;
+      // SOLO mes en curso para preservar histórico
+      if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const periodo = `${anio}${MM(mes)}`;
       const pais = normalizePais(r.pais);
       const canal_direccion = normalizeCanal(r.equipo);
