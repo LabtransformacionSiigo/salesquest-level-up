@@ -70,8 +70,10 @@ export function computeSpConvencionAnualForCelula(
   const gerenteNorm = normalizeSpText(gerenteNombre);
   const { vgmRows, metaAcvRows, year } = inputs;
 
-  // 1) Metas (FE / Nube / ACV) por periodo desde metas_acv_gerentes (fuente única).
-  //    Cierre tiene prioridad sobre Inicio — NUNCA sumar ambas para no duplicar meta.
+  // FUENTE ÚNICA: metas_acv_gerentes contiene meta_fe, meta_nube y meta_total_acv.
+  // NUNCA usar metas_asesores para metas de gerentes (causaría duplicación).
+  // Prioridad Cierre > Inicio: si existe fila Cierre para un periodo, esa gana
+  // y reemplaza la de Inicio. NUNCA se suman ambas.
   const metasAcvTemp = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; archivo: string }>();
   metaAcvRows
     .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
@@ -82,10 +84,16 @@ export function computeSpConvencionAnualForCelula(
       const periodo = `${year}${mm}`;
       const archivo = String((row as any).archivo ?? '').toLowerCase();
       const existing = metasAcvTemp.get(periodo);
-      if (!existing || (archivo.includes('cierre') && !existing.archivo.includes('cierre'))) {
+      const isCierre = archivo.includes('cierre');
+      const existingIsCierre = existing?.archivo.includes('cierre') ?? false;
+      // Solo reemplazar si:
+      //  - no había nada, o
+      //  - la nueva es Cierre y la existente NO es Cierre.
+      // NUNCA acumular: siempre se reemplaza el valor, nunca se suma.
+      if (!existing || (isCierre && !existingIsCierre)) {
         metasAcvTemp.set(periodo, {
-          meta_fe: Number(row.meta_fe) || 0,
-          meta_nube: Number(row.meta_nube) || 0,
+          meta_fe: Number((row as any).meta_fe) || 0,
+          meta_nube: Number((row as any).meta_nube) || 0,
           meta_acv: Number(row.meta_total_acv) || 0,
           archivo,
         });
@@ -94,18 +102,23 @@ export function computeSpConvencionAnualForCelula(
   const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
   metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
-  // 2) Ventas reales desde ventas_gerente_mensual (match por celula o gerente_normalizado).
+  // Ventas reales desde ventas_gerente_mensual (match por celula o gerente_normalizado).
   const vgmFiltrados = vgmRows.filter((row) => {
     if (celulaNorm && normalizeSpText(row.celula) === celulaNorm) return true;
     if (gerenteNorm && normalizeSpText(row.gerente_normalizado) === gerenteNorm) return true;
     return false;
   });
 
-  // 3) SP acumulado: solo periodos con metas reales.
+  // Períodos a calcular: ventas reales + períodos con meta.
+  const periodSet = new Set<string>();
+  vgmFiltrados.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
+  metasPorPeriodo.forEach((_, p) => periodSet.add(p));
+
   let totalSp = 0;
-  metasPorPeriodo.forEach((metas, periodo) => {
+  periodSet.forEach((periodo) => {
     if (!periodo.startsWith(String(year))) return;
     const periodVgm = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
+    const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
     periodVgm.forEach((r) => {
