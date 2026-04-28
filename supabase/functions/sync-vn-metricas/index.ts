@@ -422,12 +422,12 @@ Deno.serve(async (req) => {
 
     if (ejecFinal.length > 0) {
       const paisesEjec = [...new Set(ejecFinal.map((r) => r.pais))];
+      // CRÍTICO: solo borra el periodo actual. NUNCA toca meses históricos.
       const { error: ejecDelErr } = await sb
         .from("ejecucion_asesores")
         .delete()
         .in("pais", paisesEjec)
-        .gte("periodo", `${YEAR}01`)
-        .lte("periodo", `${YEAR}12`);
+        .eq("periodo", periodoActual);
       if (ejecDelErr) console.error(`[ejec] delete previo:`, ejecDelErr.message);
 
       const BATCH_EJEC = 500;
