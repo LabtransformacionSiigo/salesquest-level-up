@@ -1088,14 +1088,9 @@ export const useGamificationMetrics = (
 
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
             const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            const metaContext = getMetaContextForPeriod(period);
-            const metas = getMetaSplitFallbackForPeriod(period, metaContext.metaTotal, metaContext.metaFe, metaContext.metaNube);
-            const mFe = metas.metaFe;
-            const mNube = metas.metaNube;
-            const mTotal = metas.metaTotal;
-            // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
-            const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
-            // Meta ACV: priorizar metas_acv_gerentes (Cierre > Inicio, NUNCA sumar ambas)
+            // FUENTE ÚNICA para meta_fe / meta_nube / meta_total_acv: metas_acv_gerentes.
+            // Priorizar Cierre > Inicio. NO usar fallback proporcional desde metas_asesores
+            // (causaba desajustes entre Rendimiento del Mes e Historial Mensual).
             const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
             const mes3ForAcv: Record<string, string> = {
               '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun',
@@ -1108,6 +1103,11 @@ export const useGamificationMetrics = (
               return rowMes === targetMes3 && normalizeComparableText(r.celula) === celulaGerenteNorm;
             });
             const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
+            const mFe = Number(catalogRowForAcv?.meta_fe) || 0;
+            const mNube = Number(catalogRowForAcv?.meta_nube) || 0;
+            const mTotal = (mFe + mNube) || Number(catalogRowForAcv?.meta_total_und) || 0;
+            // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
+            const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
