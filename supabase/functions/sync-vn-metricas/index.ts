@@ -242,19 +242,24 @@ Deno.serve(async (req) => {
     ]);
     console.log(`← A=${rowsA.length} B=${rowsB.length} C=${rowsC.length}`);
 
-    // Limpia datos previos por país tocado, para evitar registros huérfanos
-    // si una célula/asesor desaparece del origen.
+    // Limpia SOLO el mes en curso por país tocado. NUNCA toca meses históricos.
     const paisesTocados = new Set<string>();
     rowsA.forEach((r: any) => paisesTocados.add(normalizePais(r.pais)));
     rowsB.forEach((r: any) => paisesTocados.add(normalizePais(r.pais)));
     if (rowsC.length) paisesTocados.add("MEX");
 
+    const _now = new Date();
+    const _mesActualNum = _now.getMonth() + 1;
+    const periodoActual = `${_now.getFullYear()}${String(_mesActualNum).padStart(2, "0")}`;
+
     if (paisesTocados.size > 0) {
       const { error: delErr } = await sb
         .from("vn_metricas_optimizadas")
         .delete()
+        .eq("anio", _now.getFullYear())
+        .eq("mes_nro", _mesActualNum)
         .in("pais", [...paisesTocados]);
-      if (delErr) throw new Error(`delete previo: ${delErr.message}`);
+      if (delErr) throw new Error(`delete previo vn_metricas: ${delErr.message}`);
     }
 
     const records = mergeByUniqueGrain([
@@ -263,15 +268,20 @@ Deno.serve(async (req) => {
       ...rowsC.map((r: any) => buildRecord(r, "asesor")),
     ]);
 
+    // Filtrar SOLO al mes en curso para no tocar histórico
+    const recordsMesActual = records.filter(
+      (r) => r.anio === _now.getFullYear() && r.mes_nro === _mesActualNum,
+    );
+
     const BATCH = 500;
     let inserted = 0;
-    for (let i = 0; i < records.length; i += BATCH) {
-      const slice = records.slice(i, i + BATCH);
+    for (let i = 0; i < recordsMesActual.length; i += BATCH) {
+      const slice = recordsMesActual.slice(i, i + BATCH);
       const { error } = await sb.from("vn_metricas_optimizadas").insert(slice);
       if (error) throw new Error(`insert batch ${i}: ${error.message}`);
       inserted += slice.length;
     }
-    console.log(`✓ vn_metricas_optimizadas insertadas: ${inserted}`);
+    console.log(`✓ vn_metricas_optimizadas insertadas (mes ${periodoActual}): ${inserted}`);
 
     // ── Replicar rowsA (gerente level) a ventas_gerente_mensual ─────────
     // rowsA ya viene agregado por celula/mes/familia desde QUERY_A_GERENTE.
@@ -299,6 +309,8 @@ Deno.serve(async (req) => {
     for (const r of rowsA as any[]) {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
+      // SOLO mes en curso para preservar histórico
+      if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const gname = String(r.gerente || "");
       const gnorm = norm(gname);
       const celula = String(r.celula || "");
@@ -336,12 +348,12 @@ Deno.serve(async (req) => {
 
     if (vgmRows.length > 0) {
       const paisesVgm = [...new Set(vgmRows.map((r) => r.pais))];
+      // CRÍTICO: solo borra el periodo actual. NUNCA toca meses históricos.
       const { error: vgmDelErr } = await sb
         .from("ventas_gerente_mensual")
         .delete()
         .in("pais", paisesVgm)
-        .gte("periodo", `${YEAR}01`)
-        .lte("periodo", `${YEAR}12`);
+        .eq("periodo", periodoActual);
       if (vgmDelErr) console.error(`[vgm] delete previo:`, vgmDelErr.message);
 
       const BATCH_VGM = 500;
@@ -379,6 +391,8 @@ Deno.serve(async (req) => {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
       if (!nombre || !mes) continue;
+      // SOLO mes en curso para preservar histórico
+      if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const periodo = `${anio}${MM(mes)}`;
       const pais = normalizePais(r.pais);
       const canal_direccion = normalizeCanal(r.equipo);
@@ -408,12 +422,12 @@ Deno.serve(async (req) => {
 
     if (ejecFinal.length > 0) {
       const paisesEjec = [...new Set(ejecFinal.map((r) => r.pais))];
+      // CRÍTICO: solo borra el periodo actual. NUNCA toca meses históricos.
       const { error: ejecDelErr } = await sb
         .from("ejecucion_asesores")
         .delete()
         .in("pais", paisesEjec)
-        .gte("periodo", `${YEAR}01`)
-        .lte("periodo", `${YEAR}12`);
+        .eq("periodo", periodoActual);
       if (ejecDelErr) console.error(`[ejec] delete previo:`, ejecDelErr.message);
 
       const BATCH_EJEC = 500;

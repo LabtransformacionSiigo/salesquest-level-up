@@ -209,24 +209,26 @@ const AdminDatabricks = () => {
   };
 
   const handleSyncVnChain = async () => {
-    if (!confirm('Sincronizará VN del mes en curso en cadena: Gerentes → Asesores LATAM → Asesores MEX. Cada paso dispara el siguiente automáticamente. ¿Continuar?')) return;
+    if (!confirm('Sincronizará VN del mes en curso: LATAM (sync-vn-metricas) → México (sync-vn-mexico). ¿Continuar?')) return;
     setVnChainRunning(true);
-    setVnChainMsg('Disparando sync-vn-gerentes... (asesores LATAM y México se sincronizan automáticamente en cadena)');
+    setVnChainMsg('Sincronizando métricas VN LATAM...');
     try {
-      const { data, error } = await supabase.functions.invoke('sync-vn-gerentes', { body: { force: true } });
-      if (error) throw new Error(error.message);
-      const r = data as any;
-      if (!r?.success) {
-        setVnChainMsg(`✗ Error en paso 1: ${r?.error || 'desconocido'}`);
-      } else {
-        setVnChainMsg(
-          `✓ Paso 1/3 completo · periodo ${r.periodo_actual} · ${r.ventas_gerente_mensual_insertadas} filas en gerentes. Asesores LATAM y México corriendo en background…`
-        );
-      }
+      const { data: r1, error: e1 } = await supabase.functions.invoke('sync-vn-metricas', { body: {} });
+      if (e1) throw new Error(`LATAM: ${e1.message}`);
+      const vgm = (r1 as any)?.vgm_inserted ?? 0;
+      const ejec = (r1 as any)?.ejec_inserted ?? 0;
+      setVnChainMsg(`LATAM OK (${vgm} gerentes · ${ejec} asesores). Sincronizando México...`);
+
+      const { data: r2, error: e2 } = await supabase.functions.invoke('sync-vn-mexico', { body: {} });
+      if (e2) throw new Error(`México: ${e2.message}`);
+      const mxIns = (r2 as any)?.ventas_diarias_insertadas ?? (r2 as any)?.inserted ?? 0;
+      const mxVgm = (r2 as any)?.ventas_gerente_mensual_insertadas ?? 0;
+
+      setVnChainMsg(`✓ Sync VN completo · LATAM: ${vgm} gerentes / ${ejec} asesores · México: ${mxIns} ventas / ${mxVgm} agregados`);
     } catch (err: any) {
       setVnChainMsg(`✗ Error: ${err?.message || 'desconocido'}`);
     } finally {
-      setTimeout(() => setVnChainRunning(false), 3000);
+      setVnChainRunning(false);
     }
   };
 
@@ -302,58 +304,24 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
-        {/* Sincronizar Metas Históricas (Ene-Abr) */}
-        <div className="bg-gradient-to-br from-primary/10 to-secondary/5 border border-primary/30 rounded-2xl p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <MI icon="history_edu" className="text-primary" />
-                Sincronizar Metas Históricas (Ene–Abr 2026)
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                Carga las metas históricas a nivel <strong>célula</strong> desde <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">tbl_brz_cuotas_asesores</code> (Aliados / SMBS / Empresarios) hacia <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>. Útil cuando el Historial Mensual del equipo muestra "—" en FE/Nube/Total para meses anteriores.
-              </p>
-              {historicasMsg && (
-                <p className={cn("text-xs font-semibold mt-2", historicasMsg.startsWith('✓') ? 'text-secondary' : historicasMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
-                  {historicasMsg}
-                </p>
-              )}
-            </div>
-            <Button
-              onClick={handleSyncMetasHistoricas}
-              disabled={historicasRunning}
-              variant="default"
-              size="sm"
-              className="text-xs whitespace-nowrap"
-            >
-              {historicasRunning ? (
-                <span className="flex items-center gap-1.5">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
-                  Sincronizando...
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5">
-                  <MI icon="cloud_download" className="text-sm" />
-                  Sincronizar Metas Históricas
-                </span>
-              )}
-            </Button>
-          </div>
+
+        {/* ═══════════════ SECCIÓN VENTA NUEVA ═══════════════ */}
+        <div className="flex items-center gap-2 pt-2">
+          <MI icon="storefront" className="text-secondary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Venta Nueva</h2>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Sync VN Métricas (3 funciones encadenadas) */}
+        {/* Sync VN Métricas (LATAM + México) */}
         <div className="bg-gradient-to-br from-secondary/10 to-primary/5 border border-secondary/30 rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <MI icon="bolt" className="text-secondary" />
-                Sync VN Métricas (encadenado)
+                Forzar Sync VN
               </h3>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                Refresca el <strong>mes en curso</strong> de Venta Nueva en 3 pasos asíncronos:
-                <br />
-                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-gerentes</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-latam</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-mex</code>.
-                Cada paso dispara el siguiente (fire &amp; forget) para evitar timeouts. Los meses históricos NO se tocan.
+                Actualiza ventas del día de gerentes y asesores VN (Colombia, Ecuador, Uruguay y México). Ejecuta <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-metricas</code> (LATAM) seguido de <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-mexico</code>. Solo refresca el <strong>mes en curso</strong>; los meses históricos no se tocan.
               </p>
               {vnChainMsg && (
                 <p className={cn("text-xs font-semibold mt-2", vnChainMsg.startsWith('✓') ? 'text-secondary' : vnChainMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
@@ -371,12 +339,12 @@ const AdminDatabricks = () => {
               {vnChainRunning ? (
                 <span className="flex items-center gap-1.5">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
-                  Iniciando...
+                  Sincronizando...
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5">
                   <MI icon="bolt" className="text-sm" />
-                  Sincronizar VN
+                  Forzar Sync VN
                 </span>
               )}
             </Button>
@@ -426,6 +394,13 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
+        {/* ═══════════════ SECCIÓN VENTA CRUZADA ═══════════════ */}
+        <div className="flex items-center gap-2 pt-2">
+          <MI icon="swap_horiz" className="text-primary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Venta Cruzada</h2>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
         {/* Status cards per table */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Array.from(latestByTable.entries()).map(([tableName, job]) => {
@@ -448,6 +423,51 @@ const AdminDatabricks = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* ═══════════════ SECCIÓN METAS HISTÓRICAS (compartida) ═══════════════ */}
+        <div className="flex items-center gap-2 pt-2">
+          <MI icon="history_edu" className="text-primary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Metas Históricas</h2>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        <div className="bg-gradient-to-br from-primary/10 to-secondary/5 border border-primary/30 rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <MI icon="history_edu" className="text-primary" />
+                Sincronizar Metas Históricas (Ene–Abr 2026)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Carga las metas históricas a nivel <strong>célula</strong> desde <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">tbl_brz_cuotas_asesores</code> hacia <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">metas_asesores</code>. Solo ejecutar el día 5 del mes para cargar las metas FE/Nube/ACV definitivas.
+              </p>
+              {historicasMsg && (
+                <p className={cn("text-xs font-semibold mt-2", historicasMsg.startsWith('✓') ? 'text-secondary' : historicasMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
+                  {historicasMsg}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleSyncMetasHistoricas}
+              disabled={historicasRunning}
+              variant="default"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+            >
+              {historicasRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
+                  Sincronizando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MI icon="cloud_download" className="text-sm" />
+                  Sincronizar Metas
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* History timeline */}
