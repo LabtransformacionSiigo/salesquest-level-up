@@ -39,7 +39,10 @@ const Dashboard = () => {
 
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
-  const sp = spAnualStore ?? spAnualSelf ?? (profile as any)?.sp_totales ?? 0;
+  const isVC = profile?.canal === 'VC';
+  const sp = isVC
+    ? ((profile as any)?.sp_totales ?? 0)
+    : (spAnualStore ?? spAnualSelf ?? (profile as any)?.sp_totales ?? 0);
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
   // Period options: current year months + last 3 months of previous year

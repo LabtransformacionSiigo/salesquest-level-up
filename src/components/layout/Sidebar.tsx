@@ -58,7 +58,9 @@ const Sidebar = () => {
   const isEspecialista = profile?.role === 'especialista';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
-  const spDisplay = spAnual ?? spAnualSelf ?? profile?.sp_totales ?? 0;
+  const spDisplay = profile?.canal === 'VC'
+    ? (profile?.sp_totales ?? 0)
+    : (spAnual ?? spAnualSelf ?? profile?.sp_totales ?? 0);
 
   return (
     <aside className="w-[240px] bg-sidebar flex flex-col flex-shrink-0 border-r border-sidebar-border relative">
