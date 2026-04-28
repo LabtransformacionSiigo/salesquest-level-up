@@ -69,6 +69,8 @@ const AdminRachas = () => {
       multiplicador_sp: Number(form.multiplicador_sp) || 1.0,
       familia_vc: form.canal === 'VC' ? form.familia_vc : null,
       dias_lun_mie: !!form.dias_lun_mie,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
     };
     if (editing) {
       const { error } = await supabase.from('config_rachas').update(payload).eq('id', editing);
