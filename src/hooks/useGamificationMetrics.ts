@@ -864,7 +864,7 @@ export const useGamificationMetrics = (
             const asesor = String(r.asesor || '').trim().toLowerCase();
             if (!asesor || !fam) continue;
             const key = `${asesor}::${fam}`;
-            const v = Number(r.ventas) || 0;
+            const v = Number(r.total_productos ?? r.ventas) || 0;
             const a = Number(r.acv_total) || 0;
             const prev = vmaMap.get(key);
             if (!prev || v > prev.ventas) vmaMap.set(key, { ventas: v, acv: a, familia: fam });
