@@ -120,6 +120,8 @@ const AdminMedallas = () => {
     sp: 100,
     emoji: '🏅',
     activo: true,
+    fecha_inicio: '',
+    fecha_fin: '',
   });
 
   const startEdit = (m: any) => {
@@ -140,6 +142,8 @@ const AdminMedallas = () => {
       sp: m.sp,
       emoji: m.emoji || '🏅',
       activo: m.activo,
+      fecha_inicio: m.fecha_inicio || '',
+      fecha_fin: m.fecha_fin || '',
     });
     setShowAdd(true);
   };
