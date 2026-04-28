@@ -557,6 +557,9 @@ export const useGamificationMetrics = (
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
         let vnCurrentMetaTotal = 0;
+        // FUENTE ÚNICA VN GERENTES — compartido entre Rendimiento del Mes (gerente block)
+        // e Historial Mensual (vnMonthlyCumpl block).
+        let vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
         let getMetaContextForPeriod = (_period: string) => ({
           rows: [] as any[],
           asesoresConNovedad: new Set<string>(),
@@ -845,15 +848,43 @@ export const useGamificationMetrics = (
           }
           const vmaTotal = vmaFe + vmaNube + vmaContador;
 
-          // FUENTE DE VERDAD #2: ventas_gerente_mensual (Databricks pre-agregado por gerente).
-          const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
-            .filter((r: any) => String(r.periodo) === mesActual);
-          const vgmHasMonth = vgmRows.length > 0;
-          const vgmFe = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'FE' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmNube = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'NUBE' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmContador = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'CONTADOR' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmTotal = vgmFe + vgmNube + vgmContador;
-          const vgmAcv = vgmRows.reduce((s, r) => s + (Number(r.acv) || 0), 0);
+          // ⭐ FUENTE ÚNICA VN GERENTES:
+          //   ventas_gerente_mensual (filtrada por celula) → vgmDeduped Map
+          //   → vgmHasMonth + vgmFe/Nube/Acv (Rendimiento del Mes)
+          //   → ejecByPeriod (Historial Mensual)
+          //   NUNCA usar fuentes distintas para estos dos componentes.
+          // Deduplicar por (periodo, familia) para evitar doble suma si la tabla
+          // contiene filas duplicadas (sync histórico + replicación nueva).
+          const vgmAllRowsForMap: any[] = ventasGerenteMensualRes?.data || [];
+          vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          // Agrupamos primero por (periodo, familia) tomando el MAX de unidades/acv
+          // para colapsar duplicados sin doblar el conteo cuando hay 2 filas idénticas.
+          const vgmFamMax = new Map<string, { uds: number; acv: number }>();
+          vgmAllRowsForMap.forEach((r: any) => {
+            const period = String(r.periodo || '');
+            const fam = String(r.familia || '').toUpperCase();
+            if (!period || !fam) return;
+            const k = `${period}::${fam}`;
+            const uds = Math.round(Number(r.unidades) || 0);
+            const acvV = Math.round(Number(r.acv) || 0);
+            const prev = vgmFamMax.get(k);
+            if (!prev || uds > prev.uds) vgmFamMax.set(k, { uds, acv: acvV });
+          });
+          vgmFamMax.forEach((val, k) => {
+            const [period, fam] = k.split('::');
+            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (fam === 'FE') cur.fe += val.uds;
+            else if (fam === 'NUBE') cur.nube += val.uds;
+            cur.total += val.uds; // FE + NUBE + CONTADOR + OTRO
+            cur.acv += val.acv;
+            vgmDeduped.set(period, cur);
+          });
+          const vgmMesActual = vgmDeduped.get(mesActual) || { fe: 0, nube: 0, total: 0, acv: 0 };
+          const vgmHasMonth = vgmDeduped.has(mesActual);
+          const vgmFe = vgmMesActual.fe;
+          const vgmNube = vgmMesActual.nube;
+          const vgmTotal = vgmMesActual.total;
+          const vgmAcv = vgmMesActual.acv;
 
           // SOURCE OF TRUTH for VN gerente team totals: vn_metricas_optimizadas → ventas_gerente_mensual
           // → ventas_diarias raw → ejecucion_asesores como último respaldo.
@@ -1043,64 +1074,19 @@ export const useGamificationMetrics = (
               .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
 
           // Aggregate FE/Nube/Total per month.
-          // ⭐ Prioridad: ventas_gerente_mensual (Databricks oficial por gerente),
-          // luego ventas_diarias, luego ejecucion_asesores como respaldo.
+          // ⭐ FUENTE ÚNICA: vgmDeduped (ventas_gerente_mensual filtrada por celula
+          // y deduplicada por periodo+familia). Garantiza que Rendimiento del Mes
+          // e Historial Mensual coincidan exactamente — ambos leen del mismo Map.
           const ejecByPeriod = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          const vgmPeriodsWithData = new Set<string>(vgmDeduped.keys());
+          vgmDeduped.forEach((v, period) => {
+            ejecByPeriod.set(period, { fe: v.fe, nube: v.nube, total: v.total, acv: v.acv });
+          });
 
-          // ⭐ PRIORIDAD #1: vn_metricas_optimizadas (scope='asesor') por TODOS los meses.
-          // Misma fuente que "Rendimiento del Mes" → garantiza que el Historial Mensual
-          // coincida exactamente con la card del mes actual. Dedupe por (period, asesor, familia)
-          // tomando el max para resolver duplicados por variantes del nombre del gerente.
-          const vmaAllRows: any[] = vnMetricasAsesorRes?.data || [];
-          const vmaPeriodsWithData = new Set<string>();
-          if (vmaAllRows.length > 0) {
-            const vmaPeriodMap = new Map<string, Map<string, { v: number; a: number; fam: string }>>();
-            for (const r of vmaAllRows) {
-              const mn = Number(r.mes_nro);
-              if (!mn) continue;
-              const period = `${anioActual}${String(mn).padStart(2, '0')}`;
-              const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
-              const asesor = String(r.asesor || '').trim().toLowerCase();
-              if (!asesor || !fam) continue;
-              const key = `${asesor}::${fam}`;
-              if (!vmaPeriodMap.has(period)) vmaPeriodMap.set(period, new Map());
-              const inner = vmaPeriodMap.get(period)!;
-              const v = Number(r.ventas) || 0;
-              const a = Number(r.acv_total) || 0;
-              const prev = inner.get(key);
-              if (!prev || v > prev.v) inner.set(key, { v, a, fam });
-            }
-            vmaPeriodMap.forEach((inner, period) => {
-              const cur = { fe: 0, nube: 0, total: 0, acv: 0 };
-              inner.forEach((val) => {
-                if (val.fam === 'FE') cur.fe += val.v;
-                else if (val.fam === 'NUBE') cur.nube += val.v;
-                cur.total += val.v;
-                cur.acv += val.a;
-              });
-              ejecByPeriod.set(period, cur);
-              vmaPeriodsWithData.add(period);
-            });
-          }
-
-          // PRIORIDAD #2: ventas_gerente_mensual SOLO para periodos sin data en vma.
-          const vgmAllRows: any[] = ventasGerenteMensualRes?.data || [];
-          const vgmPeriodsWithData = new Set<string>();
-          if (vgmAllRows.length > 0) {
-            vgmAllRows.forEach((r: any) => {
-              const period = String(r.periodo || '');
-              if (vmaPeriodsWithData.has(period)) return; // ya cubierto por vma
-              const fam = String(r.familia || '').toUpperCase();
-              const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              const uds = Math.round(Number(r.unidades) || 0);
-              if (fam === 'FE') cur.fe += uds;
-              else if (fam === 'NUBE') cur.nube += uds;
-              cur.total += uds; // FE + NUBE + CONTADOR
-              cur.acv += Math.round(Number(r.acv) || 0);
-              ejecByPeriod.set(period, cur);
-              vgmPeriodsWithData.add(period);
-            });
-          }
+          // Periodos sin data en vgm: NO usar vma como fallback (causaba desajustes).
+          // Mantener fallback final a ventas_diarias / ejecucion_asesores solo si
+          // tampoco hay vgm para ese periodo.
+          const vmaPeriodsWithData = new Set<string>(); // legado: vacío para no contaminar.
 
           // Para periodos SIN data en vgm, usar ventas_diarias o ejecucion_asesores
           const ventasBaseForHistory = vnVentasDiariasRows.length > 0
