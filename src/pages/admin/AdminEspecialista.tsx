@@ -806,6 +806,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
             </>
           )}
 
+          <Field label="Vigencia desde" hint="Vacío = sin inicio">
+            <Input type="date" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} />
+          </Field>
+          <Field label="Vigencia hasta" hint="Vacío = sin límite">
+            <Input type="date" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} />
+          </Field>
+
           <div className="col-span-2 flex items-center gap-2">
             <Switch checked={!!form.activo} onCheckedChange={(v) => setForm({ ...form, activo: v })} />
             <span className="text-sm text-foreground font-medium">Activo</span>
