@@ -114,9 +114,13 @@ const Retos = () => {
         return;
       }
 
-      const { data: retosData } = await supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id);
+      const [{ data: retosData }, { data: catalogVN }] = await Promise.all([
+        supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        supabase.from('catalogo_retos').select('*').eq('activo', true),
+      ]);
       if (cancelled) return;
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+      setVcCatalog(filterCatalogByScope((catalogVN || []) as VcCatalogReto[], profile));
       const gerenteAuto = new Set<string>();
       gerenteAuto.add(`siempre_en_la_jugada::${periodoHoy}`);
 
@@ -351,16 +355,19 @@ const Retos = () => {
               <>
                 <TabsContent value="diarios">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'DIARIO').map((r) => renderVcCard(r, periodoHoy))}
                     {RETOS_DIARIOS.map((r, i) => renderCard(r, periodoHoy, i))}
                   </motion.div>
                 </TabsContent>
                 <TabsContent value="semanales">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'SEMANAL').map((r) => renderVcCard(r, periodoSemana))}
                     {RETOS_SEMANALES.map((r, i) => renderCard(r, periodoSemana, i))}
                   </motion.div>
                 </TabsContent>
                 <TabsContent value="mensuales">
                   <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                    {vcCatalog.filter(r => normalizeCatalogWindow(r.ventana_tiempo) === 'MENSUAL').map((r) => renderVcCard(r, periodoMes))}
                     {RETOS_MENSUALES.map((r, i) => renderCard(r, periodoMes, i))}
                   </motion.div>
                 </TabsContent>
