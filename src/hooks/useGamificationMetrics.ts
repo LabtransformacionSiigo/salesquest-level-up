@@ -1117,6 +1117,7 @@ export const useGamificationMetrics = (
             : vnTeamEjecAll;
           ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
+            if (vmaPeriodsWithData.has(period)) return; // ya cubierto por vma
             if (vgmPeriodsWithData.has(period)) return; // ya cubierto por vgm
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             cur.fe += Math.round(Number(e.ventas_fe) || 0);
