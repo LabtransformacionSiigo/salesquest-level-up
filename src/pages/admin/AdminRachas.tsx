@@ -171,6 +171,12 @@ const AdminRachas = () => {
               <Field label="Descripción">
                 <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" className={inputClass} />
               </Field>
+              <Field label="Vigencia desde" hint="Vacío = sin inicio">
+                <input type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} className={inputClass} />
+              </Field>
+              <Field label="Vigencia hasta" hint="Vacío = sin límite">
+                <input type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} className={inputClass} />
+              </Field>
               <div className="flex items-end gap-4 col-span-2">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
