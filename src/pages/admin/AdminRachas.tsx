@@ -116,7 +116,7 @@ const AdminRachas = () => {
             <h2 className="text-lg font-bold text-foreground">Configuración de Rachas</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Define los umbrales semanales por canal para activar rachas</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 }); }}>
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0, fecha_inicio: '', fecha_fin: '' }); }}>
             <MI icon="add_circle" className="text-sm mr-1" /> Nueva Racha
           </Button>
         </div>
