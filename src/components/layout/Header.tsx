@@ -25,7 +25,9 @@ const Header = ({ title }: HeaderProps) => {
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
-  const spDisplay = spAnual ?? spAnualSelf ?? profile?.sp_totales ?? 0;
+  const spDisplay = profile?.canal === 'VC'
+    ? (profile?.sp_totales ?? 0)
+    : (spAnual ?? spAnualSelf ?? profile?.sp_totales ?? 0);
 
   useEffect(() => {
     if (!profile?.id) return;
