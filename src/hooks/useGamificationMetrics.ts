@@ -848,8 +848,8 @@ export const useGamificationMetrics = (
             const totalAcvProd = currentMonthRows.reduce((s: number, r: any) => s + normalizeStoredAcv(r.acv_f), 0);
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
 
-            // ACV: prioriza ventas_gerente_mensual (Databricks oficial)
-            const totalAcv = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : totalAcvProd;
+            // ACV: prioriza vn_metricas_optimizadas / ventas_gerente_mensual (Databricks oficial)
+            const totalAcv = (vmaHasMonth || vgmHasMonth) && teamAcvFromVgm > 0 ? teamAcvFromVgm : totalAcvProd;
 
             acvMes = totalAcv;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((totalAcv / metaAcvEquipo) * 100) : 0;
