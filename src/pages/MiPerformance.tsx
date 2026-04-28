@@ -39,8 +39,8 @@ const MiPerformance = () => {
   const spAnualSelf = useSpConvencionAnualSelf(profile);
 
   const canal = profile?.canal;
-  const isVC = canal === 'VC';
-  const spConvencionDisplay = isVC
+  const isVCChannel = canal === 'VC';
+  const spConvencionDisplay = isVCChannel
     ? ((profile as any)?.sp_totales ?? 0)
     : (spAnualStore ?? spAnualSelf ?? 0);
   const isAliados = canal === 'VN_ALIADOS';
