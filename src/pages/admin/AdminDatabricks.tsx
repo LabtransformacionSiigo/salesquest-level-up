@@ -79,6 +79,8 @@ const AdminDatabricks = () => {
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
   const [historicasRunning, setHistoricasRunning] = useState(false);
   const [historicasMsg, setHistoricasMsg] = useState<string | null>(null);
+  const [vnChainRunning, setVnChainRunning] = useState(false);
+  const [vnChainMsg, setVnChainMsg] = useState<string | null>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
