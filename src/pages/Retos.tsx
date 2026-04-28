@@ -63,6 +63,8 @@ interface VcCatalogReto {
   umbral: number;
   sp_otorgados: number;
   objetivo_descripcion: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
 }
 
 const Retos = () => {
