@@ -517,6 +517,27 @@ export const useGamificationMetrics = (
 
         const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes] = results as any[];
 
+        // Filtrado client-side robusto para gerentes VN: si la query trajo más
+        // filas de las del propio gerente (caso fallback sin celula), nos
+        // quedamos solo con su celula o, en su defecto, con su nombre normalizado.
+        if (isVN && profile.role !== 'asesor' && profile.nombre) {
+          const targetCelula = normalizeComparableText(profile.celula ?? '');
+          const targetNombre = normalizeComparableText(profile.nombre);
+          const matchVnRow = (r: any) => {
+            const rowCelula = normalizeComparableText(r.celula ?? '');
+            const rowNombre = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? '');
+            if (targetCelula && rowCelula === targetCelula) return true;
+            if (rowNombre && targetNombre && (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre))) return true;
+            return false;
+          };
+          if (ventasGerenteMensualRes?.data) {
+            ventasGerenteMensualRes.data = (ventasGerenteMensualRes.data as any[]).filter(matchVnRow);
+          }
+          if (vnMetricasAsesorRes?.data) {
+            vnMetricasAsesorRes.data = (vnMetricasAsesorRes.data as any[]).filter(matchVnRow);
+          }
+        }
+
         const weekRevenue = (ventasSemanaRes.data || []).reduce((s: number, v: any) => s + (Number(v.valor_producto) || 0), 0);
         const acvRows = acvRes.data || [];
 
