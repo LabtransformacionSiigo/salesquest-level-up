@@ -47,6 +47,24 @@ const Dashboard = () => {
     : (spAnualStore ?? spAnualSelf ?? (profile as any)?.sp_totales ?? 0);
   const { kpis, racha, medallas, feed, acvMes, ventasSemana, pctCumplimiento, topRanking, loading: dataLoading, isVcAdvisor, teamAsesorPerformance } = metrics;
 
+  // Catálogo dinámico de retos semanales filtrado por canal/país del usuario
+  const [catalogRetosSemana, setCatalogRetosSemana] = useState<any[]>([]);
+  useEffect(() => {
+    if (!profile?.canal) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('catalogo_retos')
+        .select('*')
+        .eq('activo', true)
+        .or(`canal.eq.${profile.canal},canal.is.null`);
+      if (cancelled) return;
+      const semanales = (data || []).filter((r: any) => normalizeCatalogWindow(r.ventana_tiempo) === 'SEMANAL');
+      setCatalogRetosSemana(filterCatalogByScope(semanales as any[], profile));
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role]);
+
   // Period options: current year months + last 3 months of previous year
   const periodoOptions = (() => {
     const opts: { value: string; label: string }[] = [];
