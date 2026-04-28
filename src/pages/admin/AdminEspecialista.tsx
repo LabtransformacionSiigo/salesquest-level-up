@@ -486,6 +486,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
       gerente_id: showGerenteSelector ? (form.gerente_id || null) : null,
       activo: form.activo,
       emoji: form.emoji,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
     };
     if (tipo === 'reto') {
       payload = {
