@@ -1330,13 +1330,16 @@ export const useGamificationMetrics = (
           const ventasPorAsesor = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
 
           const mesActualNro = parseInt(mesActual.slice(4), 10); // 1-12 desde YYYYMM
+          const gerenteKey = normalizeComparableText(profile.nombre || '');
           const vnMetricasAsesor: any[] = vnMetricasAsesorRes?.data || [];
           const vnMetricasMes = vnMetricasAsesor.filter((r: any) => Number(r.mes_nro) === mesActualNro);
 
           if (vnMetricasMes.length > 0) {
+            // FUENTE: vn_metricas_optimizadas scope=asesor — datos reales Databricks
             vnMetricasMes.forEach((r: any) => {
               const key = normalizeComparableText(r.asesor);
               if (!key) return;
+              if (key === gerenteKey) return; // EXCLUIR al gerente explícitamente
               const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
               const u = Number(r.ventas) || 0;
               const rawTipo = String(r.tipo_producto1 || r.familia || '').toUpperCase();
@@ -1355,6 +1358,7 @@ export const useGamificationMetrics = (
               .forEach((row: any) => {
                 const key = normalizeComparableText(row.asesor);
                 if (!key) return;
+                if (key === gerenteKey) return; // EXCLUIR al gerente explícitamente
                 const cur = ventasPorAsesor.get(key) || { fe: 0, nube: 0, total: 0, acv: 0 };
                 const u = Number(row.unidades) || 0;
                 const fam = resolveProductFamily(row.producto, row.pais || paisProfileForAsesor)
@@ -1373,20 +1377,19 @@ export const useGamificationMetrics = (
             prodByName.set(normalizeComparableText(r.asesor), r);
           });
 
-          // FUENTE MAESTRA de identidad: metas_asesores (nombre oficial Databricks,
-          // sin novedad). Evita duplicados por variantes de nombre (truncados, etc.)
-          // entre prodByName / ventasPorAsesor.
-          const allAsesorKeys = new Set<string>(
-            [...metasPorAsesor.keys()].filter((k) => {
-              const m = metasPorAsesor.get(k);
-              const nov = (m?.novedad ?? '').toString().trim();
-              return nov === '' || nov === 'Sin novedad';
-            })
-          );
-          // Agregar asesores con ventas pero sin meta (nuevos en el mes).
-          // NO agregar prodByName.keys() — sus nombres truncados causan duplicados.
+          // FUENTE MAESTRA de identidad: metas_asesores (sin novedad) — nombre oficial.
+          // Evita duplicados por variantes de nombre (truncados, etc.).
+          const allAsesorKeys = new Set<string>();
+          metasPorAsesor.forEach((m, k) => {
+            if (k === gerenteKey) return; // excluir gerente
+            const nov = String(m?.novedad ?? '').trim();
+            if (nov === '' || nov === 'Sin novedad') allAsesorKeys.add(k);
+          });
+          // Agregar asesores con ventas reales pero sin meta (nuevos en el mes).
+          // NO incluir prodByName.keys() — causa duplicados y trae al gerente.
           ventasPorAsesor.forEach((_, k) => {
-            if (!allAsesorKeys.has(k)) allAsesorKeys.add(k);
+            if (k === gerenteKey) return; // excluir gerente
+            allAsesorKeys.add(k);
           });
 
           for (const asesorKey of allAsesorKeys) {
