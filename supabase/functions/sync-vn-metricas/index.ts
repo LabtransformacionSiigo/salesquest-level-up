@@ -268,15 +268,20 @@ Deno.serve(async (req) => {
       ...rowsC.map((r: any) => buildRecord(r, "asesor")),
     ]);
 
+    // Filtrar SOLO al mes en curso para no tocar histórico
+    const recordsMesActual = records.filter(
+      (r) => r.anio === _now.getFullYear() && r.mes_nro === _mesActualNum,
+    );
+
     const BATCH = 500;
     let inserted = 0;
-    for (let i = 0; i < records.length; i += BATCH) {
-      const slice = records.slice(i, i + BATCH);
+    for (let i = 0; i < recordsMesActual.length; i += BATCH) {
+      const slice = recordsMesActual.slice(i, i + BATCH);
       const { error } = await sb.from("vn_metricas_optimizadas").insert(slice);
       if (error) throw new Error(`insert batch ${i}: ${error.message}`);
       inserted += slice.length;
     }
-    console.log(`✓ vn_metricas_optimizadas insertadas: ${inserted}`);
+    console.log(`✓ vn_metricas_optimizadas insertadas (mes ${periodoActual}): ${inserted}`);
 
     // ── Replicar rowsA (gerente level) a ventas_gerente_mensual ─────────
     // rowsA ya viene agregado por celula/mes/familia desde QUERY_A_GERENTE.
