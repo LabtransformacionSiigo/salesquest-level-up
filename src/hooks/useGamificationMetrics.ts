@@ -771,9 +771,35 @@ export const useGamificationMetrics = (
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
 
-          // ⭐ FUENTE DE VERDAD: ventas_gerente_mensual (Databricks pre-agregado por gerente).
-          // Si hay filas para este gerente en este mes, sobreescribe los conteos
-          // FE / NUBE / TOTAL / ACV con los valores oficiales de Databricks.
+          // ⭐ FUENTE DE VERDAD #1: vn_metricas_optimizadas (scope='asesor', Databricks pre-agregado).
+          // Las filas pueden venir duplicadas por variantes del nombre del gerente
+          // (ej. "Diana Naranjo" y "Diana Maria Naranjo Mattheus"), por lo que
+          // deduplicamos por (asesor, familia) tomando el valor más alto disponible.
+          const mesNroActual = parseInt(mesActual.slice(4), 10);
+          const vnMetAsesorRowsAll: any[] = (vnMetricasAsesorRes?.data || [])
+            .filter((r: any) => Number(r.mes_nro) === mesNroActual);
+          const vmaMap = new Map<string, { ventas: number; acv: number; familia: string }>();
+          for (const r of vnMetAsesorRowsAll) {
+            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+            const asesor = String(r.asesor || '').trim().toLowerCase();
+            if (!asesor || !fam) continue;
+            const key = `${asesor}::${fam}`;
+            const v = Number(r.ventas) || 0;
+            const a = Number(r.acv_total) || 0;
+            const prev = vmaMap.get(key);
+            if (!prev || v > prev.ventas) vmaMap.set(key, { ventas: v, acv: a, familia: fam });
+          }
+          const vmaHasMonth = vmaMap.size > 0;
+          let vmaFe = 0, vmaNube = 0, vmaContador = 0, vmaAcv = 0;
+          for (const v of vmaMap.values()) {
+            if (v.familia === 'FE') vmaFe += v.ventas;
+            else if (v.familia === 'NUBE') vmaNube += v.ventas;
+            else if (v.familia === 'CONTADOR') vmaContador += v.ventas;
+            vmaAcv += v.acv;
+          }
+          const vmaTotal = vmaFe + vmaNube + vmaContador;
+
+          // FUENTE DE VERDAD #2: ventas_gerente_mensual (Databricks pre-agregado por gerente).
           const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
             .filter((r: any) => String(r.periodo) === mesActual);
           const vgmHasMonth = vgmRows.length > 0;
@@ -783,25 +809,31 @@ export const useGamificationMetrics = (
           const vgmTotal = vgmFe + vgmNube + vgmContador;
           const vgmAcv = vgmRows.reduce((s, r) => s + (Number(r.acv) || 0), 0);
 
-          // SOURCE OF TRUTH for VN gerente team totals = ventas_gerente_mensual,
-          // luego ventas_diarias raw, luego ejecucion_asesores como último respaldo.
+          // SOURCE OF TRUTH for VN gerente team totals: vn_metricas_optimizadas → ventas_gerente_mensual
+          // → ventas_diarias raw → ejecucion_asesores como último respaldo.
           const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
-          const teamVentasFe = vgmHasMonth
-            ? vgmFe
-            : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0));
-          const teamVentasNube = vgmHasMonth
-            ? vgmNube
-            : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0));
-          const teamVentasTotal = vgmHasMonth
-            ? vgmTotal
-            : (ventasDiariasHasMonth
-                ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0)
-                : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0));
-          const teamAcvFromVgm = vgmHasMonth ? Math.round(vgmAcv) : 0;
+          const teamVentasFe = vmaHasMonth
+            ? vmaFe
+            : (vgmHasMonth
+                ? vgmFe
+                : (ventasDiariasHasMonth
+                    ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                    : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0)));
+          const teamVentasNube = vmaHasMonth
+            ? vmaNube
+            : (vgmHasMonth
+                ? vgmNube
+                : (ventasDiariasHasMonth
+                    ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
+                    : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0)));
+          const teamVentasTotal = vmaHasMonth
+            ? vmaTotal
+            : (vgmHasMonth
+                ? vgmTotal
+                : (ventasDiariasHasMonth
+                    ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0)
+                    : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0)));
+          const teamAcvFromVgm = vmaHasMonth ? Math.round(vmaAcv) : (vgmHasMonth ? Math.round(vgmAcv) : 0);
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
           vnCurrentMetaNube = metaNube;
@@ -816,8 +848,8 @@ export const useGamificationMetrics = (
             const totalAcvProd = currentMonthRows.reduce((s: number, r: any) => s + normalizeStoredAcv(r.acv_f), 0);
             const totalReferidos = currentMonthRows.reduce((s: number, r: any) => s + (Number(r.cant_recomendados) || 0), 0);
 
-            // ACV: prioriza ventas_gerente_mensual (Databricks oficial)
-            const totalAcv = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : totalAcvProd;
+            // ACV: prioriza vn_metricas_optimizadas / ventas_gerente_mensual (Databricks oficial)
+            const totalAcv = (vmaHasMonth || vgmHasMonth) && teamAcvFromVgm > 0 ? teamAcvFromVgm : totalAcvProd;
 
             acvMes = totalAcv;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((totalAcv / metaAcvEquipo) * 100) : 0;
@@ -841,11 +873,11 @@ export const useGamificationMetrics = (
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             const kpiAcv = normalizeStoredAcv(kpiData?.acv_f);
-            acvMes = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : kpiAcv;
+            acvMes = (vmaHasMonth || vgmHasMonth) && teamAcvFromVgm > 0 ? teamAcvFromVgm : kpiAcv;
             const metaFallback = metaEquipoUnidades || Number(kpiData?.meta) || 0;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((acvMes / metaAcvEquipo) * 100) : 0;
 
-            if (vgmHasMonth || (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0))) {
+            if (vmaHasMonth || vgmHasMonth || (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0))) {
               const ventasTotal = Number(kpiData?.ventas) || 0;
               ejecucion = {
                 ventas_fe: teamVentasFe || 0,
