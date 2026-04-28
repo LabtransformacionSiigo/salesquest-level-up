@@ -341,6 +341,48 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
+        {/* Sync VN Métricas (3 funciones encadenadas) */}
+        <div className="bg-gradient-to-br from-secondary/10 to-primary/5 border border-secondary/30 rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <MI icon="bolt" className="text-secondary" />
+                Sync VN Métricas (encadenado)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Refresca el <strong>mes en curso</strong> de Venta Nueva en 3 pasos asíncronos:
+                <br />
+                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-gerentes</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-latam</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-mex</code>.
+                Cada paso dispara el siguiente (fire &amp; forget) para evitar timeouts. Los meses históricos NO se tocan.
+              </p>
+              {vnChainMsg && (
+                <p className={cn("text-xs font-semibold mt-2", vnChainMsg.startsWith('✓') ? 'text-secondary' : vnChainMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
+                  {vnChainMsg}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleSyncVnChain}
+              disabled={vnChainRunning}
+              variant="default"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+            >
+              {vnChainRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
+                  Iniciando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MI icon="bolt" className="text-sm" />
+                  Sincronizar VN
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+
         {/* Recalcular SP Convención VN */}
         <div className="bg-gradient-to-br from-accent/10 to-primary/5 border border-accent/30 rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4">
