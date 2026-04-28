@@ -159,6 +159,8 @@ export type Database = {
           created_at: string | null
           descripcion: string | null
           emoji: string | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
           gerente_id: string | null
           id: string
           nombre: string
@@ -177,6 +179,8 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           emoji?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           nombre: string
@@ -195,6 +199,8 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           emoji?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           nombre?: string
@@ -266,6 +272,8 @@ export type Database = {
           emoji: string | null
           familia: string | null
           familia_vc: string | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
           gerente_id: string | null
           id: string
           kpi: string | null
@@ -287,6 +295,8 @@ export type Database = {
           emoji?: string | null
           familia?: string | null
           familia_vc?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           kpi?: string | null
@@ -308,6 +318,8 @@ export type Database = {
           emoji?: string | null
           familia?: string | null
           familia_vc?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           kpi?: string | null
@@ -383,6 +395,8 @@ export type Database = {
           dias_lun_mie: boolean | null
           dias_requeridos: number | null
           familia_vc: string | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
           gerente_id: string | null
           id: string
           kpi: string | null
@@ -403,6 +417,8 @@ export type Database = {
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
           familia_vc?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           kpi?: string | null
@@ -423,6 +439,8 @@ export type Database = {
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
           familia_vc?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           gerente_id?: string | null
           id?: string
           kpi?: string | null
