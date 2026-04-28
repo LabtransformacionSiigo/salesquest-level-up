@@ -208,7 +208,29 @@ const AdminDatabricks = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  const handleSyncVnChain = async () => {
+    if (!confirm('Sincronizará VN del mes en curso en cadena: Gerentes → Asesores LATAM → Asesores MEX. Cada paso dispara el siguiente automáticamente. ¿Continuar?')) return;
+    setVnChainRunning(true);
+    setVnChainMsg('Disparando sync-vn-gerentes... (asesores LATAM y México se sincronizan automáticamente en cadena)');
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-vn-gerentes', { body: { force: true } });
+      if (error) throw new Error(error.message);
+      const r = data as any;
+      if (!r?.success) {
+        setVnChainMsg(`✗ Error en paso 1: ${r?.error || 'desconocido'}`);
+      } else {
+        setVnChainMsg(
+          `✓ Paso 1/3 completo · periodo ${r.periodo_actual} · ${r.ventas_gerente_mensual_insertadas} filas en gerentes. Asesores LATAM y México corriendo en background…`
+        );
+      }
+    } catch (err: any) {
+      setVnChainMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    } finally {
+      setTimeout(() => setVnChainRunning(false), 3000);
+    }
+  };
+
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />;
 
