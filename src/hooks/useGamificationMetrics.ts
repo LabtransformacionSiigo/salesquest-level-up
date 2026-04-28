@@ -873,11 +873,11 @@ export const useGamificationMetrics = (
             // Fallback to kpis_mes_actual
             const kpiData = kpisRes.data;
             const kpiAcv = normalizeStoredAcv(kpiData?.acv_f);
-            acvMes = vgmHasMonth && teamAcvFromVgm > 0 ? teamAcvFromVgm : kpiAcv;
+            acvMes = (vmaHasMonth || vgmHasMonth) && teamAcvFromVgm > 0 ? teamAcvFromVgm : kpiAcv;
             const metaFallback = metaEquipoUnidades || Number(kpiData?.meta) || 0;
             pctCumplimiento = metaAcvEquipo > 0 ? Math.round((acvMes / metaAcvEquipo) * 100) : 0;
 
-            if (vgmHasMonth || (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0))) {
+            if (vmaHasMonth || vgmHasMonth || (kpiData && (Number(kpiData.ventas) > 0 || Number(kpiData.meta) > 0))) {
               const ventasTotal = Number(kpiData?.ventas) || 0;
               ejecucion = {
                 ventas_fe: teamVentasFe || 0,
