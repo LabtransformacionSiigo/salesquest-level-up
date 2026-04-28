@@ -63,6 +63,8 @@ interface VcCatalogReto {
   umbral: number;
   sp_otorgados: number;
   objetivo_descripcion: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
 }
 
 const Retos = () => {
@@ -281,9 +283,14 @@ const Retos = () => {
             <p className="text-xs text-muted-foreground">
               {reto.objetivo_descripcion || `Logra ${formatUmbral(reto)} de ${kpiLabel(reto.kpi)}`}
             </p>
-            <div className="flex gap-1 mt-1.5">
+            <div className="flex gap-1 mt-1.5 flex-wrap">
               <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{kpiLabel(reto.kpi)}</span>
               <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{familiaLabel(reto.familia_vc)}</span>
+              {(reto.fecha_inicio || reto.fecha_fin) && (
+                <span className="text-[9px] font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">
+                  Vigente hasta: {reto.fecha_fin || 'Sin límite'}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-right">

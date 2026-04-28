@@ -439,6 +439,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     // medalla
     tipo_evento: data.tipo_evento || 'PRIMERA_VENTA',
     cantidad_requerida: data.cantidad_requerida ?? 1,
+    fecha_inicio: data.fecha_inicio || '',
+    fecha_fin: data.fecha_fin || '',
   });
 
   // Mantener canal y métricas sincronizados con la operación
@@ -484,6 +486,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
       gerente_id: showGerenteSelector ? (form.gerente_id || null) : null,
       activo: form.activo,
       emoji: form.emoji,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
     };
     if (tipo === 'reto') {
       payload = {
@@ -801,6 +805,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               </Field>
             </>
           )}
+
+          <Field label="Vigencia desde" hint="Vacío = sin inicio">
+            <Input type="date" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} />
+          </Field>
+          <Field label="Vigencia hasta" hint="Vacío = sin límite">
+            <Input type="date" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} />
+          </Field>
 
           <div className="col-span-2 flex items-center gap-2">
             <Switch checked={!!form.activo} onCheckedChange={(v) => setForm({ ...form, activo: v })} />

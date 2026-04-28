@@ -42,7 +42,7 @@ const AdminRachas = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState<any>({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 });
+  const [form, setForm] = useState<any>({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0, fecha_inicio: '', fecha_fin: '' });
 
   const isAdmin = profile?.role === 'admin';
 
@@ -69,6 +69,8 @@ const AdminRachas = () => {
       multiplicador_sp: Number(form.multiplicador_sp) || 1.0,
       familia_vc: form.canal === 'VC' ? form.familia_vc : null,
       dias_lun_mie: !!form.dias_lun_mie,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
     };
     if (editing) {
       const { error } = await supabase.from('config_rachas').update(payload).eq('id', editing);
@@ -93,6 +95,8 @@ const AdminRachas = () => {
       umbral_legacy: c.umbral_legacy ?? 0,
       dias_lun_mie: !!c.dias_lun_mie,
       multiplicador_sp: c.multiplicador_sp ?? 1.0,
+      fecha_inicio: c.fecha_inicio || '',
+      fecha_fin: c.fecha_fin || '',
     });
     setShowAdd(true);
   };
@@ -112,7 +116,7 @@ const AdminRachas = () => {
             <h2 className="text-lg font-bold text-foreground">Configuración de Rachas</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Define los umbrales semanales por canal para activar rachas</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0 }); }}>
+          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ canal: 'VC', nombre: '', descripcion: '', condicion_tipo: 'ventas_semanales', umbral_verde: 0, activo: true, familia_vc: 'AMBAS', umbral_legacy: 0, dias_lun_mie: false, multiplicador_sp: 1.0, fecha_inicio: '', fecha_fin: '' }); }}>
             <MI icon="add_circle" className="text-sm mr-1" /> Nueva Racha
           </Button>
         </div>
@@ -167,6 +171,12 @@ const AdminRachas = () => {
               <Field label="Descripción">
                 <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" className={inputClass} />
               </Field>
+              <Field label="Vigencia desde" hint="Vacío = sin inicio">
+                <input type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} className={inputClass} />
+              </Field>
+              <Field label="Vigencia hasta" hint="Vacío = sin límite">
+                <input type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} className={inputClass} />
+              </Field>
               <div className="flex items-end gap-4 col-span-2">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
@@ -207,6 +217,11 @@ const AdminRachas = () => {
                         <span className="text-lg">🔥</span>
                         <span className="text-sm font-bold text-foreground">{c.nombre}</span>
                       </div>
+                      {(c.fecha_inicio || c.fecha_fin) && (
+                        <p className="text-[10px] text-muted-foreground mb-1.5">
+                          Vigencia: {c.fecha_inicio || '—'} → {c.fecha_fin || 'Sin límite'}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground mb-3">{c.descripcion}</p>
                       <div className="flex gap-2 flex-wrap">
                         <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">

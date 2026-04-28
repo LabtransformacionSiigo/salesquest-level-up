@@ -153,6 +153,11 @@ const Medallas = () => {
                           <img src={desbloqueada ? medallaImg : candadoImg} alt={desbloqueada ? 'Medalla' : 'Bloqueada'} className="w-16 h-16 object-contain" />
                         </motion.div>
                         <p className="text-sm font-bold text-foreground mb-1 relative z-10">{medalla.nombre}</p>
+                        {(medalla.fecha_inicio || medalla.fecha_fin) && (
+                          <p className="text-[9px] text-muted-foreground mb-1 relative z-10">
+                            Vigente hasta: {medalla.fecha_fin || 'Sin límite'}
+                          </p>
+                        )}
                         {medalla.producto && (
                           <span className="inline-block text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1 relative z-10">
                             {medalla.producto}

@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     // ── Batch load all data upfront ──
     const [gerentesRes, configRachasRes, medalCatalogRes] = await Promise.all([
       supabase.from("gerentes").select("id, canal, nombre, pais").eq("activo", true),
-      supabase.from("config_rachas").select("canal, umbral_verde").eq("condicion_tipo", "ventas_semanales").eq("activo", true),
+      supabase.from("config_rachas").select("canal, umbral_verde, fecha_inicio, fecha_fin").eq("condicion_tipo", "ventas_semanales").eq("activo", true),
       supabase.from("catalogo_medallas").select("*").eq("activo", true),
     ]);
 
@@ -159,11 +159,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isVigente = (item: { fecha_inicio?: string | null; fecha_fin?: string | null }) =>
+      (!item.fecha_inicio || todayStr >= item.fecha_inicio) &&
+      (!item.fecha_fin || todayStr <= item.fecha_fin);
+
     const umbralMap: Record<string, number> = {};
-    (configRachasRes.data || []).forEach((cr) => { umbralMap[cr.canal] = Number(cr.umbral_verde) || 0; });
+    (configRachasRes.data || []).filter(isVigente).forEach((cr) => { umbralMap[cr.canal] = Number(cr.umbral_verde) || 0; });
 
     const medalsByCanal: Record<string, any[]> = {};
-    (medalCatalogRes.data || []).forEach((m) => {
+    (medalCatalogRes.data || []).filter(isVigente).forEach((m) => {
       if (!medalsByCanal[m.canal]) medalsByCanal[m.canal] = [];
       medalsByCanal[m.canal].push(m);
     });

@@ -69,6 +69,8 @@ const AdminMedallas = () => {
     sp: 100,
     emoji: '🏅',
     activo: true,
+    fecha_inicio: '',
+    fecha_fin: '',
   });
 
   const isAdmin = profile?.role === 'admin';
@@ -91,7 +93,13 @@ const AdminMedallas = () => {
     }
     // `familia` no se persiste (la familia se infiere del producto + país vía product-families.ts).
     const { familia: _familia, ...persistable } = form;
-    const payload = { ...persistable, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
+    const payload = {
+      ...persistable,
+      cantidad_requerida: Number(form.cantidad_requerida),
+      sp: Number(form.sp),
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
+    };
     if (editing) {
       const { error } = await supabase.from('catalogo_medallas').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
@@ -118,6 +126,8 @@ const AdminMedallas = () => {
     sp: 100,
     emoji: '🏅',
     activo: true,
+    fecha_inicio: '',
+    fecha_fin: '',
   });
 
   const startEdit = (m: any) => {
@@ -138,6 +148,8 @@ const AdminMedallas = () => {
       sp: m.sp,
       emoji: m.emoji || '🏅',
       activo: m.activo,
+      fecha_inicio: m.fecha_inicio || '',
+      fecha_fin: m.fecha_fin || '',
     });
     setShowAdd(true);
   };
@@ -294,19 +306,29 @@ const AdminMedallas = () => {
 
             {/* Section 3: Valores */}
             <div className="bg-muted/30 rounded-xl p-4 space-y-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valores</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valores y Vigencia</p>
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label={cantidadLabel} hint={cantidadHint}>
                     <input type="number" value={form.cantidad_requerida} onChange={e => setForm(f => ({ ...f, cantidad_requerida: Number(e.target.value) }))} className={inputClass} />
                   </Field>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <Field label="SP otorgados" hint="Puntos que recibe el líder al desbloquear">
                     <input type="number" value={form.sp} onChange={e => setForm(f => ({ ...f, sp: Number(e.target.value) }))} className={inputClass} />
                   </Field>
                 </div>
-                <div className="col-span-4 flex items-end">
+                <div className="col-span-3">
+                  <Field label="Fecha inicio" hint="Desde cuándo aplica (vacío = sin inicio)">
+                    <input type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} className={inputClass} />
+                  </Field>
+                </div>
+                <div className="col-span-3">
+                  <Field label="Fecha fin" hint="Hasta cuándo aplica (vacío = sin límite)">
+                    <input type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} className={inputClass} />
+                  </Field>
+                </div>
+                <div className="col-span-12 flex items-end">
                   <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
                     <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
                     <span className="font-medium text-foreground">Medalla activa</span>
@@ -349,6 +371,11 @@ const AdminMedallas = () => {
               )}>
                 <p className="text-4xl mb-2">{m.emoji}</p>
                 <p className="text-sm font-bold text-foreground">{m.nombre}</p>
+                {(m.fecha_inicio || m.fecha_fin) && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {m.fecha_inicio || '—'} → {m.fecha_fin || 'Sin límite'}
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{m.descripcion}</p>
                 <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
                   <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === m.canal)?.label || m.canal}</span>
