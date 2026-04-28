@@ -889,7 +889,7 @@ export const useGamificationMetrics = (
           //   Ambas alimentan el MISMO Map vgmDeduped → mismo objeto en memoria
           //   para "Rendimiento del Mes" y para "Historial Mensual". Nunca pueden diferir.
           vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
-          const _yearNumGer = parseInt(anioActual, 10);
+          const _yearNumGer = Number(anioActual);
 
           // 1) PRIMARIA — vn_metricas_optimizadas (scope=gerente)
           const vnMetGerenteRows: any[] = vnMetricasGerenteRes?.data || [];
