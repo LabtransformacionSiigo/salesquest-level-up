@@ -79,6 +79,8 @@ const AdminDatabricks = () => {
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
   const [historicasRunning, setHistoricasRunning] = useState(false);
   const [historicasMsg, setHistoricasMsg] = useState<string | null>(null);
+  const [vnChainRunning, setVnChainRunning] = useState(false);
+  const [vnChainMsg, setVnChainMsg] = useState<string | null>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
@@ -206,7 +208,29 @@ const AdminDatabricks = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  const handleSyncVnChain = async () => {
+    if (!confirm('Sincronizará VN del mes en curso en cadena: Gerentes → Asesores LATAM → Asesores MEX. Cada paso dispara el siguiente automáticamente. ¿Continuar?')) return;
+    setVnChainRunning(true);
+    setVnChainMsg('Disparando sync-vn-gerentes... (asesores LATAM y México se sincronizan automáticamente en cadena)');
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-vn-gerentes', { body: { force: true } });
+      if (error) throw new Error(error.message);
+      const r = data as any;
+      if (!r?.success) {
+        setVnChainMsg(`✗ Error en paso 1: ${r?.error || 'desconocido'}`);
+      } else {
+        setVnChainMsg(
+          `✓ Paso 1/3 completo · periodo ${r.periodo_actual} · ${r.ventas_gerente_mensual_insertadas} filas en gerentes. Asesores LATAM y México corriendo en background…`
+        );
+      }
+    } catch (err: any) {
+      setVnChainMsg(`✗ Error: ${err?.message || 'desconocido'}`);
+    } finally {
+      setTimeout(() => setVnChainRunning(false), 3000);
+    }
+  };
+
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />;
 
@@ -311,6 +335,48 @@ const AdminDatabricks = () => {
                 <span className="flex items-center gap-1.5">
                   <MI icon="cloud_download" className="text-sm" />
                   Sincronizar Metas Históricas
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Sync VN Métricas (3 funciones encadenadas) */}
+        <div className="bg-gradient-to-br from-secondary/10 to-primary/5 border border-secondary/30 rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <MI icon="bolt" className="text-secondary" />
+                Sync VN Métricas (encadenado)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Refresca el <strong>mes en curso</strong> de Venta Nueva en 3 pasos asíncronos:
+                <br />
+                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-gerentes</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-latam</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-mex</code>.
+                Cada paso dispara el siguiente (fire &amp; forget) para evitar timeouts. Los meses históricos NO se tocan.
+              </p>
+              {vnChainMsg && (
+                <p className={cn("text-xs font-semibold mt-2", vnChainMsg.startsWith('✓') ? 'text-secondary' : vnChainMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
+                  {vnChainMsg}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleSyncVnChain}
+              disabled={vnChainRunning}
+              variant="default"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+            >
+              {vnChainRunning ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
+                  Iniciando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MI icon="bolt" className="text-sm" />
+                  Sincronizar VN
                 </span>
               )}
             </Button>

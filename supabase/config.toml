@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.sync-metas-historicas]
 verify_jwt = false
+
+[functions.sync-vn-gerentes]
+verify_jwt = false
+
+[functions.sync-vn-asesores-latam]
+verify_jwt = false
+
+[functions.sync-vn-asesores-mex]
+verify_jwt = false
