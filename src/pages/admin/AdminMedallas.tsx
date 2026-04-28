@@ -93,7 +93,13 @@ const AdminMedallas = () => {
     }
     // `familia` no se persiste (la familia se infiere del producto + país vía product-families.ts).
     const { familia: _familia, ...persistable } = form;
-    const payload = { ...persistable, cantidad_requerida: Number(form.cantidad_requerida), sp: Number(form.sp) };
+    const payload = {
+      ...persistable,
+      cantidad_requerida: Number(form.cantidad_requerida),
+      sp: Number(form.sp),
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
+    };
     if (editing) {
       const { error } = await supabase.from('catalogo_medallas').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
