@@ -452,15 +452,28 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 20 – ventas_gerente_mensual: FUENTE DE VERDAD para gerentes VN
                   (FE/NUBE/CONTADOR pre-agregado por Databricks).
-                  Filtra por nombre del gerente normalizado. */
+                  Filtramos por celula (más confiable que nombre). Si no hay
+                  celula en el perfil, traemos por canal_direccion+pais y
+                  filtramos en cliente con normalización por nombre. */
           isVN && profile.role !== 'asesor' && profile.nombre
-            ? supabase
-                .from('ventas_gerente_mensual' as any)
-                .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
-                .ilike('gerente_normalizado', normalizeComparableText(profile.nombre))
-                .gte('periodo', `${anioActual}01`)
-                .lte('periodo', `${anioActual}12`)
-                .limit(500)
+            ? (() => {
+                let q = supabase
+                  .from('ventas_gerente_mensual' as any)
+                  .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
+                  .gte('periodo', `${anioActual}01`)
+                  .lte('periodo', `${anioActual}12`)
+                  .limit(5000);
+                if (profile.celula) {
+                  q = q.eq('celula', profile.celula);
+                } else {
+                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                                 : null;
+                  if (canalDir) q = q.eq('canal_direccion', canalDir);
+                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                }
+                return q;
+              })()
             : Promise.resolve({ data: [] }),
           /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks).
                   No filtrar por celula en DB: hay diferencias de tildes (México/Mexico).
@@ -473,17 +486,29 @@ export const useGamificationMetrics = (
                 .limit(1000)
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
-                  ventas FE/NUBE por asesor del equipo de un gerente VN. Reemplaza
-                  el fallback inexacto desde ejecucion_asesores/ventas_diarias. */
+                  ventas FE/NUBE por asesor del equipo de un gerente VN.
+                  Filtramos preferentemente por celula; fallback a canal+pais
+                  y filtrado en cliente por nombre normalizado. */
           isVN && profile.role !== 'asesor' && profile.nombre
-            ? supabase
-                .from('vn_metricas_optimizadas' as any)
-                .select('pais, mes_nro, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
-                .ilike('gerente_normalizado', normalizeComparableText(profile.nombre))
-                .eq('scope', 'asesor')
-                .gte('mes_nro', 1)
-                .lte('mes_nro', 12)
-                .limit(5000)
+            ? (() => {
+                let q = supabase
+                  .from('vn_metricas_optimizadas' as any)
+                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
+                  .eq('scope', 'asesor')
+                  .gte('mes_nro', 1)
+                  .lte('mes_nro', 12)
+                  .limit(8000);
+                if (profile.celula) {
+                  q = q.eq('celula', profile.celula);
+                } else {
+                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                                 : null;
+                  if (canalDir) q = q.eq('canal_direccion', canalDir);
+                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                }
+                return q;
+              })()
             : Promise.resolve({ data: [] }),
         ];
 
