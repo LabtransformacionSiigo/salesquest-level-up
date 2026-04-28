@@ -387,13 +387,32 @@ export const useSupabaseAuth = () => {
       } else {
           const [profileRes, gerenteRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-            supabase.from('gerentes').select('id, sp_canje, sp_convencion, celula, canal').eq('user_id', userId).maybeSingle(),
+            supabase.from('gerentes').select('id, sp_canje, sp_convencion, celula, canal, nombre, email, pais, lider, activo, avatar_url, created_at').eq('user_id', userId).maybeSingle(),
         ]);
 
-        if (profileRes.error) throw profileRes.error;
+        // Si no hay fila en la vista sp_totales_gerente, usamos un fallback desde la tabla gerentes
+        // para que el gerente pueda iniciar sesión aunque no tenga ventas/metas registradas todavía.
+        let data: any = profileRes.data;
+        if (!data && (gerenteRes.data as any)?.id) {
+          const g: any = gerenteRes.data;
+          data = {
+            id: g.id,
+            user_id: userId,
+            nombre: g.nombre ?? null,
+            email: g.email ?? null,
+            canal: g.canal ?? null,
+            pais: g.pais ?? null,
+            lider: g.lider ?? null,
+            celula: g.celula ?? null,
+            activo: g.activo ?? true,
+            avatar_url: g.avatar_url ?? null,
+            created_at: g.created_at ?? null,
+            sp_convencion: g.sp_convencion ?? 0,
+            sp_canje: g.sp_canje ?? 0,
+          };
+        }
 
-        if (profileRes.data) {
-          const data = profileRes.data;
+        if (data) {
           const gerenteId = data.id || (gerenteRes.data as any)?.id;
           const gerenteCelula = (gerenteRes.data as any)?.celula;
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
