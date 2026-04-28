@@ -371,6 +371,11 @@ const AdminMedallas = () => {
               )}>
                 <p className="text-4xl mb-2">{m.emoji}</p>
                 <p className="text-sm font-bold text-foreground">{m.nombre}</p>
+                {(m.fecha_inicio || m.fecha_fin) && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {m.fecha_inicio || '—'} → {m.fecha_fin || 'Sin límite'}
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{m.descripcion}</p>
                 <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
                   <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{CANALES.find(c => c.value === m.canal)?.label || m.canal}</span>
