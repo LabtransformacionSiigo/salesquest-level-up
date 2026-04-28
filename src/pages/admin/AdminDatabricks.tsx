@@ -209,24 +209,26 @@ const AdminDatabricks = () => {
   };
 
   const handleSyncVnChain = async () => {
-    if (!confirm('Sincronizará VN del mes en curso en cadena: Gerentes → Asesores LATAM → Asesores MEX. Cada paso dispara el siguiente automáticamente. ¿Continuar?')) return;
+    if (!confirm('Sincronizará VN del mes en curso: LATAM (sync-vn-metricas) → México (sync-vn-mexico). ¿Continuar?')) return;
     setVnChainRunning(true);
-    setVnChainMsg('Disparando sync-vn-gerentes... (asesores LATAM y México se sincronizan automáticamente en cadena)');
+    setVnChainMsg('Sincronizando métricas VN LATAM...');
     try {
-      const { data, error } = await supabase.functions.invoke('sync-vn-gerentes', { body: { force: true } });
-      if (error) throw new Error(error.message);
-      const r = data as any;
-      if (!r?.success) {
-        setVnChainMsg(`✗ Error en paso 1: ${r?.error || 'desconocido'}`);
-      } else {
-        setVnChainMsg(
-          `✓ Paso 1/3 completo · periodo ${r.periodo_actual} · ${r.ventas_gerente_mensual_insertadas} filas en gerentes. Asesores LATAM y México corriendo en background…`
-        );
-      }
+      const { data: r1, error: e1 } = await supabase.functions.invoke('sync-vn-metricas', { body: {} });
+      if (e1) throw new Error(`LATAM: ${e1.message}`);
+      const vgm = (r1 as any)?.vgm_inserted ?? 0;
+      const ejec = (r1 as any)?.ejec_inserted ?? 0;
+      setVnChainMsg(`LATAM OK (${vgm} gerentes · ${ejec} asesores). Sincronizando México...`);
+
+      const { data: r2, error: e2 } = await supabase.functions.invoke('sync-vn-mexico', { body: {} });
+      if (e2) throw new Error(`México: ${e2.message}`);
+      const mxIns = (r2 as any)?.ventas_diarias_insertadas ?? (r2 as any)?.inserted ?? 0;
+      const mxVgm = (r2 as any)?.ventas_gerente_mensual_insertadas ?? 0;
+
+      setVnChainMsg(`✓ Sync VN completo · LATAM: ${vgm} gerentes / ${ejec} asesores · México: ${mxIns} ventas / ${mxVgm} agregados`);
     } catch (err: any) {
       setVnChainMsg(`✗ Error: ${err?.message || 'desconocido'}`);
     } finally {
-      setTimeout(() => setVnChainRunning(false), 3000);
+      setVnChainRunning(false);
     }
   };
 
