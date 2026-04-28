@@ -644,7 +644,10 @@ export const useGamificationMetrics = (
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
           const celulaGerente = normalizeComparableText(profile.celula);
-          if (gerenteNombre) teamAsesorNames.add(gerenteNombre);
+          // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
+          // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
+          // Rendimiento del Equipo. El gerente se identifica por celula/gerente,
+          // no debe ser tratado como asesor.
 
           // Paso 1: identificar TODAS las células del equipo (en cualquier mes del año).
           // Una fila pertenece al equipo si:
@@ -1370,16 +1373,21 @@ export const useGamificationMetrics = (
             prodByName.set(normalizeComparableText(r.asesor), r);
           });
 
-          // Union of all asesor identities seen this month: productividad ∪ ventas_diarias ∪ metas (sin novedad)
-          const allAsesorKeys = new Set<string>([
-            ...prodByName.keys(),
-            ...ventasPorAsesor.keys(),
-            ...[...metasPorAsesor.keys()].filter((k) => {
+          // FUENTE MAESTRA de identidad: metas_asesores (nombre oficial Databricks,
+          // sin novedad). Evita duplicados por variantes de nombre (truncados, etc.)
+          // entre prodByName / ventasPorAsesor.
+          const allAsesorKeys = new Set<string>(
+            [...metasPorAsesor.keys()].filter((k) => {
               const m = metasPorAsesor.get(k);
               const nov = (m?.novedad ?? '').toString().trim();
               return nov === '' || nov === 'Sin novedad';
-            }),
-          ]);
+            })
+          );
+          // Agregar asesores con ventas pero sin meta (nuevos en el mes).
+          // NO agregar prodByName.keys() — sus nombres truncados causan duplicados.
+          ventasPorAsesor.forEach((_, k) => {
+            if (!allAsesorKeys.has(k)) allAsesorKeys.add(k);
+          });
 
           for (const asesorKey of allAsesorKeys) {
             const meta = metasPorAsesor.get(asesorKey);
