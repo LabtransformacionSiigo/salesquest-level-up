@@ -242,19 +242,24 @@ Deno.serve(async (req) => {
     ]);
     console.log(`← A=${rowsA.length} B=${rowsB.length} C=${rowsC.length}`);
 
-    // Limpia datos previos por país tocado, para evitar registros huérfanos
-    // si una célula/asesor desaparece del origen.
+    // Limpia SOLO el mes en curso por país tocado. NUNCA toca meses históricos.
     const paisesTocados = new Set<string>();
     rowsA.forEach((r: any) => paisesTocados.add(normalizePais(r.pais)));
     rowsB.forEach((r: any) => paisesTocados.add(normalizePais(r.pais)));
     if (rowsC.length) paisesTocados.add("MEX");
 
+    const _now = new Date();
+    const _mesActualNum = _now.getMonth() + 1;
+    const periodoActual = `${_now.getFullYear()}${String(_mesActualNum).padStart(2, "0")}`;
+
     if (paisesTocados.size > 0) {
       const { error: delErr } = await sb
         .from("vn_metricas_optimizadas")
         .delete()
+        .eq("anio", _now.getFullYear())
+        .eq("mes_nro", _mesActualNum)
         .in("pais", [...paisesTocados]);
-      if (delErr) throw new Error(`delete previo: ${delErr.message}`);
+      if (delErr) throw new Error(`delete previo vn_metricas: ${delErr.message}`);
     }
 
     const records = mergeByUniqueGrain([
