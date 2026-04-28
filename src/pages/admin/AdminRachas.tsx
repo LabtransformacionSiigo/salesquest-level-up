@@ -95,6 +95,8 @@ const AdminRachas = () => {
       umbral_legacy: c.umbral_legacy ?? 0,
       dias_lun_mie: !!c.dias_lun_mie,
       multiplicador_sp: c.multiplicador_sp ?? 1.0,
+      fecha_inicio: c.fecha_inicio || '',
+      fecha_fin: c.fecha_fin || '',
     });
     setShowAdd(true);
   };
