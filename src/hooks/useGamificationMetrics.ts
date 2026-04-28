@@ -845,15 +845,43 @@ export const useGamificationMetrics = (
           }
           const vmaTotal = vmaFe + vmaNube + vmaContador;
 
-          // FUENTE DE VERDAD #2: ventas_gerente_mensual (Databricks pre-agregado por gerente).
-          const vgmRows: any[] = (ventasGerenteMensualRes?.data || [])
-            .filter((r: any) => String(r.periodo) === mesActual);
-          const vgmHasMonth = vgmRows.length > 0;
-          const vgmFe = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'FE' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmNube = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'NUBE' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmContador = vgmRows.reduce((s, r) => s + (String(r.familia).toUpperCase() === 'CONTADOR' ? (Number(r.unidades) || 0) : 0), 0);
-          const vgmTotal = vgmFe + vgmNube + vgmContador;
-          const vgmAcv = vgmRows.reduce((s, r) => s + (Number(r.acv) || 0), 0);
+          // ⭐ FUENTE ÚNICA VN GERENTES:
+          //   ventas_gerente_mensual (filtrada por celula) → vgmDeduped Map
+          //   → vgmHasMonth + vgmFe/Nube/Acv (Rendimiento del Mes)
+          //   → ejecByPeriod (Historial Mensual)
+          //   NUNCA usar fuentes distintas para estos dos componentes.
+          // Deduplicar por (periodo, familia) para evitar doble suma si la tabla
+          // contiene filas duplicadas (sync histórico + replicación nueva).
+          const vgmAllRowsForMap: any[] = ventasGerenteMensualRes?.data || [];
+          const vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
+          // Agrupamos primero por (periodo, familia) tomando el MAX de unidades/acv
+          // para colapsar duplicados sin doblar el conteo cuando hay 2 filas idénticas.
+          const vgmFamMax = new Map<string, { uds: number; acv: number }>();
+          vgmAllRowsForMap.forEach((r: any) => {
+            const period = String(r.periodo || '');
+            const fam = String(r.familia || '').toUpperCase();
+            if (!period || !fam) return;
+            const k = `${period}::${fam}`;
+            const uds = Math.round(Number(r.unidades) || 0);
+            const acvV = Math.round(Number(r.acv) || 0);
+            const prev = vgmFamMax.get(k);
+            if (!prev || uds > prev.uds) vgmFamMax.set(k, { uds, acv: acvV });
+          });
+          vgmFamMax.forEach((val, k) => {
+            const [period, fam] = k.split('::');
+            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (fam === 'FE') cur.fe += val.uds;
+            else if (fam === 'NUBE') cur.nube += val.uds;
+            cur.total += val.uds; // FE + NUBE + CONTADOR + OTRO
+            cur.acv += val.acv;
+            vgmDeduped.set(period, cur);
+          });
+          const vgmMesActual = vgmDeduped.get(mesActual) || { fe: 0, nube: 0, total: 0, acv: 0 };
+          const vgmHasMonth = vgmDeduped.has(mesActual);
+          const vgmFe = vgmMesActual.fe;
+          const vgmNube = vgmMesActual.nube;
+          const vgmTotal = vgmMesActual.total;
+          const vgmAcv = vgmMesActual.acv;
 
           // SOURCE OF TRUTH for VN gerente team totals: vn_metricas_optimizadas → ventas_gerente_mensual
           // → ventas_diarias raw → ejecucion_asesores como último respaldo.
