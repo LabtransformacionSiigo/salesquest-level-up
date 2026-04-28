@@ -267,7 +267,15 @@ const Dashboard = () => {
                 initial="hidden"
                 animate="show"
               >
-                {RETOS_SEMANALES.map((reto, idx) => {
+                {(catalogRetosSemana.length > 0
+                  ? catalogRetosSemana.slice(0, 3).map((c: any) => ({
+                      id: c.id,
+                      nombre: `${c.emoji || '🎯'} ${c.nombre}`,
+                      sp: Number(c.sp_otorgados) || 0,
+                      umbral: Number(c.umbral) || 1,
+                    }))
+                  : RETOS_SEMANALES
+                ).map((reto, idx) => {
                   const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                   const completed = pct >= 100;
                   return (
