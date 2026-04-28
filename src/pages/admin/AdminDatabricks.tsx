@@ -343,19 +343,23 @@ const AdminDatabricks = () => {
           </div>
         </div>
 
-        {/* Sync VN Métricas (3 funciones encadenadas) */}
+        {/* ═══════════════ SECCIÓN VENTA NUEVA ═══════════════ */}
+        <div className="flex items-center gap-2 pt-2">
+          <MI icon="storefront" className="text-secondary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Venta Nueva</h2>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        {/* Sync VN Métricas (LATAM + México) */}
         <div className="bg-gradient-to-br from-secondary/10 to-primary/5 border border-secondary/30 rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <MI icon="bolt" className="text-secondary" />
-                Sync VN Métricas (encadenado)
+                Forzar Sync VN
               </h3>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                Refresca el <strong>mes en curso</strong> de Venta Nueva en 3 pasos asíncronos:
-                <br />
-                <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-gerentes</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-latam</code> → <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-asesores-mex</code>.
-                Cada paso dispara el siguiente (fire &amp; forget) para evitar timeouts. Los meses históricos NO se tocan.
+                Actualiza ventas del día de gerentes y asesores VN (Colombia, Ecuador, Uruguay y México). Ejecuta <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-metricas</code> (LATAM) seguido de <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">sync-vn-mexico</code>. Solo refresca el <strong>mes en curso</strong>; los meses históricos no se tocan.
               </p>
               {vnChainMsg && (
                 <p className={cn("text-xs font-semibold mt-2", vnChainMsg.startsWith('✓') ? 'text-secondary' : vnChainMsg.startsWith('✗') ? 'text-destructive' : 'text-primary')}>
@@ -373,12 +377,12 @@ const AdminDatabricks = () => {
               {vnChainRunning ? (
                 <span className="flex items-center gap-1.5">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground" />
-                  Iniciando...
+                  Sincronizando...
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5">
                   <MI icon="bolt" className="text-sm" />
-                  Sincronizar VN
+                  Forzar Sync VN
                 </span>
               )}
             </Button>
