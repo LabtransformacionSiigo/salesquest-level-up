@@ -557,6 +557,9 @@ export const useGamificationMetrics = (
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
         let vnCurrentMetaTotal = 0;
+        // FUENTE ÚNICA VN GERENTES — compartido entre Rendimiento del Mes (gerente block)
+        // e Historial Mensual (vnMonthlyCumpl block).
+        let vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
         let getMetaContextForPeriod = (_period: string) => ({
           rows: [] as any[],
           asesoresConNovedad: new Set<string>(),
