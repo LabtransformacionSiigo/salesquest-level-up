@@ -25,6 +25,7 @@ export interface VgmRow {
   unidades?: number | null;
   acv?: number | null;
   celula?: string | null;
+  gerente?: string | null;
   gerente_normalizado?: string | null;
 }
 
@@ -102,11 +103,31 @@ export function computeSpConvencionAnualForCelula(
   const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
   metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
-  // Ventas reales desde ventas_gerente_mensual (match por celula o gerente_normalizado).
-  const vgmFiltrados = vgmRows.filter((row) => {
-    if (celulaNorm && normalizeSpText(row.celula) === celulaNorm) return true;
-    if (gerenteNorm && normalizeSpText(row.gerente_normalizado) === gerenteNorm) return true;
-    return false;
+  // Ventas reales desde ventas_gerente_mensual.
+  // Si tenemos gerente, esa es la fuente precisa (MiPerformance usa este mismo criterio).
+  // El match por célula queda solo como fallback porque Databricks puede traer aliases
+  // duplicados para la misma célula (ej. nombre corto + nombre completo), lo que inflaba
+  // Ranking/Header al sumar la misma ejecución dos veces.
+  const vgmByGerente = gerenteNorm
+    ? vgmRows.filter((row) => {
+        const rowGerente = normalizeSpText(row.gerente_normalizado || row.gerente);
+        return rowGerente === gerenteNorm;
+      })
+    : [];
+  const vgmBase = vgmByGerente.length > 0
+    ? vgmByGerente
+    : vgmRows.filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm);
+  const seenVgm = new Set<string>();
+  const vgmFiltrados = vgmBase.filter((row) => {
+    const key = [
+      String(row.periodo || ''),
+      normalizeSpText(row.familia),
+      Math.round(Number(row.unidades) || 0),
+      Math.round(Number(row.acv) || 0),
+    ].join('|');
+    if (seenVgm.has(key)) return false;
+    seenVgm.add(key);
+    return true;
   });
 
   // Períodos a calcular: ventas reales + períodos con meta.

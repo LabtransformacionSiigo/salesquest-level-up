@@ -36,7 +36,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
       const [vgmRes, metasRes, metasAcvRes] = await Promise.all([
         supabase
           .from('ventas_gerente_mensual')
-          .select('periodo, familia, unidades, acv, celula, gerente_normalizado')
+          .select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado')
           .gte('periodo', `${year}01`)
           .lte('periodo', `${year}12`)
           .limit(10000),
