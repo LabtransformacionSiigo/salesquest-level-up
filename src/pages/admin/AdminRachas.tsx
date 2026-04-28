@@ -217,6 +217,11 @@ const AdminRachas = () => {
                         <span className="text-lg">🔥</span>
                         <span className="text-sm font-bold text-foreground">{c.nombre}</span>
                       </div>
+                      {(c.fecha_inicio || c.fecha_fin) && (
+                        <p className="text-[10px] text-muted-foreground mb-1.5">
+                          Vigencia: {c.fecha_inicio || '—'} → {c.fecha_fin || 'Sin límite'}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground mb-3">{c.descripcion}</p>
                       <div className="flex gap-2 flex-wrap">
                         <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">
