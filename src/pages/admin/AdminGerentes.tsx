@@ -359,7 +359,10 @@ const AdminGerentes = () => {
                 </select>
               </Field>
               <Field label="Célula / Equipo">
-                <input value={form.celula} onChange={e => setForm(f => ({ ...f, celula: e.target.value }))} placeholder="Ej: Equipo Antioquia" className={inputClass} />
+                <input value={form.celula} onChange={e => setForm(f => ({ ...f, celula: e.target.value }))} list="celulas-disponibles" placeholder="Selecciona una célula existente" className={inputClass} />
+                <datalist id="celulas-disponibles">
+                  {celulasDisponibles.map((celula) => <option key={celula} value={celula} />)}
+                </datalist>
               </Field>
               <div className="flex items-end">
                 <label className="flex items-center gap-2.5 h-10 text-sm cursor-pointer">
