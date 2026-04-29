@@ -603,21 +603,21 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales, data.canal);
+          const nivelData = getNivelData(spTotales, gerenteCanal);
 
           setProfile({
             id: data.id,
             user_id: data.user_id ?? userId,
             gerente_id: null,
             nombre: data.nombre,
-            email: '',
-            canal: data.canal,
+            email: data.email ?? authEmail ?? '',
+            canal: gerenteCanal,
             pais: data.pais,
             lider: data.lider,
             celula: gerenteCelula ?? null,
             activo: data.activo ?? true,
             avatar_url: data.avatar_url,
-            created_at: '',
+            created_at: data.created_at ?? '',
             sp_totales: spTotales,
             nivel: nivelData.nivel,
             sp_nivel_actual: nivelData.sp_nivel_actual,
@@ -691,7 +691,7 @@ export const useSupabaseAuth = () => {
     const { data, error } = await supabase
       .from('gerentes')
       .update(updates)
-      .eq('user_id', user.id)
+      .eq('id', profile.id)
       .select()
       .single();
     if (!error && data) {
