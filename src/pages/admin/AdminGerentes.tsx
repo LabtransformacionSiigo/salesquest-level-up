@@ -45,8 +45,35 @@ const AdminGerentes = () => {
   const [bulkStatus, setBulkStatus] = useState<string>('');
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupPlan, setCleanupPlan] = useState<any | null>(null);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncResult, setSyncResult] = useState<any | null>(null);
 
   const isAdmin = profile?.role === 'admin';
+
+  const sincronizarTodasLasCuentas = async () => {
+    if (syncRunning) return;
+    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Esto puede tardar 1-3 minutos y reseteará la contraseña a SiigoArena2026!')) return;
+    setSyncRunning(true);
+    setSyncResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'normalize-gerentes-emails',
+        { body: {} },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setSyncResult(data);
+      toast({
+        title: '✅ Sincronización completada',
+        description: `Total: ${data?.total ?? 0} · Creados: ${data?.creados ?? 0} · Actualizados: ${data?.actualizados ?? 0} · Errores: ${data?.errores ?? 0}`,
+      });
+      fetchGerentes();
+    } finally {
+      setSyncRunning(false);
+    }
+  };
 
   const previewLimpiezaDuplicados = async () => {
     if (cleanupRunning) return;
@@ -186,6 +213,10 @@ const AdminGerentes = () => {
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={sincronizarTodasLasCuentas} disabled={syncRunning}>
+              <MI icon="sync" className="text-sm mr-1" />
+              {syncRunning ? 'Sincronizando…' : 'Sincronizar TODAS las cuentas'}
+            </Button>
             <Button variant="outline" onClick={previewLimpiezaDuplicados} disabled={cleanupRunning}>
               <MI icon="cleaning_services" className="text-sm mr-1" />
               {cleanupRunning ? 'Procesando…' : 'Ejecutar limpieza duplicados'}
@@ -199,6 +230,19 @@ const AdminGerentes = () => {
             </Button>
           </div>
         </div>
+
+        {syncResult && (
+          <div className="text-xs bg-card border border-border rounded-lg px-4 py-3 flex items-center gap-4">
+            <span className="font-semibold text-foreground">🔄 Sincronización:</span>
+            <span className="text-muted-foreground">Total: <span className="text-foreground font-semibold">{syncResult.total ?? 0}</span></span>
+            <span className="text-muted-foreground">Creados: <span className="text-secondary font-semibold">{syncResult.creados ?? 0}</span></span>
+            <span className="text-muted-foreground">Actualizados: <span className="text-primary font-semibold">{syncResult.actualizados ?? 0}</span></span>
+            <span className="text-muted-foreground">Errores: <span className={cn("font-semibold", (syncResult.errores ?? 0) > 0 ? "text-destructive" : "text-foreground")}>{syncResult.errores ?? 0}</span></span>
+            <button onClick={() => setSyncResult(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+              <MI icon="close" className="text-base" />
+            </button>
+          </div>
+        )}
 
         {bulkStatus && (
           <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
