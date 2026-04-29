@@ -1,4 +1,5 @@
 // Sincroniza auth.users con gerentes.email para gerentes activos.
+// Regla: no reescribir emails de cuentas existentes; solo vincular exacto o crear faltante.
 // Procesa en LOTES (offset/limit) para evitar IDLE_TIMEOUT (150s).
 // El cliente debe iterar llamando con nextOffset hasta done=true.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -69,47 +70,34 @@ Deno.serve(async (req) => {
   for (const g of gerentes ?? []) {
     if (!g.email) continue;
     try {
-      if (g.user_id) {
-        const { error } = await sb.auth.admin.updateUserById(g.user_id, {
-          email: g.email,
-          password: PASSWORD,
-          email_confirm: true,
-        });
-        if (error) {
-          const existingId = await findAuthUserByEmail(g.email);
-          if (existingId && existingId !== g.user_id) {
-            await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
-            await sb.auth.admin.updateUserById(existingId, { password: PASSWORD, email_confirm: true });
-            actualizados++;
-          } else {
-            errores++;
-            if (errorSamples.length < 10) errorSamples.push({ id: g.id, nombre: g.nombre, error: error.message });
-          }
-        } else {
-          actualizados++;
+      const email = String(g.email).toLowerCase().trim();
+      const existingId = await findAuthUserByEmail(email);
+      if (existingId) {
+        if (existingId !== g.user_id) {
+          await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
         }
-      } else {
-        const { data: user, error } = await sb.auth.admin.createUser({
-          email: g.email,
+        await sb.auth.admin.updateUserById(existingId, {
           password: PASSWORD,
           email_confirm: true,
           user_metadata: { name: g.nombre },
         });
-        if (!error && user?.user?.id) {
-          await sb.from("gerentes").update({ user_id: user.user.id }).eq("id", g.id);
-          creados++;
-        } else {
-          const existingId = await findAuthUserByEmail(g.email);
-          if (existingId) {
-            await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
-            await sb.auth.admin.updateUserById(existingId, { password: PASSWORD, email_confirm: true });
-            actualizados++;
-          } else {
-            errores++;
-            if (errorSamples.length < 10) {
-              errorSamples.push({ id: g.id, nombre: g.nombre, email: g.email, error: error?.message ?? "create_failed" });
-            }
-          }
+        actualizados++;
+        continue;
+      }
+
+      const { data: user, error } = await sb.auth.admin.createUser({
+        email,
+        password: PASSWORD,
+        email_confirm: true,
+        user_metadata: { name: g.nombre },
+      });
+      if (!error && user?.user?.id) {
+        await sb.from("gerentes").update({ user_id: user.user.id }).eq("id", g.id);
+        creados++;
+      } else {
+        errores++;
+        if (errorSamples.length < 10) {
+          errorSamples.push({ id: g.id, nombre: g.nombre, email, error: error?.message ?? "create_failed" });
         }
       }
     } catch (e: any) {
