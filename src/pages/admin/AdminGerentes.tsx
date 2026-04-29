@@ -43,8 +43,54 @@ const AdminGerentes = () => {
   const [filterCanal, setFilterCanal] = useState('TODOS');
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupPlan, setCleanupPlan] = useState<any | null>(null);
 
   const isAdmin = profile?.role === 'admin';
+
+  const previewLimpiezaDuplicados = async () => {
+    if (cleanupRunning) return;
+    setCleanupRunning(true);
+    setCleanupPlan(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'cleanup-duplicated-gerentes',
+        { body: { dryRun: true } },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setCleanupPlan(data);
+      toast({ title: 'Plan generado', description: `${data?.renamed ?? 0} a renombrar · ${(data?.log ?? []).filter((l: any) => l.op === 'delete').length} a borrar` });
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
+
+  const ejecutarLimpiezaDuplicados = async () => {
+    if (cleanupRunning) return;
+    if (!confirm('¿Confirmas borrar los duplicados y sus cuentas auth? Esta acción es irreversible.')) return;
+    setCleanupRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'cleanup-duplicated-gerentes',
+        { body: {} },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: '✅ Limpieza ejecutada',
+        description: `${data?.renamed ?? 0} renombrados · ${data?.deletedGerentes ?? 0} borrados · ${data?.deletedAuth ?? 0} auth eliminados`,
+      });
+      setCleanupPlan(null);
+      fetchGerentes();
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
 
   const crearCuentasFaltantes = async () => {
     if (bulkRunning) return;
