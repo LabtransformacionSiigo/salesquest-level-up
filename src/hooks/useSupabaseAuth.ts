@@ -710,6 +710,6 @@ export const useSupabaseAuth = () => {
     signUp,
     signOut,
     updateProfile,
-    refreshProfile: () => user && fetchUserProfile(user.id),
+    refreshProfile: () => user && fetchUserProfile(user.id, user.email ?? null),
   };
 };
