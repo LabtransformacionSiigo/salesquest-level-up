@@ -250,11 +250,20 @@ const AdminGerentes = () => {
   };
 
   const handleSave = async () => {
-    if (!form.nombre.trim() || !form.email.trim()) {
+    const nombre = form.nombre.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!nombre || !email) {
       toast({ title: 'Campos requeridos', description: 'Nombre y email son obligatorios', variant: 'destructive' });
       return;
     }
-    const payload = { ...form, celula: normalizeCelula(form.celula) || null };
+    // Validación estricta de email para evitar correos truncados que rompen el login
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(email)) {
+      toast({ title: 'Email inválido', description: 'Escribe un correo completo (ej: nombre@siigo.com) antes de guardar.', variant: 'destructive' });
+      return;
+    }
+    const previousEmail = editing ? gerentes.find(g => g.id === editing)?.email?.toLowerCase() ?? null : null;
+    const payload = { ...form, nombre, email, celula: normalizeCelula(form.celula) || null };
     if (editing) {
       const { error } = await supabase.from('gerentes').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
@@ -264,6 +273,33 @@ const AdminGerentes = () => {
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Gerente creado ✅' });
     }
+
+    // Si el email cambió (o es nuevo), reparar acceso automáticamente para
+    // garantizar que la cuenta auth quede sincronizada y el gerente pueda entrar.
+    const emailChanged = !editing || (previousEmail && previousEmail !== email);
+    if (emailChanged) {
+      try {
+        const { data, error } = await supabase.functions.invoke('fix-account-access', {
+          body: { email, password: 'SiigoArena2026!' },
+        });
+        const r = data?.results?.[0];
+        if (!error && r?.status === 'ok') {
+          toast({
+            title: '🔐 Acceso sincronizado',
+            description: `${nombre} puede iniciar sesión con ${email} y la contraseña SiigoArena2026!`,
+          });
+        } else if (error || r?.status === 'error') {
+          toast({
+            title: 'Aviso',
+            description: `Email guardado, pero la sincronización de acceso falló: ${error?.message || r?.error || 'desconocido'}. Usa "Reparar acceso" en la fila.`,
+            variant: 'destructive',
+          });
+        }
+      } catch (e: any) {
+        toast({ title: 'Aviso', description: `No se pudo sincronizar acceso: ${e?.message || e}`, variant: 'destructive' });
+      }
+    }
+
     setEditing(null);
     setShowAdd(false);
     fetchGerentes();
