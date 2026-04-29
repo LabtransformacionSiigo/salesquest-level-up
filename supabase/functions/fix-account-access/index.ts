@@ -98,15 +98,6 @@ Deno.serve(async (req) => {
 
     if (!userId) return { email, status: "error", error: "no_user_id" };
 
-    // Vincular gerente por email (si existe). Si otro gerente tiene ese user_id, liberarlo.
-    const { data: gerenteRow } = await sb
-      .from("gerentes")
-      .select("id, nombre, canal, celula, user_id")
-      .ilike("email", email)
-      .order("activo", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     if (gerenteRow) {
       // Liberar user_id de otros registros que lo tengan
       await sb.from("gerentes").update({ user_id: null })
@@ -116,6 +107,8 @@ Deno.serve(async (req) => {
       if (gerenteRow.user_id !== userId) {
         await sb.from("gerentes").update({ user_id: userId }).eq("id", gerenteRow.id);
       }
+      await sb.from("user_roles").delete().eq("user_id", userId).neq("role", "gerente");
+      await sb.from("user_roles").upsert({ user_id: userId, role: "gerente" }, { onConflict: "user_id,role" });
     }
 
     return {
