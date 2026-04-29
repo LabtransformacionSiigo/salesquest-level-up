@@ -1,0 +1,156 @@
+// Repara el acceso de un gerente o especialista:
+// - Busca el usuario en auth.users por email (paginando)
+// - Si no existe, lo crea (email_confirm=true)
+// - Resetea la contraseña a la que se pase (default SiigoArena2026!)
+// - Confirma el email
+// - Sincroniza gerentes.user_id al user real
+// - Si otro gerente tenía ese user_id, lo libera (NULL)
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const DEFAULT_PASSWORD = "SiigoArena2026!";
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const sb = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  let body: any = {};
+  try { body = await req.json(); } catch {}
+
+  // Modo masivo: { mode: 'especialistas' } o { mode: 'emails', emails: [...] }
+  const mode: string = String(body?.mode || "single");
+  const password: string = String(body?.password || DEFAULT_PASSWORD);
+
+  const findAuthUserByEmail = async (email: string): Promise<{ id: string; email: string } | null> => {
+    const target = email.toLowerCase();
+    for (let page = 1; page <= 50; page++) {
+      const { data: list, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) return null;
+      const users = list?.users ?? [];
+      const found = users.find((u: any) => (u.email || "").toLowerCase() === target);
+      if (found) return { id: found.id, email: found.email || "" };
+      if (users.length < 200) break;
+    }
+    return null;
+  };
+
+  const repairOne = async (rawEmail: string) => {
+    const email = String(rawEmail || "").trim().toLowerCase();
+    if (!email) return { email: rawEmail, status: "skip_no_email" };
+
+    let userId: string | null = null;
+    const found = await findAuthUserByEmail(email);
+
+    if (found) {
+      userId = found.id;
+      const { error: upErr } = await sb.auth.admin.updateUserById(found.id, {
+        password,
+        email_confirm: true,
+      });
+      if (upErr) return { email, status: "error", error: `update: ${upErr.message}` };
+    } else {
+      const { data: created, error: cErr } = await sb.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (cErr || !created?.user?.id) {
+        return { email, status: "error", error: `create: ${cErr?.message || "no user"}` };
+      }
+      userId = created.user.id;
+    }
+
+    if (!userId) return { email, status: "error", error: "no_user_id" };
+
+    // Vincular gerente por email (si existe). Si otro gerente tiene ese user_id, liberarlo.
+    const { data: gerenteRow } = await sb
+      .from("gerentes")
+      .select("id, nombre, canal, celula, user_id")
+      .ilike("email", email)
+      .order("activo", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (gerenteRow) {
+      // Liberar user_id de otros registros que lo tengan
+      await sb.from("gerentes").update({ user_id: null })
+        .eq("user_id", userId)
+        .neq("id", gerenteRow.id);
+      // Asignarlo al gerente correcto
+      if (gerenteRow.user_id !== userId) {
+        await sb.from("gerentes").update({ user_id: userId }).eq("id", gerenteRow.id);
+      }
+    }
+
+    return {
+      email,
+      user_id: userId,
+      gerente_id: gerenteRow?.id ?? null,
+      nombre: gerenteRow?.nombre ?? null,
+      canal: gerenteRow?.canal ?? null,
+      celula: gerenteRow?.celula ?? null,
+      status: "ok",
+      password_reset: true,
+    };
+  };
+
+  // Resolver lista de emails a reparar
+  let emails: string[] = [];
+  if (mode === "especialistas") {
+    const { data, error } = await sb
+      .from("user_roles")
+      .select("user_id, role")
+      .eq("role", "especialista");
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const ids = (data || []).map((r: any) => r.user_id);
+    // Traer emails
+    const collected: string[] = [];
+    for (let page = 1; page <= 50; page++) {
+      const { data: list } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+      if (!list?.users?.length) break;
+      list.users.forEach((u: any) => {
+        if (ids.includes(u.id) && u.email) collected.push(u.email.toLowerCase());
+      });
+      if (list.users.length < 200) break;
+    }
+    emails = [...new Set(collected)];
+  } else if (mode === "emails" && Array.isArray(body?.emails)) {
+    emails = body.emails.map((e: string) => String(e).trim().toLowerCase()).filter(Boolean);
+  } else {
+    const single = String(body?.email || "").trim().toLowerCase();
+    if (!single) {
+      return new Response(JSON.stringify({ error: "email or mode required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    emails = [single];
+  }
+
+  const results: any[] = [];
+  for (const e of emails) {
+    try { results.push(await repairOne(e)); }
+    catch (err: any) { results.push({ email: e, status: "error", error: err?.message || String(err) }); }
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    password_used: password,
+    count: results.length,
+    ok: results.filter((r) => r.status === "ok").length,
+    errors: results.filter((r) => r.status === "error").length,
+    results,
+  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+});
