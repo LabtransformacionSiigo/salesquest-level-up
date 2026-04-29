@@ -41,8 +41,50 @@ const AdminGerentes = () => {
   const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' });
   const [showAdd, setShowAdd] = useState(false);
   const [filterCanal, setFilterCanal] = useState('TODOS');
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<string>('');
 
   const isAdmin = profile?.role === 'admin';
+
+  const crearCuentasFaltantes = async () => {
+    if (bulkRunning) return;
+    setBulkRunning(true);
+    let total = 0;
+    let totalLinked = 0;
+    let totalErrors = 0;
+    let offset = 0;
+    const batchSize = 200;
+    try {
+      while (true) {
+        setBulkStatus(`Procesando lote desde ${offset}…`);
+        const { data, error } = await supabase.functions.invoke(
+          'create-missing-gerente-accounts',
+          { body: { offset, limit: batchSize, password: 'SiigoArena2026!' } },
+        );
+        if (error) {
+          setBulkStatus(`❌ Error en lote ${offset}: ${error.message}`);
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          break;
+        }
+        const created = Number(data?.created ?? 0);
+        const linked = Number(data?.linked_existing ?? 0);
+        const errs = Number(data?.errors ?? 0);
+        const processed = Number(data?.total_processed ?? 0);
+        total += created;
+        totalLinked += linked;
+        totalErrors += errs;
+        setBulkStatus(`✅ Lote ${offset}: +${created} creados, +${linked} vinculados, ${errs} errores. Total creados: ${total}`);
+        if (processed < batchSize) break;
+        offset += batchSize;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      setBulkStatus(`✅ Completado · ${total} creadas · ${totalLinked} vinculadas · ${totalErrors} errores`);
+      toast({ title: 'Cuentas creadas', description: `${total} nuevas, ${totalLinked} vinculadas, ${totalErrors} errores` });
+      fetchGerentes();
+    } finally {
+      setBulkRunning(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
