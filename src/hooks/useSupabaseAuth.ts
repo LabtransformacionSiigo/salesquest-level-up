@@ -385,10 +385,17 @@ export const useSupabaseAuth = () => {
           setProfile(null);
         }
       } else {
-          const [profileRes, gerenteRes] = await Promise.all([
+          const [profileRes, gerenteListRes] = await Promise.all([
           supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-            supabase.from('gerentes').select('id, sp_canje, sp_convencion, celula, canal, nombre, email, pais, lider, activo, avatar_url, created_at').eq('user_id', userId).maybeSingle(),
+            // Prioriza el registro con celula asignada (real) sobre stubs sin celula
+            supabase
+              .from('gerentes')
+              .select('id, sp_canje, sp_convencion, celula, canal, nombre, email, pais, lider, activo, avatar_url, created_at')
+              .eq('user_id', userId)
+              .order('celula', { ascending: false, nullsFirst: false })
+              .limit(1),
         ]);
+        const gerenteRes = { data: (gerenteListRes.data && gerenteListRes.data[0]) || null, error: gerenteListRes.error } as any;
 
         // Si no hay fila en la vista sp_totales_gerente, usamos un fallback desde la tabla gerentes
         // para que el gerente pueda iniciar sesión aunque no tenga ventas/metas registradas todavía.
