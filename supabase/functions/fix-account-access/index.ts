@@ -30,14 +30,23 @@ Deno.serve(async (req) => {
   const mode: string = String(body?.mode || "single");
   const password: string = String(body?.password || DEFAULT_PASSWORD);
 
-  const findAuthUserByEmail = async (email: string): Promise<{ id: string; email: string } | null> => {
+  const getIdentityEmail = (identity: any) => String(
+    identity?.identity_data?.email || identity?.identity_data?.email_normalized || identity?.email || "",
+  ).trim().toLowerCase();
+
+  const findAuthUserByEmail = async (email: string): Promise<{ id: string; email: string; foundBy: string } | null> => {
     const target = email.toLowerCase();
     for (let page = 1; page <= 50; page++) {
       const { data: list, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
-      if (error) return null;
+      if (error) throw error;
       const users = list?.users ?? [];
-      const found = users.find((u: any) => (u.email || "").toLowerCase() === target);
-      if (found) return { id: found.id, email: found.email || "" };
+      const found = users.find((u: any) => {
+        const primaryEmail = String(u.email || "").trim().toLowerCase();
+        const metadataEmail = String(u.user_metadata?.email || u.raw_user_meta_data?.email || "").trim().toLowerCase();
+        const identityEmails = (u.identities || []).map(getIdentityEmail);
+        return primaryEmail === target || metadataEmail === target || identityEmails.includes(target);
+      });
+      if (found) return { id: found.id, email: found.email || "", foundBy: String(found.email || "").toLowerCase() === target ? "primary" : "identity_or_metadata" };
       if (users.length < 200) break;
     }
     return null;
