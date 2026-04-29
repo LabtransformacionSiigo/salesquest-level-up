@@ -32,10 +32,13 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 
 const inputClass = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors";
 
+const normalizeCelula = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' ');
+
 const AdminGerentes = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
   const [gerentes, setGerentes] = useState<any[]>([]);
+  const [celulasDisponibles, setCelulasDisponibles] = useState<string[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' });
@@ -180,8 +183,18 @@ const AdminGerentes = () => {
   }, [isAuthenticated]);
 
   const fetchGerentes = async () => {
-    const { data } = await supabase.from('gerentes').select('*').order('nombre');
-    setGerentes(data || []);
+    const [gerentesRes, metasRes, productividadRes] = await Promise.all([
+      supabase.from('gerentes').select('*').order('nombre'),
+      supabase.from('metas_acv_gerentes' as any).select('celula').limit(5000),
+      supabase.from('productividad_asesores').select('celula').limit(5000),
+    ]);
+    const allCelulas = [
+      ...((gerentesRes.data || []).map((g: any) => g.celula)),
+      ...(((metasRes.data as any[]) || []).map((r: any) => r.celula)),
+      ...((productividadRes.data || []).map((r: any) => r.celula)),
+    ];
+    setGerentes(gerentesRes.data || []);
+    setCelulasDisponibles([...new Set(allCelulas.map(normalizeCelula).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
     setDataLoading(false);
   };
 
@@ -190,7 +203,7 @@ const AdminGerentes = () => {
       toast({ title: 'Campos requeridos', description: 'Nombre y email son obligatorios', variant: 'destructive' });
       return;
     }
-    const payload = { ...form, celula: form.celula.trim() || null };
+    const payload = { ...form, celula: normalizeCelula(form.celula) || null };
     if (editing) {
       const { error } = await supabase.from('gerentes').update(payload).eq('id', editing);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
