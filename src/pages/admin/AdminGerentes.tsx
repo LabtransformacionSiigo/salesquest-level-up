@@ -139,10 +139,22 @@ const AdminGerentes = () => {
             <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
-          <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' }); }}>
-            <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={crearCuentasFaltantes} disabled={bulkRunning}>
+              <MI icon="how_to_reg" className="text-sm mr-1" />
+              {bulkRunning ? 'Creando…' : 'Crear cuentas faltantes'}
+            </Button>
+            <Button onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ nombre: '', email: '', canal: 'VC', pais: 'MEX', activo: true, celula: '' }); }}>
+              <MI icon="person_add" className="text-sm mr-1" /> Nuevo Gerente
+            </Button>
+          </div>
         </div>
+
+        {bulkStatus && (
+          <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
+            {bulkStatus}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
