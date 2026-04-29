@@ -47,29 +47,11 @@ const FAMILIAS_VC = [
   { value: 'AMBAS', label: 'Ambas' },
 ];
 
-// KPIs disponibles según canal
-const KPIS_POR_CANAL: Record<string, string[]> = {
-  VC: ['acv_plus', 'upgrades', 'conversiones', 'cumplimiento_pct'],
-  VN_ALIADOS: ['acv_plus', 'cumplimiento_pct'],
-  VN_EMPRESARIOS: ['acv_plus', 'cumplimiento_pct'],
-};
-
 // Métricas disponibles según canal (operación)
 const METRICAS_POR_CANAL: Record<string, string[]> = {
   VC: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'],
-  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE', 'DIARIO_HABILES'],
-  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE', 'DIARIO_HABILES'],
-};
-
-// Etiquetas legibles para tipos de métrica
-const TIPO_METRICA_LABELS: Record<string, string> = {
-  UNIDADES: 'Unidades',
-  ACV: 'ACV ($)',
-  CUMPLIMIENTO_META_ACV_PLUS: '% Cumplimiento ACV',
-  FE: 'Facturación Electrónica',
-  NUBE: 'Nube',
-  DIARIO_HABILES: 'Equivalente diario (días hábiles)',
-  RECOMENDADOS: 'Referidos Contador',
+  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
 };
 
 // Helpers de mapeo operación↔canal (compartidos)
@@ -472,11 +454,6 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     if (metricasValidas && !metricasValidas.includes(form.tipo_metrica)) {
       setForm((f: any) => ({ ...f, tipo_metrica: metricasValidas[0] }));
     }
-    // Si el KPI actual no es válido para el canal, resetear al primero disponible
-    const kpisValidos = canal ? KPIS_POR_CANAL[canal] : KPIS_POR_CANAL.VC;
-    if (kpisValidos && !kpisValidos.includes(form.kpi)) {
-      setForm((f: any) => ({ ...f, kpi: kpisValidos[0] }));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.operacion]);
 
@@ -493,16 +470,6 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
   // Métricas disponibles según canal
   const metricasDisponibles = (canalForm && METRICAS_POR_CANAL[canalForm]) || TIPO_METRICA;
-
-  // KPIs disponibles según canal
-  const kpisDisponibles = KPIS_RETOS.filter((k) =>
-    (canalForm ? (KPIS_POR_CANAL[canalForm] || KPIS_POR_CANAL.VC) : KPIS_POR_CANAL.VC).includes(k.value),
-  );
-
-  // Familia visible: VC siempre; VN solo si tipo_metrica requiere familia
-  const showFamiliaField =
-    canalForm === 'VC' ||
-    (canalForm?.startsWith('VN') && ['NUBE', 'FE', 'DIARIO_HABILES'].includes(form.tipo_metrica));
 
   // Etiqueta dinámica para Nube/Campaña
   const nubeLabel = labelNubeOCampana(form.pais, form.operacion);
@@ -618,11 +585,6 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 </option>
               ))}
             </select>
-            {form.canal && (
-              <span className="text-xs text-muted-foreground mt-1 inline-block">
-                Canal derivado: <strong className="text-foreground">{form.canal}</strong>
-              </span>
-            )}
           </Field>
           {showGerenteSelector && (
             <div className="col-span-2">
@@ -651,13 +613,24 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
           )}
           {tipo === 'reto' && (
             <>
+              <Field label="Canal" hint="Derivado de la operación">
+                <select
+                  value={form.canal}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
+                >
+                  {CANALES_RETOS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label="KPI de medición">
                 <select
                   value={form.kpi}
                   onChange={(e) => setForm({ ...form, kpi: e.target.value })}
                   className={inputClass}
                 >
-                  {kpisDisponibles.map((k) => (
+                  {KPIS_RETOS.map((k) => (
                     <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
@@ -681,15 +654,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
                   className={inputClass}
                 >
-                  {metricasDisponibles.map((t) => {
-                    const baseLabel = TIPO_METRICA_LABELS[t] || t;
-                    const label = t === 'NUBE' ? labelNubeOCampana(form.pais, form.operacion) : baseLabel;
-                    return (
-                      <option key={t} value={t}>
-                        {label}
-                      </option>
-                    );
-                  })}
+                  {metricasDisponibles.map((t) => (
+                    <option key={t} value={t}>
+                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
+                    </option>
+                  ))}
                 </select>
               </Field>
               {form.canal === 'VC' && (
@@ -705,25 +674,20 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
-              {showFamiliaField && (
-                <Field
-                  label="Familia (opcional)"
-                  hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}
+              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                <select
+                  value={form.familia}
+                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                  className={inputClass}
                 >
-                  <select
-                    value={form.familia}
-                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                    className={inputClass}
-                  >
-                    <option value="">— N/A —</option>
-                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
+                  <option value="">— N/A —</option>
+                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
                 <Input
                   type="number"
@@ -743,6 +707,17 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'racha' && (
             <>
+              <Field label="Canal" hint="Derivado de la operación">
+                <select
+                  value={form.canal}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
+                >
+                  <option value="VC">VC</option>
+                  <option value="VN_ALIADOS">VN Aliados</option>
+                  <option value="VN_EMPRESARIOS">VN Empresarios</option>
+                </select>
+              </Field>
               <Field label="Condición">
                 <Input
                   value={form.condicion_tipo}
@@ -776,6 +751,17 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'medalla' && (
             <>
+              <Field label="Canal" hint="Derivado de la operación">
+                <select
+                  value={form.canal}
+                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
+                  disabled
+                >
+                  <option value="VC">VC</option>
+                  <option value="VN_ALIADOS">VN Aliados</option>
+                  <option value="VN_EMPRESARIOS">VN Empresarios</option>
+                </select>
+              </Field>
               <Field label="Tipo de evento">
                 <select
                   value={form.tipo_evento}
