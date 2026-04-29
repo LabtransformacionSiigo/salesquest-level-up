@@ -45,8 +45,35 @@ const AdminGerentes = () => {
   const [bulkStatus, setBulkStatus] = useState<string>('');
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupPlan, setCleanupPlan] = useState<any | null>(null);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncResult, setSyncResult] = useState<any | null>(null);
 
   const isAdmin = profile?.role === 'admin';
+
+  const sincronizarTodasLasCuentas = async () => {
+    if (syncRunning) return;
+    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Esto puede tardar 1-3 minutos y reseteará la contraseña a SiigoArena2026!')) return;
+    setSyncRunning(true);
+    setSyncResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'normalize-gerentes-emails',
+        { body: {} },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setSyncResult(data);
+      toast({
+        title: '✅ Sincronización completada',
+        description: `Total: ${data?.total ?? 0} · Creados: ${data?.creados ?? 0} · Actualizados: ${data?.actualizados ?? 0} · Errores: ${data?.errores ?? 0}`,
+      });
+      fetchGerentes();
+    } finally {
+      setSyncRunning(false);
+    }
+  };
 
   const previewLimpiezaDuplicados = async () => {
     if (cleanupRunning) return;
