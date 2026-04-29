@@ -56,9 +56,10 @@ SELECT
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_SA v
 LEFT JOIN (
-  SELECT DISTINCT celula, gerente
+  SELECT celula, MAX(gerente) AS gerente
   FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
   WHERE gerente IS NOT NULL
+  GROUP BY celula
 ) c ON v.celula = c.celula
 WHERE v.fecha >= '2026-01-01'
 GROUP BY 1,2,3,4,5,6,7,8
