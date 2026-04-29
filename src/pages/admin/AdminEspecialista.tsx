@@ -47,11 +47,29 @@ const FAMILIAS_VC = [
   { value: 'AMBAS', label: 'Ambas' },
 ];
 
+// KPIs disponibles según canal
+const KPIS_POR_CANAL: Record<string, string[]> = {
+  VC: ['acv_plus', 'upgrades', 'conversiones', 'cumplimiento_pct'],
+  VN_ALIADOS: ['acv_plus', 'cumplimiento_pct'],
+  VN_EMPRESARIOS: ['acv_plus', 'cumplimiento_pct'],
+};
+
 // Métricas disponibles según canal (operación)
 const METRICAS_POR_CANAL: Record<string, string[]> = {
   VC: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'],
-  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
-  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE'],
+  VN_ALIADOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE', 'DIARIO_HABILES'],
+  VN_EMPRESARIOS: ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'FE', 'NUBE', 'DIARIO_HABILES'],
+};
+
+// Etiquetas legibles para tipos de métrica
+const TIPO_METRICA_LABELS: Record<string, string> = {
+  UNIDADES: 'Unidades',
+  ACV: 'ACV ($)',
+  CUMPLIMIENTO_META_ACV_PLUS: '% Cumplimiento ACV',
+  FE: 'Facturación Electrónica',
+  NUBE: 'Nube',
+  DIARIO_HABILES: 'Equivalente diario (días hábiles)',
+  RECOMENDADOS: 'Referidos Contador',
 };
 
 // Helpers de mapeo operación↔canal (compartidos)
