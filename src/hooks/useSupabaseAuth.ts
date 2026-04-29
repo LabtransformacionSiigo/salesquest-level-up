@@ -203,7 +203,7 @@ export const useSupabaseAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchUserProfile(session.user.id), 0);
+          setTimeout(() => fetchUserProfile(session.user.id, session.user.email ?? null), 0);
         } else {
           setProfile(null);
           setLoading(false);
@@ -215,7 +215,7 @@ export const useSupabaseAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user.email ?? null);
       } else {
         setLoading(false);
       }
@@ -224,7 +224,7 @@ export const useSupabaseAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, authEmail?: string | null) => {
     try {
       const currentConventionYear = getCurrentConventionYear();
       const currentConventionPeriod = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -385,21 +385,41 @@ export const useSupabaseAuth = () => {
           setProfile(null);
         }
       } else {
-          const [profileRes, gerenteListRes] = await Promise.all([
-          supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).maybeSingle(),
-            // Prioriza el registro con celula asignada (real) sobre stubs sin celula
-            supabase
-              .from('gerentes')
-              .select('id, sp_canje, sp_convencion, celula, canal, nombre, email, pais, lider, activo, avatar_url, created_at')
-              .eq('user_id', userId)
-              .order('celula', { ascending: false, nullsFirst: false })
-              .limit(1),
+        const emailNorm = String(authEmail || '').trim().toLowerCase();
+        const gerenteSelect = 'id, user_id, sp_canje, sp_convencion, celula, canal, nombre, email, pais, lider, activo, avatar_url, created_at';
+        const gerenteQuery = emailNorm
+          ? supabase.from('gerentes').select(gerenteSelect).or(`user_id.eq.${userId},email.ilike.${emailNorm}`).limit(25)
+          : supabase.from('gerentes').select(gerenteSelect).eq('user_id', userId).limit(25);
+
+        const [profileTotalsRes, gerenteListRes] = await Promise.all([
+          supabase.from('sp_totales_gerente').select('*').eq('user_id', userId).limit(25),
+          gerenteQuery,
         ]);
-        const gerenteRes = { data: (gerenteListRes.data && gerenteListRes.data[0]) || null, error: gerenteListRes.error } as any;
+
+        const scoreGerente = (g: any) => {
+          const email = String(g?.email || '').trim().toLowerCase();
+          const emailPrefix = email.split('@')[0] || '';
+          const nombreNorm = normalizeComparableText(g?.nombre).replace(/[._-]/g, ' ');
+          const prefixNorm = normalizeComparableText(emailPrefix).replace(/[._-]/g, ' ');
+          let score = 0;
+          if (g?.user_id === userId) score += 100;
+          if (emailNorm && email === emailNorm) score += 90;
+          if (g?.activo !== false) score += 25;
+          if (g?.celula) score += 50;
+          if (g?.canal === 'VN_ALIADOS' || g?.canal === 'VN_EMPRESARIOS') score += 15;
+          if (nombreNorm && nombreNorm !== prefixNorm) score += 10;
+          return score;
+        };
+
+        const gerenteCandidates = ((gerenteListRes.data as any[]) || []).sort((a, b) => scoreGerente(b) - scoreGerente(a));
+        const gerenteRes = { data: gerenteCandidates[0] || null, error: gerenteListRes.error } as any;
 
         // Si no hay fila en la vista sp_totales_gerente, usamos un fallback desde la tabla gerentes
         // para que el gerente pueda iniciar sesión aunque no tenga ventas/metas registradas todavía.
-        let data: any = profileRes.data;
+        const totalsRows = (profileTotalsRes.data as any[]) || [];
+        let data: any = gerenteRes.data
+          ? { ...gerenteRes.data, ...(totalsRows.find((row) => row.id === gerenteRes.data.id) || {}) }
+          : totalsRows[0];
         if (!data && (gerenteRes.data as any)?.id) {
           const g: any = gerenteRes.data;
           data = {
