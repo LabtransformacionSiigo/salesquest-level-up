@@ -472,6 +472,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     if (metricasValidas && !metricasValidas.includes(form.tipo_metrica)) {
       setForm((f: any) => ({ ...f, tipo_metrica: metricasValidas[0] }));
     }
+    // Si el KPI actual no es válido para el canal, resetear al primero disponible
+    const kpisValidos = canal ? KPIS_POR_CANAL[canal] : KPIS_POR_CANAL.VC;
+    if (kpisValidos && !kpisValidos.includes(form.kpi)) {
+      setForm((f: any) => ({ ...f, kpi: kpisValidos[0] }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.operacion]);
 
@@ -488,6 +493,16 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
   // Métricas disponibles según canal
   const metricasDisponibles = (canalForm && METRICAS_POR_CANAL[canalForm]) || TIPO_METRICA;
+
+  // KPIs disponibles según canal
+  const kpisDisponibles = KPIS_RETOS.filter((k) =>
+    (canalForm ? (KPIS_POR_CANAL[canalForm] || KPIS_POR_CANAL.VC) : KPIS_POR_CANAL.VC).includes(k.value),
+  );
+
+  // Familia visible: VC siempre; VN solo si tipo_metrica requiere familia
+  const showFamiliaField =
+    canalForm === 'VC' ||
+    (canalForm?.startsWith('VN') && ['NUBE', 'FE', 'DIARIO_HABILES'].includes(form.tipo_metrica));
 
   // Etiqueta dinámica para Nube/Campaña
   const nubeLabel = labelNubeOCampana(form.pais, form.operacion);
