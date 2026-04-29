@@ -277,6 +277,7 @@ export type Database = {
           gerente_id: string | null
           id: string
           kpi: string | null
+          meses_campana: string[] | null
           nombre: string
           objetivo_descripcion: string | null
           operacion: string | null
@@ -300,6 +301,7 @@ export type Database = {
           gerente_id?: string | null
           id?: string
           kpi?: string | null
+          meses_campana?: string[] | null
           nombre: string
           objetivo_descripcion?: string | null
           operacion?: string | null
@@ -323,6 +325,7 @@ export type Database = {
           gerente_id?: string | null
           id?: string
           kpi?: string | null
+          meses_campana?: string[] | null
           nombre?: string
           objetivo_descripcion?: string | null
           operacion?: string | null
@@ -400,6 +403,7 @@ export type Database = {
           gerente_id: string | null
           id: string
           kpi: string | null
+          meses_campana: string[] | null
           multiplicador_sp: number | null
           nombre: string
           objetivo_descripcion: string | null
@@ -422,6 +426,7 @@ export type Database = {
           gerente_id?: string | null
           id?: string
           kpi?: string | null
+          meses_campana?: string[] | null
           multiplicador_sp?: number | null
           nombre: string
           objetivo_descripcion?: string | null
@@ -444,6 +449,7 @@ export type Database = {
           gerente_id?: string | null
           id?: string
           kpi?: string | null
+          meses_campana?: string[] | null
           multiplicador_sp?: number | null
           nombre?: string
           objetivo_descripcion?: string | null
