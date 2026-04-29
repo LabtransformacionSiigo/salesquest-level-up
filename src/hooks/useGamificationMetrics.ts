@@ -1323,21 +1323,35 @@ export const useGamificationMetrics = (
           // FUENTE ÚNICA: vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
           // NO usar ventas_diarias (tiene filas diarias → suma incorrecta)
           const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
-          
+
+          // DEDUP: la tabla puede tener filas duplicadas para el mismo asesor cuando
+          // el campo `gerente` viene con dos variantes ("Diana Naranjo" vs "Diana Maria
+          // Naranjo Mattheus"). Como `gerente_normalizado` también difiere, ambas filas
+          // pasan los filtros. Dedup por (asesor, tipo_producto1) tomando MAX(ventas/acv).
+          const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
           vnAsesorData
             .filter((r: any) => Number(r.mes_nro) === mesActualNro)
             .forEach((r: any) => {
               const key = normalizeComparableText(r.asesor ?? '');
-              if (!key || key === gerenteKey) return; // excluir gerente
-              const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
-              const uds = Math.round(Number(r.total_productos) || 0);
+              if (!key || key === gerenteKey) return;
               const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
-              if (tipo === 'FE')                          cur.fe   += uds;
-              if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
-              cur.total += uds;
-              cur.acv   += Math.round(Number(r.acv_total) || 0);
-              ventasPorAsesor.set(key, cur);
+              const dedupKey = `${key}|${tipo}`;
+              const uds = Math.round(Number(r.total_productos) || 0);
+              const acv = Math.round(Number(r.acv_total) || 0);
+              const prev = dedupAsesor.get(dedupKey);
+              if (!prev || uds > prev.uds) {
+                dedupAsesor.set(dedupKey, { uds, acv, tipo, key });
+              }
             });
+
+          dedupAsesor.forEach(({ uds, acv, tipo, key }) => {
+            const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+            if (tipo === 'FE')                          cur.fe   += uds;
+            if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
+            cur.total += uds;
+            cur.acv   += acv;
+            ventasPorAsesor.set(key, cur);
+          });
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
           const prodByName = new Map<string, any>();
