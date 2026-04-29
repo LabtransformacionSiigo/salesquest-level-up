@@ -1992,6 +1992,18 @@ export type Database = {
         }
         Relationships: []
       }
+      gerentes_user_id_issues: {
+        Row: {
+          canal: string | null
+          celula: string | null
+          email: string | null
+          gerente_id: string | null
+          issue_type: string | null
+          nombre: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       kpis_mes_actual: {
         Row: {
           acv_f: number | null
@@ -2238,6 +2250,18 @@ export type Database = {
       canjear_premio: {
         Args: { p_gerente_id: string; p_premio_id: string }
         Returns: Json
+      }
+      check_gerentes_user_id_integrity: {
+        Args: never
+        Returns: {
+          canal: string
+          celula: string
+          email: string
+          gerente_id: string
+          issue_type: string
+          nombre: string
+          user_id: string
+        }[]
       }
       especialista_puede: {
         Args: { _operacion: string; _pais: string }
