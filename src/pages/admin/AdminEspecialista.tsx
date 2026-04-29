@@ -618,6 +618,11 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 </option>
               ))}
             </select>
+            {form.canal && (
+              <span className="text-xs text-muted-foreground mt-1 inline-block">
+                Canal derivado: <strong className="text-foreground">{form.canal}</strong>
+              </span>
+            )}
           </Field>
           {showGerenteSelector && (
             <div className="col-span-2">
