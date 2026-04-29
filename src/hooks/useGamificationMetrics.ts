@@ -491,6 +491,11 @@ export const useGamificationMetrics = (
                   y filtrado en cliente por nombre normalizado. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
+                // No filtramos por celula server-side porque la grafía puede diferir
+                // entre `gerentes` y `vn_metricas_optimizadas` (acentos, p.ej.
+                // "México" vs "Mexico"). Filtramos por canal+pais y dejamos que el
+                // matchVnRow client-side (normalizado sin acentos) haga el match
+                // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, total_productos:ventas, acv_total')
@@ -498,15 +503,11 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(8000);
-                if (profile.celula) {
-                  q = q.eq('celula', profile.celula);
-                } else {
-                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                                 : null;
-                  if (canalDir) q = q.eq('canal_direccion', canalDir);
-                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
-                }
+                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                               : null;
+                if (canalDir) q = q.eq('canal_direccion', canalDir);
+                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
             : Promise.resolve({ data: [] }),
@@ -516,6 +517,8 @@ export const useGamificationMetrics = (
                   consumirla también para el Historial garantizamos consistencia. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
+                // Igual que scope=asesor: evitamos .eq('celula', ...) server-side y
+                // delegamos el match exacto al filtro client-side normalizado.
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
                   .select('pais, anio, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
@@ -523,15 +526,11 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(5000);
-                if (profile.celula) {
-                  q = q.eq('celula', profile.celula);
-                } else {
-                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                                 : null;
-                  if (canalDir) q = q.eq('canal_direccion', canalDir);
-                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
-                }
+                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                               : null;
+                if (canalDir) q = q.eq('canal_direccion', canalDir);
+                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
             : Promise.resolve({ data: [] }),
