@@ -724,6 +724,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
+              <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
                 <Input
                   type="number"
                   value={form.umbral}
