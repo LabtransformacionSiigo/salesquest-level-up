@@ -43,8 +43,54 @@ const AdminGerentes = () => {
   const [filterCanal, setFilterCanal] = useState('TODOS');
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupPlan, setCleanupPlan] = useState<any | null>(null);
 
   const isAdmin = profile?.role === 'admin';
+
+  const previewLimpiezaDuplicados = async () => {
+    if (cleanupRunning) return;
+    setCleanupRunning(true);
+    setCleanupPlan(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'cleanup-duplicated-gerentes',
+        { body: { dryRun: true } },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setCleanupPlan(data);
+      toast({ title: 'Plan generado', description: `${data?.renamed ?? 0} a renombrar · ${(data?.log ?? []).filter((l: any) => l.op === 'delete').length} a borrar` });
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
+
+  const ejecutarLimpiezaDuplicados = async () => {
+    if (cleanupRunning) return;
+    if (!confirm('¿Confirmas borrar los duplicados y sus cuentas auth? Esta acción es irreversible.')) return;
+    setCleanupRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'cleanup-duplicated-gerentes',
+        { body: {} },
+      );
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: '✅ Limpieza ejecutada',
+        description: `${data?.renamed ?? 0} renombrados · ${data?.deletedGerentes ?? 0} borrados · ${data?.deletedAuth ?? 0} auth eliminados`,
+      });
+      setCleanupPlan(null);
+      fetchGerentes();
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
 
   const crearCuentasFaltantes = async () => {
     if (bulkRunning) return;
@@ -140,6 +186,10 @@ const AdminGerentes = () => {
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={previewLimpiezaDuplicados} disabled={cleanupRunning}>
+              <MI icon="cleaning_services" className="text-sm mr-1" />
+              {cleanupRunning ? 'Procesando…' : 'Ejecutar limpieza duplicados'}
+            </Button>
             <Button variant="outline" onClick={crearCuentasFaltantes} disabled={bulkRunning}>
               <MI icon="how_to_reg" className="text-sm mr-1" />
               {bulkRunning ? 'Creando…' : 'Crear cuentas faltantes'}
@@ -153,6 +203,44 @@ const AdminGerentes = () => {
         {bulkStatus && (
           <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
             {bulkStatus}
+          </div>
+        )}
+
+        {cleanupPlan && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <MI icon="preview" className="text-primary text-base" />
+                Plan de limpieza (sin ejecutar)
+              </h3>
+              <button onClick={() => setCleanupPlan(null)} className="text-muted-foreground hover:text-foreground">
+                <MI icon="close" className="text-lg" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-semibold text-foreground mb-1">✏️ Renombres ({cleanupPlan.renamed ?? 0})</div>
+                <ul className="space-y-1 text-muted-foreground">
+                  {(cleanupPlan.log ?? []).filter((l: any) => l.op === 'rename').map((l: any, i: number) => (
+                    <li key={i} className="truncate"><span className="text-foreground">{l.from}</span> → <span className="text-primary">{l.to}</span></li>
+                  ))}
+                </ul>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-semibold text-foreground mb-1">🗑️ Borrados ({(cleanupPlan.log ?? []).filter((l: any) => l.op === 'delete').length})</div>
+                <ul className="space-y-1 text-muted-foreground max-h-48 overflow-y-auto">
+                  {(cleanupPlan.log ?? []).filter((l: any) => l.op === 'delete').map((l: any, i: number) => (
+                    <li key={i} className="truncate">{l.email} {l.user_id && <span className="text-destructive">+ auth</span>}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={() => setCleanupPlan(null)}>Cancelar</Button>
+              <Button onClick={ejecutarLimpiezaDuplicados} disabled={cleanupRunning}>
+                {cleanupRunning ? 'Ejecutando…' : 'Confirmar y ejecutar'}
+              </Button>
+            </div>
           </div>
         )}
 
