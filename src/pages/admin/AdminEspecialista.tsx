@@ -651,24 +651,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
           )}
           {tipo === 'reto' && (
             <>
-              <Field label="Canal" hint="Derivado de la operación">
-                <select
-                  value={form.canal}
-                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
-                  disabled
-                >
-                  {CANALES_RETOS.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </Field>
               <Field label="KPI de medición">
                 <select
                   value={form.kpi}
                   onChange={(e) => setForm({ ...form, kpi: e.target.value })}
                   className={inputClass}
                 >
-                  {KPIS_RETOS.map((k) => (
+                  {kpisDisponibles.map((k) => (
                     <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
@@ -692,11 +681,15 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
                   className={inputClass}
                 >
-                  {metricasDisponibles.map((t) => (
-                    <option key={t} value={t}>
-                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
-                    </option>
-                  ))}
+                  {metricasDisponibles.map((t) => {
+                    const baseLabel = TIPO_METRICA_LABELS[t] || t;
+                    const label = t === 'NUBE' ? labelNubeOCampana(form.pais, form.operacion) : baseLabel;
+                    return (
+                      <option key={t} value={t}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               </Field>
               {form.canal === 'VC' && (
@@ -712,21 +705,25 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
-              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
-                <select
-                  value={form.familia}
-                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                  className={inputClass}
+              {showFamiliaField && (
+                <Field
+                  label="Familia (opcional)"
+                  hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}
                 >
-                  <option value="">— N/A —</option>
-                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
+                  <select
+                    value={form.familia}
+                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">— N/A —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
                 <Input
                   type="number"
                   value={form.umbral}
