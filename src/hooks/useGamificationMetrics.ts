@@ -1317,7 +1317,8 @@ export const useGamificationMetrics = (
           });
 
           const gerenteKey = normalizeComparableText(profile.nombre ?? '');
-          const mesActualNro = new Date().getMonth() + 1;
+          // mes_nro derivado del periodo seleccionado (mesActual = YYYYMM), no del reloj del navegador
+          const mesActualNro = parseInt(mesActual.slice(4), 10);
           const ventasPorAsesor = new Map<string, {fe:number; nube:number; total:number; acv:number}>();
           // FUENTE ÚNICA: vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
           // NO usar ventas_diarias (tiene filas diarias → suma incorrecta)
