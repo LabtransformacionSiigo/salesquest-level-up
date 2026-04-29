@@ -291,7 +291,11 @@ const AdminGerentes = () => {
             <h2 className="text-lg font-bold text-foreground">Gestión de Gerentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={repararEspecialistas} disabled={repairingEspecialistas}>
+              <MI icon="lock_reset" className="text-sm mr-1" />
+              {repairingEspecialistas ? 'Reparando…' : 'Reparar especialistas'}
+            </Button>
             <Button variant="outline" onClick={sincronizarTodasLasCuentas} disabled={syncRunning}>
               <MI icon="sync" className="text-sm mr-1" />
               {syncRunning ? 'Sincronizando…' : 'Sincronizar TODAS las cuentas'}
@@ -466,9 +470,19 @@ const AdminGerentes = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button onClick={() => startEdit(g)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center justify-center transition-colors">
-                        <MI icon="edit" className="text-base" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => repararAcceso(g)}
+                          disabled={repairingId === g.id}
+                          title="Reparar acceso (resetea contraseña a SiigoArena2026! y vincula la cuenta)"
+                          className="w-7 h-7 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 inline-flex items-center justify-center transition-colors disabled:opacity-50"
+                        >
+                          <MI icon={repairingId === g.id ? 'hourglass_empty' : 'lock_reset'} className="text-base" />
+                        </button>
+                        <button onClick={() => startEdit(g)} title="Editar" className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center justify-center transition-colors">
+                          <MI icon="edit" className="text-base" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
