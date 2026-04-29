@@ -213,6 +213,10 @@ const AdminGerentes = () => {
             <p className="text-xs text-muted-foreground mt-0.5">{activos} activos de {gerentes.length} registrados</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={sincronizarTodasLasCuentas} disabled={syncRunning}>
+              <MI icon="sync" className="text-sm mr-1" />
+              {syncRunning ? 'Sincronizando…' : 'Sincronizar TODAS las cuentas'}
+            </Button>
             <Button variant="outline" onClick={previewLimpiezaDuplicados} disabled={cleanupRunning}>
               <MI icon="cleaning_services" className="text-sm mr-1" />
               {cleanupRunning ? 'Procesando…' : 'Ejecutar limpieza duplicados'}
@@ -226,6 +230,19 @@ const AdminGerentes = () => {
             </Button>
           </div>
         </div>
+
+        {syncResult && (
+          <div className="text-xs bg-card border border-border rounded-lg px-4 py-3 flex items-center gap-4">
+            <span className="font-semibold text-foreground">🔄 Sincronización:</span>
+            <span className="text-muted-foreground">Total: <span className="text-foreground font-semibold">{syncResult.total ?? 0}</span></span>
+            <span className="text-muted-foreground">Creados: <span className="text-secondary font-semibold">{syncResult.creados ?? 0}</span></span>
+            <span className="text-muted-foreground">Actualizados: <span className="text-primary font-semibold">{syncResult.actualizados ?? 0}</span></span>
+            <span className="text-muted-foreground">Errores: <span className={cn("font-semibold", (syncResult.errores ?? 0) > 0 ? "text-destructive" : "text-foreground")}>{syncResult.errores ?? 0}</span></span>
+            <button onClick={() => setSyncResult(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+              <MI icon="close" className="text-base" />
+            </button>
+          </div>
+        )}
 
         {bulkStatus && (
           <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
