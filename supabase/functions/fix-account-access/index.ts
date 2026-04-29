@@ -57,13 +57,31 @@ Deno.serve(async (req) => {
     if (!email) return { email: rawEmail, status: "skip_no_email" };
 
     let userId: string | null = null;
+    const { data: gerenteRow } = await sb
+      .from("gerentes")
+      .select("id, nombre, canal, celula, pais, user_id")
+      .ilike("email", email)
+      .order("activo", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const found = await findAuthUserByEmail(email);
 
     if (found) {
       userId = found.id;
       const { error: upErr } = await sb.auth.admin.updateUserById(found.id, {
+        email,
         password,
         email_confirm: true,
+        user_metadata: {
+          email,
+          name: gerenteRow?.nombre || email.split("@")[0],
+          nombre: gerenteRow?.nombre || email.split("@")[0],
+          role: "gerente",
+          canal: gerenteRow?.canal ?? null,
+          pais: gerenteRow?.pais ?? null,
+          celula: gerenteRow?.celula ?? null,
+        },
       });
       if (upErr) return { email, status: "error", error: `update: ${upErr.message}` };
     } else {
