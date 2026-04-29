@@ -1,7 +1,6 @@
-// Sincroniza auth.users con gerentes.email para TODOS los gerentes activos.
-// - Si el gerente tiene user_id: actualiza email + password en auth.
-// - Si no tiene user_id: crea cuenta en auth y vincula. Si el email ya existe
-//   en auth, busca y vincula sin duplicar.
+// Sincroniza auth.users con gerentes.email para gerentes activos.
+// Procesa en LOTES (offset/limit) para evitar IDLE_TIMEOUT (150s).
+// El cliente debe iterar llamando con nextOffset hasta done=true.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -20,13 +19,26 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // 1) Traer TODOS los gerentes activos con email
+  let body: any = {};
+  try { body = await req.json(); } catch { /* default */ }
+  const offset: number = Math.max(0, Number(body?.offset ?? 0));
+  const limit: number = Math.min(Math.max(1, Number(body?.limit ?? 100)), 200);
+
+  // 1) Total de gerentes activos
+  const { count: total } = await sb
+    .from("gerentes")
+    .select("id", { count: "exact", head: true })
+    .eq("activo", true)
+    .not("email", "is", null);
+
+  // 2) Lote actual
   const { data: gerentes, error: gErr } = await sb
     .from("gerentes")
-    .select("id, email, nombre, canal, pais, user_id")
+    .select("id, email, nombre, user_id")
     .eq("activo", true)
     .not("email", "is", null)
-    .limit(5000);
+    .order("id", { ascending: true })
+    .range(offset, offset + limit - 1);
 
   if (gErr) {
     return new Response(JSON.stringify({ error: gErr.message }), {
@@ -35,63 +47,48 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 2) Pre-cargar todos los usuarios de auth (paginado) para resolver colisiones
-  // sin llamar a listUsers en cada iteración.
-  const authByEmail = new Map<string, string>(); // email lower -> user_id
-  {
-    let page = 1;
-    const perPage = 1000;
-    while (true) {
-      const { data: list, error: lErr } = await sb.auth.admin.listUsers({ page, perPage });
-      if (lErr) break;
-      const users = list?.users ?? [];
-      for (const u of users) {
-        if (u.email) authByEmail.set(u.email.toLowerCase(), u.id);
-      }
-      if (users.length < perPage) break;
-      page++;
-      if (page > 50) break; // safety
-    }
-  }
-
   let creados = 0;
   let actualizados = 0;
   let errores = 0;
   const errorSamples: any[] = [];
 
+  // Helper: buscar usuario en auth por email (paginando)
+  const findAuthUserByEmail = async (email: string): Promise<string | null> => {
+    const target = email.toLowerCase();
+    for (let page = 1; page <= 50; page++) {
+      const { data: list, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) return null;
+      const users = list?.users ?? [];
+      const found = users.find((u: any) => (u.email || "").toLowerCase() === target);
+      if (found) return found.id;
+      if (users.length < 200) break;
+    }
+    return null;
+  };
+
   for (const g of gerentes ?? []) {
     if (!g.email) continue;
-    const emailLower = String(g.email).toLowerCase();
-
     try {
       if (g.user_id) {
-        // Gerente con cuenta — actualizar email + password
         const { error } = await sb.auth.admin.updateUserById(g.user_id, {
           email: g.email,
           password: PASSWORD,
           email_confirm: true,
         });
         if (error) {
-          // Si la colisión es porque ese email ya está usado por OTRO user, vincular al existente
-          const existingId = authByEmail.get(emailLower);
+          const existingId = await findAuthUserByEmail(g.email);
           if (existingId && existingId !== g.user_id) {
             await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
-            const { error: e2 } = await sb.auth.admin.updateUserById(existingId, {
-              password: PASSWORD,
-              email_confirm: true,
-            });
-            if (e2) { errores++; if (errorSamples.length < 10) errorSamples.push({ id: g.id, error: e2.message }); }
-            else { actualizados++; }
+            await sb.auth.admin.updateUserById(existingId, { password: PASSWORD, email_confirm: true });
+            actualizados++;
           } else {
             errores++;
             if (errorSamples.length < 10) errorSamples.push({ id: g.id, nombre: g.nombre, error: error.message });
           }
         } else {
           actualizados++;
-          authByEmail.set(emailLower, g.user_id);
         }
       } else {
-        // Gerente sin cuenta — intentar crear
         const { data: user, error } = await sb.auth.admin.createUser({
           email: g.email,
           password: PASSWORD,
@@ -100,17 +97,12 @@ Deno.serve(async (req) => {
         });
         if (!error && user?.user?.id) {
           await sb.from("gerentes").update({ user_id: user.user.id }).eq("id", g.id);
-          authByEmail.set(emailLower, user.user.id);
           creados++;
         } else {
-          // Si ya existe ese email en auth, vincular
-          const existingId = authByEmail.get(emailLower);
+          const existingId = await findAuthUserByEmail(g.email);
           if (existingId) {
             await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
-            await sb.auth.admin.updateUserById(existingId, {
-              password: PASSWORD,
-              email_confirm: true,
-            });
+            await sb.auth.admin.updateUserById(existingId, { password: PASSWORD, email_confirm: true });
             actualizados++;
           } else {
             errores++;
@@ -126,12 +118,21 @@ Deno.serve(async (req) => {
     }
   }
 
+  const processedNow = gerentes?.length ?? 0;
+  const done = processedNow < limit;
+  const nextOffset = done ? null : offset + limit;
+
   return new Response(JSON.stringify({
     success: true,
-    total: gerentes?.length ?? 0,
+    offset,
+    limit,
+    processedNow,
+    total: total ?? 0,
     creados,
     actualizados,
     errores,
     errorSamples,
+    nextOffset,
+    done,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });

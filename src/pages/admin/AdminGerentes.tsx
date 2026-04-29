@@ -52,22 +52,37 @@ const AdminGerentes = () => {
 
   const sincronizarTodasLasCuentas = async () => {
     if (syncRunning) return;
-    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Esto puede tardar 1-3 minutos y reseteará la contraseña a SiigoArena2026!')) return;
+    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Procesará en lotes y puede tardar varios minutos. Resetea la contraseña a SiigoArena2026!')) return;
     setSyncRunning(true);
     setSyncResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        'normalize-gerentes-emails',
-        { body: {} },
-      );
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        return;
+      let offset = 0;
+      const limit = 100;
+      let creados = 0, actualizados = 0, errores = 0, total = 0;
+      const errorSamples: any[] = [];
+      let safety = 0;
+      while (safety++ < 200) {
+        setSyncResult({ status: `Procesando lote desde ${offset}...`, total, creados, actualizados, errores });
+        const { data, error } = await supabase.functions.invoke(
+          'normalize-gerentes-emails',
+          { body: { offset, limit } },
+        );
+        if (error) {
+          toast({ title: 'Error en lote', description: `${error.message} (offset ${offset})`, variant: 'destructive' });
+          break;
+        }
+        creados += data?.creados ?? 0;
+        actualizados += data?.actualizados ?? 0;
+        errores += data?.errores ?? 0;
+        total = data?.total ?? total;
+        if (Array.isArray(data?.errorSamples)) errorSamples.push(...data.errorSamples);
+        if (data?.done || data?.nextOffset == null) break;
+        offset = data.nextOffset;
       }
-      setSyncResult(data);
+      setSyncResult({ total, creados, actualizados, errores, errorSamples: errorSamples.slice(0, 20) });
       toast({
         title: '✅ Sincronización completada',
-        description: `Total: ${data?.total ?? 0} · Creados: ${data?.creados ?? 0} · Actualizados: ${data?.actualizados ?? 0} · Errores: ${data?.errores ?? 0}`,
+        description: `Total: ${total} · Creados: ${creados} · Actualizados: ${actualizados} · Errores: ${errores}`,
       });
       fetchGerentes();
     } finally {
