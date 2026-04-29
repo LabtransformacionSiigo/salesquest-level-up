@@ -44,3 +44,32 @@ export const filterCatalogByScope = <T extends ScopedCatalogItem>(items: T[], pr
   items.filter((item) => matchesCatalogScope(item, profile));
 
 export const normalizeCatalogWindow = (value?: string | null) => normalizeText(value);
+
+/** Cuenta los días hábiles (lun-vie) de un mes dado. Año y mes 1-12. */
+export const getDiasHabiles = (year: number, month: number): number => {
+  let count = 0;
+  const d = new Date(year, month - 1, 1);
+  while (d.getMonth() === month - 1) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+};
+
+/**
+ * Calcula el umbral efectivo de un reto en función de su `tipo_metrica`.
+ * - DIARIO_HABILES: meta_familia_mes / dias_habiles_mes_actual
+ * - PORCENTAJE / UNIDADES / ACV: usa el `umbral` tal cual está parametrizado.
+ */
+export const calcularUmbralEfectivo = (
+  reto: { tipo_metrica?: string | null; umbral?: number | null },
+  context?: { metaMes?: number; year?: number; month?: number }
+): number => {
+  const tipo = String(reto.tipo_metrica ?? '').toUpperCase();
+  if (tipo === 'DIARIO_HABILES' && context?.metaMes && context?.year && context?.month) {
+    const dh = getDiasHabiles(context.year, context.month);
+    return dh > 0 ? Math.ceil(context.metaMes / dh) : 0;
+  }
+  return Number(reto.umbral ?? 0);
+};
