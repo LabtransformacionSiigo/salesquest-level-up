@@ -776,17 +776,6 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
 
           {tipo === 'medalla' && (
             <>
-              <Field label="Canal" hint="Derivado de la operación">
-                <select
-                  value={form.canal}
-                  className={cn(inputClass, 'opacity-70 cursor-not-allowed')}
-                  disabled
-                >
-                  <option value="VC">VC</option>
-                  <option value="VN_ALIADOS">VN Aliados</option>
-                  <option value="VN_EMPRESARIOS">VN Empresarios</option>
-                </select>
-              </Field>
               <Field label="Tipo de evento">
                 <select
                   value={form.tipo_evento}
