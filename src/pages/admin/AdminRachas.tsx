@@ -271,6 +271,9 @@ const AdminRachas = () => {
                         <button onClick={() => startEdit(c)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors" title="Editar">
                           <MI icon="edit" className="text-sm" />
                         </button>
+                        <button onClick={() => toggleActivo(c)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors", c.activo ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-secondary/10 text-secondary hover:bg-secondary/20")} title={c.activo ? 'Desactivar' : 'Activar'}>
+                          <MI icon={c.activo ? "visibility_off" : "visibility"} className="text-sm" />
+                        </button>
                         <button onClick={() => deleteRacha(c)} className="w-7 h-7 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive/30 flex items-center justify-center transition-colors" title="Eliminar">
                           <MI icon="delete" className="text-sm" />
                         </button>
