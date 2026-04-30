@@ -26,9 +26,18 @@ import {
 
 const PAISES_LABEL: Record<string, string> = COUNTRY_LABELS;
 const OPERACIONES = ['Venta Cruzada', 'Venta Nueva (Empresarios)', 'Venta Nueva (Aliados)'];
-const VENTANAS = ['DIARIO', 'SEMANAL', 'MENSUAL'];
+const VENTANAS_OPTS = [
+  { value: 'DIARIO', label: '📅 Diario (se evalúa cada día)' },
+  { value: 'SEMANAL', label: '📆 Semanal (se evalúa cada viernes)' },
+  { value: 'MENSUAL', label: '🗓️ Mensual (se evalúa último día hábil)' },
+];
 const TIPO_METRICA = ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'];
-const TIPO_EVENTO_MEDALLA = ['PRIMERA_VENTA', 'PRIMER_RECONOCIMIENTO', 'CUMPLIMIENTO_TEMPRANO_UNIDADES', 'CANTIDAD_VENTAS_FAMILIA'];
+const TIPO_EVENTO_MEDALLA_OPTS = [
+  { value: 'PRIMERA_VENTA', label: '⭐ Primera venta del tipo' },
+  { value: 'PRIMER_RECONOCIMIENTO', label: '🏅 Primer reconocimiento' },
+  { value: 'CUMPLIMIENTO_TEMPRANO_UNIDADES', label: '⚡ Cumplimiento anticipado' },
+  { value: 'CANTIDAD_VENTAS_FAMILIA', label: '📦 Acumular cantidad de ventas' },
+];
 
 const CANALES_RETOS = [
   { value: 'VC', label: 'Venta Cruzada' },
@@ -36,15 +45,19 @@ const CANALES_RETOS = [
   { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
 ];
 const KPIS_RETOS = [
-  { value: 'acv_plus', label: 'ACV', valorLabel: 'Monto ACV requerido (COP)' },
-  { value: 'upgrades', label: 'Upgrades', valorLabel: 'Upgrades requeridos' },
-  { value: 'conversiones', label: 'Conversiones', valorLabel: '% conversión sobre cuota' },
-  { value: 'cumplimiento_pct', label: '% Cumplimiento', valorLabel: '% de cumplimiento' },
+  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en pesos COP (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV' },
+  { value: 'upgrades', label: '⬆️ Upgrades (cantidad)', shortLabel: 'Upgrades', valorLabel: 'Número de upgrades requeridos', valorHint: 'Los asesores deben alcanzar esta cantidad', tipoMetrica: 'UNIDADES' },
+  { value: 'conversiones', label: '🔄 Conversiones (% sobre cuota)', shortLabel: 'Conversiones', valorLabel: '% mínimo de conversiones (ej: 33)', valorHint: 'Porcentaje mínimo de conversiones requerido', tipoMetrica: 'UNIDADES' },
+  { value: 'cumplimiento_pct', label: '🎯 % Cumplimiento de meta', shortLabel: '% Cumplimiento', valorLabel: '% de cumplimiento requerido (ej: 120)', valorHint: 'Porcentaje de la meta que deben alcanzar', tipoMetrica: 'CUMPLIMIENTO_META_ACV_PLUS' },
 ];
 const FAMILIAS_VC = [
-  { value: 'NUBE', label: 'Nube' },
-  { value: 'LEGACY', label: 'Legacy (Pyme + Ilimitada)' },
-  { value: 'AMBAS', label: 'Ambas' },
+  { value: 'NUBE', label: '☁️ Nube' },
+  { value: 'LEGACY', label: '🏢 Legacy (Pyme + Ilimitada)' },
+  { value: 'AMBAS', label: '🌐 Todos (Nube + Legacy)' },
+];
+const CONDICIONES_RACHA = [
+  { value: 'VENTA_DIARIA_CONSECUTIVA', label: 'Ventas diarias consecutivas' },
+  { value: 'CUMPLIMIENTO_DIARIO', label: 'Cumplimiento diario de meta' },
 ];
 
 // Métricas disponibles según canal (operación)
