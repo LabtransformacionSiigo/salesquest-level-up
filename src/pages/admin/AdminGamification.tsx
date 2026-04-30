@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Flame, Award, Gift, Package } from 'lucide-react';
+import { Trophy, Flame, Award, Gift, Package, Users } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 
 import GamificationRetosTab from '@/components/admin/gamification/GamificationRetosTab';
@@ -8,6 +8,7 @@ import GamificationRachasTab from '@/components/admin/gamification/GamificationR
 import GamificationMedallasTab from '@/components/admin/gamification/GamificationMedallasTab';
 import GamificationPremiosTab from '@/components/admin/gamification/GamificationPremiosTab';
 import GamificationCanjesTab from '@/components/admin/gamification/GamificationCanjesTab';
+import GamificationParticipantesTab from '@/components/admin/gamification/GamificationParticipantesTab';
 
 export default function AdminGamification() {
   const [tab, setTab] = useState('retos');
@@ -22,12 +23,13 @@ export default function AdminGamification() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
             <TabsTrigger value="retos" className="gap-2"><Trophy className="h-4 w-4" /> Retos</TabsTrigger>
             <TabsTrigger value="rachas" className="gap-2"><Flame className="h-4 w-4" /> Rachas</TabsTrigger>
             <TabsTrigger value="medallas" className="gap-2"><Award className="h-4 w-4" /> Medallas</TabsTrigger>
             <TabsTrigger value="premios" className="gap-2"><Gift className="h-4 w-4" /> Premios</TabsTrigger>
             <TabsTrigger value="canjes" className="gap-2"><Package className="h-4 w-4" /> Canjes</TabsTrigger>
+            <TabsTrigger value="participantes" className="gap-2"><Users className="h-4 w-4" /> Participantes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="retos" className="mt-6"><GamificationRetosTab /></TabsContent>
@@ -35,6 +37,7 @@ export default function AdminGamification() {
           <TabsContent value="medallas" className="mt-6"><GamificationMedallasTab /></TabsContent>
           <TabsContent value="premios" className="mt-6"><GamificationPremiosTab /></TabsContent>
           <TabsContent value="canjes" className="mt-6"><GamificationCanjesTab /></TabsContent>
+          <TabsContent value="participantes" className="mt-6"><GamificationParticipantesTab /></TabsContent>
         </Tabs>
       </div>
     </Layout>
