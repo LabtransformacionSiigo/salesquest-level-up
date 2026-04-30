@@ -42,6 +42,13 @@ const Retos = () => {
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [vcMetrics, setVcMetrics] = useState<{
+    dailyAcvPlus: number;
+    weeklyUpgrades: number;
+    monthlyCumplimientoPct: number;
+    monthlyAcvPlus: number;
+    monthlyMeta: number;
+  }>({ dailyAcvPlus: 0, weeklyUpgrades: 0, monthlyCumplimientoPct: 0, monthlyAcvPlus: 0, monthlyMeta: 0 });
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -58,19 +65,21 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: retosData }] = await Promise.all([
+      const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
         supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+      if (snapshot?.vcMetrics) setVcMetrics(snapshot.vcMetrics);
       setDataLoading(false);
     };
 
     fetchData();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role]);
+  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role, profile?.nombre]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
