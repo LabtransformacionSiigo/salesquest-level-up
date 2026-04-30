@@ -107,8 +107,33 @@ const Retos = () => {
     return String(reto.umbral);
   };
 
+  const getRetoProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number } | null => {
+    const target = Number(reto.umbral) || 0;
+    if (target <= 0) return null;
+    const win = normalizeCatalogWindow(reto.ventana_tiempo);
+    let current = 0;
+    if (reto.kpi === 'acv_plus' && win === 'DIARIO') current = vcMetrics.dailyAcvPlus;
+    else if (reto.kpi === 'upgrades' && win === 'SEMANAL') current = vcMetrics.weeklyUpgrades;
+    else if (reto.kpi === 'cumplimiento_pct' && win === 'MENSUAL') current = vcMetrics.monthlyCumplimientoPct;
+    else if (reto.kpi === 'conversiones' && win === 'MENSUAL') {
+      // % cumplimiento en conversiones aproximado por % ACV+ vs meta del mes
+      current = vcMetrics.monthlyCumplimientoPct;
+    } else {
+      return null;
+    }
+    const pct = Math.min(100, target > 0 ? (current / target) * 100 : 0);
+    return { current, target, pct };
+  };
+
+  const formatProgressValue = (reto: VcCatalogReto, value: number): string => {
+    if (reto.kpi === 'acv_plus') return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (reto.kpi === 'cumplimiento_pct' || reto.kpi === 'conversiones') return `${Math.round(value)}%`;
+    return String(Math.round(value));
+  };
+
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
     const completed = completados.has(`${reto.nombre}::${periodo}`);
+    const progress = getRetoProgress(reto);
     return (
       <motion.div
         key={reto.id}
@@ -149,6 +174,15 @@ const Retos = () => {
             >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
           </div>
         </div>
+        {!completed && progress && (
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{formatProgressValue(reto, progress.current)} / {formatProgressValue(reto, progress.target)}</span>
+              <span className="font-scoreboard">{Math.round(progress.pct)}%</span>
+            </div>
+            <Progress value={progress.pct} className="h-2" />
+          </div>
+        )}
       </motion.div>
     );
   };
