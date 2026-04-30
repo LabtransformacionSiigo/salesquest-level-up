@@ -13,10 +13,9 @@ export default function AdminGamification() {
   const [tab, setTab] = useState('retos');
 
   return (
-    <Layout>
-      <div className="container mx-auto py-6 space-y-6">
+    <Layout title="Gamificación VC">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gamificación · Venta Cruzada</h1>
           <p className="text-muted-foreground">
             Configura retos, rachas, medallas, premios y gestiona canjes de los asesores VC.
           </p>
