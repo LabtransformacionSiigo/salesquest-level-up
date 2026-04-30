@@ -87,6 +87,7 @@ export default function GamificationRetosTab() {
     const t = thresholds[c.id] || [];
     const nube = t.find(x => x.segment === 'nube');
     const legacy = t.find(x => x.segment === 'legacy');
+    const gerente = t.find(x => x.segment === 'gerente');
     setForm({
       id: c.id,
       name: c.name,
@@ -101,6 +102,8 @@ export default function GamificationRetosTab() {
       nube_sp: nube?.sp_canje_reward?.toString() ?? '',
       legacy_value: legacy?.threshold_value?.toString() ?? '',
       legacy_sp: legacy?.sp_canje_reward?.toString() ?? '',
+      gerente_value: gerente?.threshold_value?.toString() ?? '',
+      gerente_sp: gerente?.sp_canje_reward?.toString() ?? '',
     });
     setOpen(true);
   };
@@ -137,6 +140,9 @@ export default function GamificationRetosTab() {
       }
       if (form.legacy_value !== '' && form.legacy_sp !== '') {
         inserts.push({ challenge_id: challengeId, segment: 'legacy', threshold_value: Number(form.legacy_value), sp_canje_reward: Number(form.legacy_sp) });
+      }
+      if (form.gerente_value !== '' && form.gerente_sp !== '') {
+        inserts.push({ challenge_id: challengeId, segment: 'gerente', threshold_value: Number(form.gerente_value), sp_canje_reward: Number(form.gerente_sp) });
       }
       if (inserts.length) {
         const { error } = await supabase.from('challenge_thresholds').insert(inserts);
