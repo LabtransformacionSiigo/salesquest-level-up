@@ -339,6 +339,7 @@ const ItemList = ({
   onToggle,
   onEdit,
   onNew,
+  onDelete,
 }: any) => (
   <div className="space-y-3">
     <div className="flex justify-between items-center">
