@@ -187,7 +187,7 @@ export default function GamificationRachasTab() {
 
               <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
                 <h3 className="font-semibold text-sm">Umbral diario por segmento (COP)</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>☁️ Nube</Label>
                     <Input type="number" value={form.nube_threshold} onChange={e => setForm({ ...form, nube_threshold: e.target.value })} />
@@ -195,6 +195,10 @@ export default function GamificationRachasTab() {
                   <div>
                     <Label>📦 Legacy</Label>
                     <Input type="number" value={form.legacy_threshold} onChange={e => setForm({ ...form, legacy_threshold: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>👔 Gerente</Label>
+                    <Input type="number" value={form.gerente_threshold} onChange={e => setForm({ ...form, gerente_threshold: e.target.value })} placeholder="Sin definir" />
                   </div>
                 </div>
               </div>
