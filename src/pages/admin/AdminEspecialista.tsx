@@ -146,7 +146,15 @@ const AdminEspecialista = () => {
     if (isAdmin) return true;
     if (!permisos) return false;
     const paisOk = !item.pais || permisos.paises.includes(item.pais);
-    const opOk = !item.operacion || permisos.operaciones.includes(item.operacion);
+    // Mapear canal del item (VC / VN_ALIADOS / VN_EMPRESARIOS) a la operación equivalente
+    const canalToOp: Record<string, string> = {
+      VC: 'Venta Cruzada',
+      VN_ALIADOS: 'Venta Nueva (Aliados)',
+      VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
+    };
+    const opFromCanal = item.canal ? canalToOp[item.canal] : null;
+    const opEffective = item.operacion || opFromCanal;
+    const opOk = !opEffective || permisos.operaciones.includes(opEffective);
     return paisOk && opOk;
   };
 
