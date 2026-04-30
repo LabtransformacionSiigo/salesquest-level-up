@@ -781,12 +781,53 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, multiplicador_sp: e.target.value })}
                 />
               </Field>
-              <Field label="Valor">
+              {form.canal === 'VC' && (
+                <Field label="Familia VC" hint="A qué segmento aplica esta racha">
+                  <select
+                    value={form.familia_vc}
+                    onChange={(e) => setForm({ ...form, familia_vc: e.target.value })}
+                    className={inputClass}
+                  >
+                    {FAMILIAS_VC.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label="KPI de medición">
+                <select
+                  value={form.kpi}
+                  onChange={(e) => setForm({ ...form, kpi: e.target.value })}
+                  className={inputClass}
+                >
+                  {KPIS_RETOS.map((k) => (
+                    <option key={k.value} value={k.value}>{k.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Umbral Nube (COP o unidades)">
                 <Input
                   type="number"
                   value={form.umbral_verde}
                   onChange={(e) => setForm({ ...form, umbral_verde: e.target.value })}
                 />
+              </Field>
+              {form.canal === 'VC' && (form.familia_vc === 'AMBAS' || form.familia_vc === 'LEGACY') && (
+                <Field label="Umbral Legacy (COP o unidades)" hint="Dejar en 0 si no aplica a Legacy">
+                  <Input
+                    type="number"
+                    value={form.umbral_legacy}
+                    onChange={(e) => setForm({ ...form, umbral_legacy: e.target.value })}
+                  />
+                </Field>
+              )}
+              <Field label="Evaluar solo Lunes-Miércoles" hint="Activa esto para rachas tipo 'El Artillero' (L-M-X)">
+                <div className="flex items-center h-10">
+                  <Switch
+                    checked={Boolean(form.dias_lun_mie)}
+                    onCheckedChange={(v) => setForm({ ...form, dias_lun_mie: v })}
+                  />
+                </div>
               </Field>
             </>
           )}
