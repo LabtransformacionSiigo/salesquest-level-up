@@ -472,6 +472,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     multiplicador_sp: data.multiplicador_sp ?? 1.5,
     dias_requeridos: data.dias_requeridos ?? 7,
     umbral_verde: data.umbral_verde ?? 1,
+    umbral_legacy: data.umbral_legacy ?? 0,
+    dias_lun_mie: data.dias_lun_mie ?? false,
     // medalla
     tipo_evento: data.tipo_evento || 'PRIMERA_VENTA',
     cantidad_requerida: data.cantidad_requerida ?? 1,
