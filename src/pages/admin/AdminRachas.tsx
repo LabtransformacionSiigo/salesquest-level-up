@@ -86,6 +86,17 @@ const AdminRachas = () => {
     fetchConfigs();
   };
 
+  const deleteRacha = async (c: any) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar la racha "${c.nombre}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from('config_rachas').delete().eq('id', c.id);
+    if (error) {
+      toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Racha eliminada ✅' });
+    fetchConfigs();
+  };
+
   const startEdit = (c: any) => {
     setEditing(c.id);
     setForm({
@@ -246,9 +257,12 @@ const AdminRachas = () => {
                         )}
                         {!c.activo && <span className="text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">Inactiva</span>}
                       </div>
-                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEdit(c)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors">
+                      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(c)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors" title="Editar">
                           <MI icon="edit" className="text-sm" />
+                        </button>
+                        <button onClick={() => deleteRacha(c)} className="w-7 h-7 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive/30 flex items-center justify-center transition-colors" title="Eliminar">
+                          <MI icon="delete" className="text-sm" />
                         </button>
                       </div>
                     </div>
