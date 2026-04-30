@@ -463,7 +463,8 @@ const ItemList = ({
       );
     })}
   </div>
-);
+  );
+};
 
 const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onSave }: any) => {
   // Para especialistas: si solo tienen 1 país / 1 operación → forzar y bloquear.
