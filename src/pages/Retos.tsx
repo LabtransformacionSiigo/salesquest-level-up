@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, scoreboardSlide } from '@/lib/animations';
 import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
+import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
@@ -40,6 +42,13 @@ const Retos = () => {
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [vcMetrics, setVcMetrics] = useState<{
+    dailyAcvPlus: number;
+    weeklyUpgrades: number;
+    monthlyCumplimientoPct: number;
+    monthlyAcvPlus: number;
+    monthlyMeta: number;
+  }>({ dailyAcvPlus: 0, weeklyUpgrades: 0, monthlyCumplimientoPct: 0, monthlyAcvPlus: 0, monthlyMeta: 0 });
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -56,19 +65,21 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: retosData }] = await Promise.all([
+      const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
         supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+      if (snapshot?.vcMetrics) setVcMetrics(snapshot.vcMetrics);
       setDataLoading(false);
     };
 
     fetchData();
     return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role]);
+  }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role, profile?.nombre]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -96,8 +107,33 @@ const Retos = () => {
     return String(reto.umbral);
   };
 
+  const getRetoProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number } | null => {
+    const target = Number(reto.umbral) || 0;
+    if (target <= 0) return null;
+    const win = normalizeCatalogWindow(reto.ventana_tiempo);
+    let current = 0;
+    if (reto.kpi === 'acv_plus' && win === 'DIARIO') current = vcMetrics.dailyAcvPlus;
+    else if (reto.kpi === 'upgrades' && win === 'SEMANAL') current = vcMetrics.weeklyUpgrades;
+    else if (reto.kpi === 'cumplimiento_pct' && win === 'MENSUAL') current = vcMetrics.monthlyCumplimientoPct;
+    else if (reto.kpi === 'conversiones' && win === 'MENSUAL') {
+      // % cumplimiento en conversiones aproximado por % ACV+ vs meta del mes
+      current = vcMetrics.monthlyCumplimientoPct;
+    } else {
+      return null;
+    }
+    const pct = Math.min(100, target > 0 ? (current / target) * 100 : 0);
+    return { current, target, pct };
+  };
+
+  const formatProgressValue = (reto: VcCatalogReto, value: number): string => {
+    if (reto.kpi === 'acv_plus') return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (reto.kpi === 'cumplimiento_pct' || reto.kpi === 'conversiones') return `${Math.round(value)}%`;
+    return String(Math.round(value));
+  };
+
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
     const completed = completados.has(`${reto.nombre}::${periodo}`);
+    const progress = getRetoProgress(reto);
     return (
       <motion.div
         key={reto.id}
@@ -138,6 +174,15 @@ const Retos = () => {
             >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
           </div>
         </div>
+        {!completed && progress && (
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{formatProgressValue(reto, progress.current)} / {formatProgressValue(reto, progress.target)}</span>
+              <span className="font-scoreboard">{Math.round(progress.pct)}%</span>
+            </div>
+            <Progress value={progress.pct} className="h-2" />
+          </div>
+        )}
       </motion.div>
     );
   };
