@@ -90,6 +90,7 @@ export type Database = {
           created_at: string | null
           documento: string | null
           email: string
+          familia_vc: string | null
           gerente_id: string
           id: string
           nombre: string
@@ -106,6 +107,7 @@ export type Database = {
           created_at?: string | null
           documento?: string | null
           email: string
+          familia_vc?: string | null
           gerente_id: string
           id?: string
           nombre: string
@@ -122,6 +124,7 @@ export type Database = {
           created_at?: string | null
           documento?: string | null
           email?: string
+          familia_vc?: string | null
           gerente_id?: string
           id?: string
           nombre?: string
@@ -803,6 +806,7 @@ export type Database = {
           celula: string | null
           created_at: string | null
           email: string
+          familia_vc: string | null
           id: string
           lider: string | null
           nombre: string
@@ -818,6 +822,7 @@ export type Database = {
           celula?: string | null
           created_at?: string | null
           email: string
+          familia_vc?: string | null
           id?: string
           lider?: string | null
           nombre: string
@@ -833,6 +838,7 @@ export type Database = {
           celula?: string | null
           created_at?: string | null
           email?: string
+          familia_vc?: string | null
           id?: string
           lider?: string | null
           nombre?: string

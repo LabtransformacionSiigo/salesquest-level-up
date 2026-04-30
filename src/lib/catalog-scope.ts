@@ -28,7 +28,10 @@ export const isCatalogVigente = (item: { fecha_inicio?: string | null; fecha_fin
   return true;
 };
 
-export const matchesCatalogScope = <T extends ScopedCatalogItem>(item: T, profile?: CatalogScopeProfile | null): boolean => {
+export const matchesCatalogScope = <T extends ScopedCatalogItem>(
+  item: T & { familia_vc?: string | null },
+  profile?: (CatalogScopeProfile & { familia_vc?: string | null }) | null,
+): boolean => {
   if (!profile) return false;
 
   const canalOk = !item.canal || normalizeText(item.canal) === normalizeText(profile.canal);
@@ -37,7 +40,14 @@ export const matchesCatalogScope = <T extends ScopedCatalogItem>(item: T, profil
   const gerenteOk = !item.gerente_id || (!!targetGerenteId && item.gerente_id === targetGerenteId);
   const vigenteOk = isCatalogVigente(item);
 
-  return canalOk && paisOk && gerenteOk && vigenteOk;
+  // Filtro familia_vc: si el item tiene familia específica (NUBE/LEGACY) y el
+  // perfil tiene familia, deben coincidir. 'AMBAS' o ausencia → no filtra.
+  const familiaVc = normalizeText((item as any).familia_vc);
+  const profileFamiliaVc = normalizeText((profile as any).familia_vc);
+  const familiaOk =
+    !familiaVc || familiaVc === 'AMBAS' || !profileFamiliaVc || familiaVc === profileFamiliaVc;
+
+  return canalOk && paisOk && gerenteOk && vigenteOk && familiaOk;
 };
 
 export const filterCatalogByScope = <T extends ScopedCatalogItem>(items: T[], profile?: CatalogScopeProfile | null): T[] =>
