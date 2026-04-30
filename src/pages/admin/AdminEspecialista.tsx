@@ -680,7 +680,9 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               </Field>
             </div>
           )}
-          {tipo === 'reto' && (
+          {tipo === 'reto' && (() => {
+            const kpiCfg = KPIS_RETOS.find(k => k.value === form.kpi) || KPIS_RETOS[0];
+            return (
             <>
               <Field label="Canal" hint="Derivado de la operación">
                 <select
@@ -710,28 +712,15 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, ventana_tiempo: e.target.value })}
                   className={inputClass}
                 >
-                  {VENTANAS.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
-                <select
-                  value={form.tipo_metrica}
-                  onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
-                  className={inputClass}
-                >
-                  {metricasDisponibles.map((t) => (
-                    <option key={t} value={t}>
-                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
+                  {VENTANAS_OPTS.map((v) => (
+                    <option key={v.value} value={v.value}>
+                      {v.label}
                     </option>
                   ))}
                 </select>
               </Field>
               {form.canal === 'VC' && (
-                <Field label="Familia VC" hint="Aplica solo para Venta Cruzada">
+                <Field label="Familia VC" hint="A qué segmento aplica este reto">
                   <select
                     value={form.familia_vc}
                     onChange={(e) => setForm({ ...form, familia_vc: e.target.value })}
@@ -743,28 +732,45 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
-              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
-                <select
-                  value={form.familia}
-                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">— N/A —</option>
-                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
+              {form.canal !== 'VC' && (
+                <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
+                  <select
+                    value={form.tipo_metrica}
+                    onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
+                    className={inputClass}
+                  >
+                    {metricasDisponibles.map((t) => (
+                      <option key={t} value={t}>
+                        {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              {form.canal !== 'VC' && (
+                <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                  <select
+                    value={form.familia}
+                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">— N/A —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label={kpiCfg.valorLabel} hint={kpiCfg.valorHint}>
                 <Input
                   type="number"
                   value={form.umbral}
                   onChange={(e) => setForm({ ...form, umbral: e.target.value })}
                 />
               </Field>
-              <Field label="SP otorgados">
+              <Field label="🎁 SP Canje a otorgar (puntos canjeables por premios)">
                 <Input
                   type="number"
                   value={form.sp_otorgados}
@@ -772,7 +778,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 />
               </Field>
             </>
-          )}
+            );
+          })()}
 
           {tipo === 'racha' && (
             <>
