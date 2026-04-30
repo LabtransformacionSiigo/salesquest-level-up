@@ -39,10 +39,9 @@ const adminItems = [
 ];
 
 const especialistaItems = [
-  { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
+  { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
-  { path: '/admin/gamification', icon: 'sports_esports', label: 'Gamificación VC' },
 ];
 
 const Sidebar = () => {

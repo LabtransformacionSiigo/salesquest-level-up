@@ -30,7 +30,6 @@ import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
 import AdminSimulacion from '@/pages/admin/AdminSimulacion';
 import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
-import AdminGamification from '@/pages/admin/AdminGamification';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 
@@ -60,10 +59,13 @@ function App() {
             <Route path="/admin/premios" element={<AdminRoute><AdminPremios /></AdminRoute>} />
             <Route path="/admin/simulacion" element={<AdminRoute><AdminSimulacion /></AdminRoute>} />
             <Route path="/admin/metas-acv" element={<AdminRoute><AdminMetasAcv /></AdminRoute>} />
-            <Route path="/admin/especialista" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
+            {/* Ruta canónica de la única interfaz de gamificación VC para Especialista */}
+            <Route path="/especialista/gamificacion-vc" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
+            {/* Redirects de rutas legacy a la canónica */}
+            <Route path="/admin/especialista" element={<Navigate to="/especialista/gamificacion-vc" replace />} />
+            <Route path="/admin/gamification" element={<Navigate to="/especialista/gamificacion-vc" replace />} />
             <Route path="/admin/especialista/premios" element={<EspecialistaRoute><AdminEspecialistaPremios /></EspecialistaRoute>} />
             <Route path="/admin/segmentos-vc" element={<EspecialistaRoute><AdminAdvisorSegments /></EspecialistaRoute>} />
-            <Route path="/admin/gamification" element={<EspecialistaRoute><AdminGamification /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
