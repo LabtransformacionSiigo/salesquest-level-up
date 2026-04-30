@@ -547,6 +547,10 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
         multiplicador_sp: Number(form.multiplicador_sp),
         dias_requeridos: Number(form.dias_requeridos),
         umbral_verde: Number(form.umbral_verde),
+        familia_vc: canalFinal === 'VC' ? form.familia_vc : null,
+        kpi: form.kpi,
+        umbral_legacy: Number(form.umbral_legacy),
+        dias_lun_mie: Boolean(form.dias_lun_mie),
       };
     } else {
       payload = {
