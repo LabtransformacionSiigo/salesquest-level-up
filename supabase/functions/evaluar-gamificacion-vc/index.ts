@@ -173,7 +173,7 @@ async function evaluate(targetDate: Date) {
 
   // Asesores con segmento
   const { data: segs, error: segErr } = await sb
-    .from('advisor_segments')
+    .from('participants_gamification')
     .select('comercial, segment');
   if (segErr) throw segErr;
   const segMap = new Map<string, Segment>(

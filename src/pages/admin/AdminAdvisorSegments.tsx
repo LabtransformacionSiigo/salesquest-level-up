@@ -50,7 +50,7 @@ const AdminAdvisorSegments = () => {
     }
 
     const { data: segs, error: sErr } = await supabase
-      .from('advisor_segments')
+      .from('participants_gamification')
       .select('id, comercial, segment');
     if (sErr) {
       toast({ title: 'Error cargando segmentos', description: sErr.message, variant: 'destructive' });
@@ -101,7 +101,7 @@ const AdminAdvisorSegments = () => {
   const updateSegment = async (row: Row, newSegment: Segment) => {
     setSavingId(row.comercial);
     const { error } = await supabase
-      .from('advisor_segments')
+      .from('participants_gamification')
       .upsert({ comercial: row.comercial, segment: newSegment }, { onConflict: 'comercial' });
     setSavingId(null);
     if (error) {
@@ -118,7 +118,7 @@ const AdminAdvisorSegments = () => {
     if (!confirm(`Aplicar segmento "${segment}" a ${targets.length} asesores del líder ${lider}?`)) return;
 
     const payload = targets.map((t) => ({ comercial: t.comercial, segment }));
-    const { error } = await supabase.from('advisor_segments').upsert(payload, { onConflict: 'comercial' });
+    const { error } = await supabase.from('participants_gamification').upsert(payload, { onConflict: 'comercial' });
     if (error) {
       toast({ title: 'Error en bulk', description: error.message, variant: 'destructive' });
       return;

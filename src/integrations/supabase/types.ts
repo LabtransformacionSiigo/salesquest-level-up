@@ -81,33 +81,6 @@ export type Database = {
           },
         ]
       }
-      advisor_segments: {
-        Row: {
-          comercial: string
-          created_at: string
-          id: string
-          segment: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          comercial: string
-          created_at?: string
-          id?: string
-          segment: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          comercial?: string
-          created_at?: string
-          id?: string
-          segment?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       asesores: {
         Row: {
           activo: boolean | null
@@ -1291,6 +1264,42 @@ export type Database = {
           mensaje?: string | null
           tipo?: string
           titulo?: string
+        }
+        Relationships: []
+      }
+      participants_gamification: {
+        Row: {
+          comercial: string
+          created_at: string
+          display_name: string | null
+          gerente_id: string | null
+          id: string
+          role: string
+          segment: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          comercial: string
+          created_at?: string
+          display_name?: string | null
+          gerente_id?: string | null
+          id?: string
+          role?: string
+          segment: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          comercial?: string
+          created_at?: string
+          display_name?: string | null
+          gerente_id?: string | null
+          id?: string
+          role?: string
+          segment?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
