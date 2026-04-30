@@ -133,11 +133,28 @@ export const getVcAdvisorSnapshot = async (profile?: VcAdvisorProfileLike | null
     return (Number(b.sp_otorgados) || 0) - (Number(a.sp_otorgados) || 0);
   });
 
+  const dailyAcvPlus = (dailyAcvRes.data || []).reduce(
+    (sum: number, r: any) => sum + (Number(r.acv_plus) || 0),
+    0,
+  );
+  const weeklyUpgrades = weeklyUpgradesRes.count || 0;
+  const monthKpi = (monthKpiRes.data || {}) as { pct_cumplimiento?: number | null; ventas?: number | null; meta?: number | null };
+  const monthlyCumplimientoPct = Number(monthKpi.pct_cumplimiento) || 0;
+  const monthlyAcvPlus = Number(monthKpi.ventas) || 0;
+  const monthlyMeta = Number(monthKpi.meta) || 0;
+
   return {
     sales,
     catalog,
     metrics: getVcAdvisorDerivedMetrics(sales),
     blockTotals: getVcAdvisorBlockTotals(sales),
     medals: mergedMedals,
+    vcMetrics: {
+      dailyAcvPlus,
+      weeklyUpgrades,
+      monthlyCumplimientoPct,
+      monthlyAcvPlus,
+      monthlyMeta,
+    },
   };
 };
