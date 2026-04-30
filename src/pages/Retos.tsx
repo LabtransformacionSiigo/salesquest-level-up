@@ -167,7 +167,6 @@ const Retos = () => {
 
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
     const completed = completados.has(`${reto.nombre}::${periodo}`);
-    const progress = getRetoProgress(reto);
     return (
       <motion.div
         key={reto.id}
@@ -208,15 +207,18 @@ const Retos = () => {
             >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
           </div>
         </div>
-        {!completed && progress && (
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>{formatProgressValue(reto, progress.current)} / {formatProgressValue(reto, progress.target)}</span>
-              <span className="font-scoreboard">{Math.round(progress.pct)}%</span>
+        {!completed && (() => {
+          const prog = getVcProgress(reto);
+          return prog.target > 0 && prog.label ? (
+            <div className="space-y-1.5 mt-2">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{prog.label}</span>
+                <span className="font-scoreboard">{Math.round(prog.pct)}%</span>
+              </div>
+              <Progress value={prog.pct} className="h-2" />
             </div>
-            <Progress value={progress.pct} className="h-2" />
-          </div>
-        )}
+          ) : null;
+        })()}
       </motion.div>
     );
   };
