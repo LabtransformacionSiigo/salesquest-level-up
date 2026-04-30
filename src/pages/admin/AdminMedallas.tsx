@@ -402,11 +402,14 @@ const AdminMedallas = () => {
                   <span className="absolute top-2 left-2 text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">Inactiva</span>
                 )}
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => startEdit(m)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors">
+                  <button onClick={() => startEdit(m)} className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors" title="Editar">
                     <MI icon="edit" className="text-sm" />
                   </button>
-                  <button onClick={() => toggleActivo(m)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors", m.activo ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-secondary/10 text-secondary hover:bg-secondary/20")}>
+                  <button onClick={() => toggleActivo(m)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors", m.activo ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-secondary/10 text-secondary hover:bg-secondary/20")} title={m.activo ? 'Desactivar' : 'Activar'}>
                     <MI icon={m.activo ? "visibility_off" : "visibility"} className="text-sm" />
+                  </button>
+                  <button onClick={() => deleteMedalla(m)} className="w-7 h-7 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive/30 flex items-center justify-center transition-colors" title="Eliminar">
+                    <MI icon="delete" className="text-sm" />
                   </button>
                 </div>
               </div>
