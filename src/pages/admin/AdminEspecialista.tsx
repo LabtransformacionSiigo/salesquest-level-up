@@ -795,19 +795,24 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 </select>
               </Field>
               <Field label="Condición">
-                <Input
+                <select
                   value={form.condicion_tipo}
                   onChange={(e) => setForm({ ...form, condicion_tipo: e.target.value })}
-                />
+                  className={inputClass}
+                >
+                  {CONDICIONES_RACHA.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
               </Field>
-              <Field label="Días requeridos">
+              <Field label="Días consecutivos requeridos" hint="Cuántos días seguidos deben cumplir para activar el multiplicador">
                 <Input
                   type="number"
                   value={form.dias_requeridos}
                   onChange={(e) => setForm({ ...form, dias_requeridos: e.target.value })}
                 />
               </Field>
-              <Field label="Multiplicador SP">
+              <Field label="Multiplicador SP Canje (ej: 2 = duplica los puntos)" hint="Si logran la racha, sus SP Canje de esa semana se multiplican">
                 <Input
                   type="number"
                   step="0.1"
@@ -839,7 +844,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="Umbral Nube (COP o unidades)">
+              <Field label="Umbral Nube (COP o unidades)" hint="Monto o cantidad que deben alcanzar los asesores Nube cada día para mantener la racha">
                 <Input
                   type="number"
                   value={form.umbral_verde}
@@ -847,7 +852,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 />
               </Field>
               {form.canal === 'VC' && (form.familia_vc === 'AMBAS' || form.familia_vc === 'LEGACY') && (
-                <Field label="Umbral Legacy (COP o unidades)" hint="Dejar en 0 si no aplica a Legacy">
+                <Field label="Umbral Legacy (COP o unidades)" hint="Dejar en 0 si esta racha no aplica a Legacy">
                   <Input
                     type="number"
                     value={form.umbral_legacy}
@@ -855,14 +860,16 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   />
                 </Field>
               )}
-              <Field label="Evaluar solo Lunes-Miércoles" hint="Activa esto para rachas tipo 'El Artillero' (L-M-X)">
-                <div className="flex items-center h-10">
-                  <Switch
-                    checked={Boolean(form.dias_lun_mie)}
-                    onCheckedChange={(v) => setForm({ ...form, dias_lun_mie: v })}
-                  />
-                </div>
-              </Field>
+              {Number(form.dias_requeridos) <= 3 && (
+                <Field label="Solo evaluar Lunes-Miércoles" hint="Activa esto para rachas tipo 'El Artillero': el asesor cumple L-M-X y el viernes recibe el multiplicador">
+                  <div className="flex items-center h-10">
+                    <Switch
+                      checked={Boolean(form.dias_lun_mie)}
+                      onCheckedChange={(v) => setForm({ ...form, dias_lun_mie: v })}
+                    />
+                  </div>
+                </Field>
+              )}
             </>
           )}
 
