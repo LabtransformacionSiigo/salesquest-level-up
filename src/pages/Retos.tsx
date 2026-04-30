@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, scoreboardSlide } from '@/lib/animations';
 import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
+import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
