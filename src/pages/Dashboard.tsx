@@ -203,7 +203,7 @@ const Dashboard = () => {
         )}
 
         {/* KPIs del Mes */}
-        <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} pais={profile?.pais} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} isVCGerente={isVCGerente} teamAsesorPerformance={teamAsesorPerformance} vcCumplimiento={metrics.vcCumplimiento} periodoSeleccionado={periodoActivo || currentPeriodo} />
+        <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} pais={profile?.pais} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} isVCGerente={isVCGerente} teamAsesorPerformance={teamAsesorPerformance} vcCumplimiento={metrics.vcCumplimiento} periodoSeleccionado={periodoActivo || currentPeriodo} lastUpdated={metrics.lastUpdated} />
 
         {/* Racha + Top Pointers */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
