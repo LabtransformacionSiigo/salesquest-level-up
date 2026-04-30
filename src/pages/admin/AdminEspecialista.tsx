@@ -356,25 +356,38 @@ const ItemList = ({
   items,
   tipo,
   gerentes = [],
+  isAdmin,
   isInScope,
   onToggle,
   onEdit,
   onNew,
   onDelete,
-}: any) => (
+}: any) => {
+  const visibleItems = isAdmin ? items : items.filter((it: any) => isInScope(it));
+  const banner =
+    tipo === 'reto'
+      ? 'Los retos activos aparecen automáticamente en el dashboard de cada asesor según su familia (Nube/Legacy). El progreso se calcula en tiempo real desde sus ventas.'
+      : tipo === 'racha'
+      ? 'Las rachas se evalúan automáticamente. El multiplicador SP se aplica el viernes si el asesor cumplió los días requeridos.'
+      : 'Las medallas se desbloquean automáticamente cuando el asesor cumple la condición. Se otorgan una sola vez.';
+  return (
   <div className="space-y-3">
+    <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-start gap-2">
+      <MI icon="info" className="text-primary text-base mt-0.5" />
+      <p className="text-xs text-foreground/80 leading-relaxed">{banner}</p>
+    </div>
     <div className="flex justify-between items-center">
-      <p className="text-xs text-muted-foreground">{items.length} elementos en el catálogo</p>
+      <p className="text-xs text-muted-foreground">{visibleItems.length} elementos</p>
       <Button size="sm" onClick={onNew}>
         <MI icon="add" className="text-sm mr-1" /> Nuevo
       </Button>
     </div>
-    {items.length === 0 && (
+    {visibleItems.length === 0 && (
       <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed border-border text-muted-foreground text-sm">
         Sin elementos. Crea el primero con el botón "Nuevo".
       </div>
     )}
-    {items.map((it: any) => {
+    {visibleItems.map((it: any) => {
       const inScope = isInScope(it);
       return (
         <div
