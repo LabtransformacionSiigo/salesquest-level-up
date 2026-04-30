@@ -114,9 +114,44 @@ Deno.serve(async (req) => {
         email_confirm: true,
       });
       if (cErr || !created?.user?.id) {
-        return { email, status: "error", error: `create: ${cErr?.message || "no user"}` };
+        // Si Supabase dice "already registered", obtener el user id vía generateLink (recovery)
+        const msg = String(cErr?.message || "");
+        if (/already.*registered|already.*been.*registered/i.test(msg)) {
+          try {
+            const { data: linkData, error: linkErr } = await (sb.auth.admin as any).generateLink({
+              type: "recovery",
+              email,
+            });
+            const recoveredId = linkData?.user?.id || linkData?.user_id;
+            if (recoveredId) {
+              const { error: upErr2 } = await sb.auth.admin.updateUserById(recoveredId, {
+                email,
+                password,
+                email_confirm: true,
+                user_metadata: {
+                  email,
+                  name: gerenteRow?.nombre || email.split("@")[0],
+                  nombre: gerenteRow?.nombre || email.split("@")[0],
+                  role: "gerente",
+                  canal: gerenteRow?.canal ?? null,
+                  pais: gerenteRow?.pais ?? null,
+                  celula: gerenteRow?.celula ?? null,
+                },
+              });
+              if (upErr2) return { email, status: "error", error: `update_recovered: ${upErr2.message}` };
+              userId = recoveredId;
+            } else {
+              return { email, status: "error", error: `create: ${msg}; recovery: ${linkErr?.message || "no user id"}` };
+            }
+          } catch (e: any) {
+            return { email, status: "error", error: `create: ${msg}; recovery_throw: ${e?.message || e}` };
+          }
+        } else {
+          return { email, status: "error", error: `create: ${msg || "no user"}` };
+        }
+      } else {
+        userId = created.user.id;
       }
-      userId = created.user.id;
     }
 
     if (!userId) return { email, status: "error", error: "no_user_id" };
