@@ -60,7 +60,11 @@ export const isVcAdvisorProfile = (profile?: VcAdvisorProfileLike | null) => (
 export const getVcAdvisorSnapshot = async (profile?: VcAdvisorProfileLike | null): Promise<VcAdvisorSnapshot | null> => {
   if (!isVcAdvisorProfile(profile)) return null;
 
-  const [salesRes, catalogRes, medalsRes] = await Promise.all([
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { start: weekStart, end: weekEnd } = getIsoWeekRange(new Date());
+  const currentMes = `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const [salesRes, catalogRes, medalsRes, dailyAcvRes, weeklyUpgradesRes, monthKpiRes] = await Promise.all([
     supabase
       .from('ventas')
       .select('fecha_facturacion, valor_producto, acv_plus, producto, comercial, gerente_id')
@@ -76,6 +80,27 @@ export const getVcAdvisorSnapshot = async (profile?: VcAdvisorProfileLike | null
       .from('medallas')
       .select('*')
       .eq('gerente_id', profile.id || ''),
+    // A) ACV+ del día actual
+    supabase
+      .from('ventas')
+      .select('acv_plus')
+      .eq('gerente_id', profile.gerente_id)
+      .eq('fecha_facturacion', todayStr)
+      .neq('producto', 'Resumen Mensual VC'),
+    // B) Upgrades de la semana actual
+    supabase
+      .from('ventas')
+      .select('id', { count: 'exact', head: true })
+      .eq('gerente_id', profile.gerente_id)
+      .eq('categoria_producto_venta', 'Upgrade')
+      .gte('fecha_facturacion', weekStart)
+      .lte('fecha_facturacion', weekEnd),
+    // C) Cumplimiento mensual (kpis_mes_actual: ventas=acv+ del mes, meta, pct_cumplimiento)
+    supabase
+      .from('kpis_mes_actual' as any)
+      .select('pct_cumplimiento, ventas, meta')
+      .eq('gerente_id', profile.gerente_id)
+      .maybeSingle(),
   ]);
 
   if (salesRes.error) throw salesRes.error;
