@@ -343,6 +343,7 @@ export const useGamificationMetrics = (
             metaAsesor: null,
             vnProductBreakdown: [],
             teamAsesorPerformance: [],
+            lastUpdated: new Date(),
           });
           return;
         }
@@ -1496,6 +1497,7 @@ export const useGamificationMetrics = (
           metaAsesor,
           vnProductBreakdown: [],
           teamAsesorPerformance,
+          lastUpdated: new Date(),
         });
       } catch (err: any) {
         if (!cancelled) {
