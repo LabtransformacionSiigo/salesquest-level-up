@@ -161,6 +161,19 @@ const AdminEspecialista = () => {
     loadAll();
   };
 
+  const deleteItem = async (tipo: 'reto' | 'racha' | 'medalla', id: string, nombre: string) => {
+    const tipoLabel = tipo === 'reto' ? 'reto' : tipo === 'racha' ? 'racha' : 'medalla';
+    if (!window.confirm(`¿Seguro que deseas eliminar el ${tipoLabel} "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    const table = tipo === 'reto' ? 'catalogo_retos' : tipo === 'racha' ? 'config_rachas' : 'catalogo_medallas';
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `${tipoLabel.charAt(0).toUpperCase() + tipoLabel.slice(1)} eliminado ✅` });
+    loadAll();
+  };
+
   const saveItem = async (tipo: string, payload: any, id?: string) => {
     const table = tipo === 'reto' ? 'catalogo_retos' : tipo === 'racha' ? 'config_rachas' : 'catalogo_medallas';
     const action = id
