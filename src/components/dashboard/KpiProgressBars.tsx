@@ -23,6 +23,7 @@ interface KpiProgressBarsProps {
   teamAsesorPerformance?: AsesorPerformance[];
   vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
   periodoSeleccionado?: string;
+  lastUpdated?: Date | null;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
@@ -66,7 +67,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, pais, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, pais, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado, lastUpdated }: KpiProgressBarsProps) => {
   const NIVELES = getNivelesByCanal(canal);
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
@@ -187,6 +188,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             periodoSeleccionado={periodoSeleccionado || ''}
             canal={canal}
             pais={pais}
+            lastUpdated={lastUpdated}
           />
         ) : showVCTeam ? (
           /* ── VC Gerente: ACV por comercial ── */

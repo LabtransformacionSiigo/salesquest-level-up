@@ -117,6 +117,9 @@ export interface GamificationMetrics {
 
   /* VN team performance dashboard (only gerentes VN) */
   teamAsesorPerformance: AsesorPerformance[];
+
+  /* Last time data was refreshed (for UI indicator) */
+  lastUpdated: Date | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,6 +243,7 @@ export const useGamificationMetrics = (
     metaAsesor: null,
     vnProductBreakdown: [],
     teamAsesorPerformance: [],
+    lastUpdated: null,
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
@@ -339,6 +343,7 @@ export const useGamificationMetrics = (
             metaAsesor: null,
             vnProductBreakdown: [],
             teamAsesorPerformance: [],
+            lastUpdated: new Date(),
           });
           return;
         }
@@ -1492,6 +1497,7 @@ export const useGamificationMetrics = (
           metaAsesor,
           vnProductBreakdown: [],
           teamAsesorPerformance,
+          lastUpdated: new Date(),
         });
       } catch (err: any) {
         if (!cancelled) {
@@ -1503,7 +1509,44 @@ export const useGamificationMetrics = (
 
     setState(prev => ({ ...prev, loading: true, error: null }));
     fetchAll();
-    return () => { cancelled = true; };
+
+    // Realtime subscription: re-run fetchAll on any INSERT/UPDATE in vn_metricas_optimizadas
+    // for the current month/year. Applies to all VN/VC channels and countries.
+    const mesNroActual = parseInt(periodoSel.slice(4), 10);
+    const channel = supabase
+      .channel(`gamification-metrics-${profile.id}-${periodoSel}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'vn_metricas_optimizadas',
+          filter: `anio=eq.${anioActual}`,
+        },
+        (payload: any) => {
+          const row = (payload?.new || {}) as any;
+          if (Number(row.mes_nro) === mesNroActual && !cancelled) fetchAll();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'vn_metricas_optimizadas',
+          filter: `anio=eq.${anioActual}`,
+        },
+        (payload: any) => {
+          const row = (payload?.new || {}) as any;
+          if (Number(row.mes_nro) === mesNroActual && !cancelled) fetchAll();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
 
   return { ...state, isVcAdvisor, isVC, isVN };
