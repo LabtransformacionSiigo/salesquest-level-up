@@ -31,7 +31,7 @@ interface Challenge {
   status: 'draft' | 'active';
 }
 
-interface ThresholdRow { segment: 'nube' | 'legacy'; threshold_value: number | null; sp_canje_reward: number | null; }
+interface ThresholdRow { segment: 'nube' | 'legacy' | 'gerente'; threshold_value: number | null; sp_canje_reward: number | null; }
 
 const FREQ_LABEL: Record<Frequency, string> = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' };
 const KPI_LABEL: Record<KpiType, string> = { acv_plus: 'ACV+', upgrades: 'Upgrades', conversions: 'Conversiones' };
@@ -51,6 +51,8 @@ const emptyForm = {
   nube_sp: '' as string,
   legacy_value: '' as string,
   legacy_sp: '' as string,
+  gerente_value: '' as string,
+  gerente_sp: '' as string,
 };
 
 export default function GamificationRetosTab() {
