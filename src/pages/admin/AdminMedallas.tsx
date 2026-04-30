@@ -159,6 +159,17 @@ const AdminMedallas = () => {
     fetchCatalogo();
   };
 
+  const deleteMedalla = async (m: any) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar la medalla "${m.nombre}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from('catalogo_medallas').delete().eq('id', m.id);
+    if (error) {
+      toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Medalla eliminada ✅' });
+    fetchCatalogo();
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
