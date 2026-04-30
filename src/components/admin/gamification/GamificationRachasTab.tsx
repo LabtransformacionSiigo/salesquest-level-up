@@ -76,6 +76,7 @@ export default function GamificationRachasTab() {
     const t = thresholds[s.id] || [];
     const nube = t.find(x => x.segment === 'nube');
     const legacy = t.find(x => x.segment === 'legacy');
+    const gerente = t.find(x => x.segment === 'gerente');
     setForm({
       id: s.id,
       name: s.name,
@@ -85,6 +86,7 @@ export default function GamificationRachasTab() {
       multiplier_reward: String(s.multiplier_reward),
       nube_threshold: nube?.daily_threshold_cop?.toString() ?? '',
       legacy_threshold: legacy?.daily_threshold_cop?.toString() ?? '',
+      gerente_threshold: gerente?.daily_threshold_cop?.toString() ?? '',
       start_date: s.start_date,
       end_date: s.end_date,
       status: s.status,
@@ -126,6 +128,7 @@ export default function GamificationRachasTab() {
       const inserts: any[] = [];
       if (form.nube_threshold !== '') inserts.push({ streak_id: id, segment: 'nube', daily_threshold_cop: Number(form.nube_threshold) });
       if (form.legacy_threshold !== '') inserts.push({ streak_id: id, segment: 'legacy', daily_threshold_cop: Number(form.legacy_threshold) });
+      if (form.gerente_threshold !== '') inserts.push({ streak_id: id, segment: 'gerente', daily_threshold_cop: Number(form.gerente_threshold) });
       if (inserts.length) await supabase.from('streak_thresholds').insert(inserts);
       toast.success('Racha guardada ✅');
       setOpen(false);
