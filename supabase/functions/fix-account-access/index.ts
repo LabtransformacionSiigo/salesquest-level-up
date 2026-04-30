@@ -36,8 +36,31 @@ Deno.serve(async (req) => {
 
   const findAuthUserByEmail = async (email: string): Promise<{ id: string; email: string; foundBy: string } | null> => {
     const target = email.toLowerCase();
+    // 1) Intento directo vía REST admin con filter (mucho más confiable que paginar)
+    try {
+      const url = `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?filter=${encodeURIComponent(target)}&per_page=50`;
+      const res = await fetch(url, {
+        headers: {
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        },
+      });
+      if (res.ok) {
+        const json: any = await res.json();
+        const users: any[] = json?.users || [];
+        const found = users.find((u: any) => {
+          const primaryEmail = String(u.email || "").trim().toLowerCase();
+          const metadataEmail = String(u.user_metadata?.email || u.raw_user_meta_data?.email || "").trim().toLowerCase();
+          const identityEmails = (u.identities || []).map(getIdentityEmail);
+          return primaryEmail === target || metadataEmail === target || identityEmails.includes(target);
+        });
+        if (found) return { id: found.id, email: found.email || "", foundBy: "filter" };
+      }
+    } catch (_) { /* fallback a paginación */ }
+
+    // 2) Fallback: paginación amplia (hasta 50k usuarios)
     for (let page = 1; page <= 50; page++) {
-      const { data: list, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+      const { data: list, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) throw error;
       const users = list?.users ?? [];
       const found = users.find((u: any) => {
@@ -47,7 +70,7 @@ Deno.serve(async (req) => {
         return primaryEmail === target || metadataEmail === target || identityEmails.includes(target);
       });
       if (found) return { id: found.id, email: found.email || "", foundBy: String(found.email || "").toLowerCase() === target ? "primary" : "identity_or_metadata" };
-      if (users.length < 200) break;
+      if (users.length < 1000) break;
     }
     return null;
   };
