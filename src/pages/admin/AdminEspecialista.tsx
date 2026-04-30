@@ -892,35 +892,39 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, tipo_evento: e.target.value })}
                   className={inputClass}
                 >
-                  {TIPO_EVENTO_MEDALLA.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {TIPO_EVENTO_MEDALLA_OPTS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
-                <select
-                  value={form.familia}
-                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">— N/A —</option>
-                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Cantidad requerida">
-                <Input
-                  type="number"
-                  value={form.cantidad_requerida}
-                  onChange={(e) => setForm({ ...form, cantidad_requerida: e.target.value })}
-                />
-              </Field>
-              <Field label="SP otorgados">
+              {form.canal !== 'VC' && (
+                <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                  <select
+                    value={form.familia}
+                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">— N/A —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              {form.tipo_evento === 'CANTIDAD_VENTAS_FAMILIA' && (
+                <Field label="Cantidad de ventas necesarias para desbloquear">
+                  <Input
+                    type="number"
+                    value={form.cantidad_requerida}
+                    onChange={(e) => setForm({ ...form, cantidad_requerida: e.target.value })}
+                  />
+                </Field>
+              )}
+              <Field label="🎁 SP Canje al desbloquear (se otorgan una sola vez)">
                 <Input
                   type="number"
                   value={form.sp}
