@@ -26,9 +26,18 @@ import {
 
 const PAISES_LABEL: Record<string, string> = COUNTRY_LABELS;
 const OPERACIONES = ['Venta Cruzada', 'Venta Nueva (Empresarios)', 'Venta Nueva (Aliados)'];
-const VENTANAS = ['DIARIO', 'SEMANAL', 'MENSUAL'];
+const VENTANAS_OPTS = [
+  { value: 'DIARIO', label: '📅 Diario (se evalúa cada día)' },
+  { value: 'SEMANAL', label: '📆 Semanal (se evalúa cada viernes)' },
+  { value: 'MENSUAL', label: '🗓️ Mensual (se evalúa último día hábil)' },
+];
 const TIPO_METRICA = ['UNIDADES', 'ACV', 'CUMPLIMIENTO_META_ACV_PLUS', 'RECOMENDADOS'];
-const TIPO_EVENTO_MEDALLA = ['PRIMERA_VENTA', 'PRIMER_RECONOCIMIENTO', 'CUMPLIMIENTO_TEMPRANO_UNIDADES', 'CANTIDAD_VENTAS_FAMILIA'];
+const TIPO_EVENTO_MEDALLA_OPTS = [
+  { value: 'PRIMERA_VENTA', label: '⭐ Primera venta del tipo' },
+  { value: 'PRIMER_RECONOCIMIENTO', label: '🏅 Primer reconocimiento' },
+  { value: 'CUMPLIMIENTO_TEMPRANO_UNIDADES', label: '⚡ Cumplimiento anticipado' },
+  { value: 'CANTIDAD_VENTAS_FAMILIA', label: '📦 Acumular cantidad de ventas' },
+];
 
 const CANALES_RETOS = [
   { value: 'VC', label: 'Venta Cruzada' },
@@ -36,15 +45,19 @@ const CANALES_RETOS = [
   { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
 ];
 const KPIS_RETOS = [
-  { value: 'acv_plus', label: 'ACV', valorLabel: 'Monto ACV requerido (COP)' },
-  { value: 'upgrades', label: 'Upgrades', valorLabel: 'Upgrades requeridos' },
-  { value: 'conversiones', label: 'Conversiones', valorLabel: '% conversión sobre cuota' },
-  { value: 'cumplimiento_pct', label: '% Cumplimiento', valorLabel: '% de cumplimiento' },
+  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en pesos COP (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV' },
+  { value: 'upgrades', label: '⬆️ Upgrades (cantidad)', shortLabel: 'Upgrades', valorLabel: 'Número de upgrades requeridos', valorHint: 'Los asesores deben alcanzar esta cantidad', tipoMetrica: 'UNIDADES' },
+  { value: 'conversiones', label: '🔄 Conversiones (% sobre cuota)', shortLabel: 'Conversiones', valorLabel: '% mínimo de conversiones (ej: 33)', valorHint: 'Porcentaje mínimo de conversiones requerido', tipoMetrica: 'UNIDADES' },
+  { value: 'cumplimiento_pct', label: '🎯 % Cumplimiento de meta', shortLabel: '% Cumplimiento', valorLabel: '% de cumplimiento requerido (ej: 120)', valorHint: 'Porcentaje de la meta que deben alcanzar', tipoMetrica: 'CUMPLIMIENTO_META_ACV_PLUS' },
 ];
 const FAMILIAS_VC = [
-  { value: 'NUBE', label: 'Nube' },
-  { value: 'LEGACY', label: 'Legacy (Pyme + Ilimitada)' },
-  { value: 'AMBAS', label: 'Ambas' },
+  { value: 'NUBE', label: '☁️ Nube' },
+  { value: 'LEGACY', label: '🏢 Legacy (Pyme + Ilimitada)' },
+  { value: 'AMBAS', label: '🌐 Todos (Nube + Legacy)' },
+];
+const CONDICIONES_RACHA = [
+  { value: 'VENTA_DIARIA_CONSECUTIVA', label: 'Ventas diarias consecutivas' },
+  { value: 'CUMPLIMIENTO_DIARIO', label: 'Cumplimiento diario de meta' },
 ];
 
 // Métricas disponibles según canal (operación)
@@ -343,25 +356,38 @@ const ItemList = ({
   items,
   tipo,
   gerentes = [],
+  isAdmin,
   isInScope,
   onToggle,
   onEdit,
   onNew,
   onDelete,
-}: any) => (
+}: any) => {
+  const visibleItems = isAdmin ? items : items.filter((it: any) => isInScope(it));
+  const banner =
+    tipo === 'reto'
+      ? 'Los retos activos aparecen automáticamente en el dashboard de cada asesor según su familia (Nube/Legacy). El progreso se calcula en tiempo real desde sus ventas.'
+      : tipo === 'racha'
+      ? 'Las rachas se evalúan automáticamente. El multiplicador SP se aplica el viernes si el asesor cumplió los días requeridos.'
+      : 'Las medallas se desbloquean automáticamente cuando el asesor cumple la condición. Se otorgan una sola vez.';
+  return (
   <div className="space-y-3">
+    <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-start gap-2">
+      <MI icon="info" className="text-primary text-base mt-0.5" />
+      <p className="text-xs text-foreground/80 leading-relaxed">{banner}</p>
+    </div>
     <div className="flex justify-between items-center">
-      <p className="text-xs text-muted-foreground">{items.length} elementos en el catálogo</p>
+      <p className="text-xs text-muted-foreground">{visibleItems.length} elementos</p>
       <Button size="sm" onClick={onNew}>
         <MI icon="add" className="text-sm mr-1" /> Nuevo
       </Button>
     </div>
-    {items.length === 0 && (
+    {visibleItems.length === 0 && (
       <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed border-border text-muted-foreground text-sm">
         Sin elementos. Crea el primero con el botón "Nuevo".
       </div>
     )}
-    {items.map((it: any) => {
+    {visibleItems.map((it: any) => {
       const inScope = isInScope(it);
       return (
         <div
@@ -437,7 +463,8 @@ const ItemList = ({
       );
     })}
   </div>
-);
+  );
+};
 
 const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onSave }: any) => {
   // Para especialistas: si solo tienen 1 país / 1 operación → forzar y bloquear.
@@ -528,12 +555,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
       fecha_fin: form.fecha_fin || null,
     };
     if (tipo === 'reto') {
+      const kpiCfg = KPIS_RETOS.find((k) => k.value === form.kpi);
+      const tipoMetricaAuto = canalFinal === 'VC' && kpiCfg ? kpiCfg.tipoMetrica : form.tipo_metrica;
       payload = {
         ...payload,
         canal: canalFinal,
         ventana_tiempo: form.ventana_tiempo,
-        tipo_metrica: form.tipo_metrica,
-        familia: form.familia || null,
+        tipo_metrica: tipoMetricaAuto,
+        familia: canalFinal === 'VC' ? null : (form.familia || null),
         kpi: form.kpi,
         familia_vc: canalFinal === 'VC' ? form.familia_vc : null,
         umbral: Number(form.umbral),
@@ -561,7 +590,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
         tipo_evento: form.tipo_evento,
         cantidad_requerida: Number(form.cantidad_requerida),
         sp: Number(form.sp),
-        producto: form.familia || null,
+        producto: canalFinal === 'VC' ? null : (form.familia || null),
       };
     }
     onSave(payload);
@@ -653,7 +682,9 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
               </Field>
             </div>
           )}
-          {tipo === 'reto' && (
+          {tipo === 'reto' && (() => {
+            const kpiCfg = KPIS_RETOS.find(k => k.value === form.kpi) || KPIS_RETOS[0];
+            return (
             <>
               <Field label="Canal" hint="Derivado de la operación">
                 <select
@@ -683,28 +714,15 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, ventana_tiempo: e.target.value })}
                   className={inputClass}
                 >
-                  {VENTANAS.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
-                <select
-                  value={form.tipo_metrica}
-                  onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
-                  className={inputClass}
-                >
-                  {metricasDisponibles.map((t) => (
-                    <option key={t} value={t}>
-                      {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
+                  {VENTANAS_OPTS.map((v) => (
+                    <option key={v.value} value={v.value}>
+                      {v.label}
                     </option>
                   ))}
                 </select>
               </Field>
               {form.canal === 'VC' && (
-                <Field label="Familia VC" hint="Aplica solo para Venta Cruzada">
+                <Field label="Familia VC" hint="A qué segmento aplica este reto">
                   <select
                     value={form.familia_vc}
                     onChange={(e) => setForm({ ...form, familia_vc: e.target.value })}
@@ -716,28 +734,45 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
-              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
-                <select
-                  value={form.familia}
-                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">— N/A —</option>
-                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={KPIS_RETOS.find(k => k.value === form.kpi)?.valorLabel || 'Valor'}>
+              {form.canal !== 'VC' && (
+                <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
+                  <select
+                    value={form.tipo_metrica}
+                    onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
+                    className={inputClass}
+                  >
+                    {metricasDisponibles.map((t) => (
+                      <option key={t} value={t}>
+                        {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              {form.canal !== 'VC' && (
+                <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                  <select
+                    value={form.familia}
+                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">— N/A —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label={kpiCfg.valorLabel} hint={kpiCfg.valorHint}>
                 <Input
                   type="number"
                   value={form.umbral}
                   onChange={(e) => setForm({ ...form, umbral: e.target.value })}
                 />
               </Field>
-              <Field label="SP otorgados">
+              <Field label="🎁 SP Canje a otorgar (puntos canjeables por premios)">
                 <Input
                   type="number"
                   value={form.sp_otorgados}
@@ -745,7 +780,8 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 />
               </Field>
             </>
-          )}
+            );
+          })()}
 
           {tipo === 'racha' && (
             <>
@@ -761,19 +797,24 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 </select>
               </Field>
               <Field label="Condición">
-                <Input
+                <select
                   value={form.condicion_tipo}
                   onChange={(e) => setForm({ ...form, condicion_tipo: e.target.value })}
-                />
+                  className={inputClass}
+                >
+                  {CONDICIONES_RACHA.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
               </Field>
-              <Field label="Días requeridos">
+              <Field label="Días consecutivos requeridos" hint="Cuántos días seguidos deben cumplir para activar el multiplicador">
                 <Input
                   type="number"
                   value={form.dias_requeridos}
                   onChange={(e) => setForm({ ...form, dias_requeridos: e.target.value })}
                 />
               </Field>
-              <Field label="Multiplicador SP">
+              <Field label="Multiplicador SP Canje (ej: 2 = duplica los puntos)" hint="Si logran la racha, sus SP Canje de esa semana se multiplican">
                 <Input
                   type="number"
                   step="0.1"
@@ -805,7 +846,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="Umbral Nube (COP o unidades)">
+              <Field label="Umbral Nube (COP o unidades)" hint="Monto o cantidad que deben alcanzar los asesores Nube cada día para mantener la racha">
                 <Input
                   type="number"
                   value={form.umbral_verde}
@@ -813,7 +854,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 />
               </Field>
               {form.canal === 'VC' && (form.familia_vc === 'AMBAS' || form.familia_vc === 'LEGACY') && (
-                <Field label="Umbral Legacy (COP o unidades)" hint="Dejar en 0 si no aplica a Legacy">
+                <Field label="Umbral Legacy (COP o unidades)" hint="Dejar en 0 si esta racha no aplica a Legacy">
                   <Input
                     type="number"
                     value={form.umbral_legacy}
@@ -821,14 +862,16 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   />
                 </Field>
               )}
-              <Field label="Evaluar solo Lunes-Miércoles" hint="Activa esto para rachas tipo 'El Artillero' (L-M-X)">
-                <div className="flex items-center h-10">
-                  <Switch
-                    checked={Boolean(form.dias_lun_mie)}
-                    onCheckedChange={(v) => setForm({ ...form, dias_lun_mie: v })}
-                  />
-                </div>
-              </Field>
+              {Number(form.dias_requeridos) <= 3 && (
+                <Field label="Solo evaluar Lunes-Miércoles" hint="Activa esto para rachas tipo 'El Artillero': el asesor cumple L-M-X y el viernes recibe el multiplicador">
+                  <div className="flex items-center h-10">
+                    <Switch
+                      checked={Boolean(form.dias_lun_mie)}
+                      onCheckedChange={(v) => setForm({ ...form, dias_lun_mie: v })}
+                    />
+                  </div>
+                </Field>
+              )}
             </>
           )}
 
@@ -851,35 +894,39 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   onChange={(e) => setForm({ ...form, tipo_evento: e.target.value })}
                   className={inputClass}
                 >
-                  {TIPO_EVENTO_MEDALLA.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {TIPO_EVENTO_MEDALLA_OPTS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
-                <select
-                  value={form.familia}
-                  onChange={(e) => setForm({ ...form, familia: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">— N/A —</option>
-                  {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Cantidad requerida">
-                <Input
-                  type="number"
-                  value={form.cantidad_requerida}
-                  onChange={(e) => setForm({ ...form, cantidad_requerida: e.target.value })}
-                />
-              </Field>
-              <Field label="SP otorgados">
+              {form.canal !== 'VC' && (
+                <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                  <select
+                    value={form.familia}
+                    onChange={(e) => setForm({ ...form, familia: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">— N/A —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              {form.tipo_evento === 'CANTIDAD_VENTAS_FAMILIA' && (
+                <Field label="Cantidad de ventas necesarias para desbloquear">
+                  <Input
+                    type="number"
+                    value={form.cantidad_requerida}
+                    onChange={(e) => setForm({ ...form, cantidad_requerida: e.target.value })}
+                  />
+                </Field>
+              )}
+              <Field label="🎁 SP Canje al desbloquear (se otorgan una sola vez)">
                 <Input
                   type="number"
                   value={form.sp}
