@@ -281,6 +281,7 @@ const AdminEspecialista = () => {
                 onToggle={toggleActivo}
                 onEdit={(d) => setEditing({ tipo: 'reto', data: d })}
                 onNew={() => setEditing({ tipo: 'reto', data: {} })}
+                onDelete={deleteItem}
               />
             </TabsContent>
             <TabsContent value="rachas" className="mt-6">
@@ -294,6 +295,7 @@ const AdminEspecialista = () => {
                 onToggle={toggleActivo}
                 onEdit={(d) => setEditing({ tipo: 'racha', data: d })}
                 onNew={() => setEditing({ tipo: 'racha', data: {} })}
+                onDelete={deleteItem}
               />
             </TabsContent>
             <TabsContent value="medallas" className="mt-6">
@@ -307,6 +309,7 @@ const AdminEspecialista = () => {
                 onToggle={toggleActivo}
                 onEdit={(d) => setEditing({ tipo: 'medalla', data: d })}
                 onNew={() => setEditing({ tipo: 'medalla', data: {} })}
+                onDelete={deleteItem}
               />
             </TabsContent>
           </Tabs>
