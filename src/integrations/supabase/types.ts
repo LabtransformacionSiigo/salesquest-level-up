@@ -88,6 +88,7 @@ export type Database = {
           id: string
           segment: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           comercial: string
@@ -95,6 +96,7 @@ export type Database = {
           id?: string
           segment: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           comercial?: string
@@ -102,6 +104,7 @@ export type Database = {
           id?: string
           segment?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

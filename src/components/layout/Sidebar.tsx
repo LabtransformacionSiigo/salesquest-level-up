@@ -28,6 +28,7 @@ const adminItems = [
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
   { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
+  { path: '/admin/gamification', icon: 'sports_esports', label: 'Gamificación VC' },
   { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas (legacy)' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
@@ -41,6 +42,7 @@ const especialistaItems = [
   { path: '/admin/especialista', icon: 'shield_person', label: 'Gamificación' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Premios' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
+  { path: '/admin/gamification', icon: 'sports_esports', label: 'Gamificación VC' },
 ];
 
 const Sidebar = () => {

@@ -30,6 +30,7 @@ import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
 import AdminSimulacion from '@/pages/admin/AdminSimulacion';
 import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
+import AdminGamification from '@/pages/admin/AdminGamification';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 
@@ -62,6 +63,7 @@ function App() {
             <Route path="/admin/especialista" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             <Route path="/admin/especialista/premios" element={<EspecialistaRoute><AdminEspecialistaPremios /></EspecialistaRoute>} />
             <Route path="/admin/segmentos-vc" element={<EspecialistaRoute><AdminAdvisorSegments /></EspecialistaRoute>} />
+            <Route path="/admin/gamification" element={<EspecialistaRoute><AdminGamification /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
