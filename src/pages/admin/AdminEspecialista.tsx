@@ -590,7 +590,7 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
         tipo_evento: form.tipo_evento,
         cantidad_requerida: Number(form.cantidad_requerida),
         sp: Number(form.sp),
-        producto: form.familia || null,
+        producto: canalFinal === 'VC' ? null : (form.familia || null),
       };
     }
     onSave(payload);
