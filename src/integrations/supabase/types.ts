@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      advisor_segments: {
+        Row: {
+          comercial: string
+          created_at: string
+          id: string
+          segment: string
+          updated_at: string
+        }
+        Insert: {
+          comercial: string
+          created_at?: string
+          id?: string
+          segment: string
+          updated_at?: string
+        }
+        Update: {
+          comercial?: string
+          created_at?: string
+          id?: string
+          segment?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       asesores: {
         Row: {
           activo: boolean | null
