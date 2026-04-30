@@ -107,33 +107,66 @@ const Retos = () => {
     return String(reto.umbral);
   };
 
-  const getRetoProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number } | null => {
-    const target = Number(reto.umbral) || 0;
-    if (target <= 0) return null;
-    const win = normalizeCatalogWindow(reto.ventana_tiempo);
-    let current = 0;
-    if (reto.kpi === 'acv_plus' && win === 'DIARIO') current = vcMetrics.dailyAcvPlus;
-    else if (reto.kpi === 'upgrades' && win === 'SEMANAL') current = vcMetrics.weeklyUpgrades;
-    else if (reto.kpi === 'cumplimiento_pct' && win === 'MENSUAL') current = vcMetrics.monthlyCumplimientoPct;
-    else if (reto.kpi === 'conversiones' && win === 'MENSUAL') {
-      // % cumplimiento en conversiones aproximado por % ACV+ vs meta del mes
-      current = vcMetrics.monthlyCumplimientoPct;
-    } else {
-      return null;
+  const getVcProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number; label: string } => {
+    const umbral = Number(reto.umbral) || 0;
+    if (umbral === 0) return { current: 0, target: 1, pct: 0, label: '' };
+    switch (reto.kpi) {
+      case 'acv_plus': {
+        const window = normalizeCatalogWindow(reto.ventana_tiempo);
+        if (window === 'DIARIO') {
+          const current = vcMetrics?.dailyAcvPlus ?? 0;
+          return {
+            current,
+            target: umbral,
+            pct: Math.min(100, (current / umbral) * 100),
+            label: `$${(current / 1_000_000).toFixed(1)}M / $${(umbral / 1_000_000).toFixed(0)}M`,
+          };
+        }
+        if (window === 'MENSUAL') {
+          const current = vcMetrics?.monthlyAcvPlus ?? 0;
+          return {
+            current,
+            target: umbral,
+            pct: Math.min(100, (current / umbral) * 100),
+            label: `$${(current / 1_000_000).toFixed(1)}M / $${(umbral / 1_000_000).toFixed(0)}M`,
+          };
+        }
+        return { current: 0, target: umbral, pct: 0, label: '' };
+      }
+      case 'upgrades': {
+        const current = vcMetrics?.weeklyUpgrades ?? 0;
+        return {
+          current,
+          target: umbral,
+          pct: Math.min(100, (current / umbral) * 100),
+          label: `${current} / ${umbral} upgrades`,
+        };
+      }
+      case 'cumplimiento_pct': {
+        const current = vcMetrics?.monthlyCumplimientoPct ?? 0;
+        return {
+          current,
+          target: umbral,
+          pct: Math.min(100, (current / umbral) * 100),
+          label: `${current.toFixed(1)}% / ${umbral}%`,
+        };
+      }
+      case 'conversiones': {
+        const monthlyCumpl = vcMetrics?.monthlyCumplimientoPct ?? 0;
+        return {
+          current: monthlyCumpl,
+          target: umbral,
+          pct: Math.min(100, (monthlyCumpl / umbral) * 100),
+          label: `${monthlyCumpl.toFixed(1)}% / ${umbral}%`,
+        };
+      }
+      default:
+        return { current: 0, target: 1, pct: 0, label: '' };
     }
-    const pct = Math.min(100, target > 0 ? (current / target) * 100 : 0);
-    return { current, target, pct };
-  };
-
-  const formatProgressValue = (reto: VcCatalogReto, value: number): string => {
-    if (reto.kpi === 'acv_plus') return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (reto.kpi === 'cumplimiento_pct' || reto.kpi === 'conversiones') return `${Math.round(value)}%`;
-    return String(Math.round(value));
   };
 
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
     const completed = completados.has(`${reto.nombre}::${periodo}`);
-    const progress = getRetoProgress(reto);
     return (
       <motion.div
         key={reto.id}
@@ -174,15 +207,18 @@ const Retos = () => {
             >🎁 {completed ? `+${reto.sp_otorgados}` : reto.sp_otorgados}</span>
           </div>
         </div>
-        {!completed && progress && (
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>{formatProgressValue(reto, progress.current)} / {formatProgressValue(reto, progress.target)}</span>
-              <span className="font-scoreboard">{Math.round(progress.pct)}%</span>
+        {!completed && (() => {
+          const prog = getVcProgress(reto);
+          return prog.target > 0 && prog.label ? (
+            <div className="space-y-1.5 mt-2">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{prog.label}</span>
+                <span className="font-scoreboard">{Math.round(prog.pct)}%</span>
+              </div>
+              <Progress value={prog.pct} className="h-2" />
             </div>
-            <Progress value={progress.pct} className="h-2" />
-          </div>
-        )}
+          ) : null;
+        })()}
       </motion.div>
     );
   };
