@@ -31,7 +31,7 @@ interface Challenge {
   status: 'draft' | 'active';
 }
 
-interface ThresholdRow { segment: 'nube' | 'legacy'; threshold_value: number | null; sp_canje_reward: number | null; }
+interface ThresholdRow { segment: 'nube' | 'legacy' | 'gerente'; threshold_value: number | null; sp_canje_reward: number | null; }
 
 const FREQ_LABEL: Record<Frequency, string> = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' };
 const KPI_LABEL: Record<KpiType, string> = { acv_plus: 'ACV+', upgrades: 'Upgrades', conversions: 'Conversiones' };
@@ -51,6 +51,8 @@ const emptyForm = {
   nube_sp: '' as string,
   legacy_value: '' as string,
   legacy_sp: '' as string,
+  gerente_value: '' as string,
+  gerente_sp: '' as string,
 };
 
 export default function GamificationRetosTab() {
@@ -85,6 +87,7 @@ export default function GamificationRetosTab() {
     const t = thresholds[c.id] || [];
     const nube = t.find(x => x.segment === 'nube');
     const legacy = t.find(x => x.segment === 'legacy');
+    const gerente = t.find(x => x.segment === 'gerente');
     setForm({
       id: c.id,
       name: c.name,
@@ -99,6 +102,8 @@ export default function GamificationRetosTab() {
       nube_sp: nube?.sp_canje_reward?.toString() ?? '',
       legacy_value: legacy?.threshold_value?.toString() ?? '',
       legacy_sp: legacy?.sp_canje_reward?.toString() ?? '',
+      gerente_value: gerente?.threshold_value?.toString() ?? '',
+      gerente_sp: gerente?.sp_canje_reward?.toString() ?? '',
     });
     setOpen(true);
   };
@@ -135,6 +140,9 @@ export default function GamificationRetosTab() {
       }
       if (form.legacy_value !== '' && form.legacy_sp !== '') {
         inserts.push({ challenge_id: challengeId, segment: 'legacy', threshold_value: Number(form.legacy_value), sp_canje_reward: Number(form.legacy_sp) });
+      }
+      if (form.gerente_value !== '' && form.gerente_sp !== '') {
+        inserts.push({ challenge_id: challengeId, segment: 'gerente', threshold_value: Number(form.gerente_value), sp_canje_reward: Number(form.gerente_sp) });
       }
       if (inserts.length) {
         const { error } = await supabase.from('challenge_thresholds').insert(inserts);
@@ -242,6 +250,14 @@ export default function GamificationRetosTab() {
                     <div className="col-span-3"><Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" /> Sin definir — reto no visible para Legacy</Badge></div>
                   )}
                 </div>
+                <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center">
+                  <Badge variant="outline" className="justify-center">👔 Gerente</Badge>
+                  <Input placeholder="Umbral" type="number" value={form.gerente_value} onChange={e => setForm({ ...form, gerente_value: e.target.value })} />
+                  <Input placeholder="SP Canje" type="number" value={form.gerente_sp} onChange={e => setForm({ ...form, gerente_sp: e.target.value })} />
+                  {(form.gerente_value === '' || form.gerente_sp === '') && (
+                    <div className="col-span-3"><Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" /> Sin definir — reto no visible para Gerentes</Badge></div>
+                  )}
+                </div>
               </div>
             </div>
             <SheetFooter className="mt-6">
@@ -271,6 +287,7 @@ export default function GamificationRetosTab() {
             const t = thresholds[c.id] || [];
             const hasNube = t.some(x => x.segment === 'nube');
             const hasLegacy = t.some(x => x.segment === 'legacy');
+            const hasGerente = t.some(x => x.segment === 'gerente');
             return (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
@@ -280,6 +297,7 @@ export default function GamificationRetosTab() {
                 <TableCell className="space-x-1">
                   {hasNube ? <Badge>Nube</Badge> : <Badge variant="outline">Nube</Badge>}
                   {hasLegacy ? <Badge>Legacy</Badge> : <Badge variant="outline">Legacy</Badge>}
+                  {hasGerente ? <Badge>Gerente</Badge> : <Badge variant="outline">Gerente</Badge>}
                 </TableCell>
                 <TableCell>
                   <Badge variant={c.status === 'active' ? 'default' : 'secondary'}>

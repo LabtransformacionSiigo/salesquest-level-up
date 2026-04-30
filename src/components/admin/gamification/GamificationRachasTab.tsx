@@ -39,6 +39,7 @@ const emptyForm = {
   multiplier_reward: '2.0',
   nube_threshold: '',
   legacy_threshold: '',
+  gerente_threshold: '',
   start_date: new Date().toISOString().slice(0, 10),
   end_date: new Date(new Date().getFullYear(), 11, 31).toISOString().slice(0, 10),
   status: 'active',
@@ -75,6 +76,7 @@ export default function GamificationRachasTab() {
     const t = thresholds[s.id] || [];
     const nube = t.find(x => x.segment === 'nube');
     const legacy = t.find(x => x.segment === 'legacy');
+    const gerente = t.find(x => x.segment === 'gerente');
     setForm({
       id: s.id,
       name: s.name,
@@ -84,6 +86,7 @@ export default function GamificationRachasTab() {
       multiplier_reward: String(s.multiplier_reward),
       nube_threshold: nube?.daily_threshold_cop?.toString() ?? '',
       legacy_threshold: legacy?.daily_threshold_cop?.toString() ?? '',
+      gerente_threshold: gerente?.daily_threshold_cop?.toString() ?? '',
       start_date: s.start_date,
       end_date: s.end_date,
       status: s.status,
@@ -125,6 +128,7 @@ export default function GamificationRachasTab() {
       const inserts: any[] = [];
       if (form.nube_threshold !== '') inserts.push({ streak_id: id, segment: 'nube', daily_threshold_cop: Number(form.nube_threshold) });
       if (form.legacy_threshold !== '') inserts.push({ streak_id: id, segment: 'legacy', daily_threshold_cop: Number(form.legacy_threshold) });
+      if (form.gerente_threshold !== '') inserts.push({ streak_id: id, segment: 'gerente', daily_threshold_cop: Number(form.gerente_threshold) });
       if (inserts.length) await supabase.from('streak_thresholds').insert(inserts);
       toast.success('Racha guardada ✅');
       setOpen(false);
@@ -183,7 +187,7 @@ export default function GamificationRachasTab() {
 
               <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
                 <h3 className="font-semibold text-sm">Umbral diario por segmento (COP)</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>☁️ Nube</Label>
                     <Input type="number" value={form.nube_threshold} onChange={e => setForm({ ...form, nube_threshold: e.target.value })} />
@@ -191,6 +195,10 @@ export default function GamificationRachasTab() {
                   <div>
                     <Label>📦 Legacy</Label>
                     <Input type="number" value={form.legacy_threshold} onChange={e => setForm({ ...form, legacy_threshold: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>👔 Gerente</Label>
+                    <Input type="number" value={form.gerente_threshold} onChange={e => setForm({ ...form, gerente_threshold: e.target.value })} placeholder="Sin definir" />
                   </div>
                 </div>
               </div>
