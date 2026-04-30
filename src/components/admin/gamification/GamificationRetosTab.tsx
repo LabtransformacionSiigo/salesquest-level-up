@@ -250,6 +250,14 @@ export default function GamificationRetosTab() {
                     <div className="col-span-3"><Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" /> Sin definir — reto no visible para Legacy</Badge></div>
                   )}
                 </div>
+                <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center">
+                  <Badge variant="outline" className="justify-center">👔 Gerente</Badge>
+                  <Input placeholder="Umbral" type="number" value={form.gerente_value} onChange={e => setForm({ ...form, gerente_value: e.target.value })} />
+                  <Input placeholder="SP Canje" type="number" value={form.gerente_sp} onChange={e => setForm({ ...form, gerente_sp: e.target.value })} />
+                  {(form.gerente_value === '' || form.gerente_sp === '') && (
+                    <div className="col-span-3"><Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" /> Sin definir — reto no visible para Gerentes</Badge></div>
+                  )}
+                </div>
               </div>
             </div>
             <SheetFooter className="mt-6">
@@ -279,6 +287,7 @@ export default function GamificationRetosTab() {
             const t = thresholds[c.id] || [];
             const hasNube = t.some(x => x.segment === 'nube');
             const hasLegacy = t.some(x => x.segment === 'legacy');
+            const hasGerente = t.some(x => x.segment === 'gerente');
             return (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
@@ -288,6 +297,7 @@ export default function GamificationRetosTab() {
                 <TableCell className="space-x-1">
                   {hasNube ? <Badge>Nube</Badge> : <Badge variant="outline">Nube</Badge>}
                   {hasLegacy ? <Badge>Legacy</Badge> : <Badge variant="outline">Legacy</Badge>}
+                  {hasGerente ? <Badge>Gerente</Badge> : <Badge variant="outline">Gerente</Badge>}
                 </TableCell>
                 <TableCell>
                   <Badge variant={c.status === 'active' ? 'default' : 'secondary'}>
