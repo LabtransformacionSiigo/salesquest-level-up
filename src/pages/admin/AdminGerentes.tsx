@@ -269,9 +269,21 @@ const AdminGerentes = () => {
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Gerente actualizado ✅' });
     } else {
-      const { error } = await supabase.from('gerentes').insert(payload);
-      if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-      toast({ title: 'Gerente creado ✅' });
+      // Si ya existe un gerente con ese email, lo actualizamos en vez de fallar por unique constraint
+      const { data: existing } = await supabase
+        .from('gerentes')
+        .select('id')
+        .ilike('email', email)
+        .maybeSingle();
+      if (existing?.id) {
+        const { error } = await supabase.from('gerentes').update(payload).eq('id', existing.id);
+        if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+        toast({ title: 'Gerente actualizado ✅', description: 'Ya existía con ese email; se actualizaron sus datos.' });
+      } else {
+        const { error } = await supabase.from('gerentes').insert(payload);
+        if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+        toast({ title: 'Gerente creado ✅' });
+      }
     }
 
     // Si el email cambió (o es nuevo), reparar acceso automáticamente para
