@@ -39,6 +39,7 @@ const emptyForm = {
   multiplier_reward: '2.0',
   nube_threshold: '',
   legacy_threshold: '',
+  gerente_threshold: '',
   start_date: new Date().toISOString().slice(0, 10),
   end_date: new Date(new Date().getFullYear(), 11, 31).toISOString().slice(0, 10),
   status: 'active',
