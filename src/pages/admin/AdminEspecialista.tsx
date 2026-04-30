@@ -555,12 +555,14 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
       fecha_fin: form.fecha_fin || null,
     };
     if (tipo === 'reto') {
+      const kpiCfg = KPIS_RETOS.find((k) => k.value === form.kpi);
+      const tipoMetricaAuto = canalFinal === 'VC' && kpiCfg ? kpiCfg.tipoMetrica : form.tipo_metrica;
       payload = {
         ...payload,
         canal: canalFinal,
         ventana_tiempo: form.ventana_tiempo,
-        tipo_metrica: form.tipo_metrica,
-        familia: form.familia || null,
+        tipo_metrica: tipoMetricaAuto,
+        familia: canalFinal === 'VC' ? null : (form.familia || null),
         kpi: form.kpi,
         familia_vc: canalFinal === 'VC' ? form.familia_vc : null,
         umbral: Number(form.umbral),
