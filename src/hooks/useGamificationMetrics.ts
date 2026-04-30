@@ -117,6 +117,9 @@ export interface GamificationMetrics {
 
   /* VN team performance dashboard (only gerentes VN) */
   teamAsesorPerformance: AsesorPerformance[];
+
+  /* Last time data was refreshed (for UI indicator) */
+  lastUpdated: Date | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,6 +243,7 @@ export const useGamificationMetrics = (
     metaAsesor: null,
     vnProductBreakdown: [],
     teamAsesorPerformance: [],
+    lastUpdated: null,
   });
 
   const isVcAdvisor = useMemo(() => isVcAdvisorProfile(profile), [profile?.canal, profile?.role, profile?.gerente_id, profile?.nombre]);
