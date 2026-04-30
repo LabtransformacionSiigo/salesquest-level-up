@@ -86,6 +86,17 @@ const AdminRachas = () => {
     fetchConfigs();
   };
 
+  const deleteRacha = async (c: any) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar la racha "${c.nombre}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from('config_rachas').delete().eq('id', c.id);
+    if (error) {
+      toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Racha eliminada ✅' });
+    fetchConfigs();
+  };
+
   const startEdit = (c: any) => {
     setEditing(c.id);
     setForm({
