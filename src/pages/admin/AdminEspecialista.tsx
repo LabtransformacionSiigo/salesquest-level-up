@@ -410,9 +410,20 @@ const ItemList = ({
           </div>
           <div className="flex flex-col items-end gap-2">
             <Switch checked={!!it.activo} disabled={!inScope} onCheckedChange={() => onToggle(tipo, it.id, it.activo)} />
-            <Button size="sm" variant="outline" disabled={!inScope} onClick={() => onEdit(it)}>
-              <MI icon="edit" className="text-sm" />
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={!inScope} onClick={() => onEdit(it)}>
+                <MI icon="edit" className="text-sm" />
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={!inScope}
+                onClick={() => onDelete?.(tipo, it.id, it.nombre)}
+                title="Eliminar"
+              >
+                <MI icon="delete" className="text-sm" />
+              </Button>
+            </div>
           </div>
         </div>
       );
