@@ -27,7 +27,28 @@ export interface VcAdvisorSnapshot {
     fecha_desbloqueo: string | null;
     sp_otorgados: number | null;
   }>;
+  vcMetrics: {
+    dailyAcvPlus: number;
+    weeklyUpgrades: number;
+    monthlyCumplimientoPct: number;
+    monthlyAcvPlus: number;
+    monthlyMeta: number;
+  };
 }
+
+// Lunes y viernes (ISO) de la semana de la fecha dada, en YYYY-MM-DD
+const getIsoWeekRange = (d: Date): { start: string; end: string } => {
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay(); // 0=Dom..6=Sab
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diffToMonday);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const fmt = (x: Date) => x.toISOString().split('T')[0];
+  return { start: fmt(monday), end: fmt(friday) };
+};
 
 export const isVcAdvisorProfile = (profile?: VcAdvisorProfileLike | null) => (
   profile?.canal === 'VC' &&
