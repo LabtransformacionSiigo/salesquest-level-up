@@ -245,7 +245,11 @@ const Rankings = () => {
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
-          const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
+          const spStored = asesorInfo?.sp_convencion || 0;
+          const spAcum = asesorInfo?.id ? (spAcumByGerenteId.get(asesorInfo.id) || 0) : 0;
+          const spFinal = spStored > 0
+            ? spStored
+            : (spAcum > 0 ? spAcum : computeSpConvencionAnualForAsesor(spAsesorInputs, originalName));
 
           // Ventas FE/Nube del mes actual desde ejecucion_asesores (por documento, fallback por nombre)
           const docAsesor = String(
