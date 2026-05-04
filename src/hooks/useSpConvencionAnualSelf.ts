@@ -69,9 +69,9 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
 
       if (!cancelled) {
         setTotal(totalSp);
-        // Seed global store so Header/Sidebar/Dashboard see the accurate value
+        // Publish to global store so Header/Sidebar/Dashboard see the accurate value
         // immediately, without needing to visit Mi Performance.
-        seedSpConvencionAnual(totalSp);
+        if (totalSp > 0) setSpConvencionAnual(totalSp);
       }
     })();
 
