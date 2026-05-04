@@ -348,7 +348,11 @@ const Rankings = () => {
           mexAdvisorMap.forEach((agg, key) => {
             if (existingKeys.has(key)) return;
             const asesorInfo = asesorInfoMap.get(key);
-            const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            const spStored = asesorInfo?.sp_convencion || 0;
+            const spAcum = asesorInfo?.id ? (spAcumByGerenteId.get(asesorInfo.id) || 0) : 0;
+            const spFinal = spStored > 0
+              ? spStored
+              : (spAcum > 0 ? spAcum : computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre));
             entries.push({
               id: asesorInfo?.id || key,
               nombre: agg.nombre,
