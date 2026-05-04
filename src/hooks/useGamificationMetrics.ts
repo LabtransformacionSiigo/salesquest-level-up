@@ -1297,6 +1297,10 @@ export const useGamificationMetrics = (
               });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
+          if (vnMonthlyCumpl.length > 0) {
+            const annualSpTotal = vnMonthlyCumpl.reduce((s, m) => s + (m.sp ?? 0), 0);
+            if (annualSpTotal > 0) setSpConvencionAnual(annualSpTotal);
+          }
         }
 
         if (isVN && !vcCumplimiento && vnMetaAcvActual > 0) {
