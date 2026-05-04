@@ -730,8 +730,19 @@ const Rankings = () => {
   const isGerentesVCTab = isVC && tab === 'gerentes';
   const isGerentesVNTab = isVN && tab === 'gerentes';
 
+  // For VN, override the logged-in user's own row with the global store value
+  // (computed by useSpConvencionAnualSelf / MiPerformance) so the ranking matches
+  // the Sidebar/Header badge instantly.
+  const rankingAdjusted = (isVN && spAnualStore && spAnualStore > 0)
+    ? ranking.map((r: any) => {
+        const isMine = (profile?.user_id && r.user_id === profile.user_id) ||
+          normalizePersonName(r.nombre) === normalizePersonName(profile?.nombre || '');
+        return isMine ? { ...r, sp_totales: spAnualStore } : r;
+      })
+    : ranking;
+
   // Sort by SP totales as primary, then by % cumplimiento
-  const sorted = [...ranking].sort((a, b) => {
+  const sorted = [...rankingAdjusted].sort((a, b) => {
     const spDiff = (b.sp_totales || 0) - (a.sp_totales || 0);
     if (spDiff !== 0) return spDiff;
     const pctDiff = (b.pct_cumplimiento ?? 0) - (a.pct_cumplimiento ?? 0);
