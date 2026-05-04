@@ -157,7 +157,7 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes, spAcumAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
@@ -167,6 +167,7 @@ const Rankings = () => {
           userPais === 'MEX'
             ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, gerente, gerente_normalizado, celula, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
+          supabase.from('sp_acumulados').select('gerente_id, sp, fuente, tipo_sp').eq('tipo_sp', 'convencion').limit(20000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
@@ -219,6 +220,11 @@ const Rankings = () => {
         const entries: any[] = [];
         const esMexico = userPais === 'MEX';
         const mesActualNro = new Date().getMonth() + 1;
+        const spAcumByGerenteId = new Map<string, number>();
+        ((spAcumAsesoresRes as any)?.data || []).forEach((r: any) => {
+          if (!r.gerente_id) return;
+          spAcumByGerenteId.set(r.gerente_id, (spAcumByGerenteId.get(r.gerente_id) || 0) + (Number(r.sp) || 0));
+        });
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
@@ -239,7 +245,11 @@ const Rankings = () => {
           const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
-          const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
+          const spStored = asesorInfo?.sp_convencion || 0;
+          const spAcum = asesorInfo?.id ? (spAcumByGerenteId.get(asesorInfo.id) || 0) : 0;
+          const spFinal = spStored > 0
+            ? spStored
+            : (spAcum > 0 ? spAcum : computeSpConvencionAnualForAsesor(spAsesorInputs, originalName));
 
           // Ventas FE/Nube del mes actual desde ejecucion_asesores (por documento, fallback por nombre)
           const docAsesor = String(
@@ -338,7 +348,11 @@ const Rankings = () => {
           mexAdvisorMap.forEach((agg, key) => {
             if (existingKeys.has(key)) return;
             const asesorInfo = asesorInfoMap.get(key);
-            const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            const spStored = asesorInfo?.sp_convencion || 0;
+            const spAcum = asesorInfo?.id ? (spAcumByGerenteId.get(asesorInfo.id) || 0) : 0;
+            const spFinal = spStored > 0
+              ? spStored
+              : (spAcum > 0 ? spAcum : computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre));
             entries.push({
               id: asesorInfo?.id || key,
               nombre: agg.nombre,
@@ -556,7 +570,10 @@ const Rankings = () => {
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
+          const spStored = gerenteInfo?.sp_convencion || 0;
+          const spFinal = spStored > 0
+            ? spStored
+            : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
@@ -617,7 +634,10 @@ const Rankings = () => {
           mexCelulaMap.forEach((agg, celulaKey) => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
-            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            const spStored = gerenteInfo?.sp_convencion || 0;
+            const spFinal = spStored > 0
+              ? spStored
+              : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
             entries.push({
               id: celulaKey,
               nombre: gerenteInfo?.nombre || agg.gerente || agg.celulaNombre,
@@ -684,6 +704,22 @@ const Rankings = () => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
+
+  // Dev-only: warn if ranking SP for the logged-in user diverges from sidebar/header value.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !ranking.length || !profile?.nombre) return;
+    const mine = ranking.find((r: any) =>
+      (profile.user_id && r.user_id === profile.user_id) ||
+      normalizePersonName(r.nombre) === normalizePersonName(profile.nombre)
+    );
+    if (!mine) return;
+    const sidebarSp = Number(profile?.sp_totales) || 0;
+    const rankingSp = Number(mine.sp_totales) || 0;
+    if (sidebarSp > 0 && Math.abs(rankingSp - sidebarSp) > 5) {
+      // eslint-disable-next-line no-console
+      console.warn(`[Ranking SP drift] ${profile.nombre}: ranking=${rankingSp} vs sidebar=${sidebarSp}`);
+    }
+  }, [ranking, profile?.nombre, profile?.user_id, profile?.sp_totales]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -884,7 +920,7 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      <th className="text-right px-4 py-3">⚡ Siigo Points</th>
+                      <th className="text-right px-4 py-3">⚡ Siigo Points (Acumulado Anual)</th>
                       <th className="text-right px-4 py-3">🎁 Canjeables</th>
                       {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
