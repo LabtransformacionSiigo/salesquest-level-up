@@ -904,7 +904,7 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">#</th>
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
-                      <th className="text-right px-4 py-3">⚡ Siigo Points</th>
+                      <th className="text-right px-4 py-3">⚡ Siigo Points (Acumulado Anual)</th>
                       <th className="text-right px-4 py-3">🎁 Canjeables</th>
                       {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
