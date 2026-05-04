@@ -608,6 +608,11 @@ export const useSupabaseAuth = () => {
           }
 
           const nivelData = getNivelData(spTotales, gerenteCanal);
+          // Seed global SP Convención store as baseline; useSpConvencionAnualSelf
+          // will overwrite with the canonical value once Sidebar mounts.
+          const storedSpConvencion = Number((gerenteRes.data as any)?.sp_convencion) || 0;
+          const baselineSp = storedSpConvencion > 0 ? storedSpConvencion : spTotales;
+          if (baselineSp > 0) setSpConvencionAnual(baselineSp);
 
           setProfile({
             id: data.id,
