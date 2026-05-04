@@ -633,7 +633,7 @@ export const useSupabaseAuth = () => {
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: userRole,
              sp_canje: (gerenteRes.data as any)?.sp_canje ?? 0,
-              sp_convencion: spTotales,
+              sp_convencion: storedSpConvencion > 0 ? storedSpConvencion : spTotales,
              sp_periodo_actual: spPeriodoActual,
           });
         } else {
