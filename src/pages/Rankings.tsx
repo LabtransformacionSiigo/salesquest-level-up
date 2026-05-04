@@ -167,6 +167,7 @@ const Rankings = () => {
           userPais === 'MEX'
             ? supabase.from('vn_metricas_optimizadas' as any).select('pais, mes_nro, gerente, gerente_normalizado, celula, asesor, tipo_producto1, ventas, acv_total').eq('pais', 'MEX').eq('scope', 'asesor').gte('mes_nro', 1).lte('mes_nro', 12).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
+          supabase.from('sp_acumulados').select('gerente_id, sp, fuente, tipo_sp').eq('tipo_sp', 'convencion').limit(20000),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedad = new Set<string>();
