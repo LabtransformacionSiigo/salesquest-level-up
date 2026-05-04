@@ -22,17 +22,5 @@ export const setSpConvencionAnual = (value: number | null) => {
   listeners.forEach((l) => l());
 };
 
-export const getSpConvencionAnual = () => totalSp;
-
-// Seed the store only if it hasn't been set yet (or is 0). Used by hooks that
-// compute a baseline value early so they don't overwrite a more accurate value
-// published later by MiPerformance.
-export const seedSpConvencionAnual = (value: number | null) => {
-  if (value == null || value <= 0) return;
-  if (totalSp != null && totalSp > 0) return;
-  totalSp = value;
-  listeners.forEach((l) => l());
-};
-
 export const useSpConvencionAnual = () =>
   useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
