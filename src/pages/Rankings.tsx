@@ -10,6 +10,7 @@ import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
 import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor } from '@/lib/sp-convencion-anual';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -56,6 +57,7 @@ const Rankings = () => {
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
+  const spAnualStore = useSpConvencionAnual();
 
   const fetchRanking = async () => {
     if (!profile?.canal) return;
@@ -728,8 +730,19 @@ const Rankings = () => {
   const isGerentesVCTab = isVC && tab === 'gerentes';
   const isGerentesVNTab = isVN && tab === 'gerentes';
 
+  // For VN, override the logged-in user's own row with the global store value
+  // (computed by useSpConvencionAnualSelf / MiPerformance) so the ranking matches
+  // the Sidebar/Header badge instantly.
+  const rankingAdjusted = (isVN && spAnualStore && spAnualStore > 0)
+    ? ranking.map((r: any) => {
+        const isMine = (profile?.user_id && r.user_id === profile.user_id) ||
+          normalizePersonName(r.nombre) === normalizePersonName(profile?.nombre || '');
+        return isMine ? { ...r, sp_totales: spAnualStore } : r;
+      })
+    : ranking;
+
   // Sort by SP totales as primary, then by % cumplimiento
-  const sorted = [...ranking].sort((a, b) => {
+  const sorted = [...rankingAdjusted].sort((a, b) => {
     const spDiff = (b.sp_totales || 0) - (a.sp_totales || 0);
     if (spDiff !== 0) return spDiff;
     const pctDiff = (b.pct_cumplimiento ?? 0) - (a.pct_cumplimiento ?? 0);

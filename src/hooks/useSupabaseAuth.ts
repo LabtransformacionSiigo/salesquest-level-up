@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 import { getNivelData } from '@/lib/niveles';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export interface Gerente {
   id: string;
@@ -357,6 +358,9 @@ export const useSupabaseAuth = () => {
           }
 
           const nivelData = getNivelData(spTotales, asesor.canal);
+          // Seed global SP Convención store as baseline; useSpConvencionAnualSelf
+          // will overwrite with the canonical value once Sidebar mounts.
+          if (spTotales > 0) setSpConvencionAnual(spTotales);
 
           setProfile({
             id: asesor.id,
@@ -604,6 +608,11 @@ export const useSupabaseAuth = () => {
           }
 
           const nivelData = getNivelData(spTotales, gerenteCanal);
+          // Seed global SP Convención store as baseline; useSpConvencionAnualSelf
+          // will overwrite with the canonical value once Sidebar mounts.
+          const storedSpConvencion = Number((gerenteRes.data as any)?.sp_convencion) || 0;
+          const baselineSp = storedSpConvencion > 0 ? storedSpConvencion : spTotales;
+          if (baselineSp > 0) setSpConvencionAnual(baselineSp);
 
           setProfile({
             id: data.id,
@@ -624,7 +633,7 @@ export const useSupabaseAuth = () => {
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: userRole,
              sp_canje: (gerenteRes.data as any)?.sp_canje ?? 0,
-              sp_convencion: spTotales,
+              sp_convencion: storedSpConvencion > 0 ? storedSpConvencion : spTotales,
              sp_periodo_actual: spPeriodoActual,
           });
         } else {

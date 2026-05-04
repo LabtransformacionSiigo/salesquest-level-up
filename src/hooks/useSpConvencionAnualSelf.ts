@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { computeSpConvencionAnualForCelula, normalizeSpText } from '@/lib/sp-convencion-anual';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export function useSpConvencionAnualSelf(profile: any): number | null {
   const [total, setTotal] = useState<number | null>(null);
@@ -66,7 +67,12 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
         profile.nombre || null
       );
 
-      if (!cancelled) setTotal(totalSp);
+      if (!cancelled) {
+        setTotal(totalSp);
+        // Publish to global store so Header/Sidebar/Dashboard see the accurate value
+        // immediately, without needing to visit Mi Performance.
+        if (totalSp > 0) setSpConvencionAnual(totalSp);
+      }
     })();
 
     return () => { cancelled = true; };
