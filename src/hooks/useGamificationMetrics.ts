@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { supabase } from '@/integrations/supabase/client';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile, type VcAdvisorSnapshot } from '@/lib/vc-advisor-data';
 import { aggregateProductBreakdown, type ProductBreakdownItem } from '@/lib/product-breakdown';
@@ -1296,6 +1297,10 @@ export const useGamificationMetrics = (
               });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
+          if (vnMonthlyCumpl.length > 0) {
+            const annualSpTotal = vnMonthlyCumpl.reduce((s, m) => s + (m.sp ?? 0), 0);
+            if (annualSpTotal > 0) setSpConvencionAnual(annualSpTotal);
+          }
         }
 
         if (isVN && !vcCumplimiento && vnMetaAcvActual > 0) {

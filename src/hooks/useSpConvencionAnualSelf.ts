@@ -1,10 +1,10 @@
 // Computes SP Convención anual for the currently logged-in user (asesor o gerente VN).
 // Used by Sidebar/Header so the badge stays correct on every page, not just /mi-performance.
-// Mirrors EquipoMensualGrid / VnHistorialSection logic via the shared helper.
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { computeSpConvencionAnualForCelula, normalizeSpText } from '@/lib/sp-convencion-anual';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export function useSpConvencionAnualSelf(profile: any): number | null {
   const [total, setTotal] = useState<number | null>(null);
@@ -18,9 +18,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
     (async () => {
       const year = String(new Date().getFullYear());
       const isAsesor = profile.role === 'asesor';
-      const nombreNorm = normalizeSpText(profile.nombre);
 
-      // Resolve celula: gerente has profile.celula. Asesor: look it up in metas_asesores by name.
       let celula = profile.celula || null;
       if (!celula && isAsesor && profile.nombre) {
         const { data } = await supabase
@@ -33,7 +31,25 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
         celula = data?.[0]?.celula || null;
       }
 
-      const [vgmRes, metasRes, metasAcvRes] = await Promise.all([
+      const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                     : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                     : null;
+      const vnMetGerenteQuery = !isAsesor && canalDir
+        ? (() => {
+            let q = (supabase
+              .from('vn_metricas_optimizadas' as any) as any)
+              .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente')
+              .eq('scope', 'gerente')
+              .eq('canal_direccion', canalDir)
+              .gte('mes_nro', 1)
+              .lte('mes_nro', 12)
+              .limit(5000);
+            if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+            return q;
+          })()
+        : Promise.resolve({ data: [] as any[] });
+
+      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes] = await Promise.all([
         supabase
           .from('ventas_gerente_mensual')
           .select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado')
@@ -50,27 +66,29 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           .from('metas_acv_gerentes')
           .select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
           .limit(2000),
+        vnMetGerenteQuery,
       ]);
 
-      // For an asesor we attribute their *cell's* total. The user requirement states asesor
-      // SP = sum of own monthly SP, but the canonical source (ventas_gerente_mensual) only
-      // breaks down at celula level. Asesores see their celula total — same as MiPerformance.
       const totalSp = computeSpConvencionAnualForCelula(
         {
           vgmRows: vgmRes.data || [],
           metaAsesorRows: metasRes.data || [],
           metaAcvRows: metasAcvRes.data || [],
           year,
+          vnMetricasGerenteRows: ((vnMetGerenteRes as any)?.data as any[]) || [],
         },
         celula,
         profile.nombre || null
       );
 
-      if (!cancelled) setTotal(totalSp);
+      if (!cancelled) {
+        setTotal(totalSp);
+        setSpConvencionAnual(totalSp);
+      }
     })();
 
     return () => { cancelled = true; };
-  }, [profile?.canal, profile?.role, profile?.celula, profile?.nombre]);
+  }, [profile?.canal, profile?.role, profile?.celula, profile?.nombre, profile?.pais]);
 
   return total;
 }
