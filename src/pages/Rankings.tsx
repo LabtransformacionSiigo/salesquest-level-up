@@ -514,6 +514,7 @@ const Rankings = () => {
           metaAsesorRows: metasAsesoresRes.data || [],
           metaAcvRows: metasAcvGerRes.data || [],
           year: String(currentConventionYear),
+          vnMetricasGerenteRows: ((vnMetricasMexGerRes as any)?.data as any[]) || [],
         };
         const entries: any[] = [];
         celulaAgg.forEach((agg, celula) => {
