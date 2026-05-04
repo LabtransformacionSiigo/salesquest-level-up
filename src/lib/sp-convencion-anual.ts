@@ -55,6 +55,17 @@ export interface SpAnualInputs {
   metaAsesorRows?: MetaAsesorRow[];
   metaAcvRows: MetaAcvGerenteRow[];
   year: string; // e.g. "2026"
+  /** Primary source: vn_metricas_optimizadas (scope='gerente') rows for this gerente/celula */
+  vnMetricasGerenteRows?: Array<{
+    mes_nro?: number | null;
+    tipo_producto1?: string | null;
+    familia?: string | null;
+    ventas?: number | null;
+    acv_total?: number | null;
+    celula?: string | null;
+    gerente_normalizado?: string | null;
+    gerente?: string | null;
+  }>;
 }
 
 /**
