@@ -570,7 +570,10 @@ const Rankings = () => {
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
+          const spStored = gerenteInfo?.sp_convencion || 0;
+          const spFinal = spStored > 0
+            ? spStored
+            : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
