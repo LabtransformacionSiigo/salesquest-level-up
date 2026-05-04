@@ -178,24 +178,31 @@ export function computeSpConvencionAnualForCelula(
 
   // Períodos a calcular: ventas reales + períodos con meta.
   const periodSet = new Set<string>();
+  vmgPrimary.forEach((_, p) => periodSet.add(p));
   vgmFiltrados.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
   metasPorPeriodo.forEach((_, p) => periodSet.add(p));
 
   let totalSp = 0;
   periodSet.forEach((periodo) => {
     if (!periodo.startsWith(String(year))) return;
-    const periodVgm = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
     const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
-    periodVgm.forEach((r) => {
-      const u = Math.round(Number(r.unidades) || 0);
-      const acv = Number(r.acv) || 0;
-      const fam = String(r.familia || '').toUpperCase();
-      if (fam === 'FE') ventas_fe += u;
-      else if (fam === 'NUBE') ventas_nube += u;
-      acv_total += acv;
-    });
+    const primaryData = vmgPrimary.get(periodo);
+    if (primaryData) {
+      ventas_fe = primaryData.fe;
+      ventas_nube = primaryData.nube;
+      acv_total = primaryData.acv;
+    } else {
+      vgmFiltrados.filter((r) => String(r.periodo) === periodo).forEach((r) => {
+        const u = Math.round(Number(r.unidades) || 0);
+        const acv = Number(r.acv) || 0;
+        const fam = String(r.familia || '').toUpperCase();
+        if (fam === 'FE') ventas_fe += u;
+        else if (fam === 'NUBE') ventas_nube += u;
+        acv_total += acv;
+      });
+    }
 
     const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
     const pct_nube = metas.meta_nube > 0 ? cap((ventas_nube / metas.meta_nube) * 100) : 0;
