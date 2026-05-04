@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { supabase } from '@/integrations/supabase/client';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile, type VcAdvisorSnapshot } from '@/lib/vc-advisor-data';
 import { aggregateProductBreakdown, type ProductBreakdownItem } from '@/lib/product-breakdown';
