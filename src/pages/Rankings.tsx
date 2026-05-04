@@ -220,6 +220,11 @@ const Rankings = () => {
         const entries: any[] = [];
         const esMexico = userPais === 'MEX';
         const mesActualNro = new Date().getMonth() + 1;
+        const spAcumByGerenteId = new Map<string, number>();
+        ((spAcumAsesoresRes as any)?.data || []).forEach((r: any) => {
+          if (!r.gerente_id) return;
+          spAcumByGerenteId.set(r.gerente_id, (spAcumByGerenteId.get(r.gerente_id) || 0) + (Number(r.sp) || 0));
+        });
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
