@@ -634,7 +634,10 @@ const Rankings = () => {
           mexCelulaMap.forEach((agg, celulaKey) => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
-            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            const spStored = gerenteInfo?.sp_convencion || 0;
+            const spFinal = spStored > 0
+              ? spStored
+              : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
             entries.push({
               id: celulaKey,
               nombre: gerenteInfo?.nombre || agg.gerente || agg.celulaNombre,
