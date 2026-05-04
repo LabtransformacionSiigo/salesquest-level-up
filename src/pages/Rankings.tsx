@@ -705,6 +705,22 @@ const Rankings = () => {
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
 
+  // Dev-only: warn if ranking SP for the logged-in user diverges from sidebar/header value.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !ranking.length || !profile?.nombre) return;
+    const mine = ranking.find((r: any) =>
+      (profile.user_id && r.user_id === profile.user_id) ||
+      normalizePersonName(r.nombre) === normalizePersonName(profile.nombre)
+    );
+    if (!mine) return;
+    const sidebarSp = Number(profile?.sp_totales) || 0;
+    const rankingSp = Number(mine.sp_totales) || 0;
+    if (sidebarSp > 0 && Math.abs(rankingSp - sidebarSp) > 5) {
+      // eslint-disable-next-line no-console
+      console.warn(`[Ranking SP drift] ${profile.nombre}: ranking=${rankingSp} vs sidebar=${sidebarSp}`);
+    }
+  }, [ranking, profile?.nombre, profile?.user_id, profile?.sp_totales]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
