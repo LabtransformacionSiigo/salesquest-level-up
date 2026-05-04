@@ -157,7 +157,7 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes, spAcumAsesoresRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
