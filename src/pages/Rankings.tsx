@@ -57,6 +57,7 @@ const Rankings = () => {
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
+  const spAnualStore = useSpConvencionAnual();
 
   const fetchRanking = async () => {
     if (!profile?.canal) return;
