@@ -285,7 +285,7 @@ export const useSupabaseAuth = () => {
           const isVnAdvisor = asesor.canal === 'VN_ALIADOS' || asesor.canal === 'VN_EMPRESARIOS';
 
           // VN debe reflejar el total persistido en backend; VC sigue calculando dinámicamente
-          let spTotales = isVnAdvisor ? Number(asesor.sp_convencion) || 0 : 0;
+          let spTotales = 0;
           let spPeriodoActual = 0;
 
           if (asesor.canal === 'VC') {
@@ -332,9 +332,7 @@ export const useSupabaseAuth = () => {
                 metaRows: (metasRes.data as any[]).filter((row) => normalizeComparableText((row as any).nombre_asesor) === advisorName),
                 ejecRows: ejecRes.data as any[],
               });
-              if (!isVnAdvisor || spTotales === 0) {
-                spTotales = sumVnConventionMonthlyRows(monthlyRows);
-              }
+              spTotales = sumVnConventionMonthlyRows(monthlyRows);
               spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
             } else if (!vnRes.error && (!isVnAdvisor || spTotales === 0)) {
               spTotales = getVnMonthlyConventionTotal(vnRes.data as any[]);
@@ -445,7 +443,7 @@ export const useSupabaseAuth = () => {
           const gerenteCanal = (gerenteRes.data as any)?.canal || data.canal;
           const isVnGerente = gerenteCanal === 'VN_ALIADOS' || gerenteCanal === 'VN_EMPRESARIOS';
 
-          let spTotales = isVnGerente ? Number((gerenteRes.data as any)?.sp_convencion) || 0 : 0;
+          let spTotales = 0;
           let spPeriodoActual = 0;
 
           if (isVnGerente && gerenteCelula) {
@@ -539,9 +537,7 @@ export const useSupabaseAuth = () => {
                   acvCatalog: acvCatalogRows,
                   celula: gerenteCelula,
                 });
-                  if (!spTotales) {
-                    spTotales = sumVnConventionMonthlyRows(monthlyRows);
-                  }
+                  spTotales = sumVnConventionMonthlyRows(monthlyRows);
                 spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
               } else {
                 // Fallback to ejecucion_asesores if no ventas_diarias yet
@@ -560,9 +556,7 @@ export const useSupabaseAuth = () => {
                     acvCatalog: acvCatalogRows,
                     celula: gerenteCelula,
                   });
-                    if (!spTotales) {
-                      spTotales = sumVnConventionMonthlyRows(monthlyRows);
-                    }
+                    spTotales = sumVnConventionMonthlyRows(monthlyRows);
                     spPeriodoActual = monthlyRows.find((row) => row.period === currentConventionPeriod)?.sp || 0;
                 } else {
                   spTotales = getVnMonthlyConventionTotal(productivityRows);
