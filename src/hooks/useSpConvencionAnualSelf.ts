@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { computeSpConvencionAnualForCelula, normalizeSpText } from '@/lib/sp-convencion-anual';
-import { seedSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export function useSpConvencionAnualSelf(profile: any): number | null {
   const [total, setTotal] = useState<number | null>(null);
