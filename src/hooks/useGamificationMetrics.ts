@@ -670,7 +670,23 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             if (!rowCelula) return;
-            if ((celulaGerente && rowCelula === celulaGerente) || (gerenteNombre && rowGerente === gerenteNombre)) {
+            const exactMatch =
+              (celulaGerente && rowCelula === celulaGerente) ||
+              (gerenteNombre && rowGerente === gerenteNombre);
+            // Fuzzy: nombre del gerente aparece en celula Databricks
+            const fuzzyMatch =
+              !exactMatch &&
+              gerenteNameWords.length > 0 &&
+              gerenteNameWords.some((word: string) => rowCelula.includes(word));
+            // Partial: gerente Databricks comparte primer nombre con gerente perfil
+            const gerentePartialMatch =
+              !exactMatch &&
+              !fuzzyMatch &&
+              gerenteNombre.length > 3 &&
+              rowGerente.length > 3 &&
+              (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
+                gerenteNombre.includes(rowGerente.split(' ')[0]));
+            if (exactMatch || fuzzyMatch || gerentePartialMatch) {
               teamCelulas.add(rowCelula);
             }
           });
