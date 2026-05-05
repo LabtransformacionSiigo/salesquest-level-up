@@ -867,11 +867,25 @@ export const useGamificationMetrics = (
           };
           const getAcvCatalogRowForPeriod = (period: string) => {
             const mes3 = mesNumToMes3[String(period).slice(-2)] || '';
-            // Prioridad Cierre > Inicio para evitar duplicación de meta por celula+mes.
-            const rows = acvCatalogRows.filter((r: any) => {
-              const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-              return rowMes === mes3 && normalizeComparableText(r.celula) === celulaGerente;
-            });
+            const filterByMes = (r: any) =>
+              String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
+
+            // Estrategia 1 (exacta): celula del perfil
+            let rows = acvCatalogRows.filter((r: any) =>
+              filterByMes(r) && normalizeComparableText(r.celula) === celulaGerente
+            );
+
+            // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
+            // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
+            if (rows.length === 0 && gerenteNameWords.length > 0) {
+              rows = acvCatalogRows.filter((r: any) => {
+                if (!filterByMes(r)) return false;
+                const rowCelulaNorm = normalizeComparableText(r.celula);
+                return gerenteNameWords.some((word: string) => rowCelulaNorm.includes(word));
+              });
+            }
+
+            // Prioridad Cierre > Inicio para evitar duplicación de meta.
             return rows.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? rows[0] ?? null;
           };
           getMetaTotalUndForPeriod = (period: string) => Math.round(Number(getAcvCatalogRowForPeriod(period)?.meta_total_und) || 0);
