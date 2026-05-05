@@ -674,6 +674,17 @@ export const useGamificationMetrics = (
           const gerenteNameWords = gerenteNombre
             .split(' ')
             .filter((w: string) => w.length > 3);
+          const matchesGerenteName = (candidate: string) => {
+            if (!candidate || !gerenteNombre) return false;
+            if (candidate === gerenteNombre || candidate.includes(gerenteNombre) || gerenteNombre.includes(candidate)) return true;
+            const candidateWords = new Set(candidate.split(' ').filter((w: string) => w.length > 3));
+            return gerenteNameWords.filter((w: string) => candidateWords.has(w)).length >= 2;
+          };
+          const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
+            if (celulaGerente && rowCelula === celulaGerente) return true;
+            if (matchesGerenteName(rowGerente)) return true;
+            return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
+          };
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
           // Rendimiento del Equipo. El gerente se identifica por celula/gerente,
