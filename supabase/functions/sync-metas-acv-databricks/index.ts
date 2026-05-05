@@ -194,50 +194,45 @@ Deno.serve(async (req) => {
     };
     const errors: Array<{ row: any; error: string }> = [];
 
-    for (const r of rows) {
+    // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
+    const CONCURRENCY = 25;
+    const processOne = async (r: any[]) => {
       const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
       const archivo = deriveArchivo(String(archivoRaw || ""));
       const mes = normMes(String(mesRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
         summary.invalid++;
-        continue;
+        return;
       }
-
-      const meta_total_und = Math.round(toNum(metaUnd));
-      // ACV monetario REAL (ej: "$ 355,110,717" → 355110717). toNum limpia
-      // símbolos y separadores. NUNCA es igual a unidades.
-      const meta_total_acv = toNum(metaAcv);
-      const cuotaNum = toNum(cuota);
-      // fe / nube vienen ya agregados por gerente desde tbl_brz_cuotas.
-      const meta_fe = Math.round(toNum(feRaw));
-      const meta_nube = Math.round(toNum(nubeRaw));
-
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
         p_canal: normCanal(String(canal)),
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
         p_esquema: null,
-        p_cuota: cuotaNum,
-        p_meta_total_und: meta_total_und,
-        p_meta_total_acv: meta_total_acv,
+        p_cuota: toNum(cuota),
+        p_meta_total_und: Math.round(toNum(metaUnd)),
+        p_meta_total_acv: toNum(metaAcv),
         p_mes: mes,
         p_archivo: archivo,
-        p_meta_fe: meta_fe,
-        p_meta_nube: meta_nube,
+        p_meta_fe: Math.round(toNum(feRaw)),
+        p_meta_nube: Math.round(toNum(nubeRaw)),
       });
-
       if (error) {
         errors.push({ row: r, error: error.message });
-        continue;
+        return;
       }
-
       const action = (data as any)?.action;
       if (action === "inserted") summary.inserted++;
       else if (action === "updated_inicio") summary.updated_inicio++;
       else if (action === "upgraded_to_cierre") summary.upgraded_to_cierre++;
       else if (action === "skipped") summary.skipped_cierre_existente++;
       else if (action === "backfilled_fe_nube") summary.backfilled_fe_nube++;
+    };
+
+    for (let i = 0; i < rows.length; i += CONCURRENCY) {
+      const batch = rows.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(processOne));
     }
 
     return new Response(
