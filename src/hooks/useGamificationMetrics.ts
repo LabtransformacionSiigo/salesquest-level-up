@@ -830,8 +830,11 @@ export const useGamificationMetrics = (
             });
 
             const validRows = rows.filter((row: any) => {
+              // Excluir filas agregadas CEL_* (nombre_asesor null) — ya son la suma de
+              // los asesores individuales, incluirlas duplicaría las metas del equipo.
+              if (!row.nombre_asesor) return false;
               const novedadRaw = String(row.novedad || '').trim();
-              return !!row.nombre_asesor && (novedadRaw === '' || novedadRaw === 'Sin novedad');
+              return novedadRaw === '' || novedadRaw === 'Sin novedad';
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
