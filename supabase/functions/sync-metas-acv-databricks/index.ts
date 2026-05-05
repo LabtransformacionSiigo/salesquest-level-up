@@ -219,42 +219,29 @@ Deno.serve(async (req) => {
     let source = "tbl_brz_cuotas_gerentes";
 
     // Si la fuente agregada de gerentes todavía no publica el mes (caso Mayo),
-    // usamos el agregado oficial por célula desde cuotas_asesores para no dejar
-    // metas de gerentes en cero. Cuando gerentes publique Cierre, reemplazará Inicio.
+    // usamos el agregado oficial por célula ya sincronizado en metas_asesores.
+    // Cuando gerentes publique Cierre, reemplazará Inicio.
     if (rows.length === 0 && filterMes) {
-      const asesorTextChecks = filterMes.text
-        .map((m) => `LOWER(mes) LIKE '${m.replace(/'/g, "''")}%'`)
-        .join(" OR ");
-      const asesorNumericChecks = filterMes.numeric
-        .map((m) => `CAST(mes AS STRING) = '${m}'`)
-        .join(" OR ");
-      const fallbackSql = `
-        SELECT
-          pais AS pais,
-          canal_direccion,
-          MAX(COALESCE(director, gerente)) AS director,
-          celula,
-          '${filterMes.mes3}' AS mes,
-          'Inicio' AS archivo,
-          CAST(SUM(meta_fe) AS BIGINT)    AS fe,
-          CAST(SUM(meta_nube) AS BIGINT)  AS nube,
-          CAST(SUM(meta_total) AS BIGINT) AS meta_total_und,
-          CAST(0 AS BIGINT)               AS meta_total_acv,
-          CAST(100 AS BIGINT)             AS cuota
-        FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
-        WHERE celula IS NOT NULL
-          AND celula <> ''
-          AND mes IS NOT NULL
-          AND canal_direccion IN ('Aliados','SMBS','Empresarios')
-          AND meta_total IS NOT NULL
-          AND meta_total > 0
-          AND (${asesorTextChecks} OR ${asesorNumericChecks} OR CAST(mes AS STRING) = '${filterMes.period}')
-        GROUP BY pais, canal_direccion, celula
-        ORDER BY pais, canal_direccion, celula
-      `;
-      const fallbackResult = await executeDatabricksQuery(fallbackSql);
-      rows = fallbackResult.rows;
-      source = "tbl_brz_cuotas_asesores_aggregated";
+      const { data: fallbackRows, error: fallbackError } = await supabase
+        .from("metas_asesores")
+        .select("pais, canal_direccion, gerente, celula, meta_fe, meta_nube, meta_total")
+        .eq("anio_mes", filterMes.period)
+        .like("documento_asesor", "CEL_%");
+      if (fallbackError) throw fallbackError;
+      rows = (fallbackRows || []).map((r: any) => [
+        r.pais,
+        r.canal_direccion,
+        r.gerente,
+        r.celula,
+        filterMes.mes3,
+        "Inicio",
+        r.meta_fe,
+        r.meta_nube,
+        r.meta_total,
+        0,
+        100,
+      ]);
+      source = "metas_asesores_aggregated_local";
     }
 
     const summary = {
