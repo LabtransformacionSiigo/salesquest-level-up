@@ -53,6 +53,7 @@ const AdminMetasAcv = () => {
   const [filterMes, setFilterMes] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
   const [syncingVn, setSyncingVn] = useState(false);
+  const [syncingAsesores, setSyncingAsesores] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
 
@@ -77,6 +78,25 @@ const AdminMetasAcv = () => {
       toast({ title: 'Error sync Databricks', description: e.message, variant: 'destructive' });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSyncMetasAsesores = async () => {
+    if (syncingAsesores) return;
+    setSyncingAsesores(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-historicas', { body: {} });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync metas asesores fallida');
+      const periodos = Object.keys(data.por_periodo || {}).sort().join(', ');
+      toast({
+        title: '✅ Metas Asesores VN sincronizadas',
+        description: `Asesores: ${data.asesor_individual} · Células: ${data.agregado_celula} · Upserted: ${data.registros_upserted} · Periodos: ${periodos}`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Error sync metas asesores', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncingAsesores(false);
     }
   };
 
@@ -227,7 +247,11 @@ const AdminMetasAcv = () => {
           </div>
           <Button onClick={handleSyncDatabricks} disabled={syncing} variant="default" className="gap-2">
             <MI icon={syncing ? 'sync' : 'cloud_download'} className={cn('text-base', syncing && 'animate-spin')} />
-            {syncing ? 'Sincronizando…' : 'Sincronizar Metas ACV'}
+            {syncing ? 'Sincronizando…' : 'Sincronizar Metas ACV (Gerentes)'}
+          </Button>
+          <Button onClick={handleSyncMetasAsesores} disabled={syncingAsesores} variant="default" className="gap-2">
+            <MI icon={syncingAsesores ? 'sync' : 'cloud_download'} className={cn('text-base', syncingAsesores && 'animate-spin')} />
+            {syncingAsesores ? 'Sincronizando…' : 'Sincronizar Metas Asesores VN'}
           </Button>
           <Button onClick={handleSyncVnMetricas} disabled={syncingVn} variant="secondary" className="gap-2">
             <MI icon={syncingVn ? 'sync' : 'insights'} className={cn('text-base', syncingVn && 'animate-spin')} />
