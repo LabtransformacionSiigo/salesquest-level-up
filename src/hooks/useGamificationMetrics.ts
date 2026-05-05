@@ -649,6 +649,12 @@ export const useGamificationMetrics = (
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
           const celulaGerente = normalizeComparableText(profile.celula);
+          // Palabras significativas (>3 chars) del nombre del gerente para fuzzy match
+          // contra células de Databricks que se llaman "Equipo Ciudad NombreGerente"
+          // mientras Supabase usa "Cuarzo", "Rubí", etc.
+          const gerenteNameWords = gerenteNombre
+            .split(' ')
+            .filter((w: string) => w.length > 3);
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
           // Rendimiento del Equipo. El gerente se identifica por celula/gerente,
@@ -664,7 +670,23 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             if (!rowCelula) return;
-            if ((celulaGerente && rowCelula === celulaGerente) || (gerenteNombre && rowGerente === gerenteNombre)) {
+            const exactMatch =
+              (celulaGerente && rowCelula === celulaGerente) ||
+              (gerenteNombre && rowGerente === gerenteNombre);
+            // Fuzzy: nombre del gerente aparece en celula Databricks
+            const fuzzyMatch =
+              !exactMatch &&
+              gerenteNameWords.length > 0 &&
+              gerenteNameWords.some((word: string) => rowCelula.includes(word));
+            // Partial: gerente Databricks comparte primer nombre con gerente perfil
+            const gerentePartialMatch =
+              !exactMatch &&
+              !fuzzyMatch &&
+              gerenteNombre.length > 3 &&
+              rowGerente.length > 3 &&
+              (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
+                gerenteNombre.includes(rowGerente.split(' ')[0]));
+            if (exactMatch || fuzzyMatch || gerentePartialMatch) {
               teamCelulas.add(rowCelula);
             }
           });
@@ -678,6 +700,11 @@ export const useGamificationMetrics = (
               const rowGerente = normalizeComparableText(row.gerente);
               if (rowCelula && teamCelulas.has(rowCelula)) return true;
               if (gerenteNombre && rowGerente === gerenteNombre) return true;
+              if (gerenteNameWords.length > 0 && rowCelula &&
+                  gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
+              if (rowGerente && gerenteNombre &&
+                  (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
+                   gerenteNombre.includes(rowGerente.split(' ')[0]))) return true;
               return false;
             });
 
@@ -715,8 +742,14 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             const rowAsesor = normalizeComparableText(row.nombre_asesor);
-            const sameCelula = !!celulaGerente && rowCelula === celulaGerente;
-            const sameGerente = !!gerenteNombre && rowGerente === gerenteNombre;
+            const sameCelula =
+              (!!celulaGerente && rowCelula === celulaGerente) ||
+              (gerenteNameWords.length > 0 && !!rowCelula &&
+                gerenteNameWords.some((w: string) => rowCelula.includes(w)));
+            const sameGerente =
+              !!gerenteNombre &&
+              (rowGerente === gerenteNombre ||
+                (rowGerente.length > 3 && gerenteNombre.includes(rowGerente.split(' ')[0])));
             const knownAsesor = !!rowAsesor && matchesNormalizedPerson(rowAsesor, teamAsesorNames);
 
             if (sameCelula || sameGerente || knownAsesor) {
@@ -834,11 +867,25 @@ export const useGamificationMetrics = (
           };
           const getAcvCatalogRowForPeriod = (period: string) => {
             const mes3 = mesNumToMes3[String(period).slice(-2)] || '';
-            // Prioridad Cierre > Inicio para evitar duplicación de meta por celula+mes.
-            const rows = acvCatalogRows.filter((r: any) => {
-              const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-              return rowMes === mes3 && normalizeComparableText(r.celula) === celulaGerente;
-            });
+            const filterByMes = (r: any) =>
+              String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
+
+            // Estrategia 1 (exacta): celula del perfil
+            let rows = acvCatalogRows.filter((r: any) =>
+              filterByMes(r) && normalizeComparableText(r.celula) === celulaGerente
+            );
+
+            // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
+            // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
+            if (rows.length === 0 && gerenteNameWords.length > 0) {
+              rows = acvCatalogRows.filter((r: any) => {
+                if (!filterByMes(r)) return false;
+                const rowCelulaNorm = normalizeComparableText(r.celula);
+                return gerenteNameWords.some((word: string) => rowCelulaNorm.includes(word));
+              });
+            }
+
+            // Prioridad Cierre > Inicio para evitar duplicación de meta.
             return rows.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? rows[0] ?? null;
           };
           getMetaTotalUndForPeriod = (period: string) => Math.round(Number(getAcvCatalogRowForPeriod(period)?.meta_total_und) || 0);
@@ -1453,7 +1500,17 @@ export const useGamificationMetrics = (
             const meta_total = meta ? (Number(meta.meta_total) || 0) : 0;
 
             // Skip totally empty rows (no ventas, no meta, no acv)
-            if (ventas_total === 0 && meta_total === 0 && acv === 0 && !tiene_novedad) continue;
+            // Solo omitir si NO hay absolutamente nada: ni ventas, ni meta alguna, ni acv, ni novedad.
+            // Asesores con meta > 0 y 0 ventas deben aparecer (inicio de mes).
+            if (
+              ventas_total === 0 &&
+              meta_fe === 0 &&
+              meta_nube === 0 &&
+              meta_total === 0 &&
+              meta_acv === 0 &&
+              acv === 0 &&
+              !tiene_novedad
+            ) continue;
 
             teamAsesorPerformance.push({
               nombre,
