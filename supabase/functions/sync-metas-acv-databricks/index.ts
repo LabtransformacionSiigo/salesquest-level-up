@@ -26,6 +26,10 @@ const PAIS_MAP: Record<string, string> = {
   URUGUAY: "URU",
   PERU: "PER",
   PERÚ: "PER",
+  COL: "COL",
+  ECU: "ECU",
+  MEX: "MEX",
+  URU: "URU",
 };
 
 const CANAL_MAP: Record<string, string> = {
