@@ -820,7 +820,7 @@ export const useGamificationMetrics = (
           };
 
           const metaContextActual = getMetaContextForPeriod(mesActual);
-          const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
+          let { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
           // VN: meta ACV (mensual) — PRIORIDAD:
           //   1) metas_acv_gerentes (VERDAD oficial Databricks)
@@ -863,6 +863,20 @@ export const useGamificationMetrics = (
             return { metaTotal: total, metaFe, metaNube };
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
+
+          // Sobreescribir metas del mes actual con metas_acv_gerentes (fuente única,
+          // misma que enrich() del historial). Evita "Meta: 0 UDS" cuando el match
+          // por celula/gerente en metas_asesores no coincide.
+          const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
+          const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
+          const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
+          if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
+            metaFe = _catalogFeMes;
+            metaNube = _catalogNubeMes;
+            metaEquipoUnidades = _catalogUndMes > 0
+              ? _catalogUndMes
+              : (_catalogFeMes + _catalogNubeMes);
+          }
 
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
@@ -1245,7 +1259,13 @@ export const useGamificationMetrics = (
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
-            const metaAcvFinal = catalogMetaAcv > 0 ? catalogMetaAcv : base.meta;
+            const metaAcvFromProd = base.meta;
+            const esActual = period === mesActual;
+            const metaAcvFinal = catalogMetaAcv > 0
+              ? catalogMetaAcv
+              : metaAcvFromProd > 0
+                ? metaAcvFromProd
+                : (esActual && vnMetaAcvActual > 0 ? vnMetaAcvActual : 0);
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
