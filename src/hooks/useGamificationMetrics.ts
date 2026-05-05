@@ -420,11 +420,9 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 const safeNombre = String(profile.nombre).replace(/[%,()]/g, ' ').trim();
-                const firstName = safeNombre.split(/\s+/)[0] || safeNombre;
                 const orParts: string[] = [];
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
-                if (firstName && firstName.length > 3) orParts.push(`celula.ilike.%${firstName}%`);
                 let q = supabase.from('metas_asesores' as any)
                   .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
                   .gte('anio_mes', `${anioActual}01`)
@@ -498,7 +496,7 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
-                .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
+                .select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(1000)
             : Promise.resolve({ data: [] }),
@@ -564,11 +562,19 @@ export const useGamificationMetrics = (
         if (isVN && profile.role !== 'asesor' && profile.nombre) {
           const targetCelula = normalizeComparableText(profile.celula ?? '');
           const targetNombre = normalizeComparableText(profile.nombre);
+          const targetNameWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
+          const matchesTargetManager = (rowNombre: string) => {
+            if (!rowNombre || !targetNombre) return false;
+            if (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre)) return true;
+            const rowWords = new Set(rowNombre.split(' ').filter((w: string) => w.length > 3));
+            const shared = targetNameWords.filter((w: string) => rowWords.has(w));
+            return shared.length >= 2;
+          };
           const matchVnRow = (r: any) => {
             const rowCelula = normalizeComparableText(r.celula ?? '');
             const rowNombre = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? '');
             if (targetCelula && rowCelula === targetCelula) return true;
-            if (rowNombre && targetNombre && (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre))) return true;
+            if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
           if (ventasGerenteMensualRes?.data) {
@@ -666,6 +672,17 @@ export const useGamificationMetrics = (
           const gerenteNameWords = gerenteNombre
             .split(' ')
             .filter((w: string) => w.length > 3);
+          const matchesGerenteName = (candidate: string) => {
+            if (!candidate || !gerenteNombre) return false;
+            if (candidate === gerenteNombre || candidate.includes(gerenteNombre) || gerenteNombre.includes(candidate)) return true;
+            const candidateWords = new Set(candidate.split(' ').filter((w: string) => w.length > 3));
+            return gerenteNameWords.filter((w: string) => candidateWords.has(w)).length >= 2;
+          };
+          const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
+            if (celulaGerente && rowCelula === celulaGerente) return true;
+            if (matchesGerenteName(rowGerente)) return true;
+            return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
+          };
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
           // Rendimiento del Equipo. El gerente se identifica por celula/gerente,
@@ -681,23 +698,7 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             if (!rowCelula) return;
-            const exactMatch =
-              (celulaGerente && rowCelula === celulaGerente) ||
-              (gerenteNombre && rowGerente === gerenteNombre);
-            // Fuzzy: nombre del gerente aparece en celula Databricks
-            const fuzzyMatch =
-              !exactMatch &&
-              gerenteNameWords.length > 0 &&
-              gerenteNameWords.some((word: string) => rowCelula.includes(word));
-            // Partial: gerente Databricks comparte primer nombre con gerente perfil
-            const gerentePartialMatch =
-              !exactMatch &&
-              !fuzzyMatch &&
-              gerenteNombre.length > 3 &&
-              rowGerente.length > 3 &&
-              (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
-                gerenteNombre.includes(rowGerente.split(' ')[0]));
-            if (exactMatch || fuzzyMatch || gerentePartialMatch) {
+            if (matchesGerenteCelula(rowCelula, rowGerente)) {
               teamCelulas.add(rowCelula);
             }
           });
@@ -710,12 +711,7 @@ export const useGamificationMetrics = (
               const rowCelula = normalizeComparableText(row.celula);
               const rowGerente = normalizeComparableText(row.gerente);
               if (rowCelula && teamCelulas.has(rowCelula)) return true;
-              if (gerenteNombre && rowGerente === gerenteNombre) return true;
-              if (gerenteNameWords.length > 0 && rowCelula &&
-                  gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
-              if (rowGerente && gerenteNombre &&
-                  (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
-                   gerenteNombre.includes(rowGerente.split(' ')[0]))) return true;
+              if (matchesGerenteCelula(rowCelula, rowGerente)) return true;
               return false;
             });
 
@@ -753,14 +749,8 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             const rowAsesor = normalizeComparableText(row.nombre_asesor);
-            const sameCelula =
-              (!!celulaGerente && rowCelula === celulaGerente) ||
-              (gerenteNameWords.length > 0 && !!rowCelula &&
-                gerenteNameWords.some((w: string) => rowCelula.includes(w)));
-            const sameGerente =
-              !!gerenteNombre &&
-              (rowGerente === gerenteNombre ||
-                (rowGerente.length > 3 && gerenteNombre.includes(rowGerente.split(' ')[0])));
+            const sameCelula = matchesGerenteCelula(rowCelula, rowGerente);
+            const sameGerente = matchesGerenteName(rowGerente);
             const knownAsesor = !!rowAsesor && matchesNormalizedPerson(rowAsesor, teamAsesorNames);
 
             if (sameCelula || sameGerente || knownAsesor) {
@@ -774,9 +764,7 @@ export const useGamificationMetrics = (
           vnMetasAsesores.forEach((row: any) => {
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
-            const isSameTeam =
-              (celulaGerente && rowCelula === celulaGerente) ||
-              (gerenteNombre && rowGerente === gerenteNombre);
+            const isSameTeam = matchesGerenteCelula(rowCelula, rowGerente);
             if (isSameTeam && row.documento_asesor) {
               teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
             }
@@ -843,14 +831,14 @@ export const useGamificationMetrics = (
 
             const validRows = rows.filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
-              return novedadRaw === '' || novedadRaw === 'Sin novedad';
+              return !!row.nombre_asesor && (novedadRaw === '' || novedadRaw === 'Sin novedad');
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
             const metaNube = validRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
             const metaTotal = validRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
 
-            return { rows: validRows, asesoresConNovedad, metaFe, metaNube, metaTotal };
+            return { rows: rows.filter((row: any) => !!row.nombre_asesor), asesoresConNovedad, metaFe, metaNube, metaTotal };
           };
 
           // Helper: clasifica una fila a familia oficial usando producto+pais.
@@ -882,17 +870,22 @@ export const useGamificationMetrics = (
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
 
             // Estrategia 1 (exacta): celula del perfil
-            let rows = acvCatalogRows.filter((r: any) =>
-              filterByMes(r) && normalizeComparableText(r.celula) === celulaGerente
-            );
+            const sameCatalogCanal = (r: any) => !profile.canal || String(r.canal || '') === String(profile.canal || '');
+            let rows = acvCatalogRows.filter((r: any) => {
+              if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+              const rowCelulaNorm = normalizeComparableText(r.celula);
+              const rowDirectorNorm = normalizeComparableText(r.director);
+              return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
+            });
 
             // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
             // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
             if (rows.length === 0 && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
-                if (!filterByMes(r)) return false;
+                if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
-                return gerenteNameWords.some((word: string) => rowCelulaNorm.includes(word));
+                const rowDirectorNorm = normalizeComparableText(r.director);
+                return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
               });
             }
 
