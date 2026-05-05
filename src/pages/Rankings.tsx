@@ -48,6 +48,33 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
+const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
+  if (!gerenteIds.length) return [] as any[];
+
+  const pageSize = 1000;
+  let from = 0;
+  const rows: any[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('ventas')
+      .select('gerente_id, anio, mes, acv_plus, meta')
+      .eq('canal', 'VC')
+      .eq('anio', year)
+      .like('documento_factura', 'SUM-%')
+      .in('gerente_id', gerenteIds)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+};
+
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
@@ -135,23 +162,14 @@ const Rankings = () => {
         // la respuesta de PostgREST quepa en su tope (1000 filas) y los totales
         // coincidan exactamente con el cálculo del badge (useSupabaseAuth).
         const gerenteIdsPais = (gerentesRes.data || []).map((g: any) => g.id).filter(Boolean);
-        const ventasAnualRes = gerenteIdsPais.length
-          ? await supabase
-              .from('ventas')
-              .select('gerente_id, anio, mes, acv_plus, meta')
-              .eq('canal', 'VC')
-              .eq('anio', currentConventionYear2)
-              .like('documento_factura', 'SUM-%')
-              .in('gerente_id', gerenteIdsPais)
-              .range(0, 20000)
-          : { data: [] as any[] };
+        const ventasAnualRows = await fetchVcSumVentasForGerentes(currentConventionYear2, gerenteIdsPais);
         const MES_NUM: Record<string, string> = {
           Enero: '01', Febrero: '02', Marzo: '03', Abril: '04',
           Mayo: '05', Junio: '06', Julio: '07', Agosto: '08',
           Septiembre: '09', Octubre: '10', Noviembre: '11', Diciembre: '12',
         };
         const monthlyByGerente = new Map<string, Map<string, { acv: number; meta: number }>>();
-        (ventasAnualRes.data || []).forEach((row: any) => {
+        ventasAnualRows.forEach((row: any) => {
           const gId = row.gerente_id;
           const monthNum = MES_NUM[row.mes || ''];
           if (!gId || !row.anio || !monthNum) return;
@@ -746,6 +764,7 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
