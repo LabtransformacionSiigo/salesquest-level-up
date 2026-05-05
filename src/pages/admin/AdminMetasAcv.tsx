@@ -36,6 +36,7 @@ interface Summary {
 }
 
 const REQUIRED_HEADERS = ['pais', 'canal', 'celula', 'mes', 'archivo'];
+const REQUIRED_HEADERS_ASESORES = ['documento_asesor', 'canal_direccion', 'anio_mes'];
 
 const normalizeKey = (k: string) =>
   k.trim().toLowerCase().replace(/\s+/g, '_').replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e').replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o').replace(/[úùü]/g, 'u');
