@@ -683,9 +683,29 @@ export const useGamificationMetrics = (
 
             if (rowsByTeam.length > 0) return rowsByTeam;
 
-            // Fallback: por nombres de asesores conocidos del equipo
+            // Fallback 1: por nombres de asesores conocidos del equipo
             if (teamAsesorNames.size > 0) {
-              return periodRows.filter((row: any) => teamAsesorNames.has(normalizeComparableText(row.nombre_asesor)));
+              const byName = periodRows.filter((row: any) =>
+                row.nombre_asesor && teamAsesorNames.has(normalizeComparableText(row.nombre_asesor))
+              );
+              if (byName.length > 0) return byName;
+            }
+
+            // Fallback 2: por documento_asesor identificado en otros meses
+            if (teamAdvisorDocs.size > 0) {
+              const byDoc = periodRows.filter((row: any) =>
+                row.documento_asesor && teamAdvisorDocs.has(String(row.documento_asesor).trim().toLowerCase())
+              );
+              if (byDoc.length > 0) return byDoc;
+            }
+
+            // Fallback 3: match directo con la célula del gerente (sin depender del set)
+            if (celulaGerente) {
+              const byCelulaDirecta = periodRows.filter((row: any) => {
+                const rowCelula = normalizeComparableText(row.celula ?? '');
+                return rowCelula && rowCelula === celulaGerente;
+              });
+              if (byCelulaDirecta.length > 0) return byCelulaDirecta;
             }
 
             return [];
@@ -702,6 +722,19 @@ export const useGamificationMetrics = (
             if (sameCelula || sameGerente || knownAsesor) {
               if (row.nombre_asesor) teamAsesorNames.add(normalizeComparableText(row.nombre_asesor));
               if (row.documento_asesor) teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
+            }
+          });
+
+          // Garantizar que teamAdvisorDocs incluya TODOS los documentos del equipo
+          // identificados por celula o gerente en cualquier mes del año.
+          vnMetasAsesores.forEach((row: any) => {
+            const rowCelula = normalizeComparableText(row.celula);
+            const rowGerente = normalizeComparableText(row.gerente);
+            const isSameTeam =
+              (celulaGerente && rowCelula === celulaGerente) ||
+              (gerenteNombre && rowGerente === gerenteNombre);
+            if (isSameTeam && row.documento_asesor) {
+              teamAdvisorDocs.add(String(row.documento_asesor).trim().toLowerCase());
             }
           });
 
