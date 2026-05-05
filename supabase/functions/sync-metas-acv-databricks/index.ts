@@ -257,6 +257,18 @@ Deno.serve(async (req) => {
     };
     const errors: Array<{ row: any; error: string }> = [];
 
+    // Deduplica la respuesta de Databricks: si vienen filas idénticas por
+    // (celula, mes, archivo), conserva solo la última. Evita doble upsert.
+    const dedupMap = new Map<string, any[]>();
+    for (const r of rows) {
+      const [, , , celulaDd, mesRawDd, archivoRawDd] = r;
+      const ddKey = `${String(celulaDd || '').trim()}|${String(mesRawDd || '')}|${String(archivoRawDd || '')}`;
+      dedupMap.set(ddKey, r);
+    }
+    const dedupedRows = Array.from(dedupMap.values());
+    console.log(`[sync-metas-acv] Total Databricks: ${rows.length} → deduped: ${dedupedRows.length}`);
+    summary.total = dedupedRows.length;
+
     // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
