@@ -1259,7 +1259,13 @@ export const useGamificationMetrics = (
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
-            const metaAcvFinal = catalogMetaAcv > 0 ? catalogMetaAcv : base.meta;
+            const metaAcvFromProd = base.meta;
+            const esActual = period === mesActual;
+            const metaAcvFinal = catalogMetaAcv > 0
+              ? catalogMetaAcv
+              : metaAcvFromProd > 0
+                ? metaAcvFromProd
+                : (esActual && metaAcvEquipo > 0 ? metaAcvEquipo : 0);
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
