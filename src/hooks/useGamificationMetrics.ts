@@ -698,17 +698,7 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             if (!rowCelula) return;
-            const exactMatch = matchesGerenteCelula(rowCelula, rowGerente);
-            // Fuzzy: nombre del gerente aparece en celula Databricks
-            const fuzzyMatch =
-              !exactMatch &&
-              false;
-            // Partial: gerente Databricks comparte primer nombre con gerente perfil
-            const gerentePartialMatch =
-              !exactMatch &&
-              !fuzzyMatch &&
-              matchesGerenteName(rowGerente);
-            if (exactMatch || fuzzyMatch || gerentePartialMatch) {
+            if (matchesGerenteCelula(rowCelula, rowGerente)) {
               teamCelulas.add(rowCelula);
             }
           });
@@ -880,17 +870,22 @@ export const useGamificationMetrics = (
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
 
             // Estrategia 1 (exacta): celula del perfil
-            let rows = acvCatalogRows.filter((r: any) =>
-              filterByMes(r) && normalizeComparableText(r.celula) === celulaGerente
-            );
+            const sameCatalogCanal = (r: any) => !profile.canal || String(r.canal || '') === String(profile.canal || '');
+            let rows = acvCatalogRows.filter((r: any) => {
+              if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+              const rowCelulaNorm = normalizeComparableText(r.celula);
+              const rowDirectorNorm = normalizeComparableText(r.director);
+              return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
+            });
 
             // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
             // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
             if (rows.length === 0 && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
-                if (!filterByMes(r)) return false;
+                if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
-                return gerenteNameWords.some((word: string) => rowCelulaNorm.includes(word));
+                const rowDirectorNorm = normalizeComparableText(r.director);
+                return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
               });
             }
 
