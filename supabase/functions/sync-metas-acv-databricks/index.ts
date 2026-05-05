@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
     const dedupMap = new Map<string, any[]>();
     for (const r of rows) {
       const [, , , celulaDd, mesRawDd, archivoRawDd] = r;
-      const ddKey = `${String(celulaDd || '').trim()}|${String(mesRawDd || '')}|${String(archivoRawDd || '')}`;
+      const ddKey = `${String(celulaDd || '').trim().toLowerCase()}|${String(mesRawDd || '').toLowerCase()}|${String(archivoRawDd || '').toLowerCase()}`;
       dedupMap.set(ddKey, r);
     }
     const dedupedRows = Array.from(dedupMap.values());
