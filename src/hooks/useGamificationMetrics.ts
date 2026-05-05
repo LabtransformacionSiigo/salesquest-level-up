@@ -742,8 +742,14 @@ export const useGamificationMetrics = (
             const rowCelula = normalizeComparableText(row.celula);
             const rowGerente = normalizeComparableText(row.gerente);
             const rowAsesor = normalizeComparableText(row.nombre_asesor);
-            const sameCelula = !!celulaGerente && rowCelula === celulaGerente;
-            const sameGerente = !!gerenteNombre && rowGerente === gerenteNombre;
+            const sameCelula =
+              (!!celulaGerente && rowCelula === celulaGerente) ||
+              (gerenteNameWords.length > 0 && !!rowCelula &&
+                gerenteNameWords.some((w: string) => rowCelula.includes(w)));
+            const sameGerente =
+              !!gerenteNombre &&
+              (rowGerente === gerenteNombre ||
+                (rowGerente.length > 3 && gerenteNombre.includes(rowGerente.split(' ')[0])));
             const knownAsesor = !!rowAsesor && matchesNormalizedPerson(rowAsesor, teamAsesorNames);
 
             if (sameCelula || sameGerente || knownAsesor) {
