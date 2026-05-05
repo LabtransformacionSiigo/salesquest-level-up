@@ -308,8 +308,8 @@ Deno.serve(async (req) => {
       else if (action === "backfilled_fe_nube") summary.backfilled_fe_nube++;
     };
 
-    for (let i = 0; i < rows.length; i += CONCURRENCY) {
-      const batch = rows.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < dedupedRows.length; i += CONCURRENCY) {
+      const batch = dedupedRows.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(processOne));
     }
 
