@@ -54,6 +54,12 @@ const AdminMetasAcv = () => {
   const [filterMes, setFilterMes] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
   const [syncingVn, setSyncingVn] = useState(false);
+  const [syncingMayo, setSyncingMayo] = useState(false);
+  const fileRefAsesores = useRef<HTMLInputElement>(null);
+  const [rowsAsesores, setRowsAsesores] = useState<any[]>([]);
+  const [uploadingAsesores, setUploadingAsesores] = useState(false);
+  const [parsingAsesores, setParsingAsesores] = useState(false);
+  const [summaryAsesores, setSummaryAsesores] = useState<{ total: number; inserted: number; updated: number; skipped: number; invalid: number } | null>(null);
 
   const isAdmin = profile?.role === 'admin';
 
