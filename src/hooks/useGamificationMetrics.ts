@@ -1265,7 +1265,7 @@ export const useGamificationMetrics = (
               ? catalogMetaAcv
               : metaAcvFromProd > 0
                 ? metaAcvFromProd
-                : (esActual && metaAcvEquipo > 0 ? metaAcvEquipo : 0);
+                : (esActual && vnMetaAcvActual > 0 ? vnMetaAcvActual : 0);
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
