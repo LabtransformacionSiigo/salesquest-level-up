@@ -50,6 +50,34 @@ const normMes = (v: string): string => {
   return m.charAt(0).toUpperCase() + m.slice(1, 3).toLowerCase();
 };
 
+const MES_ALIASES: Record<string, { mes3: string; text: string[]; numeric: string[]; period: string }> = {
+  ene: { mes3: "Ene", text: ["enero", "ene", "jan", "january"], numeric: ["1", "01"], period: "202601" },
+  feb: { mes3: "Feb", text: ["febrero", "feb", "february"], numeric: ["2", "02"], period: "202602" },
+  mar: { mes3: "Mar", text: ["marzo", "mar", "march"], numeric: ["3", "03"], period: "202603" },
+  abr: { mes3: "Abr", text: ["abril", "abr", "apr", "april"], numeric: ["4", "04"], period: "202604" },
+  may: { mes3: "May", text: ["mayo", "may"], numeric: ["5", "05"], period: "202605" },
+  jun: { mes3: "Jun", text: ["junio", "jun", "june"], numeric: ["6", "06"], period: "202606" },
+  jul: { mes3: "Jul", text: ["julio", "jul", "july"], numeric: ["7", "07"], period: "202607" },
+  ago: { mes3: "Ago", text: ["agosto", "ago", "aug", "august"], numeric: ["8", "08"], period: "202608" },
+  sep: { mes3: "Sep", text: ["septiembre", "sept", "sep", "september"], numeric: ["9", "09"], period: "202609" },
+  oct: { mes3: "Oct", text: ["octubre", "oct", "october"], numeric: ["10"], period: "202610" },
+  nov: { mes3: "Nov", text: ["noviembre", "nov", "november"], numeric: ["11"], period: "202611" },
+  dic: { mes3: "Dic", text: ["diciembre", "dic", "dec", "december"], numeric: ["12"], period: "202612" },
+};
+
+const normalizeMesFilter = (v: unknown): typeof MES_ALIASES[keyof typeof MES_ALIASES] | null => {
+  const raw = String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (!raw) return null;
+  const maybePeriod = raw.match(/2026(0[1-9]|1[0-2])/);
+  if (maybePeriod) return Object.values(MES_ALIASES).find((m) => m.period === maybePeriod[0]) || null;
+  const compact = raw.replace(/[^a-z0-9]/g, "");
+  return Object.values(MES_ALIASES).find((m) =>
+    m.text.includes(compact) || m.numeric.includes(compact) || m.mes3.toLowerCase() === compact.slice(0, 3)
+  ) || null;
+};
+
+const currentMesFilter = () => Object.values(MES_ALIASES)[new Date().getMonth()];
+
 // Deriva "Inicio" o "Cierre" del nombre del archivo origen
 // (ej: "Cuotas 2026 Mar_Cierre.xlsx" -> "Cierre").
 const deriveArchivo = (nombreArchivo: string): "Inicio" | "Cierre" | null => {
@@ -133,9 +161,10 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Permitimos pasar `mes` (ej "Mar") y `pais` para limitar el alcance opcionalmente.
+    // Permitimos pasar `mes` (ej "May"/"Mayo"/"202605") y `pais` para limitar el alcance opcionalmente.
+    // Por defecto sincroniza el mes actual para evitar timeouts y dejar el botón listo mes a mes.
     const body = await req.json().catch(() => ({}));
-    const filterMes: string | undefined = body?.mes;
+    const filterMes = body?.all ? null : (normalizeMesFilter(body?.mes) || currentMesFilter());
     const filterPais: string | undefined = body?.pais;
 
     // Filtros opcionales sobre tbl_brz_cuotas.
@@ -149,8 +178,13 @@ Deno.serve(async (req) => {
       "canal_direccion IN ('Aliados','SMBS','Empresarios')",
     ];
     if (filterMes) {
-      const safe = filterMes.replace(/'/g, "''").toLowerCase();
-      where.push(`LOWER(mes) LIKE '${safe}%'`);
+      const textChecks = filterMes.text
+        .map((m) => `LOWER(mes) LIKE '${m.replace(/'/g, "''")}%' OR LOWER(archivo) LIKE '%${m.replace(/'/g, "''")}%'`)
+        .join(" OR ");
+      const numericChecks = filterMes.numeric
+        .map((m) => `CAST(mes AS STRING) = '${m}'`)
+        .join(" OR ");
+      where.push(`(${textChecks} OR ${numericChecks} OR CAST(mes AS STRING) = '${filterMes.period}' OR LOWER(archivo) LIKE '%${filterMes.period}%')`);
     }
     if (filterPais) {
       where.push(`LOWER(pais_gestion) = LOWER('${filterPais.replace(/'/g, "''")}')`);
@@ -181,7 +215,34 @@ Deno.serve(async (req) => {
                CASE WHEN LOWER(archivo) LIKE '%inicio%' THEN 0 ELSE 1 END
     `;
 
-    const { rows } = await executeDatabricksQuery(sql);
+    let { rows } = await executeDatabricksQuery(sql);
+    let source = "tbl_brz_cuotas_gerentes";
+
+    // Si la fuente agregada de gerentes todavía no publica el mes (caso Mayo),
+    // usamos el agregado oficial por célula ya sincronizado en metas_asesores.
+    // Cuando gerentes publique Cierre, reemplazará Inicio.
+    if (rows.length === 0 && filterMes) {
+      const { data: fallbackRows, error: fallbackError } = await supabase
+        .from("metas_asesores")
+        .select("pais, canal_direccion, gerente, celula, meta_fe, meta_nube, meta_total")
+        .eq("anio_mes", filterMes.period)
+        .like("documento_asesor", "CEL_%");
+      if (fallbackError) throw fallbackError;
+      rows = (fallbackRows || []).map((r: any) => [
+        r.pais,
+        r.canal_direccion,
+        r.gerente,
+        r.celula,
+        filterMes.mes3,
+        "Inicio",
+        r.meta_fe,
+        r.meta_nube,
+        r.meta_total,
+        0,
+        100,
+      ]);
+      source = "metas_asesores_aggregated_local";
+    }
 
     const summary = {
       total: rows.length,
@@ -191,6 +252,8 @@ Deno.serve(async (req) => {
       backfilled_fe_nube: 0,
       skipped_cierre_existente: 0,
       invalid: 0,
+      source,
+      mes: filterMes?.mes3 || "todos",
     };
     const errors: Array<{ row: any; error: string }> = [];
 
@@ -198,8 +261,11 @@ Deno.serve(async (req) => {
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
       const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
-      const archivo = deriveArchivo(String(archivoRaw || ""));
-      const mes = normMes(String(mesRaw || ""));
+      const archivoRawText = String(archivoRaw || "");
+      const archivo = deriveArchivo(archivoRawText);
+      // Databricks a veces deja `mes` con el mes anterior y el mes real viene en el nombre de archivo.
+      // Por eso el archivo gana prioridad; si no trae mes, usamos la columna `mes`.
+      const mes = deriveMesFromArchivo(archivoRawText) || normMes(String(mesRaw || ""));
       if (!archivo || !celula || !mes || !pais || !canal) {
         summary.invalid++;
         return;
