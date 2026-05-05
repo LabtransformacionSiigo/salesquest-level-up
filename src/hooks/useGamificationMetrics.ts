@@ -1293,6 +1293,8 @@ export const useGamificationMetrics = (
             };
             const targetMes3 = mes3ForAcv[String(period).slice(-2)] || '';
             const celulaGerenteNorm = normalizeComparableText(profile.celula);
+            const gerenteNombreNorm = normalizeComparableText(profile.nombre);
+            const gerenteNameWords = gerenteNombreNorm.split(' ').filter((w: string) => w.length > 3);
             const filterEnrichByMes = (r: any) =>
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === targetMes3;
             let catalogMatches = acvCatalogRows.filter(
