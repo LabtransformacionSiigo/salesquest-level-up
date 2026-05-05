@@ -564,11 +564,19 @@ export const useGamificationMetrics = (
         if (isVN && profile.role !== 'asesor' && profile.nombre) {
           const targetCelula = normalizeComparableText(profile.celula ?? '');
           const targetNombre = normalizeComparableText(profile.nombre);
+          const targetNameWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
+          const matchesTargetManager = (rowNombre: string) => {
+            if (!rowNombre || !targetNombre) return false;
+            if (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre)) return true;
+            const rowWords = new Set(rowNombre.split(' ').filter((w: string) => w.length > 3));
+            const shared = targetNameWords.filter((w: string) => rowWords.has(w));
+            return shared.length >= 2;
+          };
           const matchVnRow = (r: any) => {
             const rowCelula = normalizeComparableText(r.celula ?? '');
             const rowNombre = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? '');
             if (targetCelula && rowCelula === targetCelula) return true;
-            if (rowNombre && targetNombre && (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre))) return true;
+            if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
           if (ventasGerenteMensualRes?.data) {
