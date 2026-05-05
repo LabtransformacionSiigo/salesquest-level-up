@@ -105,6 +105,97 @@ const AdminMetasAcv = () => {
     }
   };
 
+  const handleSyncMayo = async () => {
+    if (syncingMayo) return;
+    setSyncingMayo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-metas-acv-databricks', {
+        body: { mes: 'Mayo' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync fallida');
+      setSummary(data.summary);
+      setErrorList(data.errors || []);
+      const s = data.summary || {};
+      toast({
+        title: '✅ Metas Mayo Gerentes sincronizadas',
+        description: `Insertadas: ${s.inserted ?? 0} · Actualizadas: ${s.updated_inicio ?? 0} · Cierres: ${s.upgraded_to_cierre ?? 0} · Bloqueadas: ${s.skipped_cierre_existente ?? 0}`,
+      });
+      fetchHistorial();
+    } catch (e: any) {
+      toast({ title: 'Error sync Mayo', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncingMayo(false);
+    }
+  };
+
+  const handleFileAsesores = async (file: File) => {
+    setParsingAsesores(true);
+    setSummaryAsesores(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (raw.length === 0) {
+        toast({ title: 'Archivo vacío', variant: 'destructive' });
+        return;
+      }
+      const normalized = raw.map((r) => {
+        const out: any = {};
+        Object.entries(r).forEach(([k, v]) => { out[normalizeKey(k)] = v; });
+        return out;
+      });
+      const missing = REQUIRED_HEADERS_ASESORES.filter((h) => !(h in normalized[0]));
+      if (missing.length) {
+        toast({ title: 'Faltan columnas requeridas', description: missing.join(', '), variant: 'destructive' });
+        return;
+      }
+      const parsed = normalized.map((r) => ({
+        documento_asesor: String(r.documento_asesor || '').trim(),
+        nombre_asesor: r.nombre_asesor ? String(r.nombre_asesor).trim() : '',
+        celula: r.celula ? String(r.celula).trim() : '',
+        gerente: r.gerente ? String(r.gerente).trim() : '',
+        canal_direccion: String(r.canal_direccion || '').trim(),
+        pais: r.pais ? String(r.pais).trim() : 'COL',
+        meta_fe: Number(r.meta_fe) || 0,
+        meta_nube: Number(r.meta_nube) || 0,
+        meta_total: Number(r.meta_total) || 0,
+        anio_mes: String(r.anio_mes || '').trim(),
+        novedad: r.novedad ? String(r.novedad).trim() : 'Sin novedad',
+      }));
+      setRowsAsesores(parsed);
+      toast({ title: `${parsed.length} filas asesores listas para cargar` });
+    } catch (e: any) {
+      toast({ title: 'Error al leer archivo', description: e.message, variant: 'destructive' });
+    } finally {
+      setParsingAsesores(false);
+    }
+  };
+
+  const handleUploadAsesores = async () => {
+    if (rowsAsesores.length === 0) return;
+    setUploadingAsesores(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cargar-metas-asesores', {
+        body: { rows: rowsAsesores },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Carga asesores fallida');
+      setSummaryAsesores(data.summary);
+      toast({
+        title: '✅ Metas Asesores cargadas',
+        description: `Insertadas: ${data.summary.inserted} · Actualizadas: ${data.summary.updated} · Inválidas: ${data.summary.invalid}`,
+      });
+      setRowsAsesores([]);
+      if (fileRefAsesores.current) fileRefAsesores.current.value = '';
+    } catch (e: any) {
+      toast({ title: 'Error carga asesores', description: e.message, variant: 'destructive' });
+    } finally {
+      setUploadingAsesores(false);
+    }
+  };
+
   const fetchHistorial = async () => {
     let q = supabase
       .from('metas_acv_gerentes' as any)
