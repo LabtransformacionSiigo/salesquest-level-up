@@ -700,6 +700,11 @@ export const useGamificationMetrics = (
               const rowGerente = normalizeComparableText(row.gerente);
               if (rowCelula && teamCelulas.has(rowCelula)) return true;
               if (gerenteNombre && rowGerente === gerenteNombre) return true;
+              if (gerenteNameWords.length > 0 && rowCelula &&
+                  gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
+              if (rowGerente && gerenteNombre &&
+                  (rowGerente.includes(gerenteNombre.split(' ')[0]) ||
+                   gerenteNombre.includes(rowGerente.split(' ')[0]))) return true;
               return false;
             });
 
