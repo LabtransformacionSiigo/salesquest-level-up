@@ -1026,7 +1026,6 @@ export type Database = {
       }
       metas_acv_gerentes: {
         Row: {
-          anio: number | null
           archivo: string
           canal: string
           celula: string
@@ -1044,7 +1043,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          anio?: number | null
           archivo: string
           canal: string
           celula: string
@@ -1062,7 +1060,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          anio?: number | null
           archivo?: string
           canal?: string
           celula?: string

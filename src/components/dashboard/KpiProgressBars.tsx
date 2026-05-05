@@ -24,7 +24,6 @@ interface KpiProgressBarsProps {
   vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
   periodoSeleccionado?: string;
   lastUpdated?: Date | null;
-  metasPendientes?: boolean;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
@@ -68,7 +67,7 @@ const VnProgressRow = ({
   );
 };
 
-const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, pais, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado, lastUpdated, metasPendientes }: KpiProgressBarsProps) => {
+const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pctCumplimiento, sp = 0, canal, pais, ejecucion, metaAsesor, isVCGerente, teamAsesorPerformance, vcCumplimiento, periodoSeleccionado, lastUpdated }: KpiProgressBarsProps) => {
   const NIVELES = getNivelesByCanal(canal);
   const nivelActual = NIVELES.find((n) => sp >= n.min && sp <= n.max) || NIVELES[0];
   const nivelIdx = NIVELES.indexOf(nivelActual);
@@ -224,12 +223,6 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         ) : isVN && vnEjecucion && vnMeta ? (
           /* ── VN: 4 barras fijas ── */
           <div className="flex flex-col gap-5 flex-1">
-            {metasPendientes && (
-              <div className="flex items-center gap-2 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 text-sm font-medium">
-                <span className="text-base">⚠️</span>
-                <span>Las metas de este mes aún no han sido cargadas. Los porcentajes de cumplimiento se actualizarán una vez disponibles.</span>
-              </div>
-            )}
             <VnProgressRow label="Total Unidades" current={vnEjecucion.ventas_total} goal={vnMeta.meta_total} icon="inventory_2" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="FE" current={vnEjecucion.ventas_fe} goal={vnMeta.meta_fe} icon="receipt_long" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="Nube" current={vnEjecucion.ventas_nube} goal={vnMeta.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />

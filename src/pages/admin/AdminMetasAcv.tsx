@@ -36,7 +36,6 @@ interface Summary {
 }
 
 const REQUIRED_HEADERS = ['pais', 'canal', 'celula', 'mes', 'archivo'];
-const REQUIRED_HEADERS_ASESORES = ['documento_asesor', 'canal_direccion', 'anio_mes'];
 
 const normalizeKey = (k: string) =>
   k.trim().toLowerCase().replace(/\s+/g, '_').replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e').replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o').replace(/[úùü]/g, 'u');
@@ -54,12 +53,6 @@ const AdminMetasAcv = () => {
   const [filterMes, setFilterMes] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
   const [syncingVn, setSyncingVn] = useState(false);
-  const [syncingMayo, setSyncingMayo] = useState(false);
-  const fileRefAsesores = useRef<HTMLInputElement>(null);
-  const [rowsAsesores, setRowsAsesores] = useState<any[]>([]);
-  const [uploadingAsesores, setUploadingAsesores] = useState(false);
-  const [parsingAsesores, setParsingAsesores] = useState(false);
-  const [summaryAsesores, setSummaryAsesores] = useState<{ total: number; inserted: number; updated: number; skipped: number; invalid: number } | null>(null);
 
   const isAdmin = profile?.role === 'admin';
 
@@ -102,97 +95,6 @@ const AdminMetasAcv = () => {
       toast({ title: 'Error sync VN', description: e.message, variant: 'destructive' });
     } finally {
       setSyncingVn(false);
-    }
-  };
-
-  const handleSyncMayo = async () => {
-    if (syncingMayo) return;
-    setSyncingMayo(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-metas-acv-databricks', {
-        body: { mes: 'Mayo' },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Sync fallida');
-      setSummary(data.summary);
-      setErrorList(data.errors || []);
-      const s = data.summary || {};
-      toast({
-        title: '✅ Metas Mayo Gerentes sincronizadas',
-        description: `Insertadas: ${s.inserted ?? 0} · Actualizadas: ${s.updated_inicio ?? 0} · Cierres: ${s.upgraded_to_cierre ?? 0} · Bloqueadas: ${s.skipped_cierre_existente ?? 0}`,
-      });
-      fetchHistorial();
-    } catch (e: any) {
-      toast({ title: 'Error sync Mayo', description: e.message, variant: 'destructive' });
-    } finally {
-      setSyncingMayo(false);
-    }
-  };
-
-  const handleFileAsesores = async (file: File) => {
-    setParsingAsesores(true);
-    setSummaryAsesores(null);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      if (raw.length === 0) {
-        toast({ title: 'Archivo vacío', variant: 'destructive' });
-        return;
-      }
-      const normalized = raw.map((r) => {
-        const out: any = {};
-        Object.entries(r).forEach(([k, v]) => { out[normalizeKey(k)] = v; });
-        return out;
-      });
-      const missing = REQUIRED_HEADERS_ASESORES.filter((h) => !(h in normalized[0]));
-      if (missing.length) {
-        toast({ title: 'Faltan columnas requeridas', description: missing.join(', '), variant: 'destructive' });
-        return;
-      }
-      const parsed = normalized.map((r) => ({
-        documento_asesor: String(r.documento_asesor || '').trim(),
-        nombre_asesor: r.nombre_asesor ? String(r.nombre_asesor).trim() : '',
-        celula: r.celula ? String(r.celula).trim() : '',
-        gerente: r.gerente ? String(r.gerente).trim() : '',
-        canal_direccion: String(r.canal_direccion || '').trim(),
-        pais: r.pais ? String(r.pais).trim() : 'COL',
-        meta_fe: Number(r.meta_fe) || 0,
-        meta_nube: Number(r.meta_nube) || 0,
-        meta_total: Number(r.meta_total) || 0,
-        anio_mes: String(r.anio_mes || '').trim(),
-        novedad: r.novedad ? String(r.novedad).trim() : 'Sin novedad',
-      }));
-      setRowsAsesores(parsed);
-      toast({ title: `${parsed.length} filas asesores listas para cargar` });
-    } catch (e: any) {
-      toast({ title: 'Error al leer archivo', description: e.message, variant: 'destructive' });
-    } finally {
-      setParsingAsesores(false);
-    }
-  };
-
-  const handleUploadAsesores = async () => {
-    if (rowsAsesores.length === 0) return;
-    setUploadingAsesores(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('cargar-metas-asesores', {
-        body: { rows: rowsAsesores },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Carga asesores fallida');
-      setSummaryAsesores(data.summary);
-      toast({
-        title: '✅ Metas Asesores cargadas',
-        description: `Insertadas: ${data.summary.inserted} · Actualizadas: ${data.summary.updated} · Inválidas: ${data.summary.invalid}`,
-      });
-      setRowsAsesores([]);
-      if (fileRefAsesores.current) fileRefAsesores.current.value = '';
-    } catch (e: any) {
-      toast({ title: 'Error carga asesores', description: e.message, variant: 'destructive' });
-    } finally {
-      setUploadingAsesores(false);
     }
   };
 
@@ -331,94 +233,6 @@ const AdminMetasAcv = () => {
             <MI icon={syncingVn ? 'sync' : 'insights'} className={cn('text-base', syncingVn && 'animate-spin')} />
             {syncingVn ? 'Sincronizando…' : 'Sincronizar Métricas VN'}
           </Button>
-        </div>
-
-        {/* Sync Mayo Gerentes */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
-          <h3 className="text-sm font-bold text-foreground">⚡ Sync Metas Mayo 2026 — Gerentes</h3>
-          <p className="text-xs text-muted-foreground">
-            Sincroniza desde Databricks las cuotas de Mayo para todas las células y países (COL · MEX · ECU · URU). Solo toca filas de Mayo.
-          </p>
-          <Button onClick={handleSyncMayo} disabled={syncingMayo} className="gap-2">
-            <MI icon={syncingMayo ? 'sync' : 'bolt'} className={cn('text-base', syncingMayo && 'animate-spin')} />
-            {syncingMayo ? 'Sincronizando Mayo…' : 'Sincronizar Mayo'}
-          </Button>
-        </div>
-
-        {/* Cargar Metas Asesores */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <MI icon="upload_file" className="text-primary text-base" />
-            <h3 className="text-sm font-bold text-foreground">📋 Metas Asesores VN — Carga por Mes</h3>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Sube un Excel/CSV con las metas individuales por asesor (FE, Nube, Total, ACV) para cualquier mes. Columnas requeridas:
-            <code className="bg-muted px-1 rounded mx-1">documento_asesor</code>,
-            <code className="bg-muted px-1 rounded mx-1">canal_direccion</code> (Aliados/Empresarios),
-            <code className="bg-muted px-1 rounded mx-1">anio_mes</code> (ej: 202605),
-            <code className="bg-muted px-1 rounded mx-1">meta_fe</code>,
-            <code className="bg-muted px-1 rounded mx-1">meta_nube</code>,
-            <code className="bg-muted px-1 rounded mx-1">meta_total</code>.
-            Opcional: nombre_asesor, celula, gerente, pais (COL/MEX/ECU/URU), novedad.
-          </p>
-          <input
-            ref={fileRefAsesores}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={(e) => e.target.files?.[0] && handleFileAsesores(e.target.files[0])}
-            className="block text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-          />
-          {parsingAsesores && <p className="text-xs text-muted-foreground">Procesando archivo...</p>}
-          {rowsAsesores.length > 0 && (
-            <div className="border border-border rounded-lg p-4 space-y-3 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-foreground">{rowsAsesores.length} filas listas para cargar</p>
-                <Button onClick={handleUploadAsesores} disabled={uploadingAsesores}>
-                  {uploadingAsesores ? 'Cargando...' : `Cargar ${rowsAsesores.length} filas`}
-                </Button>
-              </div>
-              <div className="max-h-48 overflow-auto">
-                <table className="w-full text-[11px]">
-                  <thead className="text-muted-foreground">
-                    <tr>
-                      <th className="text-left py-1 px-2">Documento</th>
-                      <th className="text-left py-1 px-2">Asesor</th>
-                      <th className="text-left py-1 px-2">Célula</th>
-                      <th className="text-left py-1 px-2">Mes</th>
-                      <th className="text-right py-1 px-2">FE</th>
-                      <th className="text-right py-1 px-2">Nube</th>
-                      <th className="text-right py-1 px-2">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rowsAsesores.slice(0, 5).map((r, i) => (
-                      <tr key={i} className="border-t border-border/40">
-                        <td className="py-1 px-2">{r.documento_asesor}</td>
-                        <td className="py-1 px-2">{r.nombre_asesor}</td>
-                        <td className="py-1 px-2">{r.celula}</td>
-                        <td className="py-1 px-2">{r.anio_mes}</td>
-                        <td className="py-1 px-2 text-right">{r.meta_fe}</td>
-                        <td className="py-1 px-2 text-right">{r.meta_nube}</td>
-                        <td className="py-1 px-2 text-right">{r.meta_total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {rowsAsesores.length > 5 && (
-                  <p className="text-[10px] text-muted-foreground px-2 py-1">… y {rowsAsesores.length - 5} más</p>
-                )}
-              </div>
-            </div>
-          )}
-          {summaryAsesores && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center pt-2">
-              <Stat label="Total" value={summaryAsesores.total} />
-              <Stat label="Insertadas" value={summaryAsesores.inserted} tone="ok" />
-              <Stat label="Actualizadas" value={summaryAsesores.updated} tone="ok" />
-              <Stat label="Saltadas" value={summaryAsesores.skipped} tone="warn" />
-              <Stat label="Inválidas" value={summaryAsesores.invalid} tone="warn" />
-            </div>
-          )}
         </div>
 
         {/* Uploader */}

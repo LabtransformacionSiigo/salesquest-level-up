@@ -7,8 +7,7 @@
 //   - mes (palabra completa: "Enero", "Febrero"... → normalizamos a "Ene", "Feb"...)
 //   - archivo ("Inicio" / "Cierre")
 //   - cuota (ej: "100%")
-// Cubre todos los meses disponibles en tbl_brz_cuotas_gerentes para todos los países.
-// Acepta body param { mes: "Mayo", pais: "Colombia" } para sync selectivo.
+// Cubre Enero–Abril 2026 para todos los países.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -26,10 +25,6 @@ const PAIS_MAP: Record<string, string> = {
   URUGUAY: "URU",
   PERU: "PER",
   PERÚ: "PER",
-  COL: "COL",
-  ECU: "ECU",
-  MEX: "MEX",
-  URU: "URU",
 };
 
 const CANAL_MAP: Record<string, string> = {
