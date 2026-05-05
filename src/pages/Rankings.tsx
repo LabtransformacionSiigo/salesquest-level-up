@@ -162,23 +162,14 @@ const Rankings = () => {
         // la respuesta de PostgREST quepa en su tope (1000 filas) y los totales
         // coincidan exactamente con el cálculo del badge (useSupabaseAuth).
         const gerenteIdsPais = (gerentesRes.data || []).map((g: any) => g.id).filter(Boolean);
-        const ventasAnualRes = gerenteIdsPais.length
-          ? await supabase
-              .from('ventas')
-              .select('gerente_id, anio, mes, acv_plus, meta')
-              .eq('canal', 'VC')
-              .eq('anio', currentConventionYear2)
-              .like('documento_factura', 'SUM-%')
-              .in('gerente_id', gerenteIdsPais)
-              .range(0, 20000)
-          : { data: [] as any[] };
+        const ventasAnualRows = await fetchVcSumVentasForGerentes(currentConventionYear2, gerenteIdsPais);
         const MES_NUM: Record<string, string> = {
           Enero: '01', Febrero: '02', Marzo: '03', Abril: '04',
           Mayo: '05', Junio: '06', Julio: '07', Agosto: '08',
           Septiembre: '09', Octubre: '10', Noviembre: '11', Diciembre: '12',
         };
         const monthlyByGerente = new Map<string, Map<string, { acv: number; meta: number }>>();
-        (ventasAnualRes.data || []).forEach((row: any) => {
+        ventasAnualRows.forEach((row: any) => {
           const gId = row.gerente_id;
           const monthNum = MES_NUM[row.mes || ''];
           if (!gId || !row.anio || !monthNum) return;
