@@ -1490,15 +1490,13 @@ export const useGamificationMetrics = (
           });
 
           const allAsesorKeys = new Set<string>();
-          // Fuente maestra de identidad: metas_asesores (sin novedad, sin gerente)
+          // Fuente maestra ÚNICA de identidad: metas_asesores del mes actual (sin novedad).
+          // No agregamos asesores desde ventasPorAsesor para evitar incluir asesores
+          // que ya no pertenecen al equipo en el mes en curso (p.ej. movimientos previos).
           metasPorAsesor.forEach((m, k) => {
             if (k === gerenteKey) return;
             const nov = String(m?.novedad ?? '').trim();
             if (nov === '' || nov === 'Sin novedad') allAsesorKeys.add(k);
-          });
-          // Agregar asesores con ventas pero sin meta
-          ventasPorAsesor.forEach((_, k) => {
-            if (k !== gerenteKey) allAsesorKeys.add(k);
           });
           // NO usar prodByName.keys() — tiene nombres truncados y al gerente
 
