@@ -820,7 +820,7 @@ export const useGamificationMetrics = (
           };
 
           const metaContextActual = getMetaContextForPeriod(mesActual);
-          const { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
+          let { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
           // VN: meta ACV (mensual) — PRIORIDAD:
           //   1) metas_acv_gerentes (VERDAD oficial Databricks)
@@ -863,6 +863,20 @@ export const useGamificationMetrics = (
             return { metaTotal: total, metaFe, metaNube };
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
+
+          // Sobreescribir metas del mes actual con metas_acv_gerentes (fuente única,
+          // misma que enrich() del historial). Evita "Meta: 0 UDS" cuando el match
+          // por celula/gerente en metas_asesores no coincide.
+          const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
+          const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
+          const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
+          if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
+            metaFe = _catalogFeMes;
+            metaNube = _catalogNubeMes;
+            metaEquipoUnidades = _catalogUndMes > 0
+              ? _catalogUndMes
+              : (_catalogFeMes + _catalogNubeMes);
+          }
 
           let metaAcvEquipo = 0;
           if (acvOficial?.meta_total_acv) {
