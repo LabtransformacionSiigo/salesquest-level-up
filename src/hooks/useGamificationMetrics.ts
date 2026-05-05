@@ -1500,7 +1500,17 @@ export const useGamificationMetrics = (
             const meta_total = meta ? (Number(meta.meta_total) || 0) : 0;
 
             // Skip totally empty rows (no ventas, no meta, no acv)
-            if (ventas_total === 0 && meta_total === 0 && acv === 0 && !tiene_novedad) continue;
+            // Solo omitir si NO hay absolutamente nada: ni ventas, ni meta alguna, ni acv, ni novedad.
+            // Asesores con meta > 0 y 0 ventas deben aparecer (inicio de mes).
+            if (
+              ventas_total === 0 &&
+              meta_fe === 0 &&
+              meta_nube === 0 &&
+              meta_total === 0 &&
+              meta_acv === 0 &&
+              acv === 0 &&
+              !tiene_novedad
+            ) continue;
 
             teamAsesorPerformance.push({
               nombre,
