@@ -48,6 +48,33 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
+const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
+  if (!gerenteIds.length) return [] as any[];
+
+  const pageSize = 1000;
+  let from = 0;
+  const rows: any[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('ventas')
+      .select('gerente_id, anio, mes, acv_plus, meta')
+      .eq('canal', 'VC')
+      .eq('anio', year)
+      .like('documento_factura', 'SUM-%')
+      .in('gerente_id', gerenteIds)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+};
+
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
