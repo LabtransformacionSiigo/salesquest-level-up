@@ -215,7 +215,47 @@ Deno.serve(async (req) => {
                CASE WHEN LOWER(archivo) LIKE '%inicio%' THEN 0 ELSE 1 END
     `;
 
-    const { rows } = await executeDatabricksQuery(sql);
+    let { rows } = await executeDatabricksQuery(sql);
+    let source = "tbl_brz_cuotas_gerentes";
+
+    // Si la fuente agregada de gerentes todavía no publica el mes (caso Mayo),
+    // usamos el agregado oficial por célula desde cuotas_asesores para no dejar
+    // metas de gerentes en cero. Cuando gerentes publique Cierre, reemplazará Inicio.
+    if (rows.length === 0 && filterMes) {
+      const asesorTextChecks = filterMes.text
+        .map((m) => `LOWER(mes) LIKE '${m.replace(/'/g, "''")}%'`)
+        .join(" OR ");
+      const asesorNumericChecks = filterMes.numeric
+        .map((m) => `CAST(mes AS STRING) = '${m}'`)
+        .join(" OR ");
+      const fallbackSql = `
+        SELECT
+          pais AS pais,
+          canal_direccion,
+          MAX(COALESCE(director, gerente)) AS director,
+          celula,
+          '${filterMes.mes3}' AS mes,
+          'Inicio' AS archivo,
+          CAST(SUM(meta_fe) AS BIGINT)    AS fe,
+          CAST(SUM(meta_nube) AS BIGINT)  AS nube,
+          CAST(SUM(meta_total) AS BIGINT) AS meta_total_und,
+          CAST(0 AS BIGINT)               AS meta_total_acv,
+          CAST(100 AS BIGINT)             AS cuota
+        FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
+        WHERE celula IS NOT NULL
+          AND celula <> ''
+          AND mes IS NOT NULL
+          AND canal_direccion IN ('Aliados','SMBS','Empresarios')
+          AND meta_total IS NOT NULL
+          AND meta_total > 0
+          AND (${asesorTextChecks} OR ${asesorNumericChecks} OR CAST(mes AS STRING) = '${filterMes.period}')
+        GROUP BY pais, canal_direccion, celula
+        ORDER BY pais, canal_direccion, celula
+      `;
+      const fallbackResult = await executeDatabricksQuery(fallbackSql);
+      rows = fallbackResult.rows;
+      source = "tbl_brz_cuotas_asesores_aggregated";
+    }
 
     const summary = {
       total: rows.length,
@@ -225,6 +265,8 @@ Deno.serve(async (req) => {
       backfilled_fe_nube: 0,
       skipped_cierre_existente: 0,
       invalid: 0,
+      source,
+      mes: filterMes?.mes3 || "todos",
     };
     const errors: Array<{ row: any; error: string }> = [];
 
