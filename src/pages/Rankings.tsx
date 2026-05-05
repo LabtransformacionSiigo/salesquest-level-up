@@ -764,6 +764,7 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
