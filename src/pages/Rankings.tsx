@@ -120,7 +120,7 @@ const Rankings = () => {
         // Gerentes VC — SP calculado en tiempo real desde tabla ventas (mismo patrón
         // que comerciales) en vez de sp_acumulados (que es eventos-driven y queda obsoleto).
         const currentConventionYear2 = getCurrentConventionYear();
-        const [vcGerentesRes, gerentesRes, ventasAnualRes] = await Promise.all([
+        const [vcGerentesRes, gerentesRes] = await Promise.all([
           supabase
             .from('ranking_vc_gerentes' as any)
             .select('*')
@@ -130,14 +130,21 @@ const Rankings = () => {
             .select('id, sp_canje, nombre, user_id, avatar_url')
             .eq('canal', 'VC')
             .eq('pais', userPais),
-          supabase
-            .from('ventas')
-            .select('gerente_id, anio, mes, acv_plus, meta')
-            .eq('canal', 'VC')
-            .eq('anio', currentConventionYear2)
-            .like('documento_factura', 'SUM-%')
-            .range(0, 10000),
         ]);
+        // Limitar el query de ventas a los gerente_id del país del usuario para que
+        // la respuesta de PostgREST quepa en su tope (1000 filas) y los totales
+        // coincidan exactamente con el cálculo del badge (useSupabaseAuth).
+        const gerenteIdsPais = (gerentesRes.data || []).map((g: any) => g.id).filter(Boolean);
+        const ventasAnualRes = gerenteIdsPais.length
+          ? await supabase
+              .from('ventas')
+              .select('gerente_id, anio, mes, acv_plus, meta')
+              .eq('canal', 'VC')
+              .eq('anio', currentConventionYear2)
+              .like('documento_factura', 'SUM-%')
+              .in('gerente_id', gerenteIdsPais)
+              .range(0, 20000)
+          : { data: [] as any[] };
         const MES_NUM: Record<string, string> = {
           Enero: '01', Febrero: '02', Marzo: '03', Abril: '04',
           Mayo: '05', Junio: '06', Julio: '07', Agosto: '08',
