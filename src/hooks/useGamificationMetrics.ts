@@ -649,6 +649,12 @@ export const useGamificationMetrics = (
 
           const gerenteNombre = normalizeComparableText(profile.nombre);
           const celulaGerente = normalizeComparableText(profile.celula);
+          // Palabras significativas (>3 chars) del nombre del gerente para fuzzy match
+          // contra células de Databricks que se llaman "Equipo Ciudad NombreGerente"
+          // mientras Supabase usa "Cuarzo", "Rubí", etc.
+          const gerenteNameWords = gerenteNombre
+            .split(' ')
+            .filter((w: string) => w.length > 3);
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
           // Rendimiento del Equipo. El gerente se identifica por celula/gerente,
