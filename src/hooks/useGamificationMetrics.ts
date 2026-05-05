@@ -1293,10 +1293,20 @@ export const useGamificationMetrics = (
             };
             const targetMes3 = mes3ForAcv[String(period).slice(-2)] || '';
             const celulaGerenteNorm = normalizeComparableText(profile.celula);
-            const catalogMatches = acvCatalogRows.filter((r: any) => {
-              const rowMes = String(r.mes || '').trim().toLowerCase().slice(0, 3);
-              return rowMes === targetMes3 && normalizeComparableText(r.celula) === celulaGerenteNorm;
-            });
+            const gerenteNombreNorm = normalizeComparableText(profile.nombre);
+            const gerenteNameWords = gerenteNombreNorm.split(' ').filter((w: string) => w.length > 3);
+            const filterEnrichByMes = (r: any) =>
+              String(r.mes || '').trim().toLowerCase().slice(0, 3) === targetMes3;
+            let catalogMatches = acvCatalogRows.filter(
+              (r: any) => filterEnrichByMes(r) && normalizeComparableText(r.celula) === celulaGerenteNorm
+            );
+            if (catalogMatches.length === 0 && gerenteNameWords.length > 0) {
+              catalogMatches = acvCatalogRows.filter((r: any) => {
+                if (!filterEnrichByMes(r)) return false;
+                const rowCelulaNorm = normalizeComparableText(r.celula);
+                return gerenteNameWords.some((word: string) => rowCelulaNorm.includes(word));
+              });
+            }
             const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
             const mFe = Number(catalogRowForAcv?.meta_fe) || 0;
             const mNube = Number(catalogRowForAcv?.meta_nube) || 0;
