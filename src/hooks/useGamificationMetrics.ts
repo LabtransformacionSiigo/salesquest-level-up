@@ -112,6 +112,7 @@ export interface GamificationMetrics {
   /* Aliados/Empresarios specific */
   ejecucion: EjecucionAsesor | null;
   metaAsesor: MetaAsesor | null;
+  metasPendientes?: boolean;
 
   /* VN product breakdown */
   vnProductBreakdown: ProductBreakdownItem[];
