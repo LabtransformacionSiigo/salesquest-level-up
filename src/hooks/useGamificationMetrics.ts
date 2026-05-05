@@ -416,12 +416,23 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: fetch by gerente name for team aggregation */
+          /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas) */
           isVN && profile.role !== 'asesor' && profile.nombre
-            ? supabase.from('metas_asesores' as any).select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
-                .gte('anio_mes', `${anioActual}01`)
-                .lte('anio_mes', `${anioActual}12`)
-                .limit(50000)
+            ? (() => {
+                const safeNombre = String(profile.nombre).replace(/[%,()]/g, ' ').trim();
+                const firstName = safeNombre.split(/\s+/)[0] || safeNombre;
+                const orParts: string[] = [];
+                if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
+                if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
+                if (firstName && firstName.length > 3) orParts.push(`celula.ilike.%${firstName}%`);
+                let q = supabase.from('metas_asesores' as any)
+                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
+                  .gte('anio_mes', `${anioActual}01`)
+                  .lte('anio_mes', `${anioActual}12`)
+                  .limit(5000);
+                if (orParts.length > 0) q = q.or(orParts.join(','));
+                return q;
+              })()
             : Promise.resolve({ data: [] }),
           /* 16 – kpis_mensuales history for VN gerente (all months this year) */
           isVN
