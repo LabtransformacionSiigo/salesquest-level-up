@@ -117,22 +117,68 @@ const Rankings = () => {
         // Filter by user's country
         setRanking(mapped.filter(r => r.pais === userPais));
       } else {
-        // Gerentes VC — filter by user's country
-        const [vcGerentesRes, spRes, gerentesRes] = await Promise.all([
-          supabase.from('ranking_vc_gerentes' as any).select('*').eq('pais', userPais),
-          supabase.from('ranking_general').select('id, sp_totales, nivel, user_id, avatar_url').eq('canal', 'VC'),
-          supabase.from('gerentes').select('id, sp_canje').eq('canal', 'VC').eq('pais', userPais),
+        // Gerentes VC — SP calculado en tiempo real desde tabla ventas (mismo patrón
+        // que comerciales) en vez de sp_acumulados (que es eventos-driven y queda obsoleto).
+        const currentConventionYear2 = getCurrentConventionYear();
+        const [vcGerentesRes, gerentesRes, ventasAnualRes] = await Promise.all([
+          supabase
+            .from('ranking_vc_gerentes' as any)
+            .select('*')
+            .eq('pais', userPais),
+          supabase
+            .from('gerentes')
+            .select('id, sp_canje, nombre, user_id, avatar_url')
+            .eq('canal', 'VC')
+            .eq('pais', userPais),
+          supabase
+            .from('ventas')
+            .select('gerente_id, anio, mes, acv_plus, meta')
+            .eq('canal', 'VC')
+            .eq('anio', currentConventionYear2)
+            .like('documento_factura', 'SUM-%')
+            .range(0, 10000),
         ]);
-        const spMap = new Map<string, any>();
-        (spRes.data || []).forEach((s: any) => {
-          if (s.id) spMap.set(s.id, s);
+        const MES_NUM: Record<string, string> = {
+          Enero: '01', Febrero: '02', Marzo: '03', Abril: '04',
+          Mayo: '05', Junio: '06', Julio: '07', Agosto: '08',
+          Septiembre: '09', Octubre: '10', Noviembre: '11', Diciembre: '12',
+        };
+        const monthlyByGerente = new Map<string, Map<string, { acv: number; meta: number }>>();
+        (ventasAnualRes.data || []).forEach((row: any) => {
+          const gId = row.gerente_id;
+          const monthNum = MES_NUM[row.mes || ''];
+          if (!gId || !row.anio || !monthNum) return;
+          const period = `${row.anio}${monthNum}`;
+          const monthly = monthlyByGerente.get(gId) || new Map<string, { acv: number; meta: number }>();
+          const cur = monthly.get(period) || { acv: 0, meta: 0 };
+          cur.acv += Number(row.acv_plus) || 0;
+          cur.meta += Number(row.meta) || 0;
+          monthly.set(period, cur);
+          monthlyByGerente.set(gId, monthly);
+        });
+        const spByGerente = new Map<string, number>();
+        monthlyByGerente.forEach((months, gId) => {
+          const spTotal = [...months.values()].reduce((sum, m) => {
+            if (m.meta > 0 && m.acv > 0) sum += Math.round((m.acv / m.meta) * 100);
+            return sum;
+          }, 0);
+          spByGerente.set(gId, spTotal);
         });
         const canjeablesMap = new Map<string, number>();
+        const gerenteExtraMap = new Map<string, { user_id: string | null; avatar_url: string | null }>();
         (gerentesRes.data || []).forEach((g: any) => {
-          if (g.id) canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
+          if (!g.id) return;
+          canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
+          gerenteExtraMap.set(g.id, { user_id: g.user_id || null, avatar_url: g.avatar_url || null });
         });
         const mapped = (vcGerentesRes.data || []).map((r: any) => {
-          const sp = spMap.get(r.gerente_id);
+          const spVivo = spByGerente.get(r.gerente_id) || 0;
+          const extra = gerenteExtraMap.get(r.gerente_id);
+          const nivel =
+            spVivo >= 6001 ? 'Diamante' :
+            spVivo >= 4001 ? 'Platino' :
+            spVivo >= 2001 ? 'Oro' :
+            spVivo >= 1001 ? 'Plata' : 'Bronce';
           return {
             id: r.gerente_id,
             nombre: r.nombre,
@@ -141,14 +187,16 @@ const Rankings = () => {
             kpi_value: Math.round(Number(r.acv_total) || 0),
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
-            sp_totales: sp?.sp_totales || 0,
+            sp_totales: spVivo,
             sp_canje: canjeablesMap.get(r.gerente_id) || 0,
-            nivel: sp?.nivel || null,
-            user_id: sp?.user_id || null,
-            avatar_url: sp?.avatar_url || null,
+            nivel,
+            user_id: extra?.user_id || null,
+            avatar_url: extra?.avatar_url || null,
             posicion: r.posicion,
           };
         });
+        mapped.sort((a, b) => b.sp_totales - a.sp_totales);
+        mapped.forEach((r, i) => { r.posicion = i + 1; });
         setRanking(mapped);
       }
     } else if (isVN) {
