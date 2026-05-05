@@ -420,11 +420,9 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 const safeNombre = String(profile.nombre).replace(/[%,()]/g, ' ').trim();
-                const firstName = safeNombre.split(/\s+/)[0] || safeNombre;
                 const orParts: string[] = [];
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
-                if (firstName && firstName.length > 3) orParts.push(`celula.ilike.%${firstName}%`);
                 let q = supabase.from('metas_asesores' as any)
                   .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
                   .gte('anio_mes', `${anioActual}01`)
@@ -498,7 +496,7 @@ export const useGamificationMetrics = (
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
-                .select('pais, canal, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
+                .select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
                 .eq('pais', String(profile.pais || '').toUpperCase())
                 .limit(1000)
             : Promise.resolve({ data: [] }),
