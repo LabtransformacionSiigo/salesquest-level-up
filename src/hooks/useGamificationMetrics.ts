@@ -1501,6 +1501,12 @@ export const useGamificationMetrics = (
           team,
           ejecucion,
           metaAsesor,
+          metasPendientes:
+            isVN && !isVC && !isVcAdvisor && metaAsesor !== null &&
+            (Number(metaAsesor.meta_fe) === 0 &&
+             Number(metaAsesor.meta_nube) === 0 &&
+             Number(metaAsesor.meta_total) === 0 &&
+             Number(metaAsesor.meta_acv) === 0),
           vnProductBreakdown: [],
           teamAsesorPerformance,
           lastUpdated: new Date(),
