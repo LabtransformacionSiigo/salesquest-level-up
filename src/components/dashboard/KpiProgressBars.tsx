@@ -24,6 +24,7 @@ interface KpiProgressBarsProps {
   vcCumplimiento?: { acv: number; meta: number; pct: number } | null;
   periodoSeleccionado?: string;
   lastUpdated?: Date | null;
+  metasPendientes?: boolean;
 }
 
 const fmt = (v: number) => `$${(v / 1_000_000).toFixed(1)}M`;
