@@ -838,7 +838,7 @@ export const useGamificationMetrics = (
             const metaNube = validRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
             const metaTotal = validRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
 
-            return { rows: validRows, asesoresConNovedad, metaFe, metaNube, metaTotal };
+            return { rows: rows.filter((row: any) => !!row.nombre_asesor), asesoresConNovedad, metaFe, metaNube, metaTotal };
           };
 
           // Helper: clasifica una fila a familia oficial usando producto+pais.
