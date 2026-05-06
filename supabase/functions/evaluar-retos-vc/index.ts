@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
       // ── Evaluar cada reto del catálogo ──
       for (const reto of retos) {
-        const ventana = reto.ventana_tiempo;
+        const ventana = String(reto.ventana_tiempo || '').toLowerCase();
         const kpi = reto.kpi || reto.tipo_metrica;
         const familia = (reto.familia_vc as "NUBE" | "LEGACY" | "AMBAS" | null) || "AMBAS";
         const umbral = Number(reto.umbral) || 0;
