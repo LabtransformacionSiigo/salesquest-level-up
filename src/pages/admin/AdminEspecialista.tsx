@@ -97,6 +97,73 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
 const AdminEspecialista = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
+  const [ejecutando, setEjecutando] = useState(false);
+  const handleEjecutarEvaluacion = async () => {
+    setEjecutando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vc`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ dry_run: false }),
+        }
+      );
+      const result = await res.json();
+      if (result.ok) {
+        toast({
+          title: '✅ Evaluación completada',
+          description: `Retos otorgados: ${result.totalRetos} · SP Canje: ${result.totalSp}`,
+        });
+        fetchLogros();
+      } else {
+        toast({ title: '⚠️ Resultado con errores', description: JSON.stringify(result.errores?.slice(0, 2)), variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setEjecutando(false);
+    }
+  };
+  const [logros, setLogros] = useState<any[]>([]);
+  const [loadingLogros, setLoadingLogros] = useState(false);
+  const fetchLogros = async () => {
+    setLoadingLogros(true);
+    const [retosRes, medallasRes] = await Promise.all([
+      supabase
+        .from('retos_completados')
+        .select('gerente_id, reto, periodo, sp, tipo, gerentes(nombre)')
+        .order('periodo', { ascending: false })
+        .limit(200),
+      supabase
+        .from('medallas')
+        .select('gerente_id, medalla, fecha_desbloqueo, sp_otorgados, gerentes(nombre)')
+        .order('fecha_desbloqueo', { ascending: false })
+        .limit(200),
+    ]);
+    const retosData = (retosRes.data || []).map((r: any) => ({
+      tipo: 'reto',
+      gerente: r.gerentes?.nombre || r.gerente_id,
+      nombre: r.reto,
+      periodo: r.periodo,
+      sp: r.sp,
+      ventana: r.tipo,
+    }));
+    const medallasData = (medallasRes.data || []).map((m: any) => ({
+      tipo: 'medalla',
+      gerente: m.gerentes?.nombre || m.gerente_id,
+      nombre: m.medalla,
+      periodo: m.fecha_desbloqueo,
+      sp: m.sp_otorgados,
+      ventana: '—',
+    }));
+    setLogros([...retosData, ...medallasData].sort((a, b) => String(b.periodo).localeCompare(String(a.periodo))));
+    setLoadingLogros(false);
+  };
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
