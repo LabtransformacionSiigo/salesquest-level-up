@@ -55,10 +55,31 @@ interface VcRacha {
   gerente_id?: string | null;
 }
 
+// Clasificación VC: NUBE vs LEGACY. Debe coincidir 1:1 con la del edge
+// supabase/functions/evaluar-retos-vc/index.ts (classifyFamiliaVc).
+// Reglas (en orden):
+//   1) NUBE si contiene cualquier keyword nube (incluye 'pyme', 'lite',
+//      'emprendedor', 'premium', 'profesional independiente', 'sci',
+//      'contai', 'mto', 'nomina ili', 'nube', 'cloud').
+//   2) LEGACY si contiene 'ilimitada', 'legacy', 'contador', o es FE/POS/Nómina
+//      desktop (sin haber matcheado NUBE primero).
+//   3) OTROS en cualquier otro caso.
+const NUBE_KEYWORDS = [
+  'nube', 'cloud', 'siigo nube', 'pyme', 'lite', 'emprendedor', 'premium',
+  'profesional independiente', 'sci', 'contai', 'mto', 'nomina ili',
+];
+const LEGACY_KEYWORDS = [
+  'ilimitada', 'legacy', 'contador',
+  'fe ', 'fe(', 'fe pro', ' pos', 'pos ', 'pos inicio', 'pos avanzado',
+  'pos esencial', 'gastrobar', 'nomina base', 'nomina lite', 'nomina plus',
+  'nomina pro',
+];
 const classifyFamilia = (v: any): 'NUBE' | 'LEGACY' | 'OTROS' => {
-  const txt = `${v.producto || ''} ${v.categoria_producto_venta || ''} ${v.bloque_venta || ''}`.toLowerCase();
-  if (txt.includes('nube') || txt.includes('cloud')) return 'NUBE';
-  if (txt.includes('pyme') || txt.includes('ilimitada') || txt.includes('legacy') || txt.includes('contador')) return 'LEGACY';
+  const raw = `${v.producto || ''} ${v.categoria_producto_venta || ''} ${v.bloque_venta || ''}`
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  if (!raw) return 'OTROS';
+  if (NUBE_KEYWORDS.some((k) => raw.includes(k))) return 'NUBE';
+  if (LEGACY_KEYWORDS.some((k) => raw.includes(k))) return 'LEGACY';
   return 'OTROS';
 };
 
