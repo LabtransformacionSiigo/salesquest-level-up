@@ -486,11 +486,9 @@ const Rankings = () => {
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
           (() => {
-            const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
               .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
               .eq('scope', 'gerente')
-              .eq('canal_direccion', canalDir)
               .gte('mes_nro', 1)
               .lte('mes_nro', 12)
               .limit(5000);
@@ -608,6 +606,8 @@ const Rankings = () => {
           }
         });
 
+        const vnGerenteMetricByCelula = aggregateVnGerenteMetricRows(((vnMetricasMexGerRes as any)?.data as any[]) || [], currentMonth);
+
         // Aggregate by celula + month
         const celulaAgg = new Map<string, { celulaNombre: string; months: Map<string, { ventas: number; meta: number; acv: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
         (productividadRes.data || []).forEach((row: any) => {
@@ -630,6 +630,20 @@ const Rankings = () => {
             agg.currentAcv += normalizeStoredAcv(row.acv_f);
           }
           celulaAgg.set(celula, agg);
+        });
+        vnGerenteMetricByCelula.forEach((metricAgg, celula) => {
+          if (celulaAgg.has(celula)) return;
+          celulaAgg.set(celula, {
+            celulaNombre: metricAgg.celulaNombre,
+            months: new Map(),
+            recomendados: 0,
+            unidades: metricAgg.fe + metricAgg.nube,
+            acv: metricAgg.acv,
+            currentVentas: metricAgg.feMes + metricAgg.nubeMes,
+            currentMeta: 0,
+            currentRecomendados: 0,
+            currentAcv: metricAgg.acvMes,
+          });
         });
         const spInputsGer = {
           vgmRows: vgmGerRes.data || [],
