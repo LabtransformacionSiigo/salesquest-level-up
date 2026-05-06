@@ -875,9 +875,11 @@ export const useGamificationMetrics = (
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
             });
 
-            // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
-            // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
-            if (rows.length === 0 && gerenteNameWords.length > 0) {
+            // Estrategia 2 (fuzzy): SOLO cuando el gerente NO tiene célula asignada.
+            // Antes esto traía metas de células ajenas que compartían palabras del
+            // nombre (ej. "Equipo Bogota Diana" se contaba para gerentes con "Diana"
+            // en el nombre aunque tuvieran su propia célula "Equipo DianaM").
+            if (rows.length === 0 && !celulaGerente && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
                 if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
