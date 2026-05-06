@@ -131,39 +131,55 @@ const AdminEspecialista = () => {
   };
   const [logros, setLogros] = useState<any[]>([]);
   const [loadingLogros, setLoadingLogros] = useState(false);
+  const [logrosFiltro, setLogrosFiltro] = useState<{ tipo: string; desde: string; hasta: string; q: string }>({
+    tipo: 'TODOS', desde: '', hasta: '', q: '',
+  });
   const fetchLogros = async () => {
     setLoadingLogros(true);
-    const [retosRes, medallasRes] = await Promise.all([
-      supabase
-        .from('retos_completados')
-        .select('gerente_id, reto, periodo, sp, tipo, gerentes(nombre)')
-        .order('periodo', { ascending: false })
-        .limit(200),
-      supabase
-        .from('medallas')
-        .select('gerente_id, medalla, fecha_desbloqueo, sp_otorgados, gerentes(nombre)')
-        .order('fecha_desbloqueo', { ascending: false })
-        .limit(200),
-    ]);
-    const retosData = (retosRes.data || []).map((r: any) => ({
-      tipo: 'reto',
-      gerente: r.gerentes?.nombre || r.gerente_id,
-      nombre: r.reto,
-      periodo: r.periodo,
-      sp: r.sp,
-      ventana: r.tipo,
-    }));
-    const medallasData = (medallasRes.data || []).map((m: any) => ({
-      tipo: 'medalla',
-      gerente: m.gerentes?.nombre || m.gerente_id,
-      nombre: m.medalla,
-      periodo: m.fecha_desbloqueo,
-      sp: m.sp_otorgados,
-      ventana: '—',
-    }));
-    setLogros([...retosData, ...medallasData].sort((a, b) => String(b.periodo).localeCompare(String(a.periodo))));
+    // Fuente única: sp_acumulados (incluye retos diarios/semanales/mensuales, rachas y medallas)
+    const { data: spRows } = await supabase
+      .from('sp_acumulados')
+      .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes(nombre, canal, pais)')
+      .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL', 'MEDALLA'])
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    const items = (spRows || []).map((r: any) => {
+      const detalle = String(r.detalle || '');
+      const esRacha = detalle.startsWith('RACHA');
+      const esMedalla = r.fuente === 'MEDALLA';
+      const tipoLogro = esMedalla ? 'medalla' : esRacha ? 'racha' : 'reto';
+      // Nombre antes del primer "·"
+      const nombre = detalle.split('·')[0]?.trim() || detalle || r.fuente;
+      const ventana = r.fuente === 'RETO_DIARIO' ? 'diario'
+        : r.fuente === 'RETO_SEMANAL' ? 'semanal'
+        : r.fuente === 'RETO_MENSUAL' ? 'mensual'
+        : '—';
+      return {
+        id: r.id,
+        tipo: tipoLogro,
+        gerente: r.gerentes?.nombre || r.gerente_id,
+        canal: r.gerentes?.canal || '',
+        pais: r.gerentes?.pais || '',
+        nombre,
+        detalle,
+        periodo: r.periodo,
+        sp: r.sp,
+        ventana,
+        fecha: r.created_at,
+      };
+    });
+    setLogros(items);
     setLoadingLogros(false);
   };
+  const logrosFiltrados = logros.filter((l) => {
+    if (logrosFiltro.tipo !== 'TODOS' && l.tipo !== logrosFiltro.tipo) return false;
+    if (logrosFiltro.q && !`${l.gerente} ${l.nombre}`.toLowerCase().includes(logrosFiltro.q.toLowerCase())) return false;
+    if (logrosFiltro.desde && l.fecha && l.fecha.slice(0, 10) < logrosFiltro.desde) return false;
+    if (logrosFiltro.hasta && l.fecha && l.fecha.slice(0, 10) > logrosFiltro.hasta) return false;
+    return true;
+  });
+  const totalSpFiltrado = logrosFiltrados.reduce((s, l) => s + (Number(l.sp) || 0), 0);
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
