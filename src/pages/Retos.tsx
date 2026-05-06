@@ -232,23 +232,30 @@ const Retos = () => {
     return String(reto.umbral);
   };
 
+  const pickFamilia = (fam?: string | null): 'NUBE' | 'LEGACY' | 'AMBAS' => {
+    const f = (fam || 'AMBAS').toUpperCase();
+    return f === 'NUBE' || f === 'LEGACY' ? f : 'AMBAS';
+  };
+
   const getVcProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number; label: string } => {
     const umbral = Number(reto.umbral) || 0;
     if (umbral === 0) return { current: 0, target: 1, pct: 0, label: '' };
+    const fam = pickFamilia(reto.familia_vc);
     switch (reto.kpi) {
       case 'acv_plus': {
         const window = normalizeCatalogWindow(reto.ventana_tiempo);
-        if (window === 'DIARIO') {
-          const current = vcMetrics?.dailyAcvPlus ?? 0;
-          return {
-            current,
-            target: umbral,
-            pct: Math.min(100, (current / umbral) * 100),
-            label: `$${(current / 1_000_000).toFixed(1)}M / $${(umbral / 1_000_000).toFixed(0)}M`,
-          };
-        }
-        if (window === 'MENSUAL') {
-          const current = vcMetrics?.monthlyAcvPlus ?? 0;
+        const pickAcv = (which: 'daily' | 'monthly') => {
+          if (which === 'daily') {
+            return fam === 'NUBE' ? vcMetrics.dailyAcvNube
+              : fam === 'LEGACY' ? vcMetrics.dailyAcvLegacy
+              : vcMetrics.dailyAcvTotal;
+          }
+          return fam === 'NUBE' ? vcMetrics.monthlyAcvNube
+            : fam === 'LEGACY' ? vcMetrics.monthlyAcvLegacy
+            : vcMetrics.monthlyAcvTotal;
+        };
+        if (window === 'DIARIO' || window === 'MENSUAL') {
+          const current = pickAcv(window === 'DIARIO' ? 'daily' : 'monthly');
           return {
             current,
             target: umbral,
@@ -259,7 +266,9 @@ const Retos = () => {
         return { current: 0, target: umbral, pct: 0, label: '' };
       }
       case 'upgrades': {
-        const current = vcMetrics?.weeklyUpgrades ?? 0;
+        const current = fam === 'NUBE' ? vcMetrics.weeklyUpgradesNube
+          : fam === 'LEGACY' ? vcMetrics.weeklyUpgradesLegacy
+          : vcMetrics.weeklyUpgradesTotal;
         return {
           current,
           target: umbral,
@@ -267,8 +276,9 @@ const Retos = () => {
           label: `${current} / ${umbral} upgrades`,
         };
       }
-      case 'cumplimiento_pct': {
-        const current = vcMetrics?.monthlyCumplimientoPct ?? 0;
+      case 'cumplimiento_pct':
+      case 'conversiones': {
+        const current = vcMetrics.monthlyCumplimientoPct;
         return {
           current,
           target: umbral,
@@ -276,18 +286,78 @@ const Retos = () => {
           label: `${current.toFixed(1)}% / ${umbral}%`,
         };
       }
-      case 'conversiones': {
-        const monthlyCumpl = vcMetrics?.monthlyCumplimientoPct ?? 0;
-        return {
-          current: monthlyCumpl,
-          target: umbral,
-          pct: Math.min(100, (monthlyCumpl / umbral) * 100),
-          label: `${monthlyCumpl.toFixed(1)}% / ${umbral}%`,
-        };
-      }
       default:
         return { current: 0, target: 1, pct: 0, label: '' };
     }
+  };
+
+  const renderRachaCard = (racha: VcRacha) => {
+    const fam = pickFamilia(racha.familia_vc);
+    const umbralN = Number(racha.umbral_verde) || 0;
+    const umbralL = Number(racha.umbral_legacy) || 0;
+    const dias = vcMetrics.artilleroDias.map((d) => {
+      const cumple = fam === 'NUBE' ? d.nube >= umbralN
+        : fam === 'LEGACY' ? d.legacy >= umbralL
+        : (d.nube >= umbralN || d.legacy >= umbralL);
+      return { ...d, cumple };
+    });
+    const cumplidos = dias.filter((d) => d.cumple).length;
+    const totalDias = 3;
+    const pct = (cumplidos / totalDias) * 100;
+    const completa = cumplidos === totalDias && dias.length === totalDias;
+    const dayLabels = ['Lun', 'Mar', 'Mié'];
+
+    return (
+      <motion.div
+        key={racha.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completa ? 'border-l-accent' : 'border-l-siigo-yellow')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
+            🔥 RACHA · LUN/MAR/MIÉ
+          </span>
+          {completa && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADA</span>}
+        </div>
+        <div className="flex items-center gap-3 mb-3 mt-2">
+          <span className="text-3xl">{racha.emoji || '🔥'}</span>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">{racha.nombre}</p>
+            <p className="text-xs text-muted-foreground">
+              {racha.objetivo_descripcion || `Logra ${fam === 'LEGACY' ? `$${(umbralL/1_000_000).toFixed(0)}M Legacy` : fam === 'NUBE' ? `$${(umbralN/1_000_000).toFixed(0)}M Nube` : `$${(umbralN/1_000_000).toFixed(0)}M Nube ó $${(umbralL/1_000_000).toFixed(0)}M Legacy`} cada Lun/Mar/Mié`}
+            </p>
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">ACV diario</span>
+              <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{familiaLabel(racha.familia_vc)}</span>
+              <span className="text-[9px] font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">x{racha.multiplicador_sp} SP semanal</span>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {dayLabels.map((lbl, idx) => {
+            const d = dias[idx];
+            const valor = d ? (fam === 'LEGACY' ? d.legacy : fam === 'NUBE' ? d.nube : Math.max(d.nube, d.legacy)) : 0;
+            const target = fam === 'LEGACY' ? umbralL : fam === 'NUBE' ? umbralN : umbralN;
+            const ok = d?.cumple;
+            return (
+              <div key={lbl} className={cn('rounded-lg p-2 text-center border', ok ? 'bg-accent/10 border-accent' : d ? 'bg-muted/40 border-muted' : 'bg-muted/20 border-dashed border-muted')}>
+                <p className="text-[10px] font-bold uppercase">{lbl} {ok && '✅'}</p>
+                <p className="text-[10px] text-muted-foreground">${(valor / 1_000_000).toFixed(1)}M</p>
+                <p className="text-[9px] text-muted-foreground">/ ${(target / 1_000_000).toFixed(0)}M</p>
+              </div>
+            );
+          })}
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>{cumplidos} / {totalDias} días cumplidos</span>
+            <span className="font-scoreboard">{Math.round(pct)}%</span>
+          </div>
+          <Progress value={pct} className="h-2" />
+        </div>
+      </motion.div>
+    );
   };
 
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
