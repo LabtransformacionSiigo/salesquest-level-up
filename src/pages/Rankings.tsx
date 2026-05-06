@@ -470,17 +470,30 @@ const Rankings = () => {
             asesoresConNovedadTeam.add(String(r.nombre_asesor).trim().toLowerCase());
           }
         });
-        // Build meta ACV by celula+period from productividad_asesores.meta (excluding novedad)
+        // Meta ACV oficial por celula+mes desde metas_acv_gerentes.meta_total_acv
+        // (Cierre prioritario sobre Inicio). Se guarda como entero por mes.
+        const MES3_TO_NUM: Record<string, string> = {
+          ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',
+          jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12',
+        };
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
-        (productividadRes.data || []).forEach((row: any) => {
+        const metaAcvArchivoByCelula = new Map<string, Map<string, string>>();
+        (metasAcvGerRes.data || []).forEach((row: any) => {
           const celula = normalizeComparableText(row.celula);
-          const period = String(row.anio_mes || '');
-          const asesorName = normalizeComparableText(row.asesor);
-          if (!celula) return;
-          if (asesoresConNovedadTeam.has(asesorName)) return;
+          const mes3 = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
+          const mm = MES3_TO_NUM[mes3];
+          if (!celula || !mm) return;
+          const period = `${currentConventionYear}${mm}`;
+          const archivo = String(row.archivo ?? '').toLowerCase();
           const periodMap = metaAcvByCelulaTeam.get(celula) || new Map<string, number>();
-          periodMap.set(period, (periodMap.get(period) || 0) + normalizeVnMetaAcv(row.meta, row.pais));
+          const archivoMap = metaAcvArchivoByCelula.get(celula) || new Map<string, string>();
+          // Si ya hay Cierre registrado, no sobreescribir con Inicio.
+          const prevArchivo = archivoMap.get(period) || '';
+          if (prevArchivo.includes('cierre') && !archivo.includes('cierre')) return;
+          periodMap.set(period, Math.round(Number(row.meta_total_acv) || 0));
+          archivoMap.set(period, archivo);
           metaAcvByCelulaTeam.set(celula, periodMap);
+          metaAcvArchivoByCelula.set(celula, archivoMap);
         });
 
         const asesorNames = new Set<string>();
