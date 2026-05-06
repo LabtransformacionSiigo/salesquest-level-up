@@ -1315,10 +1315,18 @@ export const useGamificationMetrics = (
             const gerenteNameWords = gerenteNombreNorm.split(' ').filter((w: string) => w.length > 3);
             const filterEnrichByMes = (r: any) =>
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === targetMes3;
-            let catalogMatches = acvCatalogRows.filter(
-              (r: any) => filterEnrichByMes(r) && normalizeComparableText(r.celula) === celulaGerenteNorm
-            );
-            if (catalogMatches.length === 0 && gerenteNameWords.length > 0) {
+            // FUENTE ÚNICA: match estricto por célula del gerente.
+            // El fallback por palabras del nombre se ELIMINA porque mezclaba metas de
+            // otras células (ej. "Equipo DianaM" tomaba metas de "Equipo Bogota Diana"
+            // por compartir la palabra "diana"), inflando Historial Mensual y SP anual.
+            // Solo se permite fallback por nombre cuando el gerente NO tiene célula
+            // asignada (caso límite de configuración).
+            let catalogMatches = celulaGerenteNorm
+              ? acvCatalogRows.filter(
+                  (r: any) => filterEnrichByMes(r) && normalizeComparableText(r.celula) === celulaGerenteNorm
+                )
+              : [];
+            if (catalogMatches.length === 0 && !celulaGerenteNorm && gerenteNameWords.length > 0) {
               catalogMatches = acvCatalogRows.filter((r: any) => {
                 if (!filterEnrichByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
