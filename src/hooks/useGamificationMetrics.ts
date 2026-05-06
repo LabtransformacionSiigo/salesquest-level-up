@@ -502,8 +502,8 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
-                  Filtramos preferentemente por celula; fallback a canal+pais
-                  y filtrado en cliente por nombre normalizado. */
+                  No filtramos por canal_direccion: Databricks puede traer la
+                  célula con el canal anterior después de una reasignación. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // No filtramos por celula server-side porque la grafía puede diferir
@@ -518,10 +518,6 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(8000);
-                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                               : null;
-                if (canalDir) q = q.eq('canal_direccion', canalDir);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
@@ -529,7 +525,9 @@ export const useGamificationMetrics = (
           /* 23 – vn_metricas_optimizadas (scope=gerente): FUENTE PRIMARIA del
                   Rendimiento del Mes y del Historial Mensual del gerente VN.
                   Misma fuente que se usa hoy para "Rendimiento del Mes" — al
-                  consumirla también para el Historial garantizamos consistencia. */
+                  consumirla también para el Historial garantizamos consistencia.
+                  No filtrar por canal_direccion para soportar reasignaciones
+                  Aliados ↔ Empresarios con datos todavía marcados en el canal anterior. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // Igual que scope=asesor: evitamos .eq('celula', ...) server-side y
@@ -541,10 +539,6 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(5000);
-                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                               : null;
-                if (canalDir) q = q.eq('canal_direccion', canalDir);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
@@ -786,7 +780,6 @@ export const useGamificationMetrics = (
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('canal_direccion', canalNorm)
                 .eq('pais', paisProfile)
                 .range(from, from + pageSize - 1);
 
@@ -799,11 +792,9 @@ export const useGamificationMetrics = (
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
-            const rowCanal = String(row.canal_direccion || '').trim();
             const rowPais = String(row.pais || '').toUpperCase().trim();
-            const sameCanal = !canalNorm || rowCanal === canalNorm;
             const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
-            if (!sameCanal || !samePais) return false;
+            if (!samePais) return false;
 
             const asesorNorm = normalizeComparableText(row.asesor);
             const rowCelulaNorm = normalizeComparableText(row.celula);
@@ -873,9 +864,8 @@ export const useGamificationMetrics = (
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
 
             // Estrategia 1 (exacta): celula del perfil
-            const sameCatalogCanal = (r: any) => !profile.canal || String(r.canal || '') === String(profile.canal || '');
             let rows = acvCatalogRows.filter((r: any) => {
-              if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+              if (!filterByMes(r)) return false;
               const rowCelulaNorm = normalizeComparableText(r.celula);
               const rowDirectorNorm = normalizeComparableText(r.director);
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
@@ -885,7 +875,7 @@ export const useGamificationMetrics = (
             // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
             if (rows.length === 0 && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
-                if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+                if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
                 const rowDirectorNorm = normalizeComparableText(r.director);
                 return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
@@ -951,8 +941,7 @@ export const useGamificationMetrics = (
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
             const nombre = normalizeComparableText(e.documento_asesor);
             const documento = String(e.documento_asesor || '').trim().toLowerCase();
-            const sameCanal = !canalNorm || e.canal_direccion === canalNorm;
-            return sameCanal && (matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento));
+            return matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento);
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);

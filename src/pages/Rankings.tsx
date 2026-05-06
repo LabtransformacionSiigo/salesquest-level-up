@@ -48,6 +48,42 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
+const aggregateVnGerenteMetricRows = (rows: any[], currentMonth: string) => {
+  const currentMonthNumber = Number(currentMonth.slice(-2));
+  const byCelula = new Map<string, { celulaNombre: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+
+  (rows || []).forEach((r: any) => {
+    const celulaRaw = String(r.celula ?? '').trim();
+    if (!celulaRaw) return;
+    const key = normalizeComparableText(celulaRaw);
+    const cur = byCelula.get(key) ?? {
+      celulaNombre: celulaRaw,
+      gerente: r.gerente ?? '',
+      fe: 0,
+      nube: 0,
+      acv: 0,
+      feMes: 0,
+      nubeMes: 0,
+      acvMes: 0,
+    };
+    if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
+    const tipo = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+    const ventas = Math.round(Number(r.ventas) || 0);
+    const acv = Math.round(Number(r.acv_total) || 0);
+    if (tipo === 'FE') cur.fe += ventas;
+    if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += ventas;
+    cur.acv += acv;
+    if (Number(r.mes_nro) === currentMonthNumber) {
+      if (tipo === 'FE') cur.feMes += ventas;
+      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += ventas;
+      cur.acvMes += acv;
+    }
+    byCelula.set(key, cur);
+  });
+
+  return byCelula;
+};
+
 const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
   if (!gerenteIds.length) return [] as any[];
 
@@ -450,11 +486,9 @@ const Rankings = () => {
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
           (() => {
-            const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
               .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
               .eq('scope', 'gerente')
-              .eq('canal_direccion', canalDir)
               .gte('mes_nro', 1)
               .lte('mes_nro', 12)
               .limit(5000);
@@ -572,6 +606,8 @@ const Rankings = () => {
           }
         });
 
+        const vnGerenteMetricByCelula = aggregateVnGerenteMetricRows(((vnMetricasMexGerRes as any)?.data as any[]) || [], currentMonth);
+
         // Aggregate by celula + month
         const celulaAgg = new Map<string, { celulaNombre: string; months: Map<string, { ventas: number; meta: number; acv: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
         (productividadRes.data || []).forEach((row: any) => {
@@ -595,6 +631,20 @@ const Rankings = () => {
           }
           celulaAgg.set(celula, agg);
         });
+        vnGerenteMetricByCelula.forEach((metricAgg, celula) => {
+          if (celulaAgg.has(celula)) return;
+          celulaAgg.set(celula, {
+            celulaNombre: metricAgg.celulaNombre,
+            months: new Map(),
+            recomendados: 0,
+            unidades: metricAgg.fe + metricAgg.nube,
+            acv: metricAgg.acv,
+            currentVentas: metricAgg.feMes + metricAgg.nubeMes,
+            currentMeta: 0,
+            currentRecomendados: 0,
+            currentAcv: metricAgg.acvMes,
+          });
+        });
         const spInputsGer = {
           vgmRows: vgmGerRes.data || [],
           metaAsesorRows: metasAsesoresRes.data || [],
@@ -612,16 +662,23 @@ const Rankings = () => {
           const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
           const celulaMetaMap = metaAcvByCelulaTeam.get(celula);
           const currentMetaAcv = celulaMetaMap?.get(currentMonth) || 0;
-          const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && agg.currentAcv > 0 ? Math.round((agg.currentAcv / currentMetaAcv) * 100) : 0);
+          const metricCurrent = vnGerenteMetricByCelula.get(celula);
+          const currentAcvValue = metricCurrent ? metricCurrent.acvMes : agg.currentAcv;
+          const currentVentasValue = metricCurrent ? metricCurrent.feMes + metricCurrent.nubeMes : agg.currentVentas;
+          const totalAcvValue = metricCurrent ? metricCurrent.acv : agg.acv;
+          const totalVentasValue = metricCurrent ? metricCurrent.fe + metricCurrent.nube : agg.unidades;
+          const pct = currentMetaAcv > 0 && currentAcvValue > 0 ? Math.round((currentAcvValue / currentMetaAcv) * 100) : (currentMonthly?.pctAcv ?? 0);
           const gerenteInfo = gerentesByCelula.get(celula);
 
-          // Ventas FE/Nube del mes actual desde ventas_gerente_mensual (fuente correcta para gerentes VN)
+          // Ventas FE/Nube del mes actual desde vn_metricas_optimizadas; fallback ventas_gerente_mensual.
           const vgmMesActual = (vgmGerRes.data || []).filter((r: any) =>
             normalizeComparableText(r.celula) === celula &&
             String(r.periodo) === currentMonth
           );
-          let currentFe = 0, currentNube = 0;
+          let currentFe = metricCurrent?.feMes || 0;
+          let currentNube = metricCurrent?.nubeMes || 0;
           vgmMesActual.forEach((r: any) => {
+            if (metricCurrent) return;
             const fam = String(r.familia ?? '').toUpperCase();
             if (fam === 'FE') currentFe += Math.round(Number(r.unidades) || 0);
             if (fam === 'NUBE') currentNube += Math.round(Number(r.unidades) || 0);
@@ -659,13 +716,13 @@ const Rankings = () => {
             celula_nombre: agg.celulaNombre || celula,
             canal: profile.canal,
             pais: userPais,
-            kpi_value: Math.round(agg.currentAcv),
-            acv_total_year: Math.round(agg.acv),
+            kpi_value: Math.round(currentAcvValue),
+            acv_total_year: Math.round(totalAcvValue),
             meta_total: currentMetaAcv,
             meta_acv: currentMetaAcv,
             meta_unidades: currentMonthly?.metaTotal || 0,
-            unidades_logradas: agg.currentVentas,
-            unidades_total: agg.unidades,
+            unidades_logradas: currentVentasValue,
+            unidades_total: totalVentasValue,
             cant_recomendados: agg.currentRecomendados,
             pct_cumplimiento: pct,
             pct_fe: pctFeMes,
