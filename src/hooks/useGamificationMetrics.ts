@@ -867,9 +867,8 @@ export const useGamificationMetrics = (
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3;
 
             // Estrategia 1 (exacta): celula del perfil
-            const sameCatalogCanal = (r: any) => !profile.canal || String(r.canal || '') === String(profile.canal || '');
             let rows = acvCatalogRows.filter((r: any) => {
-              if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+              if (!filterByMes(r)) return false;
               const rowCelulaNorm = normalizeComparableText(r.celula);
               const rowDirectorNorm = normalizeComparableText(r.director);
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
@@ -879,7 +878,7 @@ export const useGamificationMetrics = (
             // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
             if (rows.length === 0 && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
-                if (!filterByMes(r) || !sameCatalogCanal(r)) return false;
+                if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
                 const rowDirectorNorm = normalizeComparableText(r.director);
                 return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
