@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     // ── Cargar ventas del MES actual (cubre día/semana/mes) ──
     const { data: ventasMes } = await supabase
       .from("ventas")
-      .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta")
+      .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta, documento_factura")
       .eq("canal", "VC")
       .in("gerente_id", gerenteIds)
       .gte("fecha_facturacion", monthStart)
@@ -142,10 +142,17 @@ Deno.serve(async (req) => {
     let totalSp = 0;
 
     for (const gerente of gerentes) {
-      const ventas = ventasByGerente.get(gerente.id) || [];
-      if (ventas.length === 0 && retos.every((r) => r.kpi !== "cumplimiento_pct")) continue;
+      const ventasAll = ventasByGerente.get(gerente.id) || [];
+      // SUM- = consolidado mensual (para ACV+ totales y cumplimiento). PROD- = transacciones reales (para upgrades/conversiones/ACV+ diario).
+      const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
+      const isProd = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('PROD-');
+      const ventasSum = ventasAll.filter(isSum);
+      const ventasProd = ventasAll.filter(isProd);
+      // Para evaluación general usamos PROD (transacciones diarias). Las métricas mensuales agregadas usan SUM.
+      const ventas = ventasProd;
+      if (ventasAll.length === 0 && retos.every((r) => r.kpi !== "cumplimiento_pct")) continue;
 
-      // Pre-agregaciones por familia para hoy / semana / mes
+      // Pre-agregaciones por familia para hoy / semana / mes (sobre transacciones PROD)
       const sumAcvBy = (filterFn: (v: any) => boolean, famFilter?: "NUBE" | "LEGACY" | "AMBAS") =>
         ventas
           .filter(filterFn)
@@ -163,9 +170,9 @@ Deno.serve(async (req) => {
             return classifyFamiliaVc(v) === famFilter;
           }).length;
 
-      // Meta del mes (toma máxima meta registrada para el mes, suele venir replicada)
-      const metaMes = Math.max(0, ...ventas.map((v) => Number(v.meta) || 0));
-      const acvMes = sumAcvBy((v) => v.fecha_facturacion >= monthStart && v.fecha_facturacion < monthEnd);
+      // Meta y ACV mensuales se toman del consolidado SUM- (fuente de verdad).
+      const metaMes = Math.max(0, ...ventasSum.map((v) => Number(v.meta) || 0));
+      const acvMes = ventasSum.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const cumplimientoMesPct = metaMes > 0 ? (acvMes / metaMes) * 100 : 0;
       const conversionesMes = countBy((v) => isConversion(v) && v.fecha_facturacion >= monthStart && v.fecha_facturacion < monthEnd);
       const conversionesPct = metaMes > 0 ? (conversionesMes / (metaMes / 1000000)) * 100 : 0; // aprox por unidades vs meta MM
