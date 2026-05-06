@@ -674,6 +674,10 @@ export const useGamificationMetrics = (
           };
           const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
             if (celulaGerente && rowCelula === celulaGerente) return true;
+            // Si el gerente tiene célula definida, NO usar fuzzy match por palabras
+            // del nombre — eso mezclaba datos entre células que comparten un nombre
+            // común (ej. "Equipo DianaM" vs "Equipo Bogota Diana").
+            if (celulaGerente) return false;
             if (matchesGerenteName(rowGerente)) return true;
             return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
           };
@@ -871,9 +875,11 @@ export const useGamificationMetrics = (
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
             });
 
-            // Estrategia 2 (fuzzy): nombre del gerente en celula Databricks.
-            // Cubre "Equipo Bogota Diana" cuando profile.celula = "Cuarzo".
-            if (rows.length === 0 && gerenteNameWords.length > 0) {
+            // Estrategia 2 (fuzzy): SOLO cuando el gerente NO tiene célula asignada.
+            // Antes esto traía metas de células ajenas que compartían palabras del
+            // nombre (ej. "Equipo Bogota Diana" se contaba para gerentes con "Diana"
+            // en el nombre aunque tuvieran su propia célula "Equipo DianaM").
+            if (rows.length === 0 && !celulaGerente && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
                 if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
@@ -1315,10 +1321,18 @@ export const useGamificationMetrics = (
             const gerenteNameWords = gerenteNombreNorm.split(' ').filter((w: string) => w.length > 3);
             const filterEnrichByMes = (r: any) =>
               String(r.mes || '').trim().toLowerCase().slice(0, 3) === targetMes3;
-            let catalogMatches = acvCatalogRows.filter(
-              (r: any) => filterEnrichByMes(r) && normalizeComparableText(r.celula) === celulaGerenteNorm
-            );
-            if (catalogMatches.length === 0 && gerenteNameWords.length > 0) {
+            // FUENTE ÚNICA: match estricto por célula del gerente.
+            // El fallback por palabras del nombre se ELIMINA porque mezclaba metas de
+            // otras células (ej. "Equipo DianaM" tomaba metas de "Equipo Bogota Diana"
+            // por compartir la palabra "diana"), inflando Historial Mensual y SP anual.
+            // Solo se permite fallback por nombre cuando el gerente NO tiene célula
+            // asignada (caso límite de configuración).
+            let catalogMatches = celulaGerenteNorm
+              ? acvCatalogRows.filter(
+                  (r: any) => filterEnrichByMes(r) && normalizeComparableText(r.celula) === celulaGerenteNorm
+                )
+              : [];
+            if (catalogMatches.length === 0 && !celulaGerenteNorm && gerenteNameWords.length > 0) {
               catalogMatches = acvCatalogRows.filter((r: any) => {
                 if (!filterEnrichByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
