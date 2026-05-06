@@ -1361,6 +1361,7 @@ export const useGamificationMetrics = (
             return {
               ...base,
               acv: acvFinal,
+              meta: metaAcvFinal,
               pct: pctAcvFinal,
               ventas_fe: ej.fe,
               ventas_nube: ej.nube,
