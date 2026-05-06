@@ -37,6 +37,31 @@ interface VcCatalogReto {
   fecha_fin?: string | null;
 }
 
+interface VcRacha {
+  id: string;
+  nombre: string;
+  emoji: string | null;
+  kpi: string | null;
+  familia_vc: string | null;
+  umbral_verde: number;
+  umbral_legacy: number | null;
+  multiplicador_sp: number;
+  dias_lun_mie: boolean;
+  objetivo_descripcion: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  canal?: string | null;
+  pais?: string | null;
+  gerente_id?: string | null;
+}
+
+const classifyFamilia = (v: any): 'NUBE' | 'LEGACY' | 'OTROS' => {
+  const txt = `${v.producto || ''} ${v.categoria_producto_venta || ''} ${v.bloque_venta || ''}`.toLowerCase();
+  if (txt.includes('nube') || txt.includes('cloud')) return 'NUBE';
+  if (txt.includes('pyme') || txt.includes('ilimitada') || txt.includes('legacy') || txt.includes('contador')) return 'LEGACY';
+  return 'OTROS';
+};
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
