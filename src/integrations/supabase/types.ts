@@ -499,6 +499,7 @@ export type Database = {
           descripcion: string | null
           dias_lun_mie: boolean | null
           dias_requeridos: number | null
+          emoji: string | null
           familia_vc: string | null
           fecha_fin: string | null
           fecha_inicio: string | null
@@ -522,6 +523,7 @@ export type Database = {
           descripcion?: string | null
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
+          emoji?: string | null
           familia_vc?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
@@ -545,6 +547,7 @@ export type Database = {
           descripcion?: string | null
           dias_lun_mie?: boolean | null
           dias_requeridos?: number | null
+          emoji?: string | null
           familia_vc?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null

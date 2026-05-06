@@ -1,0 +1,1 @@
+ALTER TABLE public.config_rachas ADD COLUMN IF NOT EXISTS emoji text;
