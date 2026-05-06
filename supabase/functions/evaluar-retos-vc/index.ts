@@ -318,10 +318,10 @@ Deno.serve(async (req) => {
         });
         spInsert.push({
           gerente_id: gerente.id,
-          fuente: "RACHA_VC",
+          fuente: "RETO_SEMANAL",
           sp: bonus,
           periodo: weekKey,
-          detalle: `${racha.nombre} · multiplicador ${multiplicador}x · familia ${familia}`,
+          detalle: `RACHA · ${racha.nombre} · multiplicador ${multiplicador}x · familia ${familia}`,
           tipo_sp: "canje",
         });
         completadosSet.add(key);
