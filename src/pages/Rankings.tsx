@@ -175,7 +175,7 @@ const Rankings = () => {
           canal: 'VC',
           pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
           sp_canje: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
-          nivel: null,
+          nivel: getNivelData(spByComercial.get(normalizePersonName(r.nombre)) || 0, 'VC').nivel,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         }));
         // Filter by user's country
@@ -236,11 +236,7 @@ const Rankings = () => {
         const mapped = (vcGerentesRes.data || []).map((r: any) => {
           const spVivo = spByGerente.get(r.gerente_id) || 0;
           const extra = gerenteExtraMap.get(r.gerente_id);
-          const nivel =
-            spVivo >= 6001 ? 'Diamante' :
-            spVivo >= 4001 ? 'Platino' :
-            spVivo >= 2001 ? 'Oro' :
-            spVivo >= 1001 ? 'Plata' : 'Bronce';
+          const nivel = getNivelData(spVivo, 'VC').nivel;
           return {
             id: r.gerente_id,
             nombre: r.nombre,
