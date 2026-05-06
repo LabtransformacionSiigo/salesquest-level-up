@@ -674,6 +674,10 @@ export const useGamificationMetrics = (
           };
           const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
             if (celulaGerente && rowCelula === celulaGerente) return true;
+            // Si el gerente tiene célula definida, NO usar fuzzy match por palabras
+            // del nombre — eso mezclaba datos entre células que comparten un nombre
+            // común (ej. "Equipo DianaM" vs "Equipo Bogota Diana").
+            if (celulaGerente) return false;
             if (matchesGerenteName(rowGerente)) return true;
             return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
           };
