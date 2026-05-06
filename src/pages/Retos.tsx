@@ -62,18 +62,40 @@ const classifyFamilia = (v: any): 'NUBE' | 'LEGACY' | 'OTROS' => {
   return 'OTROS';
 };
 
+interface VcMetrics {
+  // ACV+ del día por familia (PROD-)
+  dailyAcvNube: number;
+  dailyAcvLegacy: number;
+  dailyAcvTotal: number;
+  // Upgrades semana por familia (PROD-)
+  weeklyUpgradesNube: number;
+  weeklyUpgradesLegacy: number;
+  weeklyUpgradesTotal: number;
+  // ACV+ mes por familia (PROD-)
+  monthlyAcvNube: number;
+  monthlyAcvLegacy: number;
+  monthlyAcvTotal: number;
+  // Cumplimiento mensual (SUM-)
+  monthlyCumplimientoPct: number;
+  monthlyAcvSum: number;
+  monthlyMetaSum: number;
+  // Racha "El artillero" — días lun/mar/mié evaluados
+  artilleroDias: { fecha: string; nube: number; legacy: number; cumple: boolean }[];
+}
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
+  const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [vcMetrics, setVcMetrics] = useState<{
-    dailyAcvPlus: number;
-    weeklyUpgrades: number;
-    monthlyCumplimientoPct: number;
-    monthlyAcvPlus: number;
-    monthlyMeta: number;
-  }>({ dailyAcvPlus: 0, weeklyUpgrades: 0, monthlyCumplimientoPct: 0, monthlyAcvPlus: 0, monthlyMeta: 0 });
+  const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
+    dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
+    weeklyUpgradesNube: 0, weeklyUpgradesLegacy: 0, weeklyUpgradesTotal: 0,
+    monthlyAcvNube: 0, monthlyAcvLegacy: 0, monthlyAcvTotal: 0,
+    monthlyCumplimientoPct: 0, monthlyAcvSum: 0, monthlyMetaSum: 0,
+    artilleroDias: [],
+  });
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -90,43 +112,92 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
+      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, snapshot] = await Promise.all([
         supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+        supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
         isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
+      setVcRachas(filterCatalogByScope((rachasCfg || []) as VcRacha[], profile));
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-      if (snapshot?.vcMetrics) {
-        setVcMetrics(snapshot.vcMetrics);
-      } else if (profile.canal === 'VC' && profile.id) {
-        // Gerente VC: calcular métricas mensuales/diarias/semanales desde la tabla ventas
+
+      if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
+        // Gerente VC: réplica de la lógica del edge function (SUM- vs PROD-)
         const now = new Date();
         const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
         const todayStr2 = now.toISOString().split('T')[0];
-        const weekStart = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d.toISOString().split('T')[0]; })();
+        const monday = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d; })();
+        const weekStart = monday.toISOString().split('T')[0];
 
         const { data: vMes } = await supabase
           .from('ventas')
-          .select('fecha_facturacion, acv_plus, meta, categoria_producto_venta, recurrencia, bloque_venta')
+          .select('fecha_facturacion, acv_plus, meta, producto, categoria_producto_venta, recurrencia, bloque_venta, documento_factura')
           .eq('canal', 'VC')
           .eq('gerente_id', profile.id)
           .gte('fecha_facturacion', monthStart)
           .lt('fecha_facturacion', monthEnd);
 
         if (cancelled) return;
-        const ventas = vMes || [];
-        const monthlyAcvPlus = ventas.reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
-        const monthlyMeta = Math.max(0, ...ventas.map((v: any) => Number(v.meta) || 0));
-        const monthlyCumplimientoPct = monthlyMeta > 0 ? (monthlyAcvPlus / monthlyMeta) * 100 : 0;
-        const dailyAcvPlus = ventas.filter((v: any) => v.fecha_facturacion === todayStr2)
-          .reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
-        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''} ${v.categoria_producto_venta || ''}`.toLowerCase().includes('upgrade');
-        const weeklyUpgrades = ventas.filter((v: any) => v.fecha_facturacion >= weekStart && isUpg(v)).length;
-        setVcMetrics({ dailyAcvPlus, weeklyUpgrades, monthlyCumplimientoPct, monthlyAcvPlus, monthlyMeta });
+        const all = vMes || [];
+        const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
+        const isProd = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('PROD-');
+        const sumRows = all.filter(isSum);
+        const prodRows = all.filter(isProd);
+        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''}`.toLowerCase().includes('upgrade');
+        const sumAcvFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
+          rows.filter((v) => !fam || classifyFamilia(v) === fam).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+        const countUpgFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
+          rows.filter((v) => isUpg(v) && (!fam || classifyFamilia(v) === fam)).length;
+
+        // Mes (PROD-)
+        const monthlyAcvNube = sumAcvFam(prodRows, 'NUBE');
+        const monthlyAcvLegacy = sumAcvFam(prodRows, 'LEGACY');
+        const monthlyAcvTotal = sumAcvFam(prodRows, null);
+
+        // Día (PROD-)
+        const today_ = prodRows.filter((v: any) => v.fecha_facturacion === todayStr2);
+        const dailyAcvNube = sumAcvFam(today_, 'NUBE');
+        const dailyAcvLegacy = sumAcvFam(today_, 'LEGACY');
+        const dailyAcvTotal = sumAcvFam(today_, null);
+
+        // Semana (PROD-) upgrades
+        const weekRows = prodRows.filter((v: any) => v.fecha_facturacion >= weekStart);
+        const weeklyUpgradesNube = countUpgFam(weekRows, 'NUBE');
+        const weeklyUpgradesLegacy = countUpgFam(weekRows, 'LEGACY');
+        const weeklyUpgradesTotal = countUpgFam(weekRows, null);
+
+        // Cumplimiento mes (SUM-)
+        const monthlyMetaSum = sumRows.reduce((s, v) => s + (Number(v.meta) || 0), 0);
+        const monthlyAcvSum = sumRows.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+        const monthlyCumplimientoPct = monthlyMetaSum > 0 ? (monthlyAcvSum / monthlyMetaSum) * 100 : 0;
+
+        // Racha El artillero — lun/mar/mié de la semana actual
+        const artilleroDias: VcMetrics['artilleroDias'] = [];
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          if (d > now) break;
+          const fechaStr = d.toISOString().split('T')[0];
+          const dayRows = prodRows.filter((v: any) => v.fecha_facturacion === fechaStr);
+          artilleroDias.push({
+            fecha: fechaStr,
+            nube: sumAcvFam(dayRows, 'NUBE'),
+            legacy: sumAcvFam(dayRows, 'LEGACY'),
+            cumple: false, // calculado al renderizar
+          });
+        }
+
+        setVcMetrics({
+          dailyAcvNube, dailyAcvLegacy, dailyAcvTotal,
+          weeklyUpgradesNube, weeklyUpgradesLegacy, weeklyUpgradesTotal,
+          monthlyAcvNube, monthlyAcvLegacy, monthlyAcvTotal,
+          monthlyCumplimientoPct, monthlyAcvSum, monthlyMetaSum,
+          artilleroDias,
+        });
       }
       setDataLoading(false);
     };
