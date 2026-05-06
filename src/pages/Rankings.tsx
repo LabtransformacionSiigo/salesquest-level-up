@@ -48,6 +48,42 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
+const aggregateVnGerenteMetricRows = (rows: any[], currentMonth: string) => {
+  const currentMonthNumber = Number(currentMonth.slice(-2));
+  const byCelula = new Map<string, { celulaNombre: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+
+  (rows || []).forEach((r: any) => {
+    const celulaRaw = String(r.celula ?? '').trim();
+    if (!celulaRaw) return;
+    const key = normalizeComparableText(celulaRaw);
+    const cur = byCelula.get(key) ?? {
+      celulaNombre: celulaRaw,
+      gerente: r.gerente ?? '',
+      fe: 0,
+      nube: 0,
+      acv: 0,
+      feMes: 0,
+      nubeMes: 0,
+      acvMes: 0,
+    };
+    if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
+    const tipo = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+    const ventas = Math.round(Number(r.ventas) || 0);
+    const acv = Math.round(Number(r.acv_total) || 0);
+    if (tipo === 'FE') cur.fe += ventas;
+    if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += ventas;
+    cur.acv += acv;
+    if (Number(r.mes_nro) === currentMonthNumber) {
+      if (tipo === 'FE') cur.feMes += ventas;
+      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += ventas;
+      cur.acvMes += acv;
+    }
+    byCelula.set(key, cur);
+  });
+
+  return byCelula;
+};
+
 const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
   if (!gerenteIds.length) return [] as any[];
 
