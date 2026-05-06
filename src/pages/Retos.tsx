@@ -73,7 +73,36 @@ const Retos = () => {
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-      if (snapshot?.vcMetrics) setVcMetrics(snapshot.vcMetrics);
+      if (snapshot?.vcMetrics) {
+        setVcMetrics(snapshot.vcMetrics);
+      } else if (profile.canal === 'VC' && profile.id) {
+        // Gerente VC: calcular métricas mensuales/diarias/semanales desde la tabla ventas
+        const now = new Date();
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+        const todayStr2 = now.toISOString().split('T')[0];
+        const weekStart = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d.toISOString().split('T')[0]; })();
+
+        const { data: vMes } = await supabase
+          .from('ventas')
+          .select('fecha_facturacion, acv_plus, meta, categoria_producto_venta, recurrencia, bloque_venta')
+          .eq('canal', 'VC')
+          .eq('gerente_id', profile.id)
+          .gte('fecha_facturacion', monthStart)
+          .lt('fecha_facturacion', monthEnd);
+
+        if (cancelled) return;
+        const ventas = vMes || [];
+        const monthlyAcvPlus = ventas.reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
+        const monthlyMeta = Math.max(0, ...ventas.map((v: any) => Number(v.meta) || 0));
+        const monthlyCumplimientoPct = monthlyMeta > 0 ? (monthlyAcvPlus / monthlyMeta) * 100 : 0;
+        const dailyAcvPlus = ventas.filter((v: any) => v.fecha_facturacion === todayStr2)
+          .reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
+        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''} ${v.categoria_producto_venta || ''}`.toLowerCase().includes('upgrade');
+        const weeklyUpgrades = ventas.filter((v: any) => v.fecha_facturacion >= weekStart && isUpg(v)).length;
+        setVcMetrics({ dailyAcvPlus, weeklyUpgrades, monthlyCumplimientoPct, monthlyAcvPlus, monthlyMeta });
+      }
       setDataLoading(false);
     };
 
