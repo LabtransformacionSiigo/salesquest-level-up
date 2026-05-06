@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     // ── Cargar ventas del MES actual (cubre día/semana/mes) ──
     const { data: ventasMes } = await supabase
       .from("ventas")
-      .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta")
+      .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta, documento_factura")
       .eq("canal", "VC")
       .in("gerente_id", gerenteIds)
       .gte("fecha_facturacion", monthStart)
