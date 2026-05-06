@@ -45,13 +45,27 @@ const getMonthRange = (date: Date) => {
   return { start, end: nextMonth };
 };
 
-// Clasificación de familia VC según producto / categoria / bloque_venta
+// Clasificación VC: NUBE vs LEGACY. Debe coincidir 1:1 con la del frontend
+// src/pages/Retos.tsx (classifyFamilia). Orden importante:
+//   1) NUBE primero (productos nube modernos, incluye 'pyme' que es Siigo Pyme)
+//   2) LEGACY (desktop / FE / POS / Nómina desktop / Contador / Ilimitada)
+//   3) OTROS si no aplica
+const NUBE_KEYWORDS_VC = [
+  "nube", "cloud", "siigo nube", "pyme", "lite", "emprendedor", "premium",
+  "profesional independiente", "sci", "contai", "mto", "nomina ili",
+];
+const LEGACY_KEYWORDS_VC = [
+  "ilimitada", "legacy", "contador",
+  "fe ", "fe(", "fe pro", " pos", "pos ", "pos inicio", "pos avanzado",
+  "pos esencial", "gastrobar", "nomina base", "nomina lite", "nomina plus",
+  "nomina pro",
+];
 const classifyFamiliaVc = (sale: any): "NUBE" | "LEGACY" | "OTROS" => {
-  const txt = `${sale.producto || ""} ${sale.categoria_producto_venta || ""} ${sale.bloque_venta || ""}`
-    .toLowerCase();
-  if (!txt.trim()) return "OTROS";
-  if (txt.includes("nube") || txt.includes("cloud") || txt.includes("siigo nube")) return "NUBE";
-  if (txt.includes("pyme") || txt.includes("ilimitada") || txt.includes("legacy") || txt.includes("contador")) return "LEGACY";
+  const raw = `${sale.producto || ""} ${sale.categoria_producto_venta || ""} ${sale.bloque_venta || ""}`
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!raw) return "OTROS";
+  if (NUBE_KEYWORDS_VC.some((k) => raw.includes(k))) return "NUBE";
+  if (LEGACY_KEYWORDS_VC.some((k) => raw.includes(k))) return "LEGACY";
   return "OTROS";
 };
 
