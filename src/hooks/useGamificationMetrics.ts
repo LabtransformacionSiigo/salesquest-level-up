@@ -780,7 +780,6 @@ export const useGamificationMetrics = (
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('canal_direccion', canalNorm)
                 .eq('pais', paisProfile)
                 .range(from, from + pageSize - 1);
 
@@ -795,9 +794,8 @@ export const useGamificationMetrics = (
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
             const rowCanal = String(row.canal_direccion || '').trim();
             const rowPais = String(row.pais || '').toUpperCase().trim();
-            const sameCanal = !canalNorm || rowCanal === canalNorm;
             const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
-            if (!sameCanal || !samePais) return false;
+            if (!samePais) return false;
 
             const asesorNorm = normalizeComparableText(row.asesor);
             const rowCelulaNorm = normalizeComparableText(row.celula);
@@ -944,8 +942,7 @@ export const useGamificationMetrics = (
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
             const nombre = normalizeComparableText(e.documento_asesor);
             const documento = String(e.documento_asesor || '').trim().toLowerCase();
-            const sameCanal = !canalNorm || e.canal_direccion === canalNorm;
-            return sameCanal && (matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento));
+            return matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento);
           });
           const teamVentasDiariasMonth = teamVentasDiariasAll.filter((row: any) => getPeriodFromDate(row.fecha) === mesActual);
           const teamEjecRows = teamEjecRowsAll.filter((e: any) => String(e.periodo) === mesActual);
