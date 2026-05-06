@@ -502,8 +502,8 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
-                  Filtramos preferentemente por celula; fallback a canal+pais
-                  y filtrado en cliente por nombre normalizado. */
+                  No filtramos por canal_direccion: Databricks puede traer la
+                  célula con el canal anterior después de una reasignación. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // No filtramos por celula server-side porque la grafía puede diferir
@@ -518,10 +518,6 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(8000);
-                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                               : null;
-                if (canalDir) q = q.eq('canal_direccion', canalDir);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
@@ -529,7 +525,9 @@ export const useGamificationMetrics = (
           /* 23 – vn_metricas_optimizadas (scope=gerente): FUENTE PRIMARIA del
                   Rendimiento del Mes y del Historial Mensual del gerente VN.
                   Misma fuente que se usa hoy para "Rendimiento del Mes" — al
-                  consumirla también para el Historial garantizamos consistencia. */
+                  consumirla también para el Historial garantizamos consistencia.
+                  No filtrar por canal_direccion para soportar reasignaciones
+                  Aliados ↔ Empresarios con datos todavía marcados en el canal anterior. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // Igual que scope=asesor: evitamos .eq('celula', ...) server-side y
@@ -541,10 +539,6 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(5000);
-                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                               : null;
-                if (canalDir) q = q.eq('canal_direccion', canalDir);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
