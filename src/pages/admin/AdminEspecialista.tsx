@@ -401,6 +401,61 @@ const AdminEspecialista = () => {
                 onDelete={deleteItem}
               />
             </TabsContent>
+            <TabsContent value="logros" className="mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg">Logros ganados por gerentes</h3>
+                  <p className="text-sm text-muted-foreground">Retos completados y medallas desbloqueadas</p>
+                </div>
+                <Button
+                  onClick={handleEjecutarEvaluacion}
+                  disabled={ejecutando}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {ejecutando ? '⏳ Evaluando...' : '▶ Ejecutar Evaluación Ahora'}
+                </Button>
+              </div>
+              {loadingLogros ? (
+                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : logros.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-4xl mb-2">🏆</p>
+                  <p className="font-medium">Aún no hay logros registrados</p>
+                  <p className="text-sm mt-1">Ejecuta la evaluación para que el sistema otorgue SP Canje a los gerentes que cumplieron retos</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="pb-2 pr-4">Tipo</th>
+                        <th className="pb-2 pr-4">Gerente</th>
+                        <th className="pb-2 pr-4">Reto / Medalla</th>
+                        <th className="pb-2 pr-4">Período</th>
+                        <th className="pb-2 pr-4">Ventana</th>
+                        <th className="pb-2">SP Canje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logros.map((l, i) => (
+                        <tr key={i} className="border-b hover:bg-muted/30">
+                          <td className="py-2 pr-4">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.tipo === 'reto' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {l.tipo === 'reto' ? '🎯 Reto' : '🏅 Medalla'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 font-medium">{l.gerente}</td>
+                          <td className="py-2 pr-4">{l.nombre}</td>
+                          <td className="py-2 pr-4 text-muted-foreground">{l.periodo}</td>
+                          <td className="py-2 pr-4 text-muted-foreground capitalize">{l.ventana}</td>
+                          <td className="py-2 font-bold text-green-600">+{l.sp} SP</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         )}
 
