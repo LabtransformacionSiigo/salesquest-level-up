@@ -249,9 +249,13 @@ Deno.serve(async (req) => {
           sp,
           tipo: ventana,
         });
+        // Mapear ventana → fuente válida en sp_acumulados_fuente_check
+        const fuenteReto = ventana === "diario" ? "RETO_DIARIO"
+          : ventana === "semanal" ? "RETO_SEMANAL"
+          : "RETO_MENSUAL";
         spInsert.push({
           gerente_id: gerente.id,
-          fuente: "RETO_VC",
+          fuente: fuenteReto,
           sp,
           periodo,
           detalle: `${reto.nombre} · ${kpi} · ${familia} · valor:${Math.round(valorAlcanzado)}`,
