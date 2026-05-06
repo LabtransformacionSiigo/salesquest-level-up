@@ -1220,7 +1220,15 @@ export const useGamificationMetrics = (
               //                         aún no tiene datos del mes — caso Mayo).
               let metaAcvAsesor = normalizeVnMetaAcv(matchingProductividad?.meta);
               if (metaAcvAsesor === 0) {
-                const acvOficialAsesor = getAcvCatalogRowForPeriod(mesActual);
+                const mes3Map: Record<string, string> = { '01': 'ene', '02': 'feb', '03': 'mar', '04': 'abr', '05': 'may', '06': 'jun', '07': 'jul', '08': 'ago', '09': 'sep', '10': 'oct', '11': 'nov', '12': 'dic' };
+                const mes3 = mes3Map[mesActual.slice(-2)] || '';
+                const celulaAsesor = normalizeComparableText(matchingMeta.celula);
+                const catalogList: any[] = (metasAcvCatalogRes?.data as any[]) || [];
+                const matches = catalogList.filter((r: any) =>
+                  String(r.mes || '').trim().toLowerCase().slice(0, 3) === mes3 &&
+                  normalizeComparableText(r.celula) === celulaAsesor
+                );
+                const acvOficialAsesor = matches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? matches[0];
                 const teamMetaAcv = normalizeVnMetaAcv(acvOficialAsesor?.meta_total_acv, acvOficialAsesor?.pais);
                 const teamMetaTotal = Math.round(Number(acvOficialAsesor?.meta_total_und) || 0);
                 const asesorMetaTotal = Number(matchingMeta.meta_total) || 0;
