@@ -170,8 +170,11 @@ Deno.serve(async (req) => {
             return classifyFamiliaVc(v) === famFilter;
           }).length;
 
-      // Meta y ACV mensuales se toman del consolidado SUM- (fuente de verdad).
-      const metaMes = Math.max(0, ...ventasSum.map((v) => Number(v.meta) || 0));
+      // Meta del equipo = SUMA de metas de todas las filas SUM- del mes actual.
+      // NO usar Math.max() — cada fila SUM- es un comercial distinto, no la meta total.
+      // Math.max() tomaba el máximo individual (~$79M) en vez del total del equipo (~$1,453M),
+      // causando cumplimientos inflados (191% en vez del 13% real).
+      const metaMes = ventasSum.reduce((s, v) => s + (Number(v.meta) || 0), 0);
       const acvMes = ventasSum.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const cumplimientoMesPct = metaMes > 0 ? (acvMes / metaMes) * 100 : 0;
       const conversionesMes = countBy((v) => isConversion(v) && v.fecha_facturacion >= monthStart && v.fecha_facturacion < monthEnd);
