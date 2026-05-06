@@ -456,16 +456,21 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
             </tr>
           </thead>
           <tbody>
-            {data.map((m, i) => {
+             {data.map((m, i) => {
               const hasMetaTotal = (m.meta_total ?? 0) > 0;
               const hasMetaFe = (m.meta_fe ?? 0) > 0;
               const hasMetaNube = (m.meta_nube ?? 0) > 0;
               const hasMetaAcv = (m.meta ?? 0) > 0;
+              const sinMetaAlguna = !hasMetaTotal && !hasMetaFe && !hasMetaNube && !hasMetaAcv;
               const spTotal = spByMonth[i];
               return (
                 <motion.tr
                   key={m.mes}
-                  className="border-b border-border hover:bg-primary/5 transition-colors"
+                  className={cn(
+                    "border-b border-border hover:bg-primary/5 transition-colors",
+                    sinMetaAlguna && "opacity-60",
+                  )}
+                  title={sinMetaAlguna ? "Sin meta cargada para este mes (equipo no operaba o data pendiente de cargar)" : undefined}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
