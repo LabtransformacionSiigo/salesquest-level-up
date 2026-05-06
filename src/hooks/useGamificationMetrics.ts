@@ -1214,11 +1214,25 @@ export const useGamificationMetrics = (
               };
             }
             if (matchingMeta) {
+              // meta_acv del asesor: 1) productividad_asesores.meta del mes
+              //                      2) fallback proporcional usando el catálogo
+              //                         metas_acv_gerentes (cuando productividad
+              //                         aún no tiene datos del mes — caso Mayo).
+              let metaAcvAsesor = normalizeVnMetaAcv(matchingProductividad?.meta);
+              if (metaAcvAsesor === 0) {
+                const acvOficialAsesor = getAcvCatalogRowForPeriod(mesActual);
+                const teamMetaAcv = normalizeVnMetaAcv(acvOficialAsesor?.meta_total_acv, acvOficialAsesor?.pais);
+                const teamMetaTotal = Math.round(Number(acvOficialAsesor?.meta_total_und) || 0);
+                const asesorMetaTotal = Number(matchingMeta.meta_total) || 0;
+                if (teamMetaAcv > 0 && teamMetaTotal > 0 && asesorMetaTotal > 0) {
+                  metaAcvAsesor = Math.round((teamMetaAcv * asesorMetaTotal) / teamMetaTotal);
+                }
+              }
               metaAsesor = {
                 meta_fe: Number(matchingMeta.meta_fe) || 0,
                 meta_nube: Number(matchingMeta.meta_nube) || 0,
                 meta_total: Number(matchingMeta.meta_total) || 0,
-                meta_acv: normalizeVnMetaAcv(matchingProductividad?.meta),
+                meta_acv: metaAcvAsesor,
               };
               vnCurrentMetaFe = Number(matchingMeta.meta_fe) || 0;
               vnCurrentMetaNube = Number(matchingMeta.meta_nube) || 0;
