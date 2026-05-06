@@ -37,18 +37,65 @@ interface VcCatalogReto {
   fecha_fin?: string | null;
 }
 
+interface VcRacha {
+  id: string;
+  nombre: string;
+  emoji: string | null;
+  kpi: string | null;
+  familia_vc: string | null;
+  umbral_verde: number;
+  umbral_legacy: number | null;
+  multiplicador_sp: number;
+  dias_lun_mie: boolean;
+  objetivo_descripcion: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  canal?: string | null;
+  pais?: string | null;
+  gerente_id?: string | null;
+}
+
+const classifyFamilia = (v: any): 'NUBE' | 'LEGACY' | 'OTROS' => {
+  const txt = `${v.producto || ''} ${v.categoria_producto_venta || ''} ${v.bloque_venta || ''}`.toLowerCase();
+  if (txt.includes('nube') || txt.includes('cloud')) return 'NUBE';
+  if (txt.includes('pyme') || txt.includes('ilimitada') || txt.includes('legacy') || txt.includes('contador')) return 'LEGACY';
+  return 'OTROS';
+};
+
+interface VcMetrics {
+  // ACV+ del día por familia (PROD-)
+  dailyAcvNube: number;
+  dailyAcvLegacy: number;
+  dailyAcvTotal: number;
+  // Upgrades semana por familia (PROD-)
+  weeklyUpgradesNube: number;
+  weeklyUpgradesLegacy: number;
+  weeklyUpgradesTotal: number;
+  // ACV+ mes por familia (PROD-)
+  monthlyAcvNube: number;
+  monthlyAcvLegacy: number;
+  monthlyAcvTotal: number;
+  // Cumplimiento mensual (SUM-)
+  monthlyCumplimientoPct: number;
+  monthlyAcvSum: number;
+  monthlyMetaSum: number;
+  // Racha "El artillero" — días lun/mar/mié evaluados
+  artilleroDias: { fecha: string; nube: number; legacy: number; cumple: boolean }[];
+}
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
+  const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [vcMetrics, setVcMetrics] = useState<{
-    dailyAcvPlus: number;
-    weeklyUpgrades: number;
-    monthlyCumplimientoPct: number;
-    monthlyAcvPlus: number;
-    monthlyMeta: number;
-  }>({ dailyAcvPlus: 0, weeklyUpgrades: 0, monthlyCumplimientoPct: 0, monthlyAcvPlus: 0, monthlyMeta: 0 });
+  const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
+    dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
+    weeklyUpgradesNube: 0, weeklyUpgradesLegacy: 0, weeklyUpgradesTotal: 0,
+    monthlyAcvNube: 0, monthlyAcvLegacy: 0, monthlyAcvTotal: 0,
+    monthlyCumplimientoPct: 0, monthlyAcvSum: 0, monthlyMetaSum: 0,
+    artilleroDias: [],
+  });
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -65,43 +112,92 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: retosData }, snapshot] = await Promise.all([
+      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, snapshot] = await Promise.all([
         supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+        supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
         isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
+      setVcRachas(filterCatalogByScope((rachasCfg || []) as VcRacha[], profile));
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
-      if (snapshot?.vcMetrics) {
-        setVcMetrics(snapshot.vcMetrics);
-      } else if (profile.canal === 'VC' && profile.id) {
-        // Gerente VC: calcular métricas mensuales/diarias/semanales desde la tabla ventas
+
+      if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
+        // Gerente VC: réplica de la lógica del edge function (SUM- vs PROD-)
         const now = new Date();
         const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
         const todayStr2 = now.toISOString().split('T')[0];
-        const weekStart = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d.toISOString().split('T')[0]; })();
+        const monday = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d; })();
+        const weekStart = monday.toISOString().split('T')[0];
 
         const { data: vMes } = await supabase
           .from('ventas')
-          .select('fecha_facturacion, acv_plus, meta, categoria_producto_venta, recurrencia, bloque_venta')
+          .select('fecha_facturacion, acv_plus, meta, producto, categoria_producto_venta, recurrencia, bloque_venta, documento_factura')
           .eq('canal', 'VC')
           .eq('gerente_id', profile.id)
           .gte('fecha_facturacion', monthStart)
           .lt('fecha_facturacion', monthEnd);
 
         if (cancelled) return;
-        const ventas = vMes || [];
-        const monthlyAcvPlus = ventas.reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
-        const monthlyMeta = Math.max(0, ...ventas.map((v: any) => Number(v.meta) || 0));
-        const monthlyCumplimientoPct = monthlyMeta > 0 ? (monthlyAcvPlus / monthlyMeta) * 100 : 0;
-        const dailyAcvPlus = ventas.filter((v: any) => v.fecha_facturacion === todayStr2)
-          .reduce((s, v: any) => s + (Number(v.acv_plus) || 0), 0);
-        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''} ${v.categoria_producto_venta || ''}`.toLowerCase().includes('upgrade');
-        const weeklyUpgrades = ventas.filter((v: any) => v.fecha_facturacion >= weekStart && isUpg(v)).length;
-        setVcMetrics({ dailyAcvPlus, weeklyUpgrades, monthlyCumplimientoPct, monthlyAcvPlus, monthlyMeta });
+        const all = vMes || [];
+        const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
+        const isProd = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('PROD-');
+        const sumRows = all.filter(isSum);
+        const prodRows = all.filter(isProd);
+        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''}`.toLowerCase().includes('upgrade');
+        const sumAcvFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
+          rows.filter((v) => !fam || classifyFamilia(v) === fam).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+        const countUpgFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
+          rows.filter((v) => isUpg(v) && (!fam || classifyFamilia(v) === fam)).length;
+
+        // Mes (PROD-)
+        const monthlyAcvNube = sumAcvFam(prodRows, 'NUBE');
+        const monthlyAcvLegacy = sumAcvFam(prodRows, 'LEGACY');
+        const monthlyAcvTotal = sumAcvFam(prodRows, null);
+
+        // Día (PROD-)
+        const today_ = prodRows.filter((v: any) => v.fecha_facturacion === todayStr2);
+        const dailyAcvNube = sumAcvFam(today_, 'NUBE');
+        const dailyAcvLegacy = sumAcvFam(today_, 'LEGACY');
+        const dailyAcvTotal = sumAcvFam(today_, null);
+
+        // Semana (PROD-) upgrades
+        const weekRows = prodRows.filter((v: any) => v.fecha_facturacion >= weekStart);
+        const weeklyUpgradesNube = countUpgFam(weekRows, 'NUBE');
+        const weeklyUpgradesLegacy = countUpgFam(weekRows, 'LEGACY');
+        const weeklyUpgradesTotal = countUpgFam(weekRows, null);
+
+        // Cumplimiento mes (SUM-)
+        const monthlyMetaSum = sumRows.reduce((s, v) => s + (Number(v.meta) || 0), 0);
+        const monthlyAcvSum = sumRows.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
+        const monthlyCumplimientoPct = monthlyMetaSum > 0 ? (monthlyAcvSum / monthlyMetaSum) * 100 : 0;
+
+        // Racha El artillero — lun/mar/mié de la semana actual
+        const artilleroDias: VcMetrics['artilleroDias'] = [];
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          if (d > now) break;
+          const fechaStr = d.toISOString().split('T')[0];
+          const dayRows = prodRows.filter((v: any) => v.fecha_facturacion === fechaStr);
+          artilleroDias.push({
+            fecha: fechaStr,
+            nube: sumAcvFam(dayRows, 'NUBE'),
+            legacy: sumAcvFam(dayRows, 'LEGACY'),
+            cumple: false, // calculado al renderizar
+          });
+        }
+
+        setVcMetrics({
+          dailyAcvNube, dailyAcvLegacy, dailyAcvTotal,
+          weeklyUpgradesNube, weeklyUpgradesLegacy, weeklyUpgradesTotal,
+          monthlyAcvNube, monthlyAcvLegacy, monthlyAcvTotal,
+          monthlyCumplimientoPct, monthlyAcvSum, monthlyMetaSum,
+          artilleroDias,
+        });
       }
       setDataLoading(false);
     };
@@ -136,23 +232,30 @@ const Retos = () => {
     return String(reto.umbral);
   };
 
+  const pickFamilia = (fam?: string | null): 'NUBE' | 'LEGACY' | 'AMBAS' => {
+    const f = (fam || 'AMBAS').toUpperCase();
+    return f === 'NUBE' || f === 'LEGACY' ? f : 'AMBAS';
+  };
+
   const getVcProgress = (reto: VcCatalogReto): { current: number; target: number; pct: number; label: string } => {
     const umbral = Number(reto.umbral) || 0;
     if (umbral === 0) return { current: 0, target: 1, pct: 0, label: '' };
+    const fam = pickFamilia(reto.familia_vc);
     switch (reto.kpi) {
       case 'acv_plus': {
         const window = normalizeCatalogWindow(reto.ventana_tiempo);
-        if (window === 'DIARIO') {
-          const current = vcMetrics?.dailyAcvPlus ?? 0;
-          return {
-            current,
-            target: umbral,
-            pct: Math.min(100, (current / umbral) * 100),
-            label: `$${(current / 1_000_000).toFixed(1)}M / $${(umbral / 1_000_000).toFixed(0)}M`,
-          };
-        }
-        if (window === 'MENSUAL') {
-          const current = vcMetrics?.monthlyAcvPlus ?? 0;
+        const pickAcv = (which: 'daily' | 'monthly') => {
+          if (which === 'daily') {
+            return fam === 'NUBE' ? vcMetrics.dailyAcvNube
+              : fam === 'LEGACY' ? vcMetrics.dailyAcvLegacy
+              : vcMetrics.dailyAcvTotal;
+          }
+          return fam === 'NUBE' ? vcMetrics.monthlyAcvNube
+            : fam === 'LEGACY' ? vcMetrics.monthlyAcvLegacy
+            : vcMetrics.monthlyAcvTotal;
+        };
+        if (window === 'DIARIO' || window === 'MENSUAL') {
+          const current = pickAcv(window === 'DIARIO' ? 'daily' : 'monthly');
           return {
             current,
             target: umbral,
@@ -163,7 +266,9 @@ const Retos = () => {
         return { current: 0, target: umbral, pct: 0, label: '' };
       }
       case 'upgrades': {
-        const current = vcMetrics?.weeklyUpgrades ?? 0;
+        const current = fam === 'NUBE' ? vcMetrics.weeklyUpgradesNube
+          : fam === 'LEGACY' ? vcMetrics.weeklyUpgradesLegacy
+          : vcMetrics.weeklyUpgradesTotal;
         return {
           current,
           target: umbral,
@@ -171,8 +276,9 @@ const Retos = () => {
           label: `${current} / ${umbral} upgrades`,
         };
       }
-      case 'cumplimiento_pct': {
-        const current = vcMetrics?.monthlyCumplimientoPct ?? 0;
+      case 'cumplimiento_pct':
+      case 'conversiones': {
+        const current = vcMetrics.monthlyCumplimientoPct;
         return {
           current,
           target: umbral,
@@ -180,18 +286,78 @@ const Retos = () => {
           label: `${current.toFixed(1)}% / ${umbral}%`,
         };
       }
-      case 'conversiones': {
-        const monthlyCumpl = vcMetrics?.monthlyCumplimientoPct ?? 0;
-        return {
-          current: monthlyCumpl,
-          target: umbral,
-          pct: Math.min(100, (monthlyCumpl / umbral) * 100),
-          label: `${monthlyCumpl.toFixed(1)}% / ${umbral}%`,
-        };
-      }
       default:
         return { current: 0, target: 1, pct: 0, label: '' };
     }
+  };
+
+  const renderRachaCard = (racha: VcRacha) => {
+    const fam = pickFamilia(racha.familia_vc);
+    const umbralN = Number(racha.umbral_verde) || 0;
+    const umbralL = Number(racha.umbral_legacy) || 0;
+    const dias = vcMetrics.artilleroDias.map((d) => {
+      const cumple = fam === 'NUBE' ? d.nube >= umbralN
+        : fam === 'LEGACY' ? d.legacy >= umbralL
+        : (d.nube >= umbralN || d.legacy >= umbralL);
+      return { ...d, cumple };
+    });
+    const cumplidos = dias.filter((d) => d.cumple).length;
+    const totalDias = 3;
+    const pct = (cumplidos / totalDias) * 100;
+    const completa = cumplidos === totalDias && dias.length === totalDias;
+    const dayLabels = ['Lun', 'Mar', 'Mié'];
+
+    return (
+      <motion.div
+        key={racha.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all relative overflow-hidden border-l-4 shadow-smooth-sm', completa ? 'border-l-accent' : 'border-l-siigo-yellow')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
+            🔥 RACHA · LUN/MAR/MIÉ
+          </span>
+          {completa && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADA</span>}
+        </div>
+        <div className="flex items-center gap-3 mb-3 mt-2">
+          <span className="text-3xl">{racha.emoji || '🔥'}</span>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">{racha.nombre}</p>
+            <p className="text-xs text-muted-foreground">
+              {racha.objetivo_descripcion || `Logra ${fam === 'LEGACY' ? `$${(umbralL/1_000_000).toFixed(0)}M Legacy` : fam === 'NUBE' ? `$${(umbralN/1_000_000).toFixed(0)}M Nube` : `$${(umbralN/1_000_000).toFixed(0)}M Nube ó $${(umbralL/1_000_000).toFixed(0)}M Legacy`} cada Lun/Mar/Mié`}
+            </p>
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">ACV diario</span>
+              <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{familiaLabel(racha.familia_vc)}</span>
+              <span className="text-[9px] font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">x{racha.multiplicador_sp} SP semanal</span>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {dayLabels.map((lbl, idx) => {
+            const d = dias[idx];
+            const valor = d ? (fam === 'LEGACY' ? d.legacy : fam === 'NUBE' ? d.nube : Math.max(d.nube, d.legacy)) : 0;
+            const target = fam === 'LEGACY' ? umbralL : fam === 'NUBE' ? umbralN : umbralN;
+            const ok = d?.cumple;
+            return (
+              <div key={lbl} className={cn('rounded-lg p-2 text-center border', ok ? 'bg-accent/10 border-accent' : d ? 'bg-muted/40 border-muted' : 'bg-muted/20 border-dashed border-muted')}>
+                <p className="text-[10px] font-bold uppercase">{lbl} {ok && '✅'}</p>
+                <p className="text-[10px] text-muted-foreground">${(valor / 1_000_000).toFixed(1)}M</p>
+                <p className="text-[9px] text-muted-foreground">/ ${(target / 1_000_000).toFixed(0)}M</p>
+              </div>
+            );
+          })}
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>{cumplidos} / {totalDias} días cumplidos</span>
+            <span className="font-scoreboard">{Math.round(pct)}%</span>
+          </div>
+          <Progress value={pct} className="h-2" />
+        </div>
+      </motion.div>
+    );
   };
 
   const renderVcCard = (reto: VcCatalogReto, periodo: string) => {
@@ -272,6 +438,7 @@ const Retos = () => {
             <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
             <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
             <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
+            <TabsTrigger value="rachas" className="flex-1">🔥 Rachas</TabsTrigger>
           </TabsList>
         </motion.div>
 
@@ -282,6 +449,14 @@ const Retos = () => {
             <TabsContent value="diarios">{renderTab('DIARIO', periodoHoy)}</TabsContent>
             <TabsContent value="semanales">{renderTab('SEMANAL', periodoSemana)}</TabsContent>
             <TabsContent value="mensuales">{renderTab('MENSUAL', periodoMes)}</TabsContent>
+            <TabsContent value="rachas">
+              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                {vcRachas.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                )}
+                {vcRachas.map((r) => renderRachaCard(r))}
+              </motion.div>
+            </TabsContent>
           </>
         )}
       </Tabs>
