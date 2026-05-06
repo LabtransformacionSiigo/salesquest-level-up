@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
       // ── Evaluar cada reto del catálogo ──
       for (const reto of retos) {
-        const ventana = reto.ventana_tiempo;
+        const ventana = String(reto.ventana_tiempo || '').toLowerCase();
         const kpi = reto.kpi || reto.tipo_metrica;
         const familia = (reto.familia_vc as "NUBE" | "LEGACY" | "AMBAS" | null) || "AMBAS";
         const umbral = Number(reto.umbral) || 0;
@@ -249,9 +249,13 @@ Deno.serve(async (req) => {
           sp,
           tipo: ventana,
         });
+        // Mapear ventana → fuente válida en sp_acumulados_fuente_check
+        const fuenteReto = ventana === "diario" ? "RETO_DIARIO"
+          : ventana === "semanal" ? "RETO_SEMANAL"
+          : "RETO_MENSUAL";
         spInsert.push({
           gerente_id: gerente.id,
-          fuente: "RETO_VC",
+          fuente: fuenteReto,
           sp,
           periodo,
           detalle: `${reto.nombre} · ${kpi} · ${familia} · valor:${Math.round(valorAlcanzado)}`,
@@ -314,10 +318,10 @@ Deno.serve(async (req) => {
         });
         spInsert.push({
           gerente_id: gerente.id,
-          fuente: "RACHA_VC",
+          fuente: "RETO_SEMANAL",
           sp: bonus,
           periodo: weekKey,
-          detalle: `${racha.nombre} · multiplicador ${multiplicador}x · familia ${familia}`,
+          detalle: `RACHA · ${racha.nombre} · multiplicador ${multiplicador}x · familia ${familia}`,
           tipo_sp: "canje",
         });
         completadosSet.add(key);

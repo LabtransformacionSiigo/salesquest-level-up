@@ -97,6 +97,73 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
 const AdminEspecialista = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const { toast } = useToast();
+  const [ejecutando, setEjecutando] = useState(false);
+  const handleEjecutarEvaluacion = async () => {
+    setEjecutando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vc`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ dry_run: false }),
+        }
+      );
+      const result = await res.json();
+      if (result.ok) {
+        toast({
+          title: '✅ Evaluación completada',
+          description: `Retos otorgados: ${result.totalRetos} · SP Canje: ${result.totalSp}`,
+        });
+        fetchLogros();
+      } else {
+        toast({ title: '⚠️ Resultado con errores', description: JSON.stringify(result.errores?.slice(0, 2)), variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setEjecutando(false);
+    }
+  };
+  const [logros, setLogros] = useState<any[]>([]);
+  const [loadingLogros, setLoadingLogros] = useState(false);
+  const fetchLogros = async () => {
+    setLoadingLogros(true);
+    const [retosRes, medallasRes] = await Promise.all([
+      supabase
+        .from('retos_completados')
+        .select('gerente_id, reto, periodo, sp, tipo, gerentes(nombre)')
+        .order('periodo', { ascending: false })
+        .limit(200),
+      supabase
+        .from('medallas')
+        .select('gerente_id, medalla, fecha_desbloqueo, sp_otorgados, gerentes(nombre)')
+        .order('fecha_desbloqueo', { ascending: false })
+        .limit(200),
+    ]);
+    const retosData = (retosRes.data || []).map((r: any) => ({
+      tipo: 'reto',
+      gerente: r.gerentes?.nombre || r.gerente_id,
+      nombre: r.reto,
+      periodo: r.periodo,
+      sp: r.sp,
+      ventana: r.tipo,
+    }));
+    const medallasData = (medallasRes.data || []).map((m: any) => ({
+      tipo: 'medalla',
+      gerente: m.gerentes?.nombre || m.gerente_id,
+      nombre: m.medalla,
+      periodo: m.fecha_desbloqueo,
+      sp: m.sp_otorgados,
+      ventana: '—',
+    }));
+    setLogros([...retosData, ...medallasData].sort((a, b) => String(b.periodo).localeCompare(String(a.periodo))));
+    setLoadingLogros(false);
+  };
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
@@ -279,7 +346,7 @@ const AdminEspecialista = () => {
           <Skeleton className="h-96" />
         ) : (
           <Tabs defaultValue="retos" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsList className="grid w-full grid-cols-4 max-w-xl">
               <TabsTrigger value="retos">
                 <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
               </TabsTrigger>
@@ -289,6 +356,7 @@ const AdminEspecialista = () => {
               <TabsTrigger value="medallas">
                 <MI icon="military_tech" className="text-sm mr-1.5" /> Medallas
               </TabsTrigger>
+              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros Ganados</TabsTrigger>
             </TabsList>
 
             <TabsContent value="retos" className="mt-6">
@@ -332,6 +400,61 @@ const AdminEspecialista = () => {
                 onNew={() => setEditing({ tipo: 'medalla', data: {} })}
                 onDelete={deleteItem}
               />
+            </TabsContent>
+            <TabsContent value="logros" className="mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg">Logros ganados por gerentes</h3>
+                  <p className="text-sm text-muted-foreground">Retos completados y medallas desbloqueadas</p>
+                </div>
+                <Button
+                  onClick={handleEjecutarEvaluacion}
+                  disabled={ejecutando}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {ejecutando ? '⏳ Evaluando...' : '▶ Ejecutar Evaluación Ahora'}
+                </Button>
+              </div>
+              {loadingLogros ? (
+                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : logros.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-4xl mb-2">🏆</p>
+                  <p className="font-medium">Aún no hay logros registrados</p>
+                  <p className="text-sm mt-1">Ejecuta la evaluación para que el sistema otorgue SP Canje a los gerentes que cumplieron retos</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="pb-2 pr-4">Tipo</th>
+                        <th className="pb-2 pr-4">Gerente</th>
+                        <th className="pb-2 pr-4">Reto / Medalla</th>
+                        <th className="pb-2 pr-4">Período</th>
+                        <th className="pb-2 pr-4">Ventana</th>
+                        <th className="pb-2">SP Canje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logros.map((l, i) => (
+                        <tr key={i} className="border-b hover:bg-muted/30">
+                          <td className="py-2 pr-4">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.tipo === 'reto' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {l.tipo === 'reto' ? '🎯 Reto' : '🏅 Medalla'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 font-medium">{l.gerente}</td>
+                          <td className="py-2 pr-4">{l.nombre}</td>
+                          <td className="py-2 pr-4 text-muted-foreground">{l.periodo}</td>
+                          <td className="py-2 pr-4 text-muted-foreground capitalize">{l.ventana}</td>
+                          <td className="py-2 font-bold text-green-600">+{l.sp} SP</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         )}
