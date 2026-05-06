@@ -438,6 +438,7 @@ const Retos = () => {
             <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
             <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
             <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
+            <TabsTrigger value="rachas" className="flex-1">🔥 Rachas</TabsTrigger>
           </TabsList>
         </motion.div>
 
@@ -448,6 +449,14 @@ const Retos = () => {
             <TabsContent value="diarios">{renderTab('DIARIO', periodoHoy)}</TabsContent>
             <TabsContent value="semanales">{renderTab('SEMANAL', periodoSemana)}</TabsContent>
             <TabsContent value="mensuales">{renderTab('MENSUAL', periodoMes)}</TabsContent>
+            <TabsContent value="rachas">
+              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                {vcRachas.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                )}
+                {vcRachas.map((r) => renderRachaCard(r))}
+              </motion.div>
+            </TabsContent>
           </>
         )}
       </Tabs>
