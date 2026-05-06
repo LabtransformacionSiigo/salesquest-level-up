@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
           reto: reto.nombre,
           periodo,
           sp,
-          tipo: ventana,
+          tipo: ventana.toUpperCase(), // CHECK constraint exige DIARIO/SEMANAL/MENSUAL
         });
         // Mapear ventana → fuente válida en sp_acumulados_fuente_check
         const fuenteReto = ventana === "diario" ? "RETO_DIARIO"
