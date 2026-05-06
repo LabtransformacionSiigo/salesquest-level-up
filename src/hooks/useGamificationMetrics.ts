@@ -792,7 +792,6 @@ export const useGamificationMetrics = (
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
-            const rowCanal = String(row.canal_direccion || '').trim();
             const rowPais = String(row.pais || '').toUpperCase().trim();
             const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
             if (!samePais) return false;
