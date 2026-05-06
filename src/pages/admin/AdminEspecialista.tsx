@@ -431,40 +431,87 @@ const AdminEspecialista = () => {
                   {ejecutando ? '⏳ Evaluando...' : '▶ Ejecutar Evaluación Ahora'}
                 </Button>
               </div>
+              {/* Filtros */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
+                <select
+                  value={logrosFiltro.tipo}
+                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, tipo: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="TODOS">Todos los tipos</option>
+                  <option value="reto">🎯 Retos</option>
+                  <option value="racha">🔥 Rachas</option>
+                  <option value="medalla">🏅 Medallas</option>
+                </select>
+                <Input
+                  type="date"
+                  value={logrosFiltro.desde}
+                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, desde: e.target.value })}
+                  placeholder="Desde"
+                />
+                <Input
+                  type="date"
+                  value={logrosFiltro.hasta}
+                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, hasta: e.target.value })}
+                  placeholder="Hasta"
+                />
+                <Input
+                  placeholder="Buscar gerente o reto…"
+                  value={logrosFiltro.q}
+                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, q: e.target.value })}
+                  className="md:col-span-2"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 mb-3 text-sm">
+                <span className="px-3 py-1 rounded-full bg-muted font-medium">{logrosFiltrados.length} logros</span>
+                <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">+{totalSpFiltrado} SP Canje</span>
+              </div>
+
               {loadingLogros ? (
                 <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-              ) : logros.length === 0 ? (
+              ) : logrosFiltrados.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <p className="text-4xl mb-2">🏆</p>
-                  <p className="font-medium">Aún no hay logros registrados</p>
-                  <p className="text-sm mt-1">Ejecuta la evaluación para que el sistema otorgue SP Canje a los gerentes que cumplieron retos</p>
+                  <p className="font-medium">No hay logros que coincidan</p>
+                  <p className="text-sm mt-1">Ejecuta la evaluación o ajusta los filtros</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto border rounded-lg">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-muted-foreground">
-                        <th className="pb-2 pr-4">Tipo</th>
-                        <th className="pb-2 pr-4">Gerente</th>
-                        <th className="pb-2 pr-4">Reto / Medalla</th>
-                        <th className="pb-2 pr-4">Período</th>
-                        <th className="pb-2 pr-4">Ventana</th>
-                        <th className="pb-2">SP Canje</th>
+                    <thead className="bg-muted/50">
+                      <tr className="text-left text-muted-foreground">
+                        <th className="p-2">Tipo</th>
+                        <th className="p-2">Gerente</th>
+                        <th className="p-2">Canal/País</th>
+                        <th className="p-2">Reto / Racha / Medalla</th>
+                        <th className="p-2">Ventana</th>
+                        <th className="p-2">Período</th>
+                        <th className="p-2">Fecha exacta</th>
+                        <th className="p-2 text-right">SP Canje</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {logros.map((l, i) => (
-                        <tr key={i} className="border-b hover:bg-muted/30">
-                          <td className="py-2 pr-4">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.tipo === 'reto' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                              {l.tipo === 'reto' ? '🎯 Reto' : '🏅 Medalla'}
+                      {logrosFiltrados.map((l) => (
+                        <tr key={l.id} className="border-t hover:bg-muted/30">
+                          <td className="p-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              l.tipo === 'reto' ? 'bg-blue-100 text-blue-700'
+                              : l.tipo === 'racha' ? 'bg-orange-100 text-orange-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {l.tipo === 'reto' ? '🎯 Reto' : l.tipo === 'racha' ? '🔥 Racha' : '🏅 Medalla'}
                             </span>
                           </td>
-                          <td className="py-2 pr-4 font-medium">{l.gerente}</td>
-                          <td className="py-2 pr-4">{l.nombre}</td>
-                          <td className="py-2 pr-4 text-muted-foreground">{l.periodo}</td>
-                          <td className="py-2 pr-4 text-muted-foreground capitalize">{l.ventana}</td>
-                          <td className="py-2 font-bold text-green-600">+{l.sp} SP</td>
+                          <td className="p-2 font-medium">{l.gerente}</td>
+                          <td className="p-2 text-xs text-muted-foreground">{l.canal} · {l.pais}</td>
+                          <td className="p-2" title={l.detalle}>{l.nombre}</td>
+                          <td className="p-2 text-muted-foreground capitalize">{l.ventana}</td>
+                          <td className="p-2 text-muted-foreground">{l.periodo}</td>
+                          <td className="p-2 text-xs text-muted-foreground">
+                            {l.fecha ? new Date(l.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                          </td>
+                          <td className="p-2 font-bold text-green-600 text-right">+{l.sp} SP</td>
                         </tr>
                       ))}
                     </tbody>
