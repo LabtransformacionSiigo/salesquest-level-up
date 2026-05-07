@@ -208,7 +208,9 @@ Deno.serve(async (req) => {
         CAST(nube AS BIGINT)           AS nube,
         CAST(meta_total_und AS BIGINT) AS meta_total_und,
         meta_total_acv,
-        cuota
+        cuota,
+        CAST(coi AS BIGINT)            AS coi,
+        CAST(noi AS BIGINT)            AS noi
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
       ORDER BY mes, pais_gestion, canal_direccion, celula,
@@ -272,7 +274,7 @@ Deno.serve(async (req) => {
     // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
-      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota, coiRaw, noiRaw] = r;
       const archivoRawText = String(archivoRaw || "");
       const archivo = deriveArchivo(archivoRawText);
       // Databricks a veces deja `mes` con el mes anterior y el mes real viene en el nombre de archivo.
@@ -282,8 +284,15 @@ Deno.serve(async (req) => {
         summary.invalid++;
         return;
       }
+      // Para México la columna nube llega en 0; la meta real de Nube/Campana
+      // es coi + noi. Solo aplicamos el fallback cuando nube === 0 y pais === MEX.
+      const nubeVal = Math.round(toNum(nubeRaw));
+      const paisNorm = normPais(String(pais));
+      const meta_nube_calc = (nubeVal === 0 && paisNorm === "MEX")
+        ? Math.round(toNum(coiRaw) + toNum(noiRaw))
+        : nubeVal;
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
-        p_pais: normPais(String(pais)),
+        p_pais: paisNorm,
         p_canal: normCanal(String(canal)),
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
@@ -294,7 +303,7 @@ Deno.serve(async (req) => {
         p_mes: mes,
         p_archivo: archivo,
         p_meta_fe: Math.round(toNum(feRaw)),
-        p_meta_nube: Math.round(toNum(nubeRaw)),
+        p_meta_nube: meta_nube_calc,
       });
       if (error) {
         errors.push({ row: r, error: error.message });
