@@ -17,7 +17,7 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
       <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
         <span className="text-primary">🏆</span> Top Siigo Points
       </h3>
-      <p className="text-xs text-muted-foreground mb-5">Ranking por cumplimiento de meta con saldo canjeable visible</p>
+      <p className="text-xs text-muted-foreground mb-5">Clasificación por cumplimiento de meta con saldo canjeable visible</p>
       {loading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : topRanking.length > 0 ? (
