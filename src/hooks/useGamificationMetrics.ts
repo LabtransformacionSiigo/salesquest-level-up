@@ -581,15 +581,22 @@ export const useGamificationMetrics = (
             ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
             jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
           };
+          const mgRows = (metasGerentesMexRes.data as any[]).slice().sort(
+            (a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || ''))
+          );
           const mgByPeriod = new Map<string, any>();
-          (metasGerentesMexRes.data as any[]).forEach((r: any) => {
-            mgByPeriod.set(String(r.anio_mes || ''), r);
+          mgRows.forEach((r: any) => {
+            const p = String(r.anio_mes || '');
+            if (!mgByPeriod.has(p)) mgByPeriod.set(p, r);
           });
+          // Fila más reciente: usada como fallback cuando el período exacto no
+          // tiene registro en metas_gerentes (Databricks aún no sincronizó el mes).
+          const mgLatest = mgRows[0];
           (metasAcvCatalogRes.data as any[]).forEach((r: any) => {
             const mes2 = mes3to2[String(r.mes || '').trim().toLowerCase().slice(0, 3)] || '';
             if (!mes2) return;
             const period = `${anioActual}${mes2}`;
-            const mg = mgByPeriod.get(period);
+            const mg = mgByPeriod.get(period) || mgLatest;
             if (!mg) return;
             const sumNube = (Number(mg.coi) || 0) + (Number(mg.noi) || 0);
             if ((Number(r.meta_nube) || 0) === 0 && sumNube > 0) {
