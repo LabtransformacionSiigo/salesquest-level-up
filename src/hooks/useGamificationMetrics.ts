@@ -561,19 +561,26 @@ export const useGamificationMetrics = (
         if (isVN && profile.role !== 'asesor' && profile.nombre) {
           const targetCelula = normalizeComparableText(profile.celula ?? '');
           const targetNombre = normalizeComparableText(profile.nombre);
-          const targetNameWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
-          const matchesTargetManager = (rowNombre: string) => {
-            if (!rowNombre || !targetNombre) return false;
-            if (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre)) return true;
-            const rowWords = new Set(rowNombre.split(' ').filter((w: string) => w.length > 3));
-            const shared = targetNameWords.filter((w: string) => rowWords.has(w));
-            return shared.length >= 2;
-          };
+          // Palabras del nombre del gerente (>3 chars) para fuzzy matching.
+          // Ej: "cielo dirley contreras sabogal" → ["cielo","dirley","contreras","sabogal"]
+          const gerenteWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
           const matchVnRow = (r: any) => {
             const rowCelula = normalizeComparableText(r.celula ?? '');
             const rowNombre = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? '');
+            // 1) Match exacto por célula interna (Colombia)
             if (targetCelula && rowCelula === targetCelula) return true;
-            if (matchesTargetManager(rowNombre)) return true;
+            // 2) Match por nombre completo o contenido
+            if (rowNombre && targetNombre && (
+              rowNombre === targetNombre ||
+              rowNombre.includes(targetNombre) ||
+              targetNombre.includes(rowNombre)
+            )) return true;
+            // 3) Fuzzy: alguna palabra del nombre aparece en célula o nombre de la fila
+            //    Cubre caso México: célula Databricks = "Equipo Mexico Cielo" y nombre = "Cielo Dirley..."
+            if (gerenteWords.length > 0) {
+              if (rowCelula && gerenteWords.some((w: string) => rowCelula.includes(w))) return true;
+              if (rowNombre && gerenteWords.some((w: string) => rowNombre.includes(w))) return true;
+            }
             return false;
           };
           if (ventasGerenteMensualRes?.data) {
