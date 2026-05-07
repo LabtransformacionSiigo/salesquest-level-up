@@ -106,7 +106,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
 
       if (!cancelled) {
         setTotal(totalSp);
-        setSpConvencionAnual(totalSp);
+        if (totalSp > 0) setSpConvencionAnual(totalSp);
       }
     })();
 
