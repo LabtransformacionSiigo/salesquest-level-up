@@ -522,7 +522,8 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(8000);
-                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                // NO filtramos por pais: la tabla puede tener 'MEXICO' pero profile.pais es 'MEX'.
+                // El filtrado por equipo lo hace matchVnRow client-side.
                 return q;
               })()
             : Promise.resolve({ data: [] }),
@@ -543,7 +544,7 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(5000);
-                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                // NO filtramos por pais: puede haber discrepancia 'MEX' vs 'MEXICO'.
                 return q;
               })()
             : Promise.resolve({ data: [] }),
