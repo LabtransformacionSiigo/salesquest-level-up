@@ -19,7 +19,7 @@ const menuItems = [
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/retos', icon: 'flag', label: 'Retos' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
-  { path: '/premios', icon: 'redeem', label: 'Premios' },
+  { path: '/premios', icon: 'redeem', label: 'Beneficios ' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
 
@@ -32,7 +32,7 @@ const adminItems = [
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
   { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
-  { path: '/admin/premios', icon: 'storefront', label: 'Premios' },
+  { path: '/admin/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
   { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos Especialistas' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
@@ -40,7 +40,7 @@ const adminItems = [
 
 const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
-  { path: '/admin/especialista/premios', icon: 'storefront', label: 'Premios' },
+  { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];
 

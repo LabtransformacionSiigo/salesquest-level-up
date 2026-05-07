@@ -93,10 +93,10 @@ const AdminPremios = () => {
     setShowForm(true);
   };
 
-  if (loading) return <Layout title="⚙️ Configurar Premios"><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></Layout>;
+  if (loading) return <Layout title="⚙️ Configurar Beneficios "><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></Layout>;
 
   return (
-    <Layout title="⚙️ Configurar Premios">
+    <Layout title="⚙️ Configurar Beneficios ">
       <Tabs defaultValue="catalogo" className="max-w-[1200px]">
         <TabsList className="bg-card border border-border">
           <TabsTrigger value="catalogo" className="gap-2"><Package className="w-4 h-4" /> Catálogo</TabsTrigger>

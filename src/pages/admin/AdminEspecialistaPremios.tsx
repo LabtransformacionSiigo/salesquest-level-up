@@ -96,7 +96,7 @@ const AdminEspecialistaPremios = () => {
   if (!isAdmin && !isEspecialista) return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout title="Premios — Especialista">
+    <Layout title="Beneficios  — Especialista">
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-accent/10 to-primary/10 border border-border rounded-2xl p-5">
           <div className="flex items-start gap-3 mb-3">
@@ -104,7 +104,7 @@ const AdminEspecialistaPremios = () => {
               <MI icon="storefront" className="text-accent text-xl" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-foreground">Catálogo de Premios</h2>
+              <h2 className="text-lg font-bold text-foreground">Catálogo de Beneficios </h2>
               <p className="text-xs text-muted-foreground">
                 {isAdmin
                   ? 'Acceso total. Puedes crear premios para cualquier país u operación.'
