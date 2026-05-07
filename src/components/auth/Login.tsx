@@ -85,7 +85,7 @@ const Login = () => {
             {[
               { emoji: '🏅', label: 'Medallas' },
               { emoji: '🎯', label: 'Retos' },
-              { emoji: '📊', label: 'Rankings' },
+              { emoji: '📊', label: 'Clasificación' },
             ].map((item, i) => (
               <motion.div
                 key={item.label}
