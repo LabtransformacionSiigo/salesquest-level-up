@@ -189,10 +189,11 @@ Deno.serve(async (req) => {
       const fe = toInt(r.meta_fe);
       const nubeRaw = toInt(r.meta_nube);
       const total = toInt(r.meta_total);
-      // Para México la columna meta_nube llega en 0; la meta real de Nube/Campana
-      // es coi + noi. Se aplica solo cuando meta_nube === 0 y pais es México.
-      const esMexico = pais === "MEXICO" || pais === "MÉXICO" || pais === "MEX" || pais === "MX";
-      const nube = (nubeRaw === 0 && esMexico)
+      // Para Venta Nueva (VN_ALIADOS / VN_EMPRESARIOS) la meta real de Nube/Campana
+      // es coi + noi (la columna meta_nube llega en 0 o no representa el total real).
+      // Para otros canales (p.ej. VC) usamos meta_nube tal cual.
+      const esVN = canal === "VN_ALIADOS" || canal === "VN_EMPRESARIOS";
+      const nube = esVN
         ? (toInt(r.coi) + toInt(r.noi))
         : nubeRaw;
 
