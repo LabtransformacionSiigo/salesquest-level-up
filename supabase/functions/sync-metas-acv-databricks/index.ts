@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
         : nubeVal;
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: paisNorm,
-        p_canal: normCanal(String(canal)),
+        p_canal: canalNorm,
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
         p_esquema: null,
