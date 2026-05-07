@@ -418,13 +418,12 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(5000)
             : Promise.resolve({ data: [] }),
-          /* 14 – productividad_asesores aggregated by celula for VN gerente */
-          isVN && profile.role !== 'asesor' && profile.celula
-            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais')
-                .eq('celula', profile.celula)
+          /* 14 – productividad_asesores: NO filtramos por celula (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo'). Match client-side. */
+          isVN && profile.role !== 'asesor'
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente')
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
-                .limit(1000)
+                .limit(5000)
             : Promise.resolve({ data: [] }),
           /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas) */
           isVN && profile.role !== 'asesor' && profile.nombre
