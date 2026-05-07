@@ -665,28 +665,34 @@ export const useGamificationMetrics = (
           }
         } else {
           // VN gerente path: prefer productividad_asesores by celula
-          const celulaRows = celulaProductividadRes?.data || [];
+          const rawCelulaRows: any[] = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
           let allVentasDiarias = ventasDiariasRes?.data || [];
+
+          const gerenteNombre = normalizeComparableText(profile.nombre);
+          const celulaGerente = normalizeComparableText(profile.celula);
+          const gerenteNameWords = gerenteNombre.split(' ').filter((w: string) => w.length > 3);
+
+          // Filtrar productividad_asesores client-side (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo').
+          const celulaRows = rawCelulaRows.filter((r: any) => {
+            const rowCelula = normalizeComparableText(r.celula);
+            const rowGerente = normalizeComparableText(r.gerente || '');
+            if (celulaGerente && rowCelula === celulaGerente) return true;
+            if (gerenteNombre && rowGerente === gerenteNombre) return true;
+            if (gerenteNameWords.length > 0) {
+              if (rowCelula && gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
+              if (rowGerente && gerenteNameWords.some((w: string) => rowGerente.includes(w))) return true;
+            }
+            return false;
+          });
           vnCelulaRows = celulaRows;
 
-          // Build team advisor identifiers from productividad + metas_asesores.
-          // En Aliados/Empresarios no podemos depender solo del primer bloque de ventas_diarias
-          // porque el backend devuelve páginas de 1000 filas; por eso refinamos la carga al equipo exacto.
           const teamAsesorNames = new Set<string>();
           const teamAdvisorDocs = new Set<string>();
           celulaRows.forEach((r: any) => {
             if (r.asesor) teamAsesorNames.add(normalizeComparableText(r.asesor));
           });
 
-          const gerenteNombre = normalizeComparableText(profile.nombre);
-          const celulaGerente = normalizeComparableText(profile.celula);
-          // Palabras significativas (>3 chars) del nombre del gerente para fuzzy match
-          // contra células de Databricks que se llaman "Equipo Ciudad NombreGerente"
-          // mientras Supabase usa "Cuarzo", "Rubí", etc.
-          const gerenteNameWords = gerenteNombre
-            .split(' ')
-            .filter((w: string) => w.length > 3);
           const matchesGerenteName = (candidate: string) => {
             if (!candidate || !gerenteNombre) return false;
             if (candidate === gerenteNombre || candidate.includes(gerenteNombre) || gerenteNombre.includes(candidate)) return true;
@@ -695,12 +701,12 @@ export const useGamificationMetrics = (
           };
           const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
             if (celulaGerente && rowCelula === celulaGerente) return true;
-            // Si el gerente tiene célula definida, NO usar fuzzy match por palabras
-            // del nombre — eso mezclaba datos entre células que comparten un nombre
-            // común (ej. "Equipo DianaM" vs "Equipo Bogota Diana").
-            if (celulaGerente) return false;
             if (matchesGerenteName(rowGerente)) return true;
-            return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
+            if (gerenteNameWords.length > 0) {
+              if (rowCelula && gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
+              if (rowGerente && rowGerente.length > 3 && gerenteNameWords.some((w: string) => rowGerente.includes(w))) return true;
+            }
+            return false;
           };
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
