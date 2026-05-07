@@ -54,7 +54,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
             .lte('anio_mes', `${year}12`)
         : Promise.resolve({ data: [] as any[] });
 
-      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes, metasGerentesMexRes] = await Promise.all([
+      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes, metasGerentesMexRes, ventasDiariasRes] = await Promise.all([
         supabase
           .from('ventas_gerente_mensual')
           .select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado')
@@ -73,6 +73,15 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           .limit(2000),
         vnMetGerenteQuery,
         metasGerentesMexQuery,
+        !isAsesor
+          ? supabase
+              .from('ventas_diarias')
+              .select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais')
+              .gte('fecha', `${year}-01-01`)
+              .lt('fecha', `${Number(year) + 1}-01-01`)
+              .eq('pais', String(profile.pais || '').toUpperCase())
+              .limit(10000)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const metasAcvRows = [...(metasAcvRes.data || [])] as any[];
@@ -99,6 +108,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           metaAcvRows: metasAcvRows,
           year,
           vnMetricasGerenteRows: ((vnMetGerenteRes as any)?.data as any[]) || [],
+          ventasDiariasRows: ((ventasDiariasRes as any)?.data as any[]) || [],
         },
         celula,
         profile.nombre || null
