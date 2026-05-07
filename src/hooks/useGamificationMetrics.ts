@@ -200,16 +200,6 @@ const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | nu
   return Math.round(n * factor);
 };
 
-// Normaliza cualquier variante de país a código de 3 letras.
-const normalizePaisCode = (p: string | null | undefined): string => {
-  return resolveCountryCode(p) || String(p || '').toUpperCase().slice(0, 3);
-};
-
-const samePaisCode = (a: string | null | undefined, b: string | null | undefined): boolean => {
-  if (!a || !b) return true;
-  return normalizePaisCode(a) === normalizePaisCode(b);
-};
-
 const normalizeStoredAcv = (value: number | null | undefined) => {
   const n = Number(value) || 0;
   if (!Number.isFinite(n)) return 0;
@@ -418,12 +408,13 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(5000)
             : Promise.resolve({ data: [] }),
-          /* 14 – productividad_asesores: NO filtramos por celula (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo'). Match client-side. */
-          isVN && profile.role !== 'asesor'
-            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente:director')
+          /* 14 – productividad_asesores aggregated by celula for VN gerente */
+          isVN && profile.role !== 'asesor' && profile.celula
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais')
+                .eq('celula', profile.celula)
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
-                .limit(5000)
+                .limit(1000)
             : Promise.resolve({ data: [] }),
           /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas) */
           isVN && profile.role !== 'asesor' && profile.nombre
@@ -465,20 +456,14 @@ export const useGamificationMetrics = (
                   Para gerentes VN se refina luego con una consulta paginada del equipo
                   para evitar el recorte backend de 1000 filas. */
           isVN
-            ? (() => {
-                // Para México profile.pais='MEX' pero ventas_diarias puede tener 'MEXICO'.
-                // Usamos ilike con prefijo para tolerar ambas formas.
-                const paisPrefix = resolveCountryCode(profile.pais) || String(profile.pais || '').toUpperCase();
-                let q = supabase
-                  .from('ventas_diarias')
-                  .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                  .gte('fecha', `${anioActual}-01-01`)
-                  .lt('fecha', `${anioActual + 1}-01-01`)
-                  .eq('canal_direccion', canalNorm)
-                  .ilike('pais', `${paisPrefix}%`)
-                  .range(0, 999);
-                return q;
-              })()
+            ? supabase
+                .from('ventas_diarias')
+                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                .gte('fecha', `${anioActual}-01-01`)
+                .lt('fecha', `${anioActual + 1}-01-01`)
+                .eq('canal_direccion', canalNorm)
+                .eq('pais', String(profile.pais || '').toUpperCase())
+                .range(0, 999)
             : Promise.resolve({ data: [] }),
           /* 20 – ventas_gerente_mensual: FUENTE DE VERDAD para gerentes VN
                   (FE/NUBE/CONTADOR pre-agregado por Databricks).
@@ -487,19 +472,21 @@ export const useGamificationMetrics = (
                   filtramos en cliente con normalización por nombre. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
-                // NO filtramos por celula server-side: el nombre interno en Supabase
-                // ('Cuarzo') puede diferir del nombre en Databricks ('Equipo Mexico Cielo').
-                // El match exacto lo hace matchVnRow client-side con fuzzy por nombre.
                 let q = supabase
                   .from('ventas_gerente_mensual' as any)
                   .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
                   .gte('periodo', `${anioActual}01`)
                   .lte('periodo', `${anioActual}12`)
                   .limit(5000);
-                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                               : null;
-                if (canalDir) q = q.eq('canal_direccion', canalDir);
+                if (profile.celula) {
+                  q = q.eq('celula', profile.celula);
+                } else {
+                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                                 : null;
+                  if (canalDir) q = q.eq('canal_direccion', canalDir);
+                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
+                }
                 return q;
               })()
             : Promise.resolve({ data: [] }),
@@ -531,8 +518,7 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(8000);
-                // NO filtramos por pais: la tabla puede tener 'MEXICO' pero profile.pais es 'MEX'.
-                // El filtrado por equipo lo hace matchVnRow client-side.
+                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
             : Promise.resolve({ data: [] }),
@@ -553,7 +539,7 @@ export const useGamificationMetrics = (
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
                   .limit(5000);
-                // NO filtramos por pais: puede haber discrepancia 'MEX' vs 'MEXICO'.
+                if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
             : Promise.resolve({ data: [] }),
@@ -570,26 +556,19 @@ export const useGamificationMetrics = (
         if (isVN && profile.role !== 'asesor' && profile.nombre) {
           const targetCelula = normalizeComparableText(profile.celula ?? '');
           const targetNombre = normalizeComparableText(profile.nombre);
-          // Palabras del nombre del gerente (>3 chars) para fuzzy matching.
-          // Ej: "cielo dirley contreras sabogal" → ["cielo","dirley","contreras","sabogal"]
-          const gerenteWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
+          const targetNameWords = targetNombre.split(' ').filter((w: string) => w.length > 3);
+          const matchesTargetManager = (rowNombre: string) => {
+            if (!rowNombre || !targetNombre) return false;
+            if (rowNombre === targetNombre || rowNombre.includes(targetNombre) || targetNombre.includes(rowNombre)) return true;
+            const rowWords = new Set(rowNombre.split(' ').filter((w: string) => w.length > 3));
+            const shared = targetNameWords.filter((w: string) => rowWords.has(w));
+            return shared.length >= 2;
+          };
           const matchVnRow = (r: any) => {
             const rowCelula = normalizeComparableText(r.celula ?? '');
             const rowNombre = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? '');
-            // 1) Match exacto por célula interna (Colombia)
             if (targetCelula && rowCelula === targetCelula) return true;
-            // 2) Match por nombre completo o contenido
-            if (rowNombre && targetNombre && (
-              rowNombre === targetNombre ||
-              rowNombre.includes(targetNombre) ||
-              targetNombre.includes(rowNombre)
-            )) return true;
-            // 3) Fuzzy: alguna palabra del nombre aparece en célula o nombre de la fila
-            //    Cubre caso México: célula Databricks = "Equipo Mexico Cielo" y nombre = "Cielo Dirley..."
-            if (gerenteWords.length > 0) {
-              if (rowCelula && gerenteWords.some((w: string) => rowCelula.includes(w))) return true;
-              if (rowNombre && gerenteWords.some((w: string) => rowNombre.includes(w))) return true;
-            }
+            if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
           if (ventasGerenteMensualRes?.data) {
@@ -665,34 +644,28 @@ export const useGamificationMetrics = (
           }
         } else {
           // VN gerente path: prefer productividad_asesores by celula
-          const rawCelulaRows: any[] = celulaProductividadRes?.data || [];
+          const celulaRows = celulaProductividadRes?.data || [];
           const vnMetasAsesores = vnMetasRes?.data || [];
           let allVentasDiarias = ventasDiariasRes?.data || [];
-
-          const gerenteNombre = normalizeComparableText(profile.nombre);
-          const celulaGerente = normalizeComparableText(profile.celula);
-          const gerenteNameWords = gerenteNombre.split(' ').filter((w: string) => w.length > 3);
-
-          // Filtrar productividad_asesores client-side (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo').
-          const celulaRows = rawCelulaRows.filter((r: any) => {
-            const rowCelula = normalizeComparableText(r.celula);
-            const rowGerente = normalizeComparableText(r.gerente || '');
-            if (celulaGerente && rowCelula === celulaGerente) return true;
-            if (gerenteNombre && rowGerente === gerenteNombre) return true;
-            if (gerenteNameWords.length > 0) {
-              if (rowCelula && gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
-              if (rowGerente && gerenteNameWords.some((w: string) => rowGerente.includes(w))) return true;
-            }
-            return false;
-          });
           vnCelulaRows = celulaRows;
 
+          // Build team advisor identifiers from productividad + metas_asesores.
+          // En Aliados/Empresarios no podemos depender solo del primer bloque de ventas_diarias
+          // porque el backend devuelve páginas de 1000 filas; por eso refinamos la carga al equipo exacto.
           const teamAsesorNames = new Set<string>();
           const teamAdvisorDocs = new Set<string>();
           celulaRows.forEach((r: any) => {
             if (r.asesor) teamAsesorNames.add(normalizeComparableText(r.asesor));
           });
 
+          const gerenteNombre = normalizeComparableText(profile.nombre);
+          const celulaGerente = normalizeComparableText(profile.celula);
+          // Palabras significativas (>3 chars) del nombre del gerente para fuzzy match
+          // contra células de Databricks que se llaman "Equipo Ciudad NombreGerente"
+          // mientras Supabase usa "Cuarzo", "Rubí", etc.
+          const gerenteNameWords = gerenteNombre
+            .split(' ')
+            .filter((w: string) => w.length > 3);
           const matchesGerenteName = (candidate: string) => {
             if (!candidate || !gerenteNombre) return false;
             if (candidate === gerenteNombre || candidate.includes(gerenteNombre) || gerenteNombre.includes(candidate)) return true;
@@ -701,12 +674,12 @@ export const useGamificationMetrics = (
           };
           const matchesGerenteCelula = (rowCelula: string, rowGerente = '') => {
             if (celulaGerente && rowCelula === celulaGerente) return true;
+            // Si el gerente tiene célula definida, NO usar fuzzy match por palabras
+            // del nombre — eso mezclaba datos entre células que comparten un nombre
+            // común (ej. "Equipo DianaM" vs "Equipo Bogota Diana").
+            if (celulaGerente) return false;
             if (matchesGerenteName(rowGerente)) return true;
-            if (gerenteNameWords.length > 0) {
-              if (rowCelula && gerenteNameWords.some((w: string) => rowCelula.includes(w))) return true;
-              if (rowGerente && rowGerente.length > 3 && gerenteNameWords.some((w: string) => rowGerente.includes(w))) return true;
-            }
-            return false;
+            return gerenteNameWords.length >= 2 && gerenteNameWords.slice(1).some((word: string) => rowCelula.includes(word));
           };
           // FIX: NO agregar al gerente al set de asesores del equipo — causaba que
           // el propio gerente apareciera como un "asesor" con FE=0 en la lista de
@@ -800,36 +773,21 @@ export const useGamificationMetrics = (
           if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
-            // Usar células RAW (con acentos/mayúsculas) directamente desde productividad/metas,
-            // ya que ilike de Postgres es case-insensitive pero accent-sensitive.
-            const rawCelulasSet = new Set<string>();
-            if (profile.celula) rawCelulasSet.add(String(profile.celula));
-            celulaRows.forEach((r: any) => { if (r.celula) rawCelulasSet.add(String(r.celula)); });
-            vnMetasAsesores.forEach((r: any) => { if (r.celula) rawCelulasSet.add(String(r.celula)); });
-            const celulasParaBuscar = Array.from(rawCelulasSet);
-            const paisCode = normalizePaisCode(profile.pais).slice(0, 3);
             for (let from = 0; from < 10000; from += pageSize) {
-              const orParts: string[] = [];
-              celulasParaBuscar.forEach((c) => {
-                const safe = c.replace(/[,()]/g, ' ');
-                if (safe) orParts.push(`celula.ilike.${safe}`);
-              });
-              if (profile.nombre) orParts.push(`director.ilike.%${String(profile.nombre).replace(/[,()]/g, ' ')}%`);
-              if (teamAsesorNames.size > 0 && orParts.length === 0) {
-                Array.from(teamAsesorNames).slice(0, 5).forEach((n) => {
-                  orParts.push(`asesor.ilike.%${n.split(' ')[0]}%`);
-                });
-              }
+              const filters = [
+                profile.celula ? `celula.eq.${profile.celula}` : '',
+                profile.nombre ? `director.eq.${profile.nombre}` : '',
+              ].filter(Boolean).join(',');
 
               const query = supabase
                 .from('ventas_diarias')
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
-                .ilike('pais', `%${paisCode}%`)
+                .eq('pais', paisProfile)
                 .range(from, from + pageSize - 1);
 
-              const { data: pageRows } = orParts.length > 0 ? await query.or(orParts.join(',')) : await query;
+              const { data: pageRows } = filters ? await query.or(filters) : await query;
               if (!pageRows || pageRows.length === 0) break;
               teamVentasPaged.push(...pageRows);
               if (pageRows.length < pageSize) break;
@@ -838,8 +796,8 @@ export const useGamificationMetrics = (
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
-            const rowPais = String(row.pais || '').trim();
-            const samePais = !paisProfile || !rowPais || samePaisCode(rowPais, paisProfile);
+            const rowPais = String(row.pais || '').toUpperCase().trim();
+            const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
             if (!samePais) return false;
 
             const asesorNorm = normalizeComparableText(row.asesor);
@@ -917,17 +875,16 @@ export const useGamificationMetrics = (
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
             });
 
-            // Estrategia 2 (fuzzy): cuando no hay match exacto, buscar por palabras
-            // del nombre del gerente en la célula del catálogo. Cubre México donde
-            // perfil.celula = "Cuarzo" pero catálogo trae "Equipo Mexico Cielo".
-            if (rows.length === 0 && gerenteNameWords.length > 0) {
+            // Estrategia 2 (fuzzy): SOLO cuando el gerente NO tiene célula asignada.
+            // Antes esto traía metas de células ajenas que compartían palabras del
+            // nombre (ej. "Equipo Bogota Diana" se contaba para gerentes con "Diana"
+            // en el nombre aunque tuvieran su propia célula "Equipo DianaM").
+            if (rows.length === 0 && !celulaGerente && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
                 if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
                 const rowDirectorNorm = normalizeComparableText(r.director);
-                if (gerenteNameWords.some((w: string) => rowCelulaNorm.includes(w))) return true;
-                if (rowDirectorNorm && matchesGerenteName(rowDirectorNorm)) return true;
-                return false;
+                return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
               });
             }
 
@@ -1175,7 +1132,7 @@ export const useGamificationMetrics = (
                 ventas_nube: teamVentasNube || 0,
                 ventas_total: teamVentasTotal || ventasTotal,
                 acv_total: acvMes,
-                cant_recomendados: Math.floor(Number(kpiData?.cant_recomendados) || 0),
+                cant_recomendados: Number(kpiData?.cant_recomendados) || 0,
                 productividad: metaFallback > 0 ? Math.round((teamVentasTotal || ventasTotal) / metaFallback * 100) : 0,
               };
               metaAsesor = {
@@ -1247,7 +1204,7 @@ export const useGamificationMetrics = (
                 ventas_nube: ventasDiariasNube || Math.round(Number(matchingEjec?.ventas_nube) || 0),
                 ventas_total: ventasDiariasTotal || Math.round(Number(matchingEjec?.ventas_total) || 0),
                 acv_total: Math.round(Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
-                cant_recomendados: Math.floor(Number(matchingEjec?.cant_recomendados) || 0),
+                cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
                 productividad: Number(matchingEjec?.productividad) || 0,
               };
             }

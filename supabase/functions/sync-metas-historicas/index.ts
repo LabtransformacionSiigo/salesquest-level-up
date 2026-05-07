@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       SELECT pais, canal_direccion, director, gerente,
              documento_asesor, nombre_asesor, celula,
              meta_fe, meta_nube, meta_total, mes,
-             novedad, coi, noi
+             novedad
       FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
       WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
         AND meta_total IS NOT NULL
@@ -187,15 +187,8 @@ Deno.serve(async (req) => {
       if (!celula) { descartesPorMes[mesKey].sin_celula++; continue; }
 
       const fe = toInt(r.meta_fe);
-      const nubeRaw = toInt(r.meta_nube);
+      const nube = toInt(r.meta_nube);
       const total = toInt(r.meta_total);
-      // Para Venta Nueva (VN_ALIADOS / VN_EMPRESARIOS) la meta real de Nube/Campana
-      // es coi + noi (la columna meta_nube llega en 0 o no representa el total real).
-      // Para otros canales (p.ej. VC) usamos meta_nube tal cual.
-      const esVN = canal === "VN_ALIADOS" || canal === "VN_EMPRESARIOS";
-      const nube = esVN
-        ? (toInt(r.coi) + toInt(r.noi))
-        : nubeRaw;
 
       // ── (1) Asesor individual ──
       if (documento && nombre) {

@@ -208,9 +208,7 @@ Deno.serve(async (req) => {
         CAST(nube AS BIGINT)           AS nube,
         CAST(meta_total_und AS BIGINT) AS meta_total_und,
         meta_total_acv,
-        cuota,
-        CAST(coi AS BIGINT)            AS coi,
-        CAST(noi AS BIGINT)            AS noi
+        cuota
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
       ORDER BY mes, pais_gestion, canal_direccion, celula,
@@ -274,7 +272,7 @@ Deno.serve(async (req) => {
     // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
-      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota, coiRaw, noiRaw] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
       const archivoRawText = String(archivoRaw || "");
       const archivo = deriveArchivo(archivoRawText);
       // Databricks a veces deja `mes` con el mes anterior y el mes real viene en el nombre de archivo.
@@ -284,19 +282,9 @@ Deno.serve(async (req) => {
         summary.invalid++;
         return;
       }
-      // Para Venta Nueva (VN_ALIADOS / VN_EMPRESARIOS) la meta real de Nube/Campana
-      // es coi + noi (la columna nube llega en 0 o no representa el total real).
-      // Para otros canales (p.ej. VC) usamos la columna nube tal cual.
-      const nubeVal = Math.round(toNum(nubeRaw));
-      const paisNorm = normPais(String(pais));
-      const canalNorm = normCanal(String(canal));
-      const esVN = canalNorm === "VN_ALIADOS" || canalNorm === "VN_EMPRESARIOS";
-      const meta_nube_calc = esVN
-        ? Math.round(toNum(coiRaw) + toNum(noiRaw))
-        : nubeVal;
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
-        p_pais: paisNorm,
-        p_canal: canalNorm,
+        p_pais: normPais(String(pais)),
+        p_canal: normCanal(String(canal)),
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
         p_esquema: null,
@@ -306,7 +294,7 @@ Deno.serve(async (req) => {
         p_mes: mes,
         p_archivo: archivo,
         p_meta_fe: Math.round(toNum(feRaw)),
-        p_meta_nube: meta_nube_calc,
+        p_meta_nube: Math.round(toNum(nubeRaw)),
       });
       if (error) {
         errors.push({ row: r, error: error.message });
