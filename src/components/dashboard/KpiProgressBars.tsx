@@ -176,7 +176,7 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
       >
         <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
-          <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'Rendimiento del Mes'}
+          <span className="text-primary">🎯</span> {showVCTeam || showVNTeam ? 'Rendimiento del Equipo' : 'AVANCE DEL MES'}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
           {showVCTeam ? 'ACV+ por comercial vs Meta del mes' : showVNTeam ? 'Cumplimiento por asesor del mes seleccionado' : isVN ? 'Unidades vendidas vs Meta del equipo' : isVcAdvisor ? 'ACV+ vs Meta asignada' : 'Ventas vs Meta del mes'}
