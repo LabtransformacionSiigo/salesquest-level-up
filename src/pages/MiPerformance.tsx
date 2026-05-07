@@ -79,7 +79,7 @@ const MiPerformance = () => {
   const vcUnitsLabel = `Sumatoria de unidades del mes: ${vcUnitsTotal} ${vcUnitsTotal === 1 ? 'unidad' : 'unidades'}`;
 
   return (
-    <Layout title="📊 Mi Performance">
+    <Layout title="📊 Mi Progreso ">
       <CelebrationOverlay show={celebration.show} type={celebration.type} onComplete={handleCelebrationComplete} />
       <TooltipProvider delayDuration={200}>
         <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">

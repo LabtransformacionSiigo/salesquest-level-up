@@ -567,7 +567,7 @@ export const useGamificationMetrics = (
         // metas_acv_gerentes.meta_nube en 0 para México, la meta de Nube
         // real es la suma de columnas COI + NOI dentro de metas_gerentes.
         // Sobreescribimos las filas del catálogo IN-PLACE para que toda la
-        // lógica downstream (Mi Performance, Panel General, Historial) use
+        // lógica downstream (Mi Progreso , Panel General, Historial) use
         // el valor correcto sin tocar el resto del flujo.
         // ───────────────────────────────────────────────────────────────
         if (
