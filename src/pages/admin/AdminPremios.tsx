@@ -93,7 +93,7 @@ const AdminPremios = () => {
     setShowForm(true);
   };
 
-  if (loading) return <Layout title="⚙️ Configurar Premios"><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></Layout>;
+  if (loading) return <Layout title="⚙️ Configurar Beneficios "><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></Layout>;
 
   return (
     <Layout title="⚙️ Configurar Premios">
