@@ -104,7 +104,7 @@ const AdminEspecialistaPremios = () => {
               <MI icon="storefront" className="text-accent text-xl" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-foreground">Catálogo de Premios</h2>
+              <h2 className="text-lg font-bold text-foreground">Catálogo de Beneficios </h2>
               <p className="text-xs text-muted-foreground">
                 {isAdmin
                   ? 'Acceso total. Puedes crear premios para cualquier país u operación.'
