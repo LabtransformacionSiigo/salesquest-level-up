@@ -340,7 +340,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
 
   return (
     <>
-      <SectionTitle icon="donut_large" title="Rendimiento del Mes" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV." />
+      <SectionTitle icon="donut_large" title="AVANCE DEL MES" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
         <div className="space-y-5">
           <ProgressMetricRow
