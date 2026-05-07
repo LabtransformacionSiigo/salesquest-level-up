@@ -187,8 +187,14 @@ Deno.serve(async (req) => {
       if (!celula) { descartesPorMes[mesKey].sin_celula++; continue; }
 
       const fe = toInt(r.meta_fe);
-      const nube = toInt(r.meta_nube);
+      const nubeRaw = toInt(r.meta_nube);
       const total = toInt(r.meta_total);
+      // Para México la columna meta_nube llega en 0; la meta real de Nube/Campana
+      // es coi + noi. Se aplica solo cuando meta_nube === 0 y pais es México.
+      const esMexico = pais === "MEXICO" || pais === "MÉXICO" || pais === "MEX" || pais === "MX";
+      const nube = (nubeRaw === 0 && esMexico)
+        ? (toInt(r.coi) + toInt(r.noi))
+        : nubeRaw;
 
       // ── (1) Asesor individual ──
       if (documento && nombre) {
