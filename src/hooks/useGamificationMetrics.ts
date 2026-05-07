@@ -800,21 +800,29 @@ export const useGamificationMetrics = (
           if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
+            const celulasParaBuscar = Array.from(teamCelulas);
+            const paisCode = normalizePaisCode(profile.pais).slice(0, 3);
             for (let from = 0; from < 10000; from += pageSize) {
-              const filters = [
-                profile.celula ? `celula.eq.${profile.celula}` : '',
-                profile.nombre ? `director.eq.${profile.nombre}` : '',
-              ].filter(Boolean).join(',');
+              const orParts: string[] = [];
+              celulasParaBuscar.forEach((c) => {
+                if (c) orParts.push(`celula.ilike.${c}`);
+              });
+              if (profile.nombre) orParts.push(`director.ilike.%${profile.nombre}%`);
+              if (teamAsesorNames.size > 0 && orParts.length === 0) {
+                Array.from(teamAsesorNames).slice(0, 5).forEach((n) => {
+                  orParts.push(`asesor.ilike.%${n.split(' ')[0]}%`);
+                });
+              }
 
               const query = supabase
                 .from('ventas_diarias')
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('pais', paisProfile)
+                .ilike('pais', `%${paisCode}%`)
                 .range(from, from + pageSize - 1);
 
-              const { data: pageRows } = filters ? await query.or(filters) : await query;
+              const { data: pageRows } = orParts.length > 0 ? await query.or(orParts.join(',')) : await query;
               if (!pageRows || pageRows.length === 0) break;
               teamVentasPaged.push(...pageRows);
               if (pageRows.length < pageSize) break;
@@ -823,8 +831,8 @@ export const useGamificationMetrics = (
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
-            const rowPais = String(row.pais || '').toUpperCase().trim();
-            const samePais = !paisProfile || !rowPais || rowPais === paisProfile;
+            const rowPais = String(row.pais || '').trim();
+            const samePais = !paisProfile || !rowPais || samePaisCode(rowPais, paisProfile);
             if (!samePais) return false;
 
             const asesorNorm = normalizeComparableText(row.asesor);
