@@ -129,7 +129,7 @@ const Dashboard = () => {
   if (profile?.role === 'especialista') return <Navigate to="/admin/especialista" replace />;
 
   return (
-    <Layout title="Panel General">
+    <Layout title=" Clasificación">
       <CelebrationOverlay show={celebration.show} type={celebration.type} title={celebration.title} subtitle={celebration.subtitle} onComplete={handleCelebrationComplete} />
       <motion.div className="space-y-6 max-w-[1400px]" variants={staggerContainer} initial="hidden" animate="show">
 
