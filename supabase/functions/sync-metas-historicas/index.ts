@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       SELECT pais, canal_direccion, director, gerente,
              documento_asesor, nombre_asesor, celula,
              meta_fe, meta_nube, meta_total, mes,
-             novedad
+             novedad, coi, noi
       FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
       WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
         AND meta_total IS NOT NULL
