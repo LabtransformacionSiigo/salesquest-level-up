@@ -420,7 +420,7 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 14 – productividad_asesores: NO filtramos por celula (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo'). Match client-side. */
           isVN && profile.role !== 'asesor'
-            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente')
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente:director')
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(5000)
