@@ -478,21 +478,19 @@ export const useGamificationMetrics = (
                   filtramos en cliente con normalización por nombre. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
+                // NO filtramos por celula server-side: el nombre interno en Supabase
+                // ('Cuarzo') puede diferir del nombre en Databricks ('Equipo Mexico Cielo').
+                // El match exacto lo hace matchVnRow client-side con fuzzy por nombre.
                 let q = supabase
                   .from('ventas_gerente_mensual' as any)
                   .select('pais, anio, mes, periodo, canal_direccion, gerente, gerente_normalizado, celula, familia, unidades, acv')
                   .gte('periodo', `${anioActual}01`)
                   .lte('periodo', `${anioActual}12`)
                   .limit(5000);
-                if (profile.celula) {
-                  q = q.eq('celula', profile.celula);
-                } else {
-                  const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
-                                 : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
-                                 : null;
-                  if (canalDir) q = q.eq('canal_direccion', canalDir);
-                  if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
-                }
+                const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                               : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
+                               : null;
+                if (canalDir) q = q.eq('canal_direccion', canalDir);
                 return q;
               })()
             : Promise.resolve({ data: [] }),
