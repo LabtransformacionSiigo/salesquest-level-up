@@ -575,7 +575,7 @@ const EquipoRendimientoSection = ({
     <motion.div variants={fadeUpItem} className="space-y-4">
       <SectionTitle
         icon="groups"
-        title={`Rendimiento del Equipo (${asesores.length} asesores)`}
+        title={`AVANCE DEL EQUIPO (${asesores.length} ASESORES)`}
         tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV."
       />
 
