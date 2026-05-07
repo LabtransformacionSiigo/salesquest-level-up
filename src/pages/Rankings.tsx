@@ -22,7 +22,7 @@ const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', V
 const PAIS_LABEL: Record<string, string> = { COL: 'Colombia', MEX: 'México', ECU: 'Ecuador' };
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = ['border-yellow bg-siigo-yellow/5', 'border-muted-foreground/30', 'border-orange/40'];
-type RankingTab = 'comerciales' | 'gerentes';
+type ClasificacionTab = 'comerciales' | 'gerentes';
 
 const FlagIcon = ({ pais }: { pais?: string | null }) => {
   const src = FLAG_IMG[pais?.trim().toUpperCase() || ''];
