@@ -66,6 +66,17 @@ export interface SpAnualInputs {
     gerente_normalizado?: string | null;
     gerente?: string | null;
   }>;
+  ventasDiariasRows?: Array<{
+    fecha?: string | null;
+    tipo_producto?: string | null;
+    producto?: string | null;
+    unidades?: number | null;
+    acv?: number | null;
+    celula?: string | null;
+    equipo?: string | null;
+    director?: string | null;
+    pais?: string | null;
+  }>;
 }
 
 /**
@@ -177,9 +188,29 @@ export function computeSpConvencionAnualForCelula(
   });
 
   // Períodos a calcular: ventas reales + períodos con meta.
+  const ventasDiariasByPeriod = new Map<string, { fe: number; nube: number; acv: number }>();
+  (inputs.ventasDiariasRows || []).forEach((row) => {
+    const rowCelula = normalizeSpText(row.celula || row.equipo);
+    const rowDirector = normalizeSpText(row.director);
+    if (!(celulaNorm && rowCelula === celulaNorm) && !(gerenteNorm && rowDirector === gerenteNorm)) return;
+    const fecha = String(row.fecha || '');
+    const periodo = fecha.length >= 7 ? fecha.slice(0, 7).replace('-', '') : '';
+    if (!/^\d{6}$/.test(periodo)) return;
+    const rawFam = String(row.tipo_producto || row.producto || '').toUpperCase().trim();
+    const fam = rawFam === 'CAMPANA' || rawFam === 'CAMPAÑA' ? 'NUBE'
+              : rawFam === 'FE' || rawFam === 'NUBE' ? rawFam
+              : 'OTRO';
+    const cur = ventasDiariasByPeriod.get(periodo) || { fe: 0, nube: 0, acv: 0 };
+    if (fam === 'FE') cur.fe += Math.round(Number(row.unidades) || 0);
+    if (fam === 'NUBE') cur.nube += Math.round(Number(row.unidades) || 0);
+    cur.acv += Math.round(Number(row.acv) || 0);
+    ventasDiariasByPeriod.set(periodo, cur);
+  });
+
   const periodSet = new Set<string>();
   vmgPrimary.forEach((_, p) => periodSet.add(p));
   vgmFiltrados.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
+  ventasDiariasByPeriod.forEach((_, p) => periodSet.add(p));
   metasPorPeriodo.forEach((_, p) => periodSet.add(p));
 
   let totalSp = 0;
@@ -193,6 +224,11 @@ export function computeSpConvencionAnualForCelula(
       ventas_fe = primaryData.fe;
       ventas_nube = primaryData.nube;
       acv_total = primaryData.acv;
+    } else if (ventasDiariasByPeriod.has(periodo)) {
+      const vd = ventasDiariasByPeriod.get(periodo)!;
+      ventas_fe = vd.fe;
+      ventas_nube = vd.nube;
+      acv_total = vd.acv;
     } else {
       vgmFiltrados.filter((r) => String(r.periodo) === periodo).forEach((r) => {
         const u = Math.round(Number(r.unidades) || 0);

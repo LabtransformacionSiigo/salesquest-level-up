@@ -17,6 +17,7 @@ const getSnapshot = () => totalSp;
 const getServerSnapshot = () => null;
 
 export const setSpConvencionAnual = (value: number | null) => {
+  if (totalSp != null && value != null && totalSp > 0 && value > 0 && value < totalSp) return;
   if (totalSp === value) return;
   totalSp = value;
   listeners.forEach((l) => l());
