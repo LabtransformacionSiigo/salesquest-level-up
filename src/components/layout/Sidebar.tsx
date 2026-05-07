@@ -19,7 +19,7 @@ const menuItems = [
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/retos', icon: 'flag', label: 'Retos' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
-  { path: '/premios', icon: 'redeem', label: 'Premios' },
+  { path: '/premios', icon: 'redeem', label: 'Beneficios ' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
 
