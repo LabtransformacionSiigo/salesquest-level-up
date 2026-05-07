@@ -1144,7 +1144,7 @@ export const useGamificationMetrics = (
                 ventas_nube: teamVentasNube || 0,
                 ventas_total: teamVentasTotal || ventasTotal,
                 acv_total: acvMes,
-                cant_recomendados: Number(kpiData?.cant_recomendados) || 0,
+                cant_recomendados: Math.floor(Number(kpiData?.cant_recomendados) || 0),
                 productividad: metaFallback > 0 ? Math.round((teamVentasTotal || ventasTotal) / metaFallback * 100) : 0,
               };
               metaAsesor = {
@@ -1216,7 +1216,7 @@ export const useGamificationMetrics = (
                 ventas_nube: ventasDiariasNube || Math.round(Number(matchingEjec?.ventas_nube) || 0),
                 ventas_total: ventasDiariasTotal || Math.round(Number(matchingEjec?.ventas_total) || 0),
                 acv_total: Math.round(Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
-                cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
+                cant_recomendados: Math.floor(Number(matchingEjec?.cant_recomendados) || 0),
                 productividad: Number(matchingEjec?.productividad) || 0,
               };
             }
