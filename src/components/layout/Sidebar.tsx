@@ -40,7 +40,7 @@ const adminItems = [
 
 const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
-  { path: '/admin/especialista/premios', icon: 'storefront', label: 'Premios' },
+  { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];
 
