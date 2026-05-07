@@ -284,11 +284,14 @@ Deno.serve(async (req) => {
         summary.invalid++;
         return;
       }
-      // Para México la columna nube llega en 0; la meta real de Nube/Campana
-      // es coi + noi. Solo aplicamos el fallback cuando nube === 0 y pais === MEX.
+      // Para Venta Nueva (VN_ALIADOS / VN_EMPRESARIOS) la meta real de Nube/Campana
+      // es coi + noi (la columna nube llega en 0 o no representa el total real).
+      // Para otros canales (p.ej. VC) usamos la columna nube tal cual.
       const nubeVal = Math.round(toNum(nubeRaw));
       const paisNorm = normPais(String(pais));
-      const meta_nube_calc = (nubeVal === 0 && paisNorm === "MEX")
+      const canalNorm = normCanal(String(canal));
+      const esVN = canalNorm === "VN_ALIADOS" || canalNorm === "VN_EMPRESARIOS";
+      const meta_nube_calc = esVN
         ? Math.round(toNum(coiRaw) + toNum(noiRaw))
         : nubeVal;
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
