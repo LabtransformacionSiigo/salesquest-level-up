@@ -45,7 +45,16 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           })()
         : Promise.resolve({ data: [] as any[] });
 
-      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes] = await Promise.all([
+      const metasGerentesMexQuery = !isAsesor && String(profile.pais || '').toUpperCase() === 'MEX' && celula
+        ? supabase
+            .from('metas_gerentes')
+            .select('celula, anio_mes, coi, noi')
+            .eq('celula', celula)
+            .gte('anio_mes', `${year}01`)
+            .lte('anio_mes', `${year}12`)
+        : Promise.resolve({ data: [] as any[] });
+
+      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes, metasGerentesMexRes] = await Promise.all([
         supabase
           .from('ventas_gerente_mensual')
           .select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado')
@@ -63,13 +72,31 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
           .select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
           .limit(2000),
         vnMetGerenteQuery,
+        metasGerentesMexQuery,
       ]);
+
+      const metasAcvRows = [...(metasAcvRes.data || [])] as any[];
+      const mexRows = [...(((metasGerentesMexRes as any)?.data as any[]) || [])]
+        .sort((a, b) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
+      if (mexRows.length > 0) {
+        const mes3to2: Record<string, string> = { ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06', jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12' };
+        const byPeriod = new Map<string, any>();
+        mexRows.forEach((r) => { if (!byPeriod.has(String(r.anio_mes || ''))) byPeriod.set(String(r.anio_mes || ''), r); });
+        const latest = mexRows[0];
+        metasAcvRows.forEach((row) => {
+          if (normalizeSpText(row.celula) !== normalizeSpText(celula)) return;
+          const mm = mes3to2[String(row.mes || '').trim().toLowerCase().slice(0, 3)] || '';
+          const mg = byPeriod.get(`${year}${mm}`) || latest;
+          const nube = (Number(mg?.coi) || 0) + (Number(mg?.noi) || 0);
+          if ((Number(row.meta_nube) || 0) === 0 && nube > 0) row.meta_nube = nube;
+        });
+      }
 
       const totalSp = computeSpConvencionAnualForCelula(
         {
           vgmRows: vgmRes.data || [],
           metaAsesorRows: metasRes.data || [],
-          metaAcvRows: metasAcvRes.data || [],
+          metaAcvRows,
           year,
           vnMetricasGerenteRows: ((vnMetGerenteRes as any)?.data as any[]) || [],
         },
