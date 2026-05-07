@@ -543,12 +543,60 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
+          /* 24 – metas_gerentes (solo MEX VN): fallback meta_nube = coi + noi
+                  cuando metas_acv_gerentes.meta_nube viene en 0 desde Databricks. */
+          isVN && profile.role !== 'asesor'
+            && String(profile.pais || '').toUpperCase() === 'MEX'
+            && profile.celula
+            ? supabase
+                .from('metas_gerentes')
+                .select('celula, anio_mes, coi, noi, fe, nube, canal_direccion, pais_gestion')
+                .eq('celula', profile.celula)
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
-        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes, vnMetricasGerenteRes] = results as any[];
+        const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes, vnMetricasGerenteRes, metasGerentesMexRes] = results as any[];
+
+        // ───────────────────────────────────────────────────────────────
+        // Fallback MÉXICO VN (Aliados/Empresarios): cuando Databricks deja
+        // metas_acv_gerentes.meta_nube en 0 para México, la meta de Nube
+        // real es la suma de columnas COI + NOI dentro de metas_gerentes.
+        // Sobreescribimos las filas del catálogo IN-PLACE para que toda la
+        // lógica downstream (Mi Performance, Panel General, Historial) use
+        // el valor correcto sin tocar el resto del flujo.
+        // ───────────────────────────────────────────────────────────────
+        if (
+          isVN
+          && String(profile.pais || '').toUpperCase() === 'MEX'
+          && Array.isArray(metasGerentesMexRes?.data)
+          && metasGerentesMexRes.data.length > 0
+          && Array.isArray(metasAcvCatalogRes?.data)
+        ) {
+          const mes3to2: Record<string, string> = {
+            ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
+            jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
+          };
+          const mgByPeriod = new Map<string, any>();
+          (metasGerentesMexRes.data as any[]).forEach((r: any) => {
+            mgByPeriod.set(String(r.anio_mes || ''), r);
+          });
+          (metasAcvCatalogRes.data as any[]).forEach((r: any) => {
+            const mes2 = mes3to2[String(r.mes || '').trim().toLowerCase().slice(0, 3)] || '';
+            if (!mes2) return;
+            const period = `${anioActual}${mes2}`;
+            const mg = mgByPeriod.get(period);
+            if (!mg) return;
+            const sumNube = (Number(mg.coi) || 0) + (Number(mg.noi) || 0);
+            if ((Number(r.meta_nube) || 0) === 0 && sumNube > 0) {
+              r.meta_nube = sumNube;
+            }
+          });
+        }
 
         // Filtrado client-side robusto para gerentes VN: si la query trajo más
         // filas de las del propio gerente (caso fallback sin celula), nos
