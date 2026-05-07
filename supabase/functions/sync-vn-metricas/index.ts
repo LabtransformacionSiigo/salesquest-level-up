@@ -151,7 +151,7 @@ const norm = (s: any) =>
 function classifyFamily(tipo: any): string {
   const t = norm(tipo);
   if (t.includes("FE") || t.includes("FACTURA")) return "FE";
-  if (t.includes("NUBE") || t.includes("CLOUD")) return "NUBE";
+  if (t.includes("NUBE") || t.includes("CLOUD") || t.includes("CAMPAN")) return "NUBE";
   if (t.includes("CONTADOR") || t.includes("SCO")) return "CONTADOR";
   return "OTRO";
 }
@@ -267,6 +267,7 @@ Deno.serve(async (req) => {
     const records = mergeByUniqueGrain([
       ...rowsA.map((r: any) => buildRecord(r, "gerente")),
       ...rowsB.map((r: any) => buildRecord(r, "asesor")),
+      ...rowsC.map((r: any) => buildRecord(r, "gerente")),
       ...rowsC.map((r: any) => buildRecord(r, "asesor")),
     ]);
 
@@ -308,7 +309,7 @@ Deno.serve(async (req) => {
     };
 
     const vgmMap = new Map<string, VgmRow>();
-    for (const r of rowsA as any[]) {
+    for (const r of [...(rowsA as any[]), ...(rowsC as any[])]) {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
       // SOLO mes en curso para preservar histórico
@@ -390,7 +391,7 @@ Deno.serve(async (req) => {
     };
 
     const ejecMap = new Map<string, EjecRow>();
-    for (const r of rowsB as any[]) {
+    for (const r of [...(rowsB as any[]), ...(rowsC as any[])]) {
       const nombre = String(r.asesor || "").trim();
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
