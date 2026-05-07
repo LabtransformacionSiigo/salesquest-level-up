@@ -917,16 +917,17 @@ export const useGamificationMetrics = (
               return matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
             });
 
-            // Estrategia 2 (fuzzy): SOLO cuando el gerente NO tiene célula asignada.
-            // Antes esto traía metas de células ajenas que compartían palabras del
-            // nombre (ej. "Equipo Bogota Diana" se contaba para gerentes con "Diana"
-            // en el nombre aunque tuvieran su propia célula "Equipo DianaM").
-            if (rows.length === 0 && !celulaGerente && gerenteNameWords.length > 0) {
+            // Estrategia 2 (fuzzy): cuando no hay match exacto, buscar por palabras
+            // del nombre del gerente en la célula del catálogo. Cubre México donde
+            // perfil.celula = "Cuarzo" pero catálogo trae "Equipo Mexico Cielo".
+            if (rows.length === 0 && gerenteNameWords.length > 0) {
               rows = acvCatalogRows.filter((r: any) => {
                 if (!filterByMes(r)) return false;
                 const rowCelulaNorm = normalizeComparableText(r.celula);
                 const rowDirectorNorm = normalizeComparableText(r.director);
-                return matchesGerenteName(rowDirectorNorm) || matchesGerenteCelula(rowCelulaNorm, rowDirectorNorm);
+                if (gerenteNameWords.some((w: string) => rowCelulaNorm.includes(w))) return true;
+                if (rowDirectorNorm && matchesGerenteName(rowDirectorNorm)) return true;
+                return false;
               });
             }
 
