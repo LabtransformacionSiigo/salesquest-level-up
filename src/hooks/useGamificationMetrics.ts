@@ -200,6 +200,16 @@ const normalizeVnMetaAcv = (value: number | null | undefined, pais?: string | nu
   return Math.round(n * factor);
 };
 
+// Normaliza cualquier variante de país a código de 3 letras.
+const normalizePaisCode = (p: string | null | undefined): string => {
+  return resolveCountryCode(p) || String(p || '').toUpperCase().slice(0, 3);
+};
+
+const samePaisCode = (a: string | null | undefined, b: string | null | undefined): boolean => {
+  if (!a || !b) return true;
+  return normalizePaisCode(a) === normalizePaisCode(b);
+};
+
 const normalizeStoredAcv = (value: number | null | undefined) => {
   const n = Number(value) || 0;
   if (!Number.isFinite(n)) return 0;
