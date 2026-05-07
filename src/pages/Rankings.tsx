@@ -1090,7 +1090,7 @@ const Rankings = () => {
                           </div>
                         </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
-                        {/* SP Ranking — prominent */}
+                        {/* SP Clasificación — prominent */}
                         <td className="px-4 py-3 text-right">
                           <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
                           <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
