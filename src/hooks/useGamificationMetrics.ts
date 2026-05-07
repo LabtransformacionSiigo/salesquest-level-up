@@ -594,9 +594,6 @@ export const useGamificationMetrics = (
             const sumNube = (Number(mg.coi) || 0) + (Number(mg.noi) || 0);
             if ((Number(r.meta_nube) || 0) === 0 && sumNube > 0) {
               r.meta_nube = sumNube;
-              if ((Number(r.meta_total_und) || 0) > 0) {
-                r.meta_total_und = (Number(r.meta_total_und) || 0) + sumNube;
-              }
             }
           });
         }
