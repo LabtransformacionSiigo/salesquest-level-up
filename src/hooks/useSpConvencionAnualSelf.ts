@@ -96,7 +96,7 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
         {
           vgmRows: vgmRes.data || [],
           metaAsesorRows: metasRes.data || [],
-          metaAcvRows,
+          metaAcvRows: metasAcvRows,
           year,
           vnMetricasGerenteRows: ((vnMetGerenteRes as any)?.data as any[]) || [],
         },
