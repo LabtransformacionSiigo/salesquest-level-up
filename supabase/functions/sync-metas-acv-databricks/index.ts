@@ -208,7 +208,9 @@ Deno.serve(async (req) => {
         CAST(nube AS BIGINT)           AS nube,
         CAST(meta_total_und AS BIGINT) AS meta_total_und,
         meta_total_acv,
-        cuota
+        cuota,
+        CAST(coi AS BIGINT)            AS coi,
+        CAST(noi AS BIGINT)            AS noi
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
       ORDER BY mes, pais_gestion, canal_direccion, celula,
