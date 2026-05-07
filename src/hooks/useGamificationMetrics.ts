@@ -456,14 +456,20 @@ export const useGamificationMetrics = (
                   Para gerentes VN se refina luego con una consulta paginada del equipo
                   para evitar el recorte backend de 1000 filas. */
           isVN
-            ? supabase
-                .from('ventas_diarias')
-                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                .gte('fecha', `${anioActual}-01-01`)
-                .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('canal_direccion', canalNorm)
-                .eq('pais', String(profile.pais || '').toUpperCase())
-                .range(0, 999)
+            ? (() => {
+                // Para México profile.pais='MEX' pero ventas_diarias puede tener 'MEXICO'.
+                // Usamos ilike con prefijo para tolerar ambas formas.
+                const paisPrefix = resolveCountryCode(profile.pais) || String(profile.pais || '').toUpperCase();
+                let q = supabase
+                  .from('ventas_diarias')
+                  .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                  .gte('fecha', `${anioActual}-01-01`)
+                  .lt('fecha', `${anioActual + 1}-01-01`)
+                  .eq('canal_direccion', canalNorm)
+                  .ilike('pais', `${paisPrefix}%`)
+                  .range(0, 999);
+                return q;
+              })()
             : Promise.resolve({ data: [] }),
           /* 20 – ventas_gerente_mensual: FUENTE DE VERDAD para gerentes VN
                   (FE/NUBE/CONTADOR pre-agregado por Databricks).
