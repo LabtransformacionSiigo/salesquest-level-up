@@ -80,7 +80,7 @@ const Premios = () => {
   const siigoPoints = profile?.sp_totales || 0;
 
   return (
-    <Layout title="🎁 Tienda de Premios">
+    <Layout title="🎁 Tienda de Beneficios ">
       <motion.div className="space-y-6 max-w-[1200px]" variants={staggerContainer} initial="hidden" animate="show">
 
         {/* Balance Card */}
