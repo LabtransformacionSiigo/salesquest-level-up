@@ -96,7 +96,7 @@ const AdminEspecialistaPremios = () => {
   if (!isAdmin && !isEspecialista) return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout title="Premios — Especialista">
+    <Layout title="Beneficios  — Especialista">
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-accent/10 to-primary/10 border border-border rounded-2xl p-5">
           <div className="flex items-start gap-3 mb-3">
