@@ -420,7 +420,7 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 14 – productividad_asesores: NO filtramos por celula (Supabase 'Cuarzo' vs Databricks 'Equipo Mexico Cielo'). Match client-side. */
           isVN && profile.role !== 'asesor'
-            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente')
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula, gerente:director')
                 .gte('anio_mes', `${anioActual}01`)
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(5000)
@@ -800,14 +800,21 @@ export const useGamificationMetrics = (
           if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
-            const celulasParaBuscar = Array.from(teamCelulas);
+            // Usar células RAW (con acentos/mayúsculas) directamente desde productividad/metas,
+            // ya que ilike de Postgres es case-insensitive pero accent-sensitive.
+            const rawCelulasSet = new Set<string>();
+            if (profile.celula) rawCelulasSet.add(String(profile.celula));
+            celulaRows.forEach((r: any) => { if (r.celula) rawCelulasSet.add(String(r.celula)); });
+            vnMetasAsesores.forEach((r: any) => { if (r.celula) rawCelulasSet.add(String(r.celula)); });
+            const celulasParaBuscar = Array.from(rawCelulasSet);
             const paisCode = normalizePaisCode(profile.pais).slice(0, 3);
             for (let from = 0; from < 10000; from += pageSize) {
               const orParts: string[] = [];
               celulasParaBuscar.forEach((c) => {
-                if (c) orParts.push(`celula.ilike.${c}`);
+                const safe = c.replace(/[,()]/g, ' ');
+                if (safe) orParts.push(`celula.ilike.${safe}`);
               });
-              if (profile.nombre) orParts.push(`director.ilike.%${profile.nombre}%`);
+              if (profile.nombre) orParts.push(`director.ilike.%${String(profile.nombre).replace(/[,()]/g, ' ')}%`);
               if (teamAsesorNames.size > 0 && orParts.length === 0) {
                 Array.from(teamAsesorNames).slice(0, 5).forEach((n) => {
                   orParts.push(`asesor.ilike.%${n.split(' ')[0]}%`);
