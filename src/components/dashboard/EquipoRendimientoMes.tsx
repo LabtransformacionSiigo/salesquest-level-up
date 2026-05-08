@@ -108,7 +108,7 @@ const StatusBadge = ({
 const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, lastUpdated }: Props) => {
   const [sortBy, setSortBy] = useState<SortKey>('fe');
 
-  const refLabel = canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos';
+  // refLabel removed: indicators about referidos hidden in VN UI
   const esMexico = ['MEX','MX','MEXICO','MÉXICO'].includes(String(pais ?? '').toUpperCase());
   const labelNube = esMexico ? 'Campaña' : 'Nube';
 
