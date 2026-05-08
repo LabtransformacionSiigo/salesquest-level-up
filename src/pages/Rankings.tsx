@@ -859,7 +859,7 @@ const Rankings = () => {
   const rest = sorted.slice(3);
 
   return (
-    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
+    <Layout title={`🏆 Panel General · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
