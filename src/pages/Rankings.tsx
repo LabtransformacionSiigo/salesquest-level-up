@@ -1050,7 +1050,6 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
                            <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
-                          <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
