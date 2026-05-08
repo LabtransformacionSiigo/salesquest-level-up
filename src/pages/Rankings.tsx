@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
-import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor } from '@/lib/sp-convencion-anual';
+import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, normalizeSpText } from '@/lib/sp-convencion-anual';
 import { getNivelData } from '@/lib/niveles';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
@@ -474,7 +474,7 @@ const Rankings = () => {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
         const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes, metasGerentesMexRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
@@ -493,6 +493,9 @@ const Rankings = () => {
             return q;
           })(),
           supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).limit(10000),
+          userPais === 'MEX'
+            ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
+            : Promise.resolve({ data: [] as any[] }),
         ]);
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
@@ -643,10 +646,37 @@ const Rankings = () => {
             currentAcv: metricAgg.acvMes,
           });
         });
+        // MEX: enriquecer meta_nube de metas_acv_gerentes con coi+noi de metas_gerentes
+        // (replica el fallback de useSpConvencionAnualSelf para que el SP del header
+        // y el de Clasificación coincidan).
+        const metasAcvGerEnriched = [...(metasAcvGerRes.data || [])] as any[];
+        if (userPais === 'MEX') {
+          const mexRows = (((metasGerentesMexRes as any)?.data as any[]) || [])
+            .slice()
+            .sort((a, b) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
+          if (mexRows.length > 0) {
+            const mes3to2: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+            // Index by celula+anio_mes
+            const byCelulaPeriod = new Map<string, any>();
+            const latestByCelula = new Map<string, any>();
+            mexRows.forEach((r) => {
+              const ck = normalizeSpText(r.celula);
+              byCelulaPeriod.set(`${ck}|${r.anio_mes}`, r);
+              if (!latestByCelula.has(ck)) latestByCelula.set(ck, r);
+            });
+            metasAcvGerEnriched.forEach((row) => {
+              const ck = normalizeSpText(row.celula);
+              const mm = mes3to2[String(row.mes || '').trim().toLowerCase().slice(0, 3)] || '';
+              const mg = byCelulaPeriod.get(`${ck}|${currentConventionYear}${mm}`) || latestByCelula.get(ck);
+              const nube = (Number(mg?.coi) || 0) + (Number(mg?.noi) || 0);
+              if ((Number(row.meta_nube) || 0) === 0 && nube > 0) row.meta_nube = nube;
+            });
+          }
+        }
         const spInputsGer = {
           vgmRows: vgmGerRes.data || [],
           metaAsesorRows: metasAsesoresRes.data || [],
-          metaAcvRows: metasAcvGerRes.data || [],
+          metaAcvRows: metasAcvGerEnriched,
           year: String(currentConventionYear),
           vnMetricasGerenteRows: ((vnMetricasMexGerRes as any)?.data as any[]) || [],
           ventasDiariasRows: ((ventasDiariasGerRes as any)?.data as any[]) || [],
@@ -835,7 +865,13 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Refresco automático cada 15 minutos para mantener Clasificación al día
+    // (especialmente para MEX donde los SP se recalculan tras cada sync de Databricks).
+    const refreshInterval = setInterval(() => fetchRanking(), 15 * 60 * 1000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
+    };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
