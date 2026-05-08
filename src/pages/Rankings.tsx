@@ -508,7 +508,11 @@ const Rankings = () => {
           mexAdvisorMap.forEach((agg, key) => {
             if (existingKeys.has(key)) return;
             const asesorInfo = asesorInfoMap.get(key);
-            const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            const spAsesor = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
+            const gerMatchMex = gerenteCelulaByName.get(key);
+            const spForRanking = gerMatchMex
+              ? computeSpConvencionAnualForCelula(spCelulaInputs, gerMatchMex.celula, gerMatchMex.nombre)
+              : spAsesor;
             entries.push({
               id: asesorInfo?.id || key,
               nombre: agg.nombre,
@@ -526,8 +530,8 @@ const Rankings = () => {
               posicion: 0,
               canal: profile.canal,
               pais: 'MEX',
-              sp_totales: spFinal,
-              sp_canje: asesorInfo?.sp_canje || 0,
+              sp_totales: spForRanking,
+              sp_canje: gerMatchMex?.sp_canje || asesorInfo?.sp_canje || 0,
               nivel: null,
             });
           });
