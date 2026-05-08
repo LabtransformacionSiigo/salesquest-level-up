@@ -1110,7 +1110,6 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}
                         {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
