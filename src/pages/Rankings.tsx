@@ -449,6 +449,11 @@ const Rankings = () => {
           const pctFeMes = currentMetaFe > 0 ? capPctAsesor((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPctAsesor((currentNube / currentMetaNube) * 100) : 0;
 
+          // Si este asesor también es gerente con célula, recalcular SP via celula (igual que header)
+          const gerMatch = gerenteCelulaByName.get(key);
+          const spForRanking = gerMatch
+            ? computeSpConvencionAnualForCelula(spCelulaInputs, gerMatch.celula, gerMatch.nombre)
+            : spFinal;
           entries.push({
             id: asesorInfo?.id || key,
             nombre: originalName,
@@ -466,8 +471,8 @@ const Rankings = () => {
             posicion: 0,
             canal: profile.canal,
             pais: userPais,
-            sp_totales: spFinal,
-            sp_canje: asesorInfo?.sp_canje || 0,
+            sp_totales: spForRanking,
+            sp_canje: gerMatch?.sp_canje || asesorInfo?.sp_canje || 0,
             nivel: null,
           });
         });
