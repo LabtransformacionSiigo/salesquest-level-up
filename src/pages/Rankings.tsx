@@ -22,7 +22,7 @@ const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', V
 const PAIS_LABEL: Record<string, string> = { COL: 'Colombia', MEX: 'México', ECU: 'Ecuador' };
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = ['border-yellow bg-siigo-yellow/5', 'border-muted-foreground/30', 'border-orange/40'];
-type ClasificacionTab = 'comerciales' | 'gerentes';
+type PanelGeneralTab = 'comerciales' | 'gerentes';
 
 const FlagIcon = ({ pais }: { pais?: string | null }) => {
   const src = FLAG_IMG[pais?.trim().toUpperCase() || ''];
@@ -116,7 +116,7 @@ const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [ranking, setRanking] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [tab, setTab] = useState<ClasificacionTab>('comerciales');
+  const [tab, setTab] = useState<PanelGeneralTab>('comerciales');
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
@@ -859,7 +859,7 @@ const Rankings = () => {
   const rest = sorted.slice(3);
 
   return (
-    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
+    <Layout title={`🏆 Panel General · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
@@ -1086,7 +1086,7 @@ const Rankings = () => {
                           </div>
                         </td>
                         {isComercialTab && <td className="px-4 py-3 text-xs text-muted-foreground">{g.gerente_nombre || '—'}</td>}
-                        {/* SP Clasificación — prominent */}
+                        {/* SP Panel General — prominent */}
                         <td className="px-4 py-3 text-right">
                           <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
                           <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
