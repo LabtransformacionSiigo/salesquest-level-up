@@ -1579,6 +1579,14 @@ export const useGamificationMetrics = (
             const nov = String(m?.novedad ?? '').trim();
             if (nov === '' || nov === 'Sin novedad') allAsesorKeys.add(k);
           });
+          // Fallback: si no hay metas_asesores cargadas para este periodo (típico en MEX
+          // a inicio de mes mientras Databricks publica las metas), incluir a los asesores
+          // que SÍ tienen ventas en vn_metricas_optimizadas para no mostrar el equipo vacío.
+          if (allAsesorKeys.size === 0) {
+            ventasPorAsesor.forEach((_v, k) => {
+              if (k && k !== gerenteKey) allAsesorKeys.add(k);
+            });
+          }
           // NO usar prodByName.keys() — tiene nombres truncados y al gerente
 
           for (const asesorKey of allAsesorKeys) {
