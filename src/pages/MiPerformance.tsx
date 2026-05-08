@@ -648,7 +648,7 @@ const EquipoRendimientoSection = ({
 
               {/* Métricas en 4 columnas */}
               {!asesor.tiene_novedad && (
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {/* FE */}
                   <div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
