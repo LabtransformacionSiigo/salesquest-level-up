@@ -375,8 +375,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             formatValue={formatMoney}
           />
 
-          <div className="pt-4 border-t border-border flex items-center justify-between gap-4 text-sm">
-            <MetaRow label="Referidos" value={String(referidos)} />
+          <div className="pt-4 border-t border-border text-sm">
             <span className="text-xs text-muted-foreground">Cada barra muestra logrado, meta y % de cumplimiento actual.</span>
           </div>
         </div>
