@@ -513,7 +513,7 @@ export const useGamificationMetrics = (
                 // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
-                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, total_productos:ventas, acv_total')
+                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
