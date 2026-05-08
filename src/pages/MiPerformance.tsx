@@ -691,19 +691,6 @@ const EquipoRendimientoSection = ({
                     </p>
                   </div>
 
-                  {/* Referidos */}
-                  <div>
-                    <div className="text-[10px] text-muted-foreground mb-1">{referidosLabel}</div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${Math.min(100, (asesor.recomendados / 5) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] font-bold font-scoreboard text-primary">
-                      {asesor.recomendados}
-                    </p>
-                  </div>
                 </div>
               )}
             </motion.div>
