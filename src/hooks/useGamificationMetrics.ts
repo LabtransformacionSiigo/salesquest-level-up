@@ -1341,11 +1341,13 @@ export const useGamificationMetrics = (
             ? vnVentasDiariasRows.map((row: any) => {
                 const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
                   ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+                const uds = Math.round(Number(row.unidades) || 0);
                 return {
                   periodo: getPeriodFromDate(row.fecha),
-                  ventas_fe: fam === 'FE' ? Math.round(Number(row.unidades) || 0) : 0,
-                  ventas_nube: fam === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0,
-                  ventas_total: Math.round(Number(row.unidades) || 0),
+                  ventas_fe: fam === 'FE' ? uds : 0,
+                  ventas_nube: fam === 'NUBE' ? uds : 0,
+                  ventas_total: uds,
+                  acv: Math.round(Number(row.acv) || 0),
                 };
               })
             : vnTeamEjecAll;
@@ -1357,6 +1359,7 @@ export const useGamificationMetrics = (
             cur.fe += Math.round(Number(e.ventas_fe) || 0);
             cur.nube += Math.round(Number(e.ventas_nube) || 0);
             cur.total += Math.round(Number(e.ventas_total) || 0);
+            cur.acv += Math.round(Number(e.acv) || 0);
             ejecByPeriod.set(period, cur);
           });
 
