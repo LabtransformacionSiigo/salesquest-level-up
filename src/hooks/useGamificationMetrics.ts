@@ -1544,7 +1544,7 @@ export const useGamificationMetrics = (
               const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
               const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
               const dedupKey = `${key}|${tipo}`;
-              const uds = Math.round(Number(r.ventas) || 0);
+              const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
               const prev = dedupAsesor.get(dedupKey);
               if (!prev || uds > prev.uds) {
