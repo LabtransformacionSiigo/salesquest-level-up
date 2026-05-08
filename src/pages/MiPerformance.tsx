@@ -161,11 +161,10 @@ const MiPerformance = () => {
             <>
               {isEmpresarios && (
                 <>
-                  <SectionTitle icon="bar_chart" title="Unidades · ACV · Referidos" tip="Métricas principales que alimentan tu puntaje." />
-                  <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                  <SectionTitle icon="bar_chart" title="Unidades · ACV" tip="Métricas principales que alimentan tu puntaje." />
+                  <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
                     <KPICard icon="inventory_2" label="Unidades" value={`${metrics.ejecucion?.ventas_total ?? kpis?.ventas ?? 0} / ${metrics.metaAsesor?.meta_total ?? kpis?.meta ?? 0}`} sub="Vendidas vs Meta" tip="Unidades vendidas este mes vs meta asignada." />
                     <KPICard icon="trending_up" label="ACV" value={formatMoney(metrics.ejecucion?.acv_total ?? kpis?.acv_f)} sub="Valor contractual anual" color="text-primary" tip="Valor anualizado de contratos cerrados." />
-                    <KPICard icon="group_add" label="# de Referidos" value={String(metrics.ejecucion?.cant_recomendados ?? kpis?.cant_recomendados ?? 0)} sub="Referidos generados" color="text-accent" tip="Clientes por recomendación." />
                   </motion.div>
                   <SectionTitle icon="emoji_events" title="Retos Semanales" tip="Desafíos semanales para SP extra." />
                   <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
@@ -376,8 +375,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             formatValue={formatMoney}
           />
 
-          <div className="pt-4 border-t border-border flex items-center justify-between gap-4 text-sm">
-            <MetaRow label="Referidos" value={String(referidos)} />
+          <div className="pt-4 border-t border-border text-sm">
             <span className="text-xs text-muted-foreground">Cada barra muestra logrado, meta y % de cumplimiento actual.</span>
           </div>
         </div>
@@ -650,7 +648,7 @@ const EquipoRendimientoSection = ({
 
               {/* Métricas en 4 columnas */}
               {!asesor.tiene_novedad && (
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {/* FE */}
                   <div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
@@ -693,19 +691,6 @@ const EquipoRendimientoSection = ({
                     </p>
                   </div>
 
-                  {/* Referidos */}
-                  <div>
-                    <div className="text-[10px] text-muted-foreground mb-1">{referidosLabel}</div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${Math.min(100, (asesor.recomendados / 5) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] font-bold font-scoreboard text-primary">
-                      {asesor.recomendados}
-                    </p>
-                  </div>
                 </div>
               )}
             </motion.div>

@@ -986,11 +986,6 @@ const Rankings = () => {
                                 <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'Meta ACV+' : 'Meta ACV'}</p>
                               </div>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-accent">{(g.cant_recomendados || 0).toLocaleString()}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</p>
-                              </div>
                             </>
                           )}
                           {/* VC: ACV + Meta */}
@@ -1055,7 +1050,6 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">Meta Uds</th>
                           <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
                            <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
-                          <th className="text-right px-4 py-3">{REFERIDOS_LABEL[profile?.canal || ''] || 'Referidos'}</th>
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
@@ -1116,7 +1110,6 @@ const Rankings = () => {
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-accent text-right">{(g.cant_recomendados || 0).toLocaleString()}</td>
                           </>
                         )}
                         {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (

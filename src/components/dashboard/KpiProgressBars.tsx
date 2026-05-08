@@ -228,15 +228,11 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <VnProgressRow label="Nube" current={vnEjecucion.ventas_nube} goal={vnMeta.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="ACV" current={vnEjecucion.acv_total} goal={metaAcvValue || vnMeta.meta_acv} icon="trending_up" formatter={fmt} />
 
-            {/* Extras: Productividad + Recomendados */}
-            <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
+            {/* Extras: Productividad */}
+            <div className="grid grid-cols-1 gap-4 mt-auto pt-4 border-t border-border">
               <div className="text-center">
                 <p className="text-2xl font-black font-scoreboard text-primary">{Math.round(vnEjecucion.productividad)}</p>
                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Productividad</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black font-scoreboard text-accent">{vnEjecucion.cant_recomendados}</p>
-                <p className="text-[10px] text-muted-foreground font-heading uppercase">{canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos'}</p>
               </div>
             </div>
 
@@ -296,10 +292,10 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
                 <Progress value={Math.min(100, ((kpis?.sc_creados || 0) / 20) * 100)} className="h-2.5" />
               </div>
 
-              {!isVcAdvisor && kpis?.cant_recomendados != null && (
+              {!isVcAdvisor && !isVN && kpis?.cant_recomendados != null && (
                 <div>
                   <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-                    <span>{isVN && canal === 'VN_ALIADOS' ? 'Referidos del Contador' : 'Referidos'}</span>
+                    <span>Referidos</span>
                     <span className="text-foreground font-scoreboard">{kpis.cant_recomendados}</span>
                   </div>
                   <Progress value={Math.min(100, (kpis.cant_recomendados / 10) * 100)} className="h-2.5" />
