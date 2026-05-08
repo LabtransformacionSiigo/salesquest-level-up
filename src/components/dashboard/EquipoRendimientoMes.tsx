@@ -250,18 +250,10 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
                 </div>
 
                 {showBars && (
-                  <div className="grid grid-cols-4 gap-2 mt-2">
+                  <div className="grid grid-cols-3 gap-2 mt-2">
                     <Bar label="FE" current={a.ventas_fe} meta={a.meta_fe} pct={a.pct_fe} />
                     <Bar label={labelNube} current={a.ventas_nube} meta={a.meta_nube} pct={a.pct_nube} />
                     <Bar label="Uds" current={a.ventas_total} meta={a.meta_total} pct={a.pct_total} />
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold">
-                        <span className="text-muted-foreground uppercase tracking-wide truncate">{refLabel}</span>
-                      </div>
-                      <p className="text-base font-black font-scoreboard text-primary text-center">
-                        {a.recomendados ?? 0}
-                      </p>
-                    </div>
                   </div>
                 )}
               </motion.div>
