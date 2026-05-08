@@ -646,10 +646,37 @@ const Rankings = () => {
             currentAcv: metricAgg.acvMes,
           });
         });
+        // MEX: enriquecer meta_nube de metas_acv_gerentes con coi+noi de metas_gerentes
+        // (replica el fallback de useSpConvencionAnualSelf para que el SP del header
+        // y el de Clasificación coincidan).
+        const metasAcvGerEnriched = [...(metasAcvGerRes.data || [])] as any[];
+        if (userPais === 'MEX') {
+          const mexRows = (((metasGerentesMexRes as any)?.data as any[]) || [])
+            .slice()
+            .sort((a, b) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
+          if (mexRows.length > 0) {
+            const mes3to2: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+            // Index by celula+anio_mes
+            const byCelulaPeriod = new Map<string, any>();
+            const latestByCelula = new Map<string, any>();
+            mexRows.forEach((r) => {
+              const ck = normalizeSpText(r.celula);
+              byCelulaPeriod.set(`${ck}|${r.anio_mes}`, r);
+              if (!latestByCelula.has(ck)) latestByCelula.set(ck, r);
+            });
+            metasAcvGerEnriched.forEach((row) => {
+              const ck = normalizeSpText(row.celula);
+              const mm = mes3to2[String(row.mes || '').trim().toLowerCase().slice(0, 3)] || '';
+              const mg = byCelulaPeriod.get(`${ck}|${currentConventionYear}${mm}`) || latestByCelula.get(ck);
+              const nube = (Number(mg?.coi) || 0) + (Number(mg?.noi) || 0);
+              if ((Number(row.meta_nube) || 0) === 0 && nube > 0) row.meta_nube = nube;
+            });
+          }
+        }
         const spInputsGer = {
           vgmRows: vgmGerRes.data || [],
           metaAsesorRows: metasAsesoresRes.data || [],
-          metaAcvRows: metasAcvGerRes.data || [],
+          metaAcvRows: metasAcvGerEnriched,
           year: String(currentConventionYear),
           vnMetricasGerenteRows: ((vnMetricasMexGerRes as any)?.data as any[]) || [],
           ventasDiariasRows: ((ventasDiariasGerRes as any)?.data as any[]) || [],
