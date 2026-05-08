@@ -1758,8 +1758,15 @@ export const useGamificationMetrics = (
       )
       .subscribe();
 
+    // Auto-refresh cada 15 minutos para reflejar metas diarias actualizadas
+    // (relevante para VN Aliados/Empresarios MEX en "Avance del equipo")
+    const refreshInterval = setInterval(() => {
+      if (!cancelled) fetchAll();
+    }, 15 * 60 * 1000);
+
     return () => {
       cancelled = true;
+      clearInterval(refreshInterval);
       supabase.removeChannel(channel);
     };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
