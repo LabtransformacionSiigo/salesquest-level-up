@@ -865,7 +865,13 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Refresco automático cada 15 minutos para mantener Clasificación al día
+    // (especialmente para MEX donde los SP se recalculan tras cada sync de Databricks).
+    const refreshInterval = setInterval(() => fetchRanking(), 15 * 60 * 1000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
+    };
   }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
