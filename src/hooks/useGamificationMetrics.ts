@@ -513,7 +513,7 @@ export const useGamificationMetrics = (
                 // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
-                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, total_productos:ventas, acv_total')
+                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .gte('mes_nro', 1)
                   .lte('mes_nro', 12)
@@ -1341,11 +1341,13 @@ export const useGamificationMetrics = (
             ? vnVentasDiariasRows.map((row: any) => {
                 const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
                   ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+                const uds = Math.round(Number(row.unidades) || 0);
                 return {
                   periodo: getPeriodFromDate(row.fecha),
-                  ventas_fe: fam === 'FE' ? Math.round(Number(row.unidades) || 0) : 0,
-                  ventas_nube: fam === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0,
-                  ventas_total: Math.round(Number(row.unidades) || 0),
+                  ventas_fe: fam === 'FE' ? uds : 0,
+                  ventas_nube: fam === 'NUBE' ? uds : 0,
+                  ventas_total: uds,
+                  acv: Math.round(Number(row.acv) || 0),
                 };
               })
             : vnTeamEjecAll;
@@ -1357,6 +1359,7 @@ export const useGamificationMetrics = (
             cur.fe += Math.round(Number(e.ventas_fe) || 0);
             cur.nube += Math.round(Number(e.ventas_nube) || 0);
             cur.total += Math.round(Number(e.ventas_total) || 0);
+            cur.acv += Math.round(Number(e.acv) || 0);
             ejecByPeriod.set(period, cur);
           });
 
@@ -1541,9 +1544,10 @@ export const useGamificationMetrics = (
             .forEach((r: any) => {
               const key = normalizeComparableText(r.asesor ?? '');
               if (!key || key === gerenteKey) return;
-              const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+              const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+              const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
               const dedupKey = `${key}|${tipo}`;
-              const uds = Math.round(Number(r.total_productos) || 0);
+              const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
               const prev = dedupAsesor.get(dedupKey);
               if (!prev || uds > prev.uds) {
