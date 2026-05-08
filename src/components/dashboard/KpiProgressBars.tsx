@@ -228,15 +228,11 @@ const KpiProgressBars = ({ kpis, acvMes, ventasSemana, isVcAdvisor, loading, pct
             <VnProgressRow label="Nube" current={vnEjecucion.ventas_nube} goal={vnMeta.meta_nube} icon="cloud" formatter={(v) => `${v.toLocaleString()} uds`} />
             <VnProgressRow label="ACV" current={vnEjecucion.acv_total} goal={metaAcvValue || vnMeta.meta_acv} icon="trending_up" formatter={fmt} />
 
-            {/* Extras: Productividad + Recomendados */}
-            <div className="grid grid-cols-2 gap-4 mt-auto pt-4 border-t border-border">
+            {/* Extras: Productividad */}
+            <div className="grid grid-cols-1 gap-4 mt-auto pt-4 border-t border-border">
               <div className="text-center">
                 <p className="text-2xl font-black font-scoreboard text-primary">{Math.round(vnEjecucion.productividad)}</p>
                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Productividad</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black font-scoreboard text-accent">{vnEjecucion.cant_recomendados}</p>
-                <p className="text-[10px] text-muted-foreground font-heading uppercase">{canal === 'VN_ALIADOS' ? 'Ref. Contador' : 'Referidos'}</p>
               </div>
             </div>
 
