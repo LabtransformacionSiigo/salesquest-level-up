@@ -1112,31 +1112,33 @@ export const useGamificationMetrics = (
           const vgmTotal = vgmMesActual.total;
           const vgmAcv = vgmMesActual.acv;
 
-          // SOURCE OF TRUTH for VN gerente team totals: vn_metricas_optimizadas → ventas_gerente_mensual
-          // → ventas_diarias raw → ejecucion_asesores como último respaldo.
+          // SOURCE OF TRUTH for VN gerente totals: vn_metricas_optimizadas scope=gerente
+          // → ventas_gerente_mensual → scope=asesor → ventas_diarias/ejecucion fallback.
+          // El bloque "Avance del Mes" debe coincidir con el agregado oficial del gerente,
+          // no con un dedup por asesor que puede subcontar productos de la misma familia.
           const ventasDiariasHasMonth = teamVentasDiariasMonth.length > 0;
-          const teamVentasFe = vmaHasMonth
-            ? vmaFe
-            : (vgmHasMonth
-                ? vgmFe
+          const teamVentasFe = vgmHasMonth
+            ? vgmFe
+            : (vmaHasMonth
+                ? vmaFe
                 : (ventasDiariasHasMonth
                     ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'FE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
                     : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_fe) || 0), 0)));
-          const teamVentasNube = vmaHasMonth
-            ? vmaNube
-            : (vgmHasMonth
-                ? vgmNube
+          const teamVentasNube = vgmHasMonth
+            ? vgmNube
+            : (vmaHasMonth
+                ? vmaNube
                 : (ventasDiariasHasMonth
                     ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + (classifyFamily(row) === 'NUBE' ? Math.round(Number(row.unidades) || 0) : 0), 0)
                     : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_nube) || 0), 0)));
-          const teamVentasTotal = vmaHasMonth
-            ? vmaTotal
-            : (vgmHasMonth
-                ? vgmTotal
+          const teamVentasTotal = vgmHasMonth
+            ? vgmTotal
+            : (vmaHasMonth
+                ? vmaTotal
                 : (ventasDiariasHasMonth
                     ? teamVentasDiariasMonth.reduce((s: number, row: any) => s + Math.round(Number(row.unidades) || 0), 0)
                     : teamEjecRows.reduce((s: number, r: any) => s + Math.round(Number(r.ventas_total) || 0), 0)));
-          const teamAcvFromVgm = vmaHasMonth ? Math.round(vmaAcv) : (vgmHasMonth ? Math.round(vgmAcv) : 0);
+          const teamAcvFromVgm = vgmHasMonth ? Math.round(vgmAcv) : (vmaHasMonth ? Math.round(vmaAcv) : 0);
           vnTeamEjecAll = teamEjecRowsAll;
           vnCurrentMetaFe = metaFe;
           vnCurrentMetaNube = metaNube;
@@ -1255,10 +1257,10 @@ export const useGamificationMetrics = (
 
             if (matchingEjec || matchingVentasDiarias.length > 0) {
               ejecucion = {
-                ventas_fe: ventasDiariasFe || Math.round(Number(matchingEjec?.ventas_fe) || 0),
-                ventas_nube: ventasDiariasNube || Math.round(Number(matchingEjec?.ventas_nube) || 0),
-                ventas_total: ventasDiariasTotal || Math.round(Number(matchingEjec?.ventas_total) || 0),
-                acv_total: Math.round(Number(matchingEjec?.acv_total) || matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
+                ventas_fe: Math.round(Number(matchingEjec?.ventas_fe) || 0) || ventasDiariasFe,
+                ventas_nube: Math.round(Number(matchingEjec?.ventas_nube) || 0) || ventasDiariasNube,
+                ventas_total: Math.round(Number(matchingEjec?.ventas_total) || 0) || ventasDiariasTotal,
+                acv_total: Math.round(Number(matchingEjec?.acv_total) || 0) || Math.round(matchingVentasDiarias.reduce((s: number, row: any) => s + (Number(row.acv) || 0), 0)),
                 cant_recomendados: Number(matchingEjec?.cant_recomendados) || 0,
                 productividad: Number(matchingEjec?.productividad) || 0,
               };
@@ -1303,7 +1305,7 @@ export const useGamificationMetrics = (
               return nombreNorm && normalizeComparableText(e.documento_asesor) === nombreNorm;
             });
 
-            const advisorAcv = normalizeStoredAcv(matchingProductividad?.acv_f) || Math.round(Number(matchingEjec?.acv_total) || 0);
+            const advisorAcv = Math.round(Number(matchingEjec?.acv_total) || 0) || normalizeStoredAcv(matchingProductividad?.acv_f);
             const advisorMetaAcv = normalizeVnMetaAcv(matchingProductividad?.meta);
             if (advisorAcv > 0) acvMes = advisorAcv;
             pctCumplimiento = advisorMetaAcv > 0 ? Math.round((advisorAcv / advisorMetaAcv) * 100) : 0;
