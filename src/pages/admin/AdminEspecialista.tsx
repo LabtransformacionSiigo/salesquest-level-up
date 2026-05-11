@@ -226,6 +226,14 @@ const AdminEspecialista = () => {
         .maybeSingle();
       if (data) perm = { paises: data.paises || [], operaciones: data.operaciones || [] };
     }
+    if (isAprobador && profile?.user_id) {
+      const { data } = await supabase
+        .from('aprobador_permisos' as any)
+        .select('paises, operaciones')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+      if (data) perm = { paises: (data as any).paises || [], operaciones: (data as any).operaciones || [] };
+    }
     setPermisos(perm);
 
     // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
@@ -246,6 +254,24 @@ const AdminEspecialista = () => {
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
     setGerentes(gQ.data || []);
+
+    // VN data (sólo si tiene operaciones VN en su scope)
+    const tieneVN = isAdmin || perm.operaciones.some((op: string) =>
+      op === 'Venta Nueva (Empresarios)' || op === 'Venta Nueva (Aliados)'
+    );
+    if (tieneVN) {
+      const [rv, rvr, rvm] = await Promise.all([
+        supabase.from('retos_vn_config' as any).select('*').order('tipo'),
+        supabase.from('rachas_vn_config' as any).select('*').order('nombre'),
+        supabase.from('medallas_vn_config' as any).select('*').order('nombre'),
+      ]);
+      setRetosVN((rv.data as any[]) || []);
+      setRachasVN((rvr.data as any[]) || []);
+      setMedallasVN((rvm.data as any[]) || []);
+    } else {
+      setRetosVN([]); setRachasVN([]); setMedallasVN([]);
+    }
+
     setDataLoading(false);
   };
 
@@ -253,7 +279,6 @@ const AdminEspecialista = () => {
     if (isAdmin) return true;
     if (!permisos) return false;
     const paisOk = !item.pais || permisos.paises.includes(item.pais);
-    // Mapear canal del item (VC / VN_ALIADOS / VN_EMPRESARIOS) a la operación equivalente
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
@@ -263,6 +288,74 @@ const AdminEspecialista = () => {
     const opEffective = item.operacion || opFromCanal;
     const opOk = !opEffective || permisos.operaciones.includes(opEffective);
     return paisOk && opOk;
+  };
+
+  // VN scope check: item tiene paises[] y canal[]
+  const isInScopeVN = (item: any): boolean => {
+    if (isAdmin) return true;
+    if (!permisos) return false;
+    const paisOk = !item.paises?.length ||
+      item.paises.some((p: string) => permisos.paises.includes(p));
+    const canalToOp: Record<string, string> = {
+      VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
+      VN_ALIADOS: 'Venta Nueva (Aliados)',
+    };
+    const canalOk = !item.canal?.length ||
+      item.canal.some((c: string) => {
+        const op = canalToOp[c];
+        return op && permisos.operaciones.includes(op);
+      });
+    return paisOk && canalOk;
+  };
+
+  const toggleVN = async (tabla: string, id: string, activo: boolean) => {
+    const { error } = await supabase.from(tabla as any).update({ activo: !activo }).eq('id', id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: activo ? 'Desactivado' : 'Activado ✅' });
+    loadAll();
+  };
+
+  const deleteVN = async (tabla: string, id: string, nombre: string) => {
+    if (!window.confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from(tabla as any).delete().eq('id', id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Eliminado ✅' }); loadAll();
+  };
+
+  const saveVN = async (tabla: string, payload: any, id?: string) => {
+    const action = id
+      ? supabase.from(tabla as any).update(payload).eq('id', id)
+      : supabase.from(tabla as any).insert(payload);
+    const { error } = await action;
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: id ? 'Actualizado ✅' : 'Creado ✅' });
+    setEditingVN(null);
+    loadAll();
+  };
+
+  const ejecutarEvaluacionVN = async () => {
+    setEvalLoadingVN(true);
+    setEvalResultadosVN([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vn`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ fecha: evalFechaVN, dry_run: evalDryRunVN }),
+        }
+      );
+      const result = await res.json();
+      if (result.ok) {
+        setEvalResultadosVN(result.resultados ?? []);
+        toast({ title: evalDryRunVN ? '🔍 Simulación completada' : '✅ Evaluación completada', description: `${result.evaluados ?? (result.resultados?.length ?? 0)} evaluaciones` });
+      } else {
+        toast({ title: '⚠️ Error', description: result.error ?? JSON.stringify(result), variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally { setEvalLoadingVN(false); }
   };
 
   const toggleActivo = async (tipo: 'reto' | 'racha' | 'medalla', id: string, activo: boolean) => {
