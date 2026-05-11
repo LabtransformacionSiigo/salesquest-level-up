@@ -234,12 +234,14 @@ export const useSupabaseAuth = () => {
         ? 'admin'
         : roles.includes('especialista')
           ? 'especialista'
-          : roles.includes('gerente')
-            ? 'gerente'
-            : roles[0] ?? 'gerente';
+          : roles.includes('aprobador')
+            ? 'aprobador'
+            : roles.includes('gerente')
+              ? 'gerente'
+              : roles[0] ?? 'gerente';
 
-      // Admins y Especialistas no compiten — perfil simplificado
-      if (userRole === 'admin' || userRole === 'especialista') {
+      // Admins, Especialistas y Aprobadores no compiten — perfil simplificado
+      if (userRole === 'admin' || userRole === 'especialista' || userRole === 'aprobador') {
         const { data: gerenteData } = await supabase
           .from('gerentes')
           .select('*')
