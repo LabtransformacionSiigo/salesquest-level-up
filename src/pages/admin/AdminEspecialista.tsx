@@ -542,6 +542,278 @@ const AdminEspecialista = () => {
                 onDelete={deleteItem}
               />
             </TabsContent>
+
+            {/* ==================== TAB: RETOS VN ==================== */}
+            {tieneVN && (
+              <TabsContent value="retos-vn" className="mt-6 space-y-6">
+                {!isAprobador && (
+                  <RetoVNForm
+                    editing={editingVN?.tabla === 'retos_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('retos_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Retos VN configurados</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          {['Nombre','Tipo','KPI','Canal','Países','SP','Fechas','Estado','Acciones'].map(h => (
+                            <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {retosVN.filter(isInScopeVN).map((r: any) => (
+                          <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2.5 font-medium">{r.nombre}</td>
+                            <td className="px-4 py-2.5"><span className="text-xs bg-muted px-2 py-0.5 rounded-full">{r.tipo}</span></td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.kpi}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.canal||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.paises||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs font-mono">
+                              {r.tipo === 'SEMANAL'
+                                ? `S1:${r.sp_semanal_sem1} S2:${r.sp_semanal_sem2} S3:${r.sp_semanal_sem3} S4:${r.sp_semanal_sem4}`
+                                : r.sp_base}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.fecha_inicio} → {r.fecha_fin}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${r.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                {r.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => toggleVN('retos_vn_config', r.id, r.activo)}
+                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title={r.activo ? 'Desactivar' : 'Activar'}>
+                                  <MI icon={r.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                </button>
+                                {!isAprobador && (
+                                  <>
+                                    <button onClick={() => setEditingVN({ tabla: 'retos_vn_config', data: r })}
+                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                      <MI icon="edit" className="text-base" />
+                                    </button>
+                                    <button onClick={() => deleteVN('retos_vn_config', r.id, r.nombre)}
+                                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                      <MI icon="delete" className="text-base" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {retosVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin retos VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {!isAprobador && (
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                    <h3 className="font-semibold text-sm">⚙️ Ejecutar evaluación VN</h3>
+                    <div className="flex items-end gap-4 flex-wrap">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold">Fecha a evaluar</label>
+                        <input type="date" className={inputClass + ' w-48'} value={evalFechaVN}
+                          onChange={(e) => setEvalFechaVN(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold">Modo</label>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Switch checked={evalDryRunVN} onCheckedChange={setEvalDryRunVN} />
+                          <span className={`text-xs font-semibold ${evalDryRunVN ? 'text-amber-600' : 'text-green-600'}`}>
+                            {evalDryRunVN ? 'Simulación' : 'Evaluación real'}
+                          </span>
+                        </div>
+                      </div>
+                      <Button onClick={ejecutarEvaluacionVN} disabled={evalLoadingVN}
+                        className={!evalDryRunVN ? 'bg-green-600 hover:bg-green-700' : ''}>
+                        {evalLoadingVN ? 'Evaluando…' : evalDryRunVN ? 'Simular' : 'Ejecutar evaluación'}
+                      </Button>
+                    </div>
+                    {evalResultadosVN.length > 0 && (
+                      <div className="overflow-x-auto rounded-lg border border-border">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/50">
+                            <tr>{['Gerente','País','Reto','Tipo','Cumple','%','SP base','SP+Racha'].map(h => (
+                              <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>
+                            ))}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {evalResultadosVN.map((r: any, i: number) => (
+                              <tr key={i} className={r.cumple ? 'bg-green-50/40' : r.cumple === false ? 'bg-red-50/20' : ''}>
+                                <td className="px-3 py-1.5">{r.gerente}</td>
+                                <td className="px-3 py-1.5">{r.pais}</td>
+                                <td className="px-3 py-1.5">{r.reto}</td>
+                                <td className="px-3 py-1.5">{r.tipo ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.cumple === true ? '✅' : r.cumple === false ? '❌' : r.resultado ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.pct ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.spBase ?? r.sp ?? '—'}</td>
+                                <td className="px-3 py-1.5 font-semibold text-primary">{r.spConRacha ?? r.sp ?? '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            )}
+
+            {/* ==================== TAB: RACHAS Y MEDALLAS VN ==================== */}
+            {tieneVN && (
+              <TabsContent value="rachas-vn" className="mt-6 space-y-6">
+                {!isAprobador && (
+                  <RachaVNForm
+                    editing={editingVN?.tabla === 'rachas_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    retosVN={retosVN.filter(isInScopeVN)}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('rachas_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Rachas VN configuradas</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>{['Nombre','Tipo','Días/Sem req.','Multiplicador','Reto vinculado','Canal','Países','Estado','Acciones'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {rachasVN.filter(isInScopeVN).map((r: any) => {
+                          const retoRef = retosVN.find((rt: any) => rt.id === r.reto_ref_id);
+                          return (
+                            <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="px-4 py-2.5 font-medium">{r.nombre}</td>
+                              <td className="px-4 py-2.5"><span className="text-xs bg-muted px-2 py-0.5 rounded-full">{r.tipo}</span></td>
+                              <td className="px-4 py-2.5 text-center">{r.dias_consecutivos_requeridos}</td>
+                              <td className="px-4 py-2.5 font-mono">x{r.multiplicador}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{retoRef?.nombre ?? '—'}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.canal||[]).join(', ')}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.paises||[]).join(', ')}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${r.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                  {r.activo ? 'Activa' : 'Inactiva'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => toggleVN('rachas_vn_config', r.id, r.activo)}
+                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                    <MI icon={r.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                  </button>
+                                  {!isAprobador && (
+                                    <>
+                                      <button onClick={() => setEditingVN({ tabla: 'rachas_vn_config', data: r })}
+                                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                        <MI icon="edit" className="text-base" />
+                                      </button>
+                                      <button onClick={() => deleteVN('rachas_vn_config', r.id, r.nombre)}
+                                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                        <MI icon="delete" className="text-base" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {rachasVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin rachas VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Medallas VN */}
+                {!isAprobador && (
+                  <MedallaVNForm
+                    editing={editingVN?.tabla === 'medallas_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('medallas_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Medallas VN configuradas</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>{['Emoji','Nombre','Condición','Valor','SP','Canal','Países','Estado','Acciones'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {medallasVN.filter(isInScopeVN).map((m: any) => (
+                          <tr key={m.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2.5 text-xl">{m.emoji}</td>
+                            <td className="px-4 py-2.5 font-medium">{m.nombre}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{m.condicion_tipo}</td>
+                            <td className="px-4 py-2.5 text-xs">{m.condicion_valor}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs">{m.sp_reward}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(m.canal||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(m.paises||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${m.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                {m.activo ? 'Activa' : 'Inactiva'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => toggleVN('medallas_vn_config', m.id, m.activo)}
+                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                  <MI icon={m.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                </button>
+                                {!isAprobador && (
+                                  <>
+                                    <button onClick={() => setEditingVN({ tabla: 'medallas_vn_config', data: m })}
+                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                      <MI icon="edit" className="text-base" />
+                                    </button>
+                                    <button onClick={() => deleteVN('medallas_vn_config', m.id, m.nombre)}
+                                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                      <MI icon="delete" className="text-base" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {medallasVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin medallas VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+
             <TabsContent value="logros" className="mt-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
