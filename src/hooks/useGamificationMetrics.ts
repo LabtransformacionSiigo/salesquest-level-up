@@ -1559,14 +1559,19 @@ export const useGamificationMetrics = (
           // Naranjo Mattheus"). Como `gerente_normalizado` también difiere, ambas filas
           // pasan los filtros. Dedup por (asesor, tipo_producto1) tomando MAX(ventas/acv).
           const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
+          const metaKeys = [...metasPorAsesor.keys()];
+          const resolveTeamAsesorKey = (rawKey: string) => {
+            if (!rawKey || metasPorAsesor.size === 0 || metasPorAsesor.has(rawKey)) return rawKey;
+            const matched = metaKeys.find((metaKey) => matchesNormalizedPerson(rawKey, new Set([metaKey])));
+            return matched || rawKey;
+          };
           vnAsesorData
             .filter((r: any) => Number(r.mes_nro) === mesActualNro)
             .forEach((r: any) => {
-              const key = normalizeComparableText(r.asesor ?? '');
-              const metaDoc = metasPorAsesor.get(key)?.documento_asesor;
-              const ventaDoc = metaDoc ? String(metaDoc).trim().toLowerCase() : '';
-              if (!key || key === gerenteKey) return;
-              if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key) && (!ventaDoc || !docPorNombre.has(key))) return;
+              const rawKey = normalizeComparableText(r.asesor ?? '');
+              const key = resolveTeamAsesorKey(rawKey);
+              if (!rawKey || key === gerenteKey) return;
+              if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
               const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
               const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
               const dedupKey = `${key}|${tipo}`;
