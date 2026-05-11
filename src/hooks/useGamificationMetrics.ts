@@ -154,6 +154,13 @@ const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const normalizeVnChannel = (value: unknown) => {
+  const normalized = normalizeComparableText(value).replace(/_/g, ' ');
+  if (normalized.includes('aliad')) return 'aliados';
+  if (normalized.includes('empres')) return 'empresarios';
+  return normalized;
+};
+
 const matchesNormalizedPerson = (candidate: string, aliases: Set<string>) => {
   if (!candidate || aliases.size === 0) return false;
   if (aliases.has(candidate)) return true;
@@ -626,11 +633,29 @@ export const useGamificationMetrics = (
             if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
+          const targetAdvisorNamesFromMetas = new Set(
+            ((vnMetasRes?.data as any[]) || [])
+              .map((row: any) => normalizeComparableText(row.nombre_asesor))
+              .filter(Boolean)
+          );
+          const scopedVnAsesorRows = (rows: any[] = []) => rows.filter((r: any) => {
+            const rowAsesor = normalizeComparableText(r.asesor ?? '');
+            const rowCelula = normalizeComparableText(r.celula ?? '');
+            const rowGerente = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? r.gerente_responsable ?? '');
+            const rowCanal = normalizeVnChannel(r.canal_direccion ?? r.equipo ?? '');
+            const profileCanal = normalizeVnChannel(profile.canal ?? '');
+            const hasTeamHint = !!(rowCelula || rowGerente);
+            if (rowAsesor && matchesNormalizedPerson(rowAsesor, targetAdvisorNamesFromMetas)) return true;
+            if (targetCelula && rowCelula === targetCelula) return true;
+            if (matchesTargetManager(rowGerente)) return true;
+            if (!hasTeamHint && profileCanal && rowCanal === profileCanal) return true;
+            return false;
+          });
           if (ventasGerenteMensualRes?.data) {
             ventasGerenteMensualRes.data = (ventasGerenteMensualRes.data as any[]).filter(matchVnRow);
           }
           if (vnMetricasAsesorRes?.data) {
-            vnMetricasAsesorRes.data = (vnMetricasAsesorRes.data as any[]).filter(matchVnRow);
+            vnMetricasAsesorRes.data = scopedVnAsesorRows(vnMetricasAsesorRes.data as any[]);
           }
           if (vnMetricasGerenteRes?.data) {
             vnMetricasGerenteRes.data = (vnMetricasGerenteRes.data as any[]).filter(matchVnRow);
@@ -1518,14 +1543,10 @@ export const useGamificationMetrics = (
 
           // Map metas by normalized asesor name
           const metasPorAsesor = new Map<string, any>();
-          const docPorNombre = new Map<string, string>();
           teamMetaRows.forEach((m: any) => {
             if (!m.nombre_asesor) return;
             const key = normalizeComparableText(m.nombre_asesor);
             metasPorAsesor.set(key, m);
-            if (m.documento_asesor) {
-              docPorNombre.set(key, String(m.documento_asesor).trim().toLowerCase());
-            }
           });
 
           const gerenteKey = normalizeComparableText(profile.nombre ?? '');
@@ -1541,11 +1562,19 @@ export const useGamificationMetrics = (
           // Naranjo Mattheus"). Como `gerente_normalizado` también difiere, ambas filas
           // pasan los filtros. Dedup por (asesor, tipo_producto1) tomando MAX(ventas/acv).
           const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
+          const metaKeys = [...metasPorAsesor.keys()];
+          const resolveTeamAsesorKey = (rawKey: string) => {
+            if (!rawKey || metasPorAsesor.size === 0 || metasPorAsesor.has(rawKey)) return rawKey;
+            const matched = metaKeys.find((metaKey) => matchesNormalizedPerson(rawKey, new Set([metaKey])));
+            return matched || rawKey;
+          };
           vnAsesorData
             .filter((r: any) => Number(r.mes_nro) === mesActualNro)
             .forEach((r: any) => {
-              const key = normalizeComparableText(r.asesor ?? '');
-              if (!key || key === gerenteKey) return;
+              const rawKey = normalizeComparableText(r.asesor ?? '');
+              const key = resolveTeamAsesorKey(rawKey);
+              if (!rawKey || key === gerenteKey) return;
+              if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
               const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
               const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
               const dedupKey = `${key}|${tipo}`;

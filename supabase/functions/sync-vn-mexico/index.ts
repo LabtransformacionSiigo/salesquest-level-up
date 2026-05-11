@@ -177,23 +177,43 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ ventas_diarias MX insertadas: ${inserted}`);
 
-    // 4) Agrega ventas_gerente_mensual
-    const aggMap = new Map<string, any>();
+    // 4) Agrega ventas_gerente_mensual.
+    // La tabla tiene 2 unicidades: por gerente y por célula. Primero colapsamos
+    // por célula/familia/periodo para evitar duplicados cuando Databricks trae
+    // variantes de gerente para la misma célula; luego colapsamos por gerente.
+    const cellMap = new Map<string, any>();
     for (const r of rows) {
       const mes = Number(r.mes_nro);
       const familia = classifyFamilyMX(r.tipo_producto1);
       const canal = normalizeCanalMX(r.equipo);
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
-      const celula = r.celula || null;
+      const celula = String(r.celula || "").trim() || null;
       const periodo = `2026${String(mes).padStart(2, "0")}`;
-      const key = `MEX|${periodo}|${canal}|${gnorm}|${familia}`;
-      const cur = aggMap.get(key) || {
+      const key = celula
+        ? `CEL|${periodo}|${familia}|${norm(celula)}`
+        : `GER|MEX|${periodo}|${canal}|${gnorm}|${familia}`;
+      const cur = cellMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
         familia, mes, anio: 2026, periodo, pais: "MEX", unidades: 0, acv: 0,
       };
       cur.unidades += Number(r.ventas) || 0;
       cur.acv += Number(r.acv_total) || 0;
+      if (!cur.gerente && gerente) {
+        cur.gerente = gerente;
+        cur.gerente_normalizado = gnorm;
+      }
+      cellMap.set(key, cur);
+    }
+    const aggMap = new Map<string, any>();
+    for (const row of cellMap.values()) {
+      const key = `MEX|${row.periodo}|${row.canal_direccion}|${row.gerente_normalizado}|${row.familia}`;
+      const cur = aggMap.get(key) || { ...row };
+      if (cur !== row) {
+        cur.unidades += row.unidades;
+        cur.acv += row.acv;
+        if (!cur.celula && row.celula) cur.celula = row.celula;
+      }
       aggMap.set(key, cur);
     }
     const aggRows = [...aggMap.values()];
