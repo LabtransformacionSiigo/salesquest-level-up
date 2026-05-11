@@ -477,7 +477,7 @@ const AdminEspecialista = () => {
           <Skeleton className="h-96" />
         ) : (
           <Tabs defaultValue="retos" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 max-w-xl">
+            <TabsList className={`grid w-full ${tieneVN ? 'grid-cols-6 max-w-3xl' : 'grid-cols-4 max-w-xl'}`}>
               <TabsTrigger value="retos">
                 <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
               </TabsTrigger>
@@ -487,7 +487,17 @@ const AdminEspecialista = () => {
               <TabsTrigger value="medallas">
                 <MI icon="military_tech" className="text-sm mr-1.5" /> Medallas
               </TabsTrigger>
-              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros Ganados</TabsTrigger>
+              {tieneVN && (
+                <TabsTrigger value="retos-vn">
+                  <MI icon="sports_soccer" className="text-sm mr-1.5" /> Retos VN
+                </TabsTrigger>
+              )}
+              {tieneVN && (
+                <TabsTrigger value="rachas-vn">
+                  <MI icon="bolt" className="text-sm mr-1.5" /> Rachas/Medallas VN
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="retos" className="mt-6">
