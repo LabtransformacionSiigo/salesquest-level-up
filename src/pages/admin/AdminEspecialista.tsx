@@ -244,12 +244,35 @@ const AdminEspecialista = () => {
       if (canales.length > 0) gerentesQuery = gerentesQuery.in('canal', canales);
     }
 
-    const [r1, r2, r3, gQ] = await Promise.all([
-      supabase.from('catalogo_retos').select('*').order('ventana_tiempo'),
-      supabase.from('config_rachas').select('*').order('nombre'),
-      supabase.from('catalogo_medallas').select('*').order('nombre'),
-      gerentesQuery,
-    ]);
+    // Filtros server-side por canal/pais (defensa en profundidad)
+    let retosQ = supabase.from('catalogo_retos').select('*').order('ventana_tiempo');
+    let rachasQ = supabase.from('config_rachas').select('*').order('nombre');
+    let medallasQ = supabase.from('catalogo_medallas').select('*').order('nombre');
+    if (!isAdmin) {
+      const canalesScope = perm.operaciones.map(opToCanalGlobal).filter(Boolean) as string[];
+      const paisesScope = perm.paises;
+      if (canalesScope.length > 0) {
+        retosQ = retosQ.in('canal', canalesScope);
+        rachasQ = rachasQ.in('canal', canalesScope);
+        medallasQ = medallasQ.in('canal', canalesScope);
+      } else {
+        // Sin canales asignados → no debe ver nada
+        retosQ = retosQ.eq('canal', '__NONE__');
+        rachasQ = rachasQ.eq('canal', '__NONE__');
+        medallasQ = medallasQ.eq('canal', '__NONE__');
+      }
+      if (paisesScope.length > 0) {
+        retosQ = retosQ.in('pais', paisesScope);
+        rachasQ = rachasQ.in('pais', paisesScope);
+        medallasQ = medallasQ.in('pais', paisesScope);
+      } else {
+        retosQ = retosQ.eq('pais', '__NONE__');
+        rachasQ = rachasQ.eq('pais', '__NONE__');
+        medallasQ = medallasQ.eq('pais', '__NONE__');
+      }
+    }
+
+    const [r1, r2, r3, gQ] = await Promise.all([retosQ, rachasQ, medallasQ, gerentesQuery]);
     setRetos(r1.data || []);
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
@@ -278,16 +301,19 @@ const AdminEspecialista = () => {
   const isInScope = (item: any) => {
     if (isAdmin) return true;
     if (!permisos) return false;
-    const paisOk = !item.pais || permisos.paises.includes(item.pais);
+    // Items sin país o sin canal asignado NO son visibles para especialistas
+    if (!item.pais) return false;
+    if (!permisos.paises.includes(item.pais)) return false;
+    if (!item.canal) return false;
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
       VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
     };
-    const opFromCanal = item.canal ? canalToOp[item.canal] : null;
+    const opFromCanal = canalToOp[item.canal];
+    if (!opFromCanal) return false;
     const opEffective = item.operacion || opFromCanal;
-    const opOk = !opEffective || permisos.operaciones.includes(opEffective);
-    return paisOk && opOk;
+    return permisos.operaciones.includes(opEffective);
   };
 
   // VN scope check: item tiene paises[] y canal[]
@@ -383,6 +409,19 @@ const AdminEspecialista = () => {
   };
 
   const saveItem = async (tipo: string, payload: any, id?: string) => {
+    // Validación scope: especialistas no pueden crear/editar fuera de su scope
+    if (!isAdmin && permisos) {
+      const canalPayload = payload.canal || (payload.operacion ? opToCanalGlobal(payload.operacion) : null);
+      const canalesPermitidos = permisos.operaciones.map(opToCanalGlobal).filter(Boolean) as string[];
+      if (!canalPayload || !canalesPermitidos.includes(canalPayload)) {
+        toast({ title: 'Sin permiso', description: 'No puedes crear/editar elementos para este frente', variant: 'destructive' });
+        return;
+      }
+      if (!payload.pais || !permisos.paises.includes(payload.pais)) {
+        toast({ title: 'Sin permiso', description: 'No puedes crear/editar elementos para ese país', variant: 'destructive' });
+        return;
+      }
+    }
     const table = tipo === 'reto' ? 'catalogo_retos' : tipo === 'racha' ? 'config_rachas' : 'catalogo_medallas';
     const action = id
       ? supabase.from(table as any).update(payload).eq('id', id)
