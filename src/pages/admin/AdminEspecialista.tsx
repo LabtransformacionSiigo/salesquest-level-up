@@ -301,16 +301,19 @@ const AdminEspecialista = () => {
   const isInScope = (item: any) => {
     if (isAdmin) return true;
     if (!permisos) return false;
-    const paisOk = !item.pais || permisos.paises.includes(item.pais);
+    // Items sin país o sin canal asignado NO son visibles para especialistas
+    if (!item.pais) return false;
+    if (!permisos.paises.includes(item.pais)) return false;
+    if (!item.canal) return false;
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
       VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
     };
-    const opFromCanal = item.canal ? canalToOp[item.canal] : null;
+    const opFromCanal = canalToOp[item.canal];
+    if (!opFromCanal) return false;
     const opEffective = item.operacion || opFromCanal;
-    const opOk = !opEffective || permisos.operaciones.includes(opEffective);
-    return paisOk && opOk;
+    return permisos.operaciones.includes(opEffective);
   };
 
   // VN scope check: item tiene paises[] y canal[]
