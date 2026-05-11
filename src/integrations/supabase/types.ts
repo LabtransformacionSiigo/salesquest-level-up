@@ -81,6 +81,36 @@ export type Database = {
           },
         ]
       }
+      aprobador_permisos: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          nombre: string | null
+          operaciones: string[]
+          paises: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string | null
+          operaciones?: string[]
+          paises?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string | null
+          operaciones?: string[]
+          paises?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       asesores: {
         Row: {
           activo: boolean | null
@@ -3690,7 +3720,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "gerente" | "asesor" | "especialista"
+      app_role: "admin" | "gerente" | "asesor" | "especialista" | "aprobador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3818,7 +3848,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "gerente", "asesor", "especialista"],
+      app_role: ["admin", "gerente", "asesor", "especialista", "aprobador"],
     },
   },
 } as const
