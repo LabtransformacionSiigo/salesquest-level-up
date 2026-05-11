@@ -407,7 +407,7 @@ Deno.serve(async (req) => {
       const familia = classifyFamily(r.tipo_producto1);
       const unidades = Math.round(Number(r.ventas) || 0);
       const acv = Math.round(Number(r.acv_total) || 0);
-      const key = `${nombre}|${periodo}|${pais}|${canal_direccion}`;
+      const key = `${nombre}|${periodo}|${canal_direccion}`;
       const cur = ejecMap.get(key) ?? {
         documento_asesor: nombre,
         periodo,
@@ -441,7 +441,9 @@ Deno.serve(async (req) => {
       const BATCH_EJEC = 500;
       for (let i = 0; i < ejecFinal.length; i += BATCH_EJEC) {
         const slice = ejecFinal.slice(i, i + BATCH_EJEC);
-        const { error } = await sb.from("ejecucion_asesores").insert(slice);
+        const { error } = await sb
+          .from("ejecucion_asesores")
+          .upsert(slice, { onConflict: "documento_asesor,canal_direccion,periodo", ignoreDuplicates: false });
         if (error) console.error(`[ejec] insert batch ${i}:`, error.message);
         else ejecInserted += slice.length;
       }
