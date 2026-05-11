@@ -409,6 +409,19 @@ const AdminEspecialista = () => {
   };
 
   const saveItem = async (tipo: string, payload: any, id?: string) => {
+    // Validación scope: especialistas no pueden crear/editar fuera de su scope
+    if (!isAdmin && permisos) {
+      const canalPayload = payload.canal || (payload.operacion ? opToCanalGlobal(payload.operacion) : null);
+      const canalesPermitidos = permisos.operaciones.map(opToCanalGlobal).filter(Boolean) as string[];
+      if (!canalPayload || !canalesPermitidos.includes(canalPayload)) {
+        toast({ title: 'Sin permiso', description: 'No puedes crear/editar elementos para este frente', variant: 'destructive' });
+        return;
+      }
+      if (!payload.pais || !permisos.paises.includes(payload.pais)) {
+        toast({ title: 'Sin permiso', description: 'No puedes crear/editar elementos para ese país', variant: 'destructive' });
+        return;
+      }
+    }
     const table = tipo === 'reto' ? 'catalogo_retos' : tipo === 'racha' ? 'config_rachas' : 'catalogo_medallas';
     const action = id
       ? supabase.from(table as any).update(payload).eq('id', id)
