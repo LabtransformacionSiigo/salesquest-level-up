@@ -318,11 +318,11 @@ Deno.serve(async (req) => {
       if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const gname = String(r.gerente || "");
       const gnorm = norm(gname);
-      const celula = String(r.celula || "");
+      const celula = String(r.celula || "").trim() || null;
       const familia = classifyFamily(r.tipo_producto1);
       const pais = normalizePais(r.pais);
       const canal_direccion = normalizeCanal(r.equipo);
-      if (!gnorm || !mes || !celula || !familia) continue;
+      if (!gnorm || !mes || !familia) continue;
       const periodo = `${anio}${MM(mes)}`;
       const key = [pais, canal_direccion, periodo, gnorm, familia].join("|");
       const existing = vgmMap.get(key);
