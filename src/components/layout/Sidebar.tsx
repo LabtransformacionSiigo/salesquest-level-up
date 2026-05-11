@@ -59,6 +59,7 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
+  const isAprobador = profile?.role === 'aprobador';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
