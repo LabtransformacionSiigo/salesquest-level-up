@@ -633,11 +633,22 @@ export const useGamificationMetrics = (
             if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
+          const scopedVnAsesorRows = (rows: any[] = []) => rows.filter((r: any) => {
+            const rowCelula = normalizeComparableText(r.celula ?? '');
+            const rowGerente = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? r.gerente_responsable ?? '');
+            const rowCanal = normalizeVnChannel(r.canal_direccion ?? r.equipo ?? '');
+            const profileCanal = normalizeVnChannel(profile.canal ?? '');
+            const hasTeamHint = !!(rowCelula || rowGerente);
+            if (targetCelula && rowCelula === targetCelula) return true;
+            if (matchesTargetManager(rowGerente)) return true;
+            if (!hasTeamHint && profileCanal && rowCanal === profileCanal) return true;
+            return false;
+          });
           if (ventasGerenteMensualRes?.data) {
             ventasGerenteMensualRes.data = (ventasGerenteMensualRes.data as any[]).filter(matchVnRow);
           }
           if (vnMetricasAsesorRes?.data) {
-            vnMetricasAsesorRes.data = (vnMetricasAsesorRes.data as any[]).filter(matchVnRow);
+            vnMetricasAsesorRes.data = scopedVnAsesorRows(vnMetricasAsesorRes.data as any[]);
           }
           if (vnMetricasGerenteRes?.data) {
             vnMetricasGerenteRes.data = (vnMetricasGerenteRes.data as any[]).filter(matchVnRow);
