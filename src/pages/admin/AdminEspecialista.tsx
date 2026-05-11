@@ -188,11 +188,22 @@ const AdminEspecialista = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<{ tipo: string; data: any } | null>(null);
 
+  // VN state
+  const [retosVN, setRetosVN] = useState<any[]>([]);
+  const [rachasVN, setRachasVN] = useState<any[]>([]);
+  const [medallasVN, setMedallasVN] = useState<any[]>([]);
+  const [editingVN, setEditingVN] = useState<{ tabla: string; data: any } | null>(null);
+  const [evalFechaVN, setEvalFechaVN] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [evalDryRunVN, setEvalDryRunVN] = useState<boolean>(true);
+  const [evalLoadingVN, setEvalLoadingVN] = useState<boolean>(false);
+  const [evalResultadosVN, setEvalResultadosVN] = useState<any[]>([]);
+
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
+  const isAprobador = profile?.role === 'aprobador';
 
   useEffect(() => {
-    if (!isAuthenticated || (!isAdmin && !isEspecialista)) return;
+    if (!isAuthenticated || (!isAdmin && !isEspecialista && !isAprobador)) return;
     loadAll();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
 
