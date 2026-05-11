@@ -81,6 +81,36 @@ export type Database = {
           },
         ]
       }
+      aprobador_permisos: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          nombre: string | null
+          operaciones: string[]
+          paises: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string | null
+          operaciones?: string[]
+          paises?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string | null
+          operaciones?: string[]
+          paises?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       asesores: {
         Row: {
           activo: boolean | null
@@ -489,6 +519,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      config_calendario_vn: {
+        Row: {
+          anio_mes: string
+          created_at: string | null
+          dias_habiles: number
+          festivos: string[]
+          id: string
+          pais: string
+          semanas: Json
+          updated_at: string | null
+        }
+        Insert: {
+          anio_mes: string
+          created_at?: string | null
+          dias_habiles?: number
+          festivos?: string[]
+          id?: string
+          pais: string
+          semanas?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          anio_mes?: string
+          created_at?: string | null
+          dias_habiles?: number
+          festivos?: string[]
+          id?: string
+          pais?: string
+          semanas?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       config_rachas: {
         Row: {
@@ -1027,6 +1090,191 @@ export type Database = {
           },
         ]
       }
+      medallas_vn_config: {
+        Row: {
+          activo: boolean
+          canal: string[]
+          condicion_tipo: string
+          condicion_valor: number
+          creado_por: string | null
+          created_at: string | null
+          descripcion: string | null
+          emoji: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          lucide_icon: string
+          nombre: string
+          paises: string[]
+          sp_reward: number
+        }
+        Insert: {
+          activo?: boolean
+          canal?: string[]
+          condicion_tipo: string
+          condicion_valor?: number
+          creado_por?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          emoji?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          lucide_icon?: string
+          nombre: string
+          paises?: string[]
+          sp_reward?: number
+        }
+        Update: {
+          activo?: boolean
+          canal?: string[]
+          condicion_tipo?: string
+          condicion_valor?: number
+          creado_por?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          emoji?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          lucide_icon?: string
+          nombre?: string
+          paises?: string[]
+          sp_reward?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medallas_vn_ganadas: {
+        Row: {
+          fecha_desbloqueo: string | null
+          gerente_id: string
+          id: string
+          medalla_id: string
+          sp_otorgados: number
+        }
+        Insert: {
+          fecha_desbloqueo?: string | null
+          gerente_id: string
+          id?: string
+          medalla_id: string
+          sp_otorgados?: number
+        }
+        Update: {
+          fecha_desbloqueo?: string | null
+          gerente_id?: string
+          id?: string
+          medalla_id?: string
+          sp_otorgados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medallas_vn_ganadas_medalla_id_fkey"
+            columns: ["medalla_id"]
+            isOneToOne: false
+            referencedRelation: "medallas_vn_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas_acv_gerentes: {
         Row: {
           anio: number | null
@@ -1248,6 +1496,86 @@ export type Database = {
           siigo_fiscal?: number | null
         }
         Relationships: []
+      }
+      metas_nubes_mensuales: {
+        Row: {
+          anio_mes: string
+          created_at: string | null
+          gerente_id: string
+          id: string
+          meta_nubes: number
+          pais: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio_mes: string
+          created_at?: string | null
+          gerente_id: string
+          id?: string
+          meta_nubes?: number
+          pais: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio_mes?: string
+          created_at?: string | null
+          gerente_id?: string
+          id?: string
+          meta_nubes?: number
+          pais?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "metas_nubes_mensuales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notificaciones: {
         Row: {
@@ -1491,6 +1819,198 @@ export type Database = {
           },
         ]
       }
+      rachas_vn_config: {
+        Row: {
+          activo: boolean
+          canal: string[]
+          creado_por: string | null
+          created_at: string | null
+          dias_consecutivos_requeridos: number
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          multiplicador: number
+          nombre: string
+          paises: string[]
+          reto_ref_id: string | null
+          tipo: string
+        }
+        Insert: {
+          activo?: boolean
+          canal?: string[]
+          creado_por?: string | null
+          created_at?: string | null
+          dias_consecutivos_requeridos?: number
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          multiplicador?: number
+          nombre: string
+          paises?: string[]
+          reto_ref_id?: string | null
+          tipo: string
+        }
+        Update: {
+          activo?: boolean
+          canal?: string[]
+          creado_por?: string | null
+          created_at?: string | null
+          dias_consecutivos_requeridos?: number
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          multiplicador?: number
+          nombre?: string
+          paises?: string[]
+          reto_ref_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_config_reto_ref_id_fkey"
+            columns: ["reto_ref_id"]
+            isOneToOne: false
+            referencedRelation: "retos_vn_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rachas_vn_estado: {
+        Row: {
+          dias_o_semanas_consecutivas: number
+          gerente_id: string
+          id: string
+          racha_activa: boolean
+          racha_id: string
+          ultima_fecha_cumplida: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          dias_o_semanas_consecutivas?: number
+          gerente_id: string
+          id?: string
+          racha_activa?: boolean
+          racha_id: string
+          ultima_fecha_cumplida?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          dias_o_semanas_consecutivas?: number
+          gerente_id?: string
+          id?: string
+          racha_activa?: boolean
+          racha_id?: string
+          ultima_fecha_cumplida?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rachas_vn_estado_racha_id_fkey"
+            columns: ["racha_id"]
+            isOneToOne: false
+            referencedRelation: "rachas_vn_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconocimientos: {
         Row: {
           anio: number | null
@@ -1705,6 +2225,419 @@ export type Database = {
             columns: ["gerente_id"]
             isOneToOne: false
             referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retos_vn_config: {
+        Row: {
+          activo: boolean
+          acumular_finde_al_viernes: boolean
+          canal: string[]
+          creado_por: string | null
+          created_at: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          kpi: string
+          nombre: string
+          paises: string[]
+          sp_base: number
+          sp_semanal_sem1: number
+          sp_semanal_sem2: number
+          sp_semanal_sem3: number
+          sp_semanal_sem4: number
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean
+          acumular_finde_al_viernes?: boolean
+          canal?: string[]
+          creado_por?: string | null
+          created_at?: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          kpi: string
+          nombre: string
+          paises?: string[]
+          sp_base?: number
+          sp_semanal_sem1?: number
+          sp_semanal_sem2?: number
+          sp_semanal_sem3?: number
+          sp_semanal_sem4?: number
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean
+          acumular_finde_al_viernes?: boolean
+          canal?: string[]
+          creado_por?: string | null
+          created_at?: string | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          kpi?: string
+          nombre?: string
+          paises?: string[]
+          sp_base?: number
+          sp_semanal_sem1?: number
+          sp_semanal_sem2?: number
+          sp_semanal_sem3?: number
+          sp_semanal_sem4?: number
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_config_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retos_vn_progreso_diario: {
+        Row: {
+          cumple: boolean
+          evaluado_at: string | null
+          fecha_evaluacion: string
+          gerente_id: string
+          id: string
+          meta_diaria_nubes: number
+          nubes_vendidas: number
+          reto_id: string
+          sp_con_racha: number
+          sp_otorgados: number
+        }
+        Insert: {
+          cumple?: boolean
+          evaluado_at?: string | null
+          fecha_evaluacion: string
+          gerente_id: string
+          id?: string
+          meta_diaria_nubes?: number
+          nubes_vendidas?: number
+          reto_id: string
+          sp_con_racha?: number
+          sp_otorgados?: number
+        }
+        Update: {
+          cumple?: boolean
+          evaluado_at?: string | null
+          fecha_evaluacion?: string
+          gerente_id?: string
+          id?: string
+          meta_diaria_nubes?: number
+          nubes_vendidas?: number
+          reto_id?: string
+          sp_con_racha?: number
+          sp_otorgados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_diario_reto_id_fkey"
+            columns: ["reto_id"]
+            isOneToOne: false
+            referencedRelation: "retos_vn_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retos_vn_progreso_mensual: {
+        Row: {
+          acv_real: number
+          anio_mes: string
+          cumple: boolean
+          evaluado_at: string | null
+          gerente_id: string
+          id: string
+          meta_mensual_acv: number
+          pct_cumplimiento: number
+          reto_id: string
+          sp_otorgados: number
+        }
+        Insert: {
+          acv_real?: number
+          anio_mes: string
+          cumple?: boolean
+          evaluado_at?: string | null
+          gerente_id: string
+          id?: string
+          meta_mensual_acv?: number
+          pct_cumplimiento?: number
+          reto_id: string
+          sp_otorgados?: number
+        }
+        Update: {
+          acv_real?: number
+          anio_mes?: string
+          cumple?: boolean
+          evaluado_at?: string | null
+          gerente_id?: string
+          id?: string
+          meta_mensual_acv?: number
+          pct_cumplimiento?: number
+          reto_id?: string
+          sp_otorgados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_mensual_reto_id_fkey"
+            columns: ["reto_id"]
+            isOneToOne: false
+            referencedRelation: "retos_vn_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retos_vn_progreso_semanal: {
+        Row: {
+          acv_real: number
+          anio_mes: string
+          cumple: boolean
+          evaluado_at: string | null
+          fecha_fin_semana: string
+          fecha_inicio_semana: string
+          gerente_id: string
+          id: string
+          meta_semanal_acv: number
+          pct_cumplimiento: number
+          reto_id: string
+          semana_numero: number
+          sp_con_racha: number
+          sp_otorgados: number
+        }
+        Insert: {
+          acv_real?: number
+          anio_mes: string
+          cumple?: boolean
+          evaluado_at?: string | null
+          fecha_fin_semana: string
+          fecha_inicio_semana: string
+          gerente_id: string
+          id?: string
+          meta_semanal_acv?: number
+          pct_cumplimiento?: number
+          reto_id: string
+          semana_numero: number
+          sp_con_racha?: number
+          sp_otorgados?: number
+        }
+        Update: {
+          acv_real?: number
+          anio_mes?: string
+          cumple?: boolean
+          evaluado_at?: string | null
+          fecha_fin_semana?: string
+          fecha_inicio_semana?: string
+          gerente_id?: string
+          id?: string
+          meta_semanal_acv?: number
+          pct_cumplimiento?: number
+          reto_id?: string
+          semana_numero?: number
+          sp_con_racha?: number
+          sp_otorgados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retos_vn_progreso_semanal_reto_id_fkey"
+            columns: ["reto_id"]
+            isOneToOne: false
+            referencedRelation: "retos_vn_config"
             referencedColumns: ["id"]
           },
         ]
@@ -2734,6 +3667,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_gerente_sp_canje: {
+        Args: { p_delta: number; p_gerente_id: string }
+        Returns: undefined
+      }
       increment_puntos_canjeables: {
         Args: { p_amount: number; p_gerente_id: string }
         Returns: undefined
@@ -2783,7 +3720,7 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "gerente" | "asesor" | "especialista"
+      app_role: "admin" | "gerente" | "asesor" | "especialista" | "aprobador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2911,7 +3848,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "gerente", "asesor", "especialista"],
+      app_role: ["admin", "gerente", "asesor", "especialista", "aprobador"],
     },
   },
 } as const

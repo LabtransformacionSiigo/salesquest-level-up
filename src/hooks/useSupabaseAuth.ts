@@ -234,12 +234,14 @@ export const useSupabaseAuth = () => {
         ? 'admin'
         : roles.includes('especialista')
           ? 'especialista'
-          : roles.includes('gerente')
-            ? 'gerente'
-            : roles[0] ?? 'gerente';
+          : roles.includes('aprobador')
+            ? 'aprobador'
+            : roles.includes('gerente')
+              ? 'gerente'
+              : roles[0] ?? 'gerente';
 
-      // Admins y Especialistas no compiten — perfil simplificado
-      if (userRole === 'admin' || userRole === 'especialista') {
+      // Admins, Especialistas y Aprobadores no compiten — perfil simplificado
+      if (userRole === 'admin' || userRole === 'especialista' || userRole === 'aprobador') {
         const { data: gerenteData } = await supabase
           .from('gerentes')
           .select('*')
@@ -250,7 +252,7 @@ export const useSupabaseAuth = () => {
           id: gerenteData?.id || userId,
           user_id: userId,
           gerente_id: null,
-          nombre: gerenteData?.nombre || (userRole === 'especialista' ? 'Especialista' : 'Administrador'),
+          nombre: gerenteData?.nombre || (userRole === 'especialista' ? 'Especialista' : userRole === 'aprobador' ? 'Aprobador' : 'Administrador'),
           email: gerenteData?.email || '',
           canal: gerenteData?.canal || null,
           pais: gerenteData?.pais || null,
@@ -260,7 +262,7 @@ export const useSupabaseAuth = () => {
           avatar_url: gerenteData?.avatar_url || null,
           created_at: gerenteData?.created_at || '',
           sp_totales: 0,
-          nivel: userRole === 'especialista' ? 'Especialista' : 'Admin',
+          nivel: userRole === 'especialista' ? 'Especialista' : userRole === 'aprobador' ? 'Aprobador' : 'Admin',
           sp_nivel_actual: 0,
           sp_siguiente_nivel: null,
           role: userRole,

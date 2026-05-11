@@ -59,6 +59,7 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
+  const isAprobador = profile?.role === 'aprobador';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
@@ -86,14 +87,14 @@ const Sidebar = () => {
       >
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
-            <MI icon={isAdmin ? 'admin_panel_settings' : isEspecialista ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
+            <MI icon={isAdmin ? 'admin_panel_settings' : (isEspecialista || isAprobador) ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : (profile?.nivel || 'Nivel 1')}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : isAprobador ? 'Aprobador' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
-        {!isAdmin && !isEspecialista && (
+        {!isAdmin && !isEspecialista && !isAprobador && (
           <>
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
@@ -124,7 +125,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {!isAdmin && !isEspecialista && menuItems.map((item) => (
+        {!isAdmin && !isEspecialista && !isAprobador && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
@@ -143,10 +144,10 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {(isAdmin || isEspecialista) && (
+        {(isAdmin || isEspecialista || isAprobador) && (
           <>
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
-              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : '🛡️ Especialista'}</p>
+              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
             </motion.div>
             {(isAdmin ? adminItems : especialistaItems).map((item) => (
               <motion.button

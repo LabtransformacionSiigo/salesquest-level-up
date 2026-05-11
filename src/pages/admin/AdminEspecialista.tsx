@@ -188,11 +188,22 @@ const AdminEspecialista = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [editing, setEditing] = useState<{ tipo: string; data: any } | null>(null);
 
+  // VN state
+  const [retosVN, setRetosVN] = useState<any[]>([]);
+  const [rachasVN, setRachasVN] = useState<any[]>([]);
+  const [medallasVN, setMedallasVN] = useState<any[]>([]);
+  const [editingVN, setEditingVN] = useState<{ tabla: string; data: any } | null>(null);
+  const [evalFechaVN, setEvalFechaVN] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [evalDryRunVN, setEvalDryRunVN] = useState<boolean>(true);
+  const [evalLoadingVN, setEvalLoadingVN] = useState<boolean>(false);
+  const [evalResultadosVN, setEvalResultadosVN] = useState<any[]>([]);
+
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
+  const isAprobador = profile?.role === 'aprobador';
 
   useEffect(() => {
-    if (!isAuthenticated || (!isAdmin && !isEspecialista)) return;
+    if (!isAuthenticated || (!isAdmin && !isEspecialista && !isAprobador)) return;
     loadAll();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
 
@@ -215,6 +226,14 @@ const AdminEspecialista = () => {
         .maybeSingle();
       if (data) perm = { paises: data.paises || [], operaciones: data.operaciones || [] };
     }
+    if (isAprobador && profile?.user_id) {
+      const { data } = await supabase
+        .from('aprobador_permisos' as any)
+        .select('paises, operaciones')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+      if (data) perm = { paises: (data as any).paises || [], operaciones: (data as any).operaciones || [] };
+    }
     setPermisos(perm);
 
     // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
@@ -235,6 +254,24 @@ const AdminEspecialista = () => {
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
     setGerentes(gQ.data || []);
+
+    // VN data (sólo si tiene operaciones VN en su scope)
+    const tieneVN = isAdmin || perm.operaciones.some((op: string) =>
+      op === 'Venta Nueva (Empresarios)' || op === 'Venta Nueva (Aliados)'
+    );
+    if (tieneVN) {
+      const [rv, rvr, rvm] = await Promise.all([
+        supabase.from('retos_vn_config' as any).select('*').order('tipo'),
+        supabase.from('rachas_vn_config' as any).select('*').order('nombre'),
+        supabase.from('medallas_vn_config' as any).select('*').order('nombre'),
+      ]);
+      setRetosVN((rv.data as any[]) || []);
+      setRachasVN((rvr.data as any[]) || []);
+      setMedallasVN((rvm.data as any[]) || []);
+    } else {
+      setRetosVN([]); setRachasVN([]); setMedallasVN([]);
+    }
+
     setDataLoading(false);
   };
 
@@ -242,7 +279,6 @@ const AdminEspecialista = () => {
     if (isAdmin) return true;
     if (!permisos) return false;
     const paisOk = !item.pais || permisos.paises.includes(item.pais);
-    // Mapear canal del item (VC / VN_ALIADOS / VN_EMPRESARIOS) a la operación equivalente
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
@@ -252,6 +288,74 @@ const AdminEspecialista = () => {
     const opEffective = item.operacion || opFromCanal;
     const opOk = !opEffective || permisos.operaciones.includes(opEffective);
     return paisOk && opOk;
+  };
+
+  // VN scope check: item tiene paises[] y canal[]
+  const isInScopeVN = (item: any): boolean => {
+    if (isAdmin) return true;
+    if (!permisos) return false;
+    const paisOk = !item.paises?.length ||
+      item.paises.some((p: string) => permisos.paises.includes(p));
+    const canalToOp: Record<string, string> = {
+      VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
+      VN_ALIADOS: 'Venta Nueva (Aliados)',
+    };
+    const canalOk = !item.canal?.length ||
+      item.canal.some((c: string) => {
+        const op = canalToOp[c];
+        return op && permisos.operaciones.includes(op);
+      });
+    return paisOk && canalOk;
+  };
+
+  const toggleVN = async (tabla: string, id: string, activo: boolean) => {
+    const { error } = await supabase.from(tabla as any).update({ activo: !activo }).eq('id', id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: activo ? 'Desactivado' : 'Activado ✅' });
+    loadAll();
+  };
+
+  const deleteVN = async (tabla: string, id: string, nombre: string) => {
+    if (!window.confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from(tabla as any).delete().eq('id', id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Eliminado ✅' }); loadAll();
+  };
+
+  const saveVN = async (tabla: string, payload: any, id?: string) => {
+    const action = id
+      ? supabase.from(tabla as any).update(payload).eq('id', id)
+      : supabase.from(tabla as any).insert(payload);
+    const { error } = await action;
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: id ? 'Actualizado ✅' : 'Creado ✅' });
+    setEditingVN(null);
+    loadAll();
+  };
+
+  const ejecutarEvaluacionVN = async () => {
+    setEvalLoadingVN(true);
+    setEvalResultadosVN([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vn`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ fecha: evalFechaVN, dry_run: evalDryRunVN }),
+        }
+      );
+      const result = await res.json();
+      if (result.ok) {
+        setEvalResultadosVN(result.resultados ?? []);
+        toast({ title: evalDryRunVN ? '🔍 Simulación completada' : '✅ Evaluación completada', description: `${result.evaluados ?? (result.resultados?.length ?? 0)} evaluaciones` });
+      } else {
+        toast({ title: '⚠️ Error', description: result.error ?? JSON.stringify(result), variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally { setEvalLoadingVN(false); }
   };
 
   const toggleActivo = async (tipo: 'reto' | 'racha' | 'medalla', id: string, activo: boolean) => {
@@ -301,7 +405,9 @@ const AdminEspecialista = () => {
     );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!isAdmin && !isEspecialista) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin && !isEspecialista && !isAprobador) return <Navigate to="/dashboard" replace />;
+
+  const tieneVN = isAdmin || (permisos?.operaciones || []).some((op: string) => op.includes('Venta Nueva'));
 
   return (
     <Layout title="Panel Especialista">
@@ -356,13 +462,22 @@ const AdminEspecialista = () => {
               </div>
             </div>
           )}
+          {isAprobador && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 flex items-start gap-2">
+              <MI icon="verified_user" className="text-base" />
+              <span>
+                Eres <strong>Aprobador</strong>. Puedes activar o desactivar retos, rachas y medallas VN,
+                pero no crear, editar ni eliminar.
+              </span>
+            </div>
+          )}
         </div>
 
         {dataLoading ? (
           <Skeleton className="h-96" />
         ) : (
           <Tabs defaultValue="retos" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 max-w-xl">
+            <TabsList className={`grid w-full ${tieneVN ? 'grid-cols-6 max-w-3xl' : 'grid-cols-4 max-w-xl'}`}>
               <TabsTrigger value="retos">
                 <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
               </TabsTrigger>
@@ -372,7 +487,17 @@ const AdminEspecialista = () => {
               <TabsTrigger value="medallas">
                 <MI icon="military_tech" className="text-sm mr-1.5" /> Medallas
               </TabsTrigger>
-              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros Ganados</TabsTrigger>
+              {tieneVN && (
+                <TabsTrigger value="retos-vn">
+                  <MI icon="sports_soccer" className="text-sm mr-1.5" /> Retos VN
+                </TabsTrigger>
+              )}
+              {tieneVN && (
+                <TabsTrigger value="rachas-vn">
+                  <MI icon="bolt" className="text-sm mr-1.5" /> Rachas/Medallas VN
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="retos" className="mt-6">
@@ -417,6 +542,278 @@ const AdminEspecialista = () => {
                 onDelete={deleteItem}
               />
             </TabsContent>
+
+            {/* ==================== TAB: RETOS VN ==================== */}
+            {tieneVN && (
+              <TabsContent value="retos-vn" className="mt-6 space-y-6">
+                {!isAprobador && (
+                  <RetoVNForm
+                    editing={editingVN?.tabla === 'retos_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('retos_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Retos VN configurados</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          {['Nombre','Tipo','KPI','Canal','Países','SP','Fechas','Estado','Acciones'].map(h => (
+                            <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {retosVN.filter(isInScopeVN).map((r: any) => (
+                          <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2.5 font-medium">{r.nombre}</td>
+                            <td className="px-4 py-2.5"><span className="text-xs bg-muted px-2 py-0.5 rounded-full">{r.tipo}</span></td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.kpi}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.canal||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.paises||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs font-mono">
+                              {r.tipo === 'SEMANAL'
+                                ? `S1:${r.sp_semanal_sem1} S2:${r.sp_semanal_sem2} S3:${r.sp_semanal_sem3} S4:${r.sp_semanal_sem4}`
+                                : r.sp_base}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.fecha_inicio} → {r.fecha_fin}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${r.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                {r.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => toggleVN('retos_vn_config', r.id, r.activo)}
+                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title={r.activo ? 'Desactivar' : 'Activar'}>
+                                  <MI icon={r.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                </button>
+                                {!isAprobador && (
+                                  <>
+                                    <button onClick={() => setEditingVN({ tabla: 'retos_vn_config', data: r })}
+                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                      <MI icon="edit" className="text-base" />
+                                    </button>
+                                    <button onClick={() => deleteVN('retos_vn_config', r.id, r.nombre)}
+                                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                      <MI icon="delete" className="text-base" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {retosVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin retos VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {!isAprobador && (
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                    <h3 className="font-semibold text-sm">⚙️ Ejecutar evaluación VN</h3>
+                    <div className="flex items-end gap-4 flex-wrap">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold">Fecha a evaluar</label>
+                        <input type="date" className={inputClass + ' w-48'} value={evalFechaVN}
+                          onChange={(e) => setEvalFechaVN(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold">Modo</label>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Switch checked={evalDryRunVN} onCheckedChange={setEvalDryRunVN} />
+                          <span className={`text-xs font-semibold ${evalDryRunVN ? 'text-amber-600' : 'text-green-600'}`}>
+                            {evalDryRunVN ? 'Simulación' : 'Evaluación real'}
+                          </span>
+                        </div>
+                      </div>
+                      <Button onClick={ejecutarEvaluacionVN} disabled={evalLoadingVN}
+                        className={!evalDryRunVN ? 'bg-green-600 hover:bg-green-700' : ''}>
+                        {evalLoadingVN ? 'Evaluando…' : evalDryRunVN ? 'Simular' : 'Ejecutar evaluación'}
+                      </Button>
+                    </div>
+                    {evalResultadosVN.length > 0 && (
+                      <div className="overflow-x-auto rounded-lg border border-border">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/50">
+                            <tr>{['Gerente','País','Reto','Tipo','Cumple','%','SP base','SP+Racha'].map(h => (
+                              <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>
+                            ))}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {evalResultadosVN.map((r: any, i: number) => (
+                              <tr key={i} className={r.cumple ? 'bg-green-50/40' : r.cumple === false ? 'bg-red-50/20' : ''}>
+                                <td className="px-3 py-1.5">{r.gerente}</td>
+                                <td className="px-3 py-1.5">{r.pais}</td>
+                                <td className="px-3 py-1.5">{r.reto}</td>
+                                <td className="px-3 py-1.5">{r.tipo ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.cumple === true ? '✅' : r.cumple === false ? '❌' : r.resultado ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.pct ?? '—'}</td>
+                                <td className="px-3 py-1.5">{r.spBase ?? r.sp ?? '—'}</td>
+                                <td className="px-3 py-1.5 font-semibold text-primary">{r.spConRacha ?? r.sp ?? '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            )}
+
+            {/* ==================== TAB: RACHAS Y MEDALLAS VN ==================== */}
+            {tieneVN && (
+              <TabsContent value="rachas-vn" className="mt-6 space-y-6">
+                {!isAprobador && (
+                  <RachaVNForm
+                    editing={editingVN?.tabla === 'rachas_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    retosVN={retosVN.filter(isInScopeVN)}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('rachas_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Rachas VN configuradas</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>{['Nombre','Tipo','Días/Sem req.','Multiplicador','Reto vinculado','Canal','Países','Estado','Acciones'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {rachasVN.filter(isInScopeVN).map((r: any) => {
+                          const retoRef = retosVN.find((rt: any) => rt.id === r.reto_ref_id);
+                          return (
+                            <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="px-4 py-2.5 font-medium">{r.nombre}</td>
+                              <td className="px-4 py-2.5"><span className="text-xs bg-muted px-2 py-0.5 rounded-full">{r.tipo}</span></td>
+                              <td className="px-4 py-2.5 text-center">{r.dias_consecutivos_requeridos}</td>
+                              <td className="px-4 py-2.5 font-mono">x{r.multiplicador}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{retoRef?.nombre ?? '—'}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.canal||[]).join(', ')}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{(r.paises||[]).join(', ')}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${r.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                  {r.activo ? 'Activa' : 'Inactiva'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => toggleVN('rachas_vn_config', r.id, r.activo)}
+                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                    <MI icon={r.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                  </button>
+                                  {!isAprobador && (
+                                    <>
+                                      <button onClick={() => setEditingVN({ tabla: 'rachas_vn_config', data: r })}
+                                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                        <MI icon="edit" className="text-base" />
+                                      </button>
+                                      <button onClick={() => deleteVN('rachas_vn_config', r.id, r.nombre)}
+                                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                        <MI icon="delete" className="text-base" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {rachasVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin rachas VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Medallas VN */}
+                {!isAprobador && (
+                  <MedallaVNForm
+                    editing={editingVN?.tabla === 'medallas_vn_config' ? editingVN.data : null}
+                    permisos={permisos}
+                    isAdmin={isAdmin}
+                    onCancel={() => setEditingVN(null)}
+                    onSave={(payload, id) => saveVN('medallas_vn_config', payload, id)}
+                  />
+                )}
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Medallas VN configuradas</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>{['Emoji','Nombre','Condición','Valor','SP','Canal','Países','Estado','Acciones'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {medallasVN.filter(isInScopeVN).map((m: any) => (
+                          <tr key={m.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2.5 text-xl">{m.emoji}</td>
+                            <td className="px-4 py-2.5 font-medium">{m.nombre}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{m.condicion_tipo}</td>
+                            <td className="px-4 py-2.5 text-xs">{m.condicion_valor}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs">{m.sp_reward}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(m.canal||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{(m.paises||[]).join(', ')}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${m.activo ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                {m.activo ? 'Activa' : 'Inactiva'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => toggleVN('medallas_vn_config', m.id, m.activo)}
+                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                  <MI icon={m.activo ? 'toggle_on' : 'toggle_off'} className="text-base" />
+                                </button>
+                                {!isAprobador && (
+                                  <>
+                                    <button onClick={() => setEditingVN({ tabla: 'medallas_vn_config', data: m })}
+                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                                      <MI icon="edit" className="text-base" />
+                                    </button>
+                                    <button onClick={() => deleteVN('medallas_vn_config', m.id, m.nombre)}
+                                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                                      <MI icon="delete" className="text-base" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {medallasVN.filter(isInScopeVN).length === 0 && (
+                          <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Sin medallas VN en tu alcance</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+
             <TabsContent value="logros" className="mt-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -1141,6 +1538,215 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
           </Button>
           <Button onClick={handleSave}>{data.id ? 'Guardar Cambios' : 'Crear'}</Button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ============== VN FORMS ==============
+
+const VN_CANAL_OPTS = [
+  { value: 'VN_EMPRESARIOS', label: 'VN Empresarios', op: 'Venta Nueva (Empresarios)' },
+  { value: 'VN_ALIADOS', label: 'VN Aliados', op: 'Venta Nueva (Aliados)' },
+];
+
+const useVNAllowedCanales = (permisos: any, isAdmin: boolean) =>
+  VN_CANAL_OPTS.filter(c => isAdmin || (permisos?.operaciones || []).includes(c.op));
+
+const useVNAllowedPaises = (permisos: any, isAdmin: boolean) => {
+  const all = ['COL', 'ECU', 'URU', 'MEX'];
+  return all.filter(p => isAdmin || (permisos?.paises || []).includes(p));
+};
+
+const ArrChips = ({ value, options, onChange }: { value: string[]; options: { value: string; label: string }[]; onChange: (v: string[]) => void }) => (
+  <div className="flex flex-wrap gap-2">
+    {options.map(o => {
+      const on = value.includes(o.value);
+      return (
+        <button type="button" key={o.value}
+          onClick={() => onChange(on ? value.filter(v => v !== o.value) : [...value, o.value])}
+          className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${on ? 'bg-primary text-white border-primary' : 'bg-background text-muted-foreground border-border'}`}>
+          {o.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const RetoVNForm = ({ editing, permisos, isAdmin, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const tipo = form.tipo || 'DIARIO';
+  const kpi = tipo === 'DIARIO' ? 'NUBES' : 'ACV';
+  const handleSave = () => {
+    if (!form.nombre || !form.fecha_inicio || !form.fecha_fin) return;
+    const payload: any = {
+      nombre: form.nombre, tipo, kpi,
+      canal: form.canal || [], paises: form.paises || [],
+      sp_base: Number(form.sp_base ?? (tipo === 'DIARIO' ? 2 : 7)),
+      sp_semanal_sem1: Number(form.sp_semanal_sem1 ?? 7),
+      sp_semanal_sem2: Number(form.sp_semanal_sem2 ?? 7),
+      sp_semanal_sem3: Number(form.sp_semanal_sem3 ?? 5),
+      sp_semanal_sem4: Number(form.sp_semanal_sem4 ?? 5),
+      acumular_finde_al_viernes: !!form.acumular_finde_al_viernes,
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm text-foreground">{form.id ? '✏️ Editar reto VN' : '➕ Nuevo reto VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Tipo">
+          <select className={inputClass} value={tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+            <option value="DIARIO">Diario</option>
+            <option value="SEMANAL">Semanal</option>
+            <option value="MENSUAL">Mensual</option>
+          </select>
+        </Field>
+        <Field label="KPI"><input className={inputClass} value={kpi} readOnly /></Field>
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+        {tipo !== 'SEMANAL' && (
+          <Field label="SP base"><input type="number" className={inputClass} value={form.sp_base ?? (tipo === 'DIARIO' ? 2 : 7)} onChange={e => setForm({ ...form, sp_base: e.target.value })} /></Field>
+        )}
+        {tipo === 'SEMANAL' && (
+          <div className="col-span-1 md:col-span-2 grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map(n => (
+              <Field key={n} label={`SP Sem ${n}`}><input type="number" className={inputClass} value={form[`sp_semanal_sem${n}`] ?? (n <= 2 ? 7 : 5)} onChange={e => setForm({ ...form, [`sp_semanal_sem${n}`]: e.target.value })} /></Field>
+            ))}
+          </div>
+        )}
+        {tipo === 'DIARIO' && (
+          <Field label="Acumular sáb/dom al viernes" hint="Ventas del fin de semana cuentan al viernes anterior">
+            <div className="flex items-center gap-2 pt-2"><Switch checked={!!form.acumular_finde_al_viernes} onCheckedChange={v => setForm({ ...form, acumular_finde_al_viernes: v })} /></div>
+          </Field>
+        )}
+        <Field label="Fecha inicio"><input type="date" className={inputClass} value={form.fecha_inicio || ''} onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} /></Field>
+        <Field label="Fecha fin"><input type="date" className={inputClass} value={form.fecha_fin || ''} onChange={e => setForm({ ...form, fecha_fin: e.target.value })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear reto VN'}</Button>
+      </div>
+    </div>
+  );
+};
+
+const RachaVNForm = ({ editing, permisos, isAdmin, retosVN, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const tipo = form.tipo || 'DIARIA';
+  const retosFiltrados = (retosVN || []).filter((r: any) =>
+    (tipo === 'DIARIA' && r.tipo === 'DIARIO') || (tipo === 'SEMANAL' && r.tipo === 'SEMANAL'),
+  );
+  const handleSave = () => {
+    if (!form.nombre || !form.fecha_inicio || !form.fecha_fin) return;
+    const payload: any = {
+      nombre: form.nombre, tipo,
+      dias_consecutivos_requeridos: Number(form.dias_consecutivos_requeridos ?? (tipo === 'DIARIA' ? 3 : 2)),
+      multiplicador: Number(form.multiplicador ?? (tipo === 'DIARIA' ? 1.5 : 2.0)),
+      reto_ref_id: form.reto_ref_id || null,
+      canal: form.canal || [], paises: form.paises || [],
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm">{form.id ? '✏️ Editar racha VN' : '➕ Nueva racha VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Tipo">
+          <select className={inputClass} value={tipo} onChange={e => {
+            const t = e.target.value;
+            setForm({ ...form, tipo: t, dias_consecutivos_requeridos: t === 'DIARIA' ? 3 : 2, multiplicador: t === 'DIARIA' ? 1.5 : 2.0 });
+          }}>
+            <option value="DIARIA">Diaria</option>
+            <option value="SEMANAL">Semanal</option>
+          </select>
+        </Field>
+        <Field label="Días/semanas requeridas" hint="La racha activa el multiplicador al superar este valor">
+          <input type="number" className={inputClass} value={form.dias_consecutivos_requeridos ?? (tipo === 'DIARIA' ? 3 : 2)} onChange={e => setForm({ ...form, dias_consecutivos_requeridos: e.target.value })} />
+        </Field>
+        <Field label="Multiplicador"><input type="number" step="0.1" className={inputClass} value={form.multiplicador ?? (tipo === 'DIARIA' ? 1.5 : 2.0)} onChange={e => setForm({ ...form, multiplicador: e.target.value })} /></Field>
+        <Field label="Reto vinculado">
+          <select className={inputClass} value={form.reto_ref_id || ''} onChange={e => setForm({ ...form, reto_ref_id: e.target.value })}>
+            <option value="">— Ninguno —</option>
+            {retosFiltrados.map((r: any) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+          </select>
+        </Field>
+        <div />
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+        <Field label="Fecha inicio"><input type="date" className={inputClass} value={form.fecha_inicio || ''} onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} /></Field>
+        <Field label="Fecha fin"><input type="date" className={inputClass} value={form.fecha_fin || ''} onChange={e => setForm({ ...form, fecha_fin: e.target.value })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear racha VN'}</Button>
+      </div>
+    </div>
+  );
+};
+
+const MEDALLA_VN_CONDICIONES = [
+  { value: 'racha_diaria_activada', label: 'Racha diaria activada' },
+  { value: 'racha_semanal_activada', label: 'Racha semanal activada' },
+  { value: 'reto_diario_completado_n', label: 'N retos diarios completados' },
+  { value: 'reto_semanal_completado_n', label: 'N retos semanales completados' },
+  { value: 'reto_mensual_completado', label: 'Reto mensual completado' },
+  { value: 'cumplimiento_100_pct_mes', label: '100% cumplimiento del mes' },
+];
+
+const MedallaVNForm = ({ editing, permisos, isAdmin, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const handleSave = () => {
+    if (!form.nombre) return;
+    const payload: any = {
+      nombre: form.nombre,
+      descripcion: form.descripcion || null,
+      emoji: form.emoji || '🏅',
+      lucide_icon: form.lucide_icon || 'Award',
+      condicion_tipo: form.condicion_tipo || 'racha_diaria_activada',
+      condicion_valor: Number(form.condicion_valor ?? 1),
+      sp_reward: Number(form.sp_reward ?? 5),
+      canal: form.canal || [], paises: form.paises || [],
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio || null, fecha_fin: form.fecha_fin || null,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm">{form.id ? '✏️ Editar medalla VN' : '➕ Nueva medalla VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Emoji"><input className={inputClass} value={form.emoji || '🏅'} onChange={e => setForm({ ...form, emoji: e.target.value })} /></Field>
+        <Field label="Descripción"><input className={inputClass} value={form.descripcion || ''} onChange={e => setForm({ ...form, descripcion: e.target.value })} /></Field>
+        <Field label="Condición">
+          <select className={inputClass} value={form.condicion_tipo || 'racha_diaria_activada'} onChange={e => setForm({ ...form, condicion_tipo: e.target.value })}>
+            {MEDALLA_VN_CONDICIONES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Valor (N)"><input type="number" className={inputClass} value={form.condicion_valor ?? 1} onChange={e => setForm({ ...form, condicion_valor: e.target.value })} /></Field>
+        <Field label="SP otorgados"><input type="number" className={inputClass} value={form.sp_reward ?? 5} onChange={e => setForm({ ...form, sp_reward: e.target.value })} /></Field>
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear medalla VN'}</Button>
       </div>
     </div>
   );
