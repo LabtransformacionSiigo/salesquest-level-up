@@ -1563,7 +1563,10 @@ export const useGamificationMetrics = (
             .filter((r: any) => Number(r.mes_nro) === mesActualNro)
             .forEach((r: any) => {
               const key = normalizeComparableText(r.asesor ?? '');
+              const metaDoc = metasPorAsesor.get(key)?.documento_asesor;
+              const ventaDoc = metaDoc ? String(metaDoc).trim().toLowerCase() : '';
               if (!key || key === gerenteKey) return;
+              if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key) && (!ventaDoc || !docPorNombre.has(key))) return;
               const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
               const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
               const dedupKey = `${key}|${tipo}`;
