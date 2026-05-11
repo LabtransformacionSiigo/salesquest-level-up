@@ -1543,4 +1543,213 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
   );
 };
 
+// ============== VN FORMS ==============
+
+const VN_CANAL_OPTS = [
+  { value: 'VN_EMPRESARIOS', label: 'VN Empresarios', op: 'Venta Nueva (Empresarios)' },
+  { value: 'VN_ALIADOS', label: 'VN Aliados', op: 'Venta Nueva (Aliados)' },
+];
+
+const useVNAllowedCanales = (permisos: any, isAdmin: boolean) =>
+  VN_CANAL_OPTS.filter(c => isAdmin || (permisos?.operaciones || []).includes(c.op));
+
+const useVNAllowedPaises = (permisos: any, isAdmin: boolean) => {
+  const all = ['COL', 'ECU', 'URU', 'MEX'];
+  return all.filter(p => isAdmin || (permisos?.paises || []).includes(p));
+};
+
+const ArrChips = ({ value, options, onChange }: { value: string[]; options: { value: string; label: string }[]; onChange: (v: string[]) => void }) => (
+  <div className="flex flex-wrap gap-2">
+    {options.map(o => {
+      const on = value.includes(o.value);
+      return (
+        <button type="button" key={o.value}
+          onClick={() => onChange(on ? value.filter(v => v !== o.value) : [...value, o.value])}
+          className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${on ? 'bg-primary text-white border-primary' : 'bg-background text-muted-foreground border-border'}`}>
+          {o.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const RetoVNForm = ({ editing, permisos, isAdmin, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const tipo = form.tipo || 'DIARIO';
+  const kpi = tipo === 'DIARIO' ? 'NUBES' : 'ACV';
+  const handleSave = () => {
+    if (!form.nombre || !form.fecha_inicio || !form.fecha_fin) return;
+    const payload: any = {
+      nombre: form.nombre, tipo, kpi,
+      canal: form.canal || [], paises: form.paises || [],
+      sp_base: Number(form.sp_base ?? (tipo === 'DIARIO' ? 2 : 7)),
+      sp_semanal_sem1: Number(form.sp_semanal_sem1 ?? 7),
+      sp_semanal_sem2: Number(form.sp_semanal_sem2 ?? 7),
+      sp_semanal_sem3: Number(form.sp_semanal_sem3 ?? 5),
+      sp_semanal_sem4: Number(form.sp_semanal_sem4 ?? 5),
+      acumular_finde_al_viernes: !!form.acumular_finde_al_viernes,
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm text-foreground">{form.id ? '✏️ Editar reto VN' : '➕ Nuevo reto VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Tipo">
+          <select className={inputClass} value={tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+            <option value="DIARIO">Diario</option>
+            <option value="SEMANAL">Semanal</option>
+            <option value="MENSUAL">Mensual</option>
+          </select>
+        </Field>
+        <Field label="KPI"><input className={inputClass} value={kpi} readOnly /></Field>
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+        {tipo !== 'SEMANAL' && (
+          <Field label="SP base"><input type="number" className={inputClass} value={form.sp_base ?? (tipo === 'DIARIO' ? 2 : 7)} onChange={e => setForm({ ...form, sp_base: e.target.value })} /></Field>
+        )}
+        {tipo === 'SEMANAL' && (
+          <div className="col-span-1 md:col-span-2 grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map(n => (
+              <Field key={n} label={`SP Sem ${n}`}><input type="number" className={inputClass} value={form[`sp_semanal_sem${n}`] ?? (n <= 2 ? 7 : 5)} onChange={e => setForm({ ...form, [`sp_semanal_sem${n}`]: e.target.value })} /></Field>
+            ))}
+          </div>
+        )}
+        {tipo === 'DIARIO' && (
+          <Field label="Acumular sáb/dom al viernes" hint="Ventas del fin de semana cuentan al viernes anterior">
+            <div className="flex items-center gap-2 pt-2"><Switch checked={!!form.acumular_finde_al_viernes} onCheckedChange={v => setForm({ ...form, acumular_finde_al_viernes: v })} /></div>
+          </Field>
+        )}
+        <Field label="Fecha inicio"><input type="date" className={inputClass} value={form.fecha_inicio || ''} onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} /></Field>
+        <Field label="Fecha fin"><input type="date" className={inputClass} value={form.fecha_fin || ''} onChange={e => setForm({ ...form, fecha_fin: e.target.value })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear reto VN'}</Button>
+      </div>
+    </div>
+  );
+};
+
+const RachaVNForm = ({ editing, permisos, isAdmin, retosVN, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const tipo = form.tipo || 'DIARIA';
+  const retosFiltrados = (retosVN || []).filter((r: any) =>
+    (tipo === 'DIARIA' && r.tipo === 'DIARIO') || (tipo === 'SEMANAL' && r.tipo === 'SEMANAL'),
+  );
+  const handleSave = () => {
+    if (!form.nombre || !form.fecha_inicio || !form.fecha_fin) return;
+    const payload: any = {
+      nombre: form.nombre, tipo,
+      dias_consecutivos_requeridos: Number(form.dias_consecutivos_requeridos ?? (tipo === 'DIARIA' ? 3 : 2)),
+      multiplicador: Number(form.multiplicador ?? (tipo === 'DIARIA' ? 1.5 : 2.0)),
+      reto_ref_id: form.reto_ref_id || null,
+      canal: form.canal || [], paises: form.paises || [],
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm">{form.id ? '✏️ Editar racha VN' : '➕ Nueva racha VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Tipo">
+          <select className={inputClass} value={tipo} onChange={e => {
+            const t = e.target.value;
+            setForm({ ...form, tipo: t, dias_consecutivos_requeridos: t === 'DIARIA' ? 3 : 2, multiplicador: t === 'DIARIA' ? 1.5 : 2.0 });
+          }}>
+            <option value="DIARIA">Diaria</option>
+            <option value="SEMANAL">Semanal</option>
+          </select>
+        </Field>
+        <Field label="Días/semanas requeridas" hint="La racha activa el multiplicador al superar este valor">
+          <input type="number" className={inputClass} value={form.dias_consecutivos_requeridos ?? (tipo === 'DIARIA' ? 3 : 2)} onChange={e => setForm({ ...form, dias_consecutivos_requeridos: e.target.value })} />
+        </Field>
+        <Field label="Multiplicador"><input type="number" step="0.1" className={inputClass} value={form.multiplicador ?? (tipo === 'DIARIA' ? 1.5 : 2.0)} onChange={e => setForm({ ...form, multiplicador: e.target.value })} /></Field>
+        <Field label="Reto vinculado">
+          <select className={inputClass} value={form.reto_ref_id || ''} onChange={e => setForm({ ...form, reto_ref_id: e.target.value })}>
+            <option value="">— Ninguno —</option>
+            {retosFiltrados.map((r: any) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+          </select>
+        </Field>
+        <div />
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+        <Field label="Fecha inicio"><input type="date" className={inputClass} value={form.fecha_inicio || ''} onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} /></Field>
+        <Field label="Fecha fin"><input type="date" className={inputClass} value={form.fecha_fin || ''} onChange={e => setForm({ ...form, fecha_fin: e.target.value })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear racha VN'}</Button>
+      </div>
+    </div>
+  );
+};
+
+const MEDALLA_VN_CONDICIONES = [
+  { value: 'racha_diaria_activada', label: 'Racha diaria activada' },
+  { value: 'racha_semanal_activada', label: 'Racha semanal activada' },
+  { value: 'reto_diario_completado_n', label: 'N retos diarios completados' },
+  { value: 'reto_semanal_completado_n', label: 'N retos semanales completados' },
+  { value: 'reto_mensual_completado', label: 'Reto mensual completado' },
+  { value: 'cumplimiento_100_pct_mes', label: '100% cumplimiento del mes' },
+];
+
+const MedallaVNForm = ({ editing, permisos, isAdmin, onCancel, onSave }: any) => {
+  const allowedCanal = useVNAllowedCanales(permisos, isAdmin);
+  const allowedPaises = useVNAllowedPaises(permisos, isAdmin);
+  const [form, setForm] = useState<any>(editing || {});
+  useEffect(() => { setForm(editing || {}); }, [editing]);
+  const handleSave = () => {
+    if (!form.nombre) return;
+    const payload: any = {
+      nombre: form.nombre,
+      descripcion: form.descripcion || null,
+      emoji: form.emoji || '🏅',
+      lucide_icon: form.lucide_icon || 'Award',
+      condicion_tipo: form.condicion_tipo || 'racha_diaria_activada',
+      condicion_valor: Number(form.condicion_valor ?? 1),
+      sp_reward: Number(form.sp_reward ?? 5),
+      canal: form.canal || [], paises: form.paises || [],
+      activo: form.activo ?? true,
+      fecha_inicio: form.fecha_inicio || null, fecha_fin: form.fecha_fin || null,
+    };
+    onSave(payload, form.id);
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-sm">{form.id ? '✏️ Editar medalla VN' : '➕ Nueva medalla VN'}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Field label="Nombre"><input className={inputClass} value={form.nombre || ''} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
+        <Field label="Emoji"><input className={inputClass} value={form.emoji || '🏅'} onChange={e => setForm({ ...form, emoji: e.target.value })} /></Field>
+        <Field label="Descripción"><input className={inputClass} value={form.descripcion || ''} onChange={e => setForm({ ...form, descripcion: e.target.value })} /></Field>
+        <Field label="Condición">
+          <select className={inputClass} value={form.condicion_tipo || 'racha_diaria_activada'} onChange={e => setForm({ ...form, condicion_tipo: e.target.value })}>
+            {MEDALLA_VN_CONDICIONES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Valor (N)"><input type="number" className={inputClass} value={form.condicion_valor ?? 1} onChange={e => setForm({ ...form, condicion_valor: e.target.value })} /></Field>
+        <Field label="SP otorgados"><input type="number" className={inputClass} value={form.sp_reward ?? 5} onChange={e => setForm({ ...form, sp_reward: e.target.value })} /></Field>
+        <Field label="Canal"><ArrChips value={form.canal || []} options={allowedCanal.map(c => ({ value: c.value, label: c.label }))} onChange={v => setForm({ ...form, canal: v })} /></Field>
+        <Field label="Países"><ArrChips value={form.paises || []} options={allowedPaises.map(p => ({ value: p, label: p }))} onChange={v => setForm({ ...form, paises: v })} /></Field>
+      </div>
+      <div className="flex gap-2 pt-2">
+        {form.id && <Button variant="outline" onClick={onCancel}>Cancelar</Button>}
+        <Button onClick={handleSave}>{form.id ? 'Guardar cambios' : 'Crear medalla VN'}</Button>
+      </div>
+    </div>
+  );
+};
+
 export default AdminEspecialista;
