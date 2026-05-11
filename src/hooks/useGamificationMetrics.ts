@@ -1543,14 +1543,10 @@ export const useGamificationMetrics = (
 
           // Map metas by normalized asesor name
           const metasPorAsesor = new Map<string, any>();
-          const docPorNombre = new Map<string, string>();
           teamMetaRows.forEach((m: any) => {
             if (!m.nombre_asesor) return;
             const key = normalizeComparableText(m.nombre_asesor);
             metasPorAsesor.set(key, m);
-            if (m.documento_asesor) {
-              docPorNombre.set(key, String(m.documento_asesor).trim().toLowerCase());
-            }
           });
 
           const gerenteKey = normalizeComparableText(profile.nombre ?? '');
