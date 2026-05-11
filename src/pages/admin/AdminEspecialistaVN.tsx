@@ -705,7 +705,7 @@ const AdminEspecialistaVN = () => {
   if (profile?.role !== 'admin' && profile?.role !== 'especialista') return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout>
+    <Layout title="Gamificación VN">
       <div className="space-y-4">
         <header>
           <h1 className="text-2xl font-bold">🎯 Gamificación VN</h1>
