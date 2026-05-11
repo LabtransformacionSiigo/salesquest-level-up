@@ -154,6 +154,13 @@ const normalizeComparableText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const normalizeVnChannel = (value: unknown) => {
+  const normalized = normalizeComparableText(value).replace(/_/g, ' ');
+  if (normalized.includes('aliad')) return 'aliados';
+  if (normalized.includes('empres')) return 'empresarios';
+  return normalized;
+};
+
 const matchesNormalizedPerson = (candidate: string, aliases: Set<string>) => {
   if (!candidate || aliases.size === 0) return false;
   if (aliases.has(candidate)) return true;
