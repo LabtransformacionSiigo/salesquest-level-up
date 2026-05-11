@@ -405,7 +405,9 @@ const AdminEspecialista = () => {
     );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!isAdmin && !isEspecialista) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin && !isEspecialista && !isAprobador) return <Navigate to="/dashboard" replace />;
+
+  const tieneVN = isAdmin || (permisos?.operaciones || []).some((op: string) => op.includes('Venta Nueva'));
 
   return (
     <Layout title="Panel Especialista">
