@@ -87,14 +87,14 @@ const Sidebar = () => {
       >
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
-            <MI icon={isAdmin ? 'admin_panel_settings' : isEspecialista ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
+            <MI icon={isAdmin ? 'admin_panel_settings' : (isEspecialista || isAprobador) ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : (profile?.nivel || 'Nivel 1')}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : isAprobador ? 'Aprobador' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
-        {!isAdmin && !isEspecialista && (
+        {!isAdmin && !isEspecialista && !isAprobador && (
           <>
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
