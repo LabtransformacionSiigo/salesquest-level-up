@@ -633,12 +633,19 @@ export const useGamificationMetrics = (
             if (matchesTargetManager(rowNombre)) return true;
             return false;
           };
+          const targetAdvisorNamesFromMetas = new Set(
+            ((vnMetasRes?.data as any[]) || [])
+              .map((row: any) => normalizeComparableText(row.nombre_asesor))
+              .filter(Boolean)
+          );
           const scopedVnAsesorRows = (rows: any[] = []) => rows.filter((r: any) => {
+            const rowAsesor = normalizeComparableText(r.asesor ?? '');
             const rowCelula = normalizeComparableText(r.celula ?? '');
             const rowGerente = normalizeComparableText(r.gerente_normalizado ?? r.gerente ?? r.gerente_responsable ?? '');
             const rowCanal = normalizeVnChannel(r.canal_direccion ?? r.equipo ?? '');
             const profileCanal = normalizeVnChannel(profile.canal ?? '');
             const hasTeamHint = !!(rowCelula || rowGerente);
+            if (rowAsesor && matchesNormalizedPerson(rowAsesor, targetAdvisorNamesFromMetas)) return true;
             if (targetCelula && rowCelula === targetCelula) return true;
             if (matchesTargetManager(rowGerente)) return true;
             if (!hasTeamHint && profileCanal && rowCanal === profileCanal) return true;
