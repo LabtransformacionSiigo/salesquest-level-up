@@ -104,6 +104,24 @@ interface VcMetrics {
   artilleroDias: { fecha: string; nube: number; legacy: number; cumple: boolean }[];
 }
 
+// ── Tipos VN ─────────────────────────────────────────────────────────────────
+interface VnRetoConfig {
+  id: string;
+  nombre: string;
+  tipo: 'DIARIO' | 'SEMANAL' | 'MENSUAL';
+  kpi: 'NUBES' | 'ACV';
+  sp_base: number;
+  sp_semanal_sem1: number; sp_semanal_sem2: number;
+  sp_semanal_sem3: number; sp_semanal_sem4: number;
+  acumular_finde_al_viernes: boolean;
+}
+interface VnProgresoDiario { fecha_evaluacion: string; nubes_vendidas: number; meta_diaria_nubes: number; cumple: boolean; sp_otorgados: number; sp_con_racha: number; }
+interface VnProgresoSemanal { semana_numero: number; fecha_inicio_semana: string; fecha_fin_semana: string; acv_real: number; meta_semanal_acv: number; pct_cumplimiento: number; cumple: boolean; sp_otorgados: number; sp_con_racha: number; }
+interface VnProgresoMensual { acv_real: number; meta_mensual_acv: number; pct_cumplimiento: number; cumple: boolean; sp_otorgados: number; }
+interface VnRachaEstado { racha_id: string; dias_o_semanas_consecutivas: number; racha_activa: boolean; ultima_fecha_cumplida?: string; rachas_vn_config?: { nombre: string; tipo: string; multiplicador: number; dias_consecutivos_requeridos: number }; }
+interface VnMedalla { id: string; nombre: string; descripcion: string; emoji: string; condicion_tipo: string; condicion_valor: number; sp_reward: number; ganada?: boolean; }
+interface VnSemana { numero: number; fecha_inicio: string; fecha_fin: string; sp: number; }
+
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
@@ -126,6 +144,87 @@ const Retos = () => {
   const periodoHoy = todayStr;
   const periodoSemana = `${anio}-W${String(semanaISO).padStart(2, '0')}`;
   const periodoMes = `${anio}${String(mes + 1).padStart(2, '0')}`;
+  const anioMesStr = `${anio}-${String(mes + 1).padStart(2, '0')}`;
+
+  // ── Estado VN ───────────────────────────────────────────────────────────
+  const [vnRetos,          setVnRetos]          = useState<VnRetoConfig[]>([]);
+  const [vnProgresoDiario, setVnProgresoDiario] = useState<VnProgresoDiario[]>([]);
+  const [vnProgresoSemanal,setVnProgresoSemanal]= useState<VnProgresoSemanal[]>([]);
+  const [vnProgresoMensual,setVnProgresoMensual]= useState<VnProgresoMensual | null>(null);
+  const [vnRachaEstados,   setVnRachaEstados]   = useState<VnRachaEstado[]>([]);
+  const [vnMedallas,       setVnMedallas]       = useState<VnMedalla[]>([]);
+  const [vnMetaNubes,      setVnMetaNubes]      = useState(0);
+  const [vnDiasHabiles,    setVnDiasHabiles]    = useState(20);
+  const [vnFestivos,       setVnFestivos]       = useState<string[]>([]);
+  const [vnSemanas,        setVnSemanas]        = useState<VnSemana[]>([]);
+
+  const isVN = profile?.canal === 'VN_EMPRESARIOS' || profile?.canal === 'VN_ALIADOS';
+
+  useEffect(() => {
+    if (!profile?.id || !isVN) return;
+    let cancelled = false;
+
+    const fetchVnData = async () => {
+      const pais = profile.pais ?? 'COL';
+      const canal = profile.canal ?? 'VN_EMPRESARIOS';
+
+      const [
+        { data: retosData },
+        { data: calData },
+        { data: metaNubesData },
+        { data: progDiario },
+        { data: progSemanal },
+        { data: progMensual },
+        { data: rachaEstados },
+        { data: medallasConf },
+        { data: medallasGanadas },
+      ] = await Promise.all([
+        supabase.from('retos_vn_config').select('*').eq('activo', true)
+          .contains('canal', [canal]).contains('paises', [pais]),
+        supabase.from('config_calendario_vn').select('*')
+          .eq('anio_mes', anioMesStr).eq('pais', pais).maybeSingle(),
+        supabase.from('metas_nubes_mensuales').select('meta_nubes')
+          .eq('gerente_id', profile.id).eq('anio_mes', anioMesStr).maybeSingle(),
+        supabase.from('retos_vn_progreso_diario').select('*')
+          .eq('gerente_id', profile.id)
+          .gte('fecha_evaluacion', `${anioMesStr}-01`)
+          .order('fecha_evaluacion', { ascending: false }),
+        supabase.from('retos_vn_progreso_semanal').select('*')
+          .eq('gerente_id', profile.id).eq('anio_mes', anioMesStr)
+          .order('semana_numero'),
+        supabase.from('retos_vn_progreso_mensual').select('*')
+          .eq('gerente_id', profile.id).eq('anio_mes', anioMesStr).maybeSingle(),
+        supabase.from('rachas_vn_estado').select('*, rachas_vn_config(nombre, tipo, multiplicador, dias_consecutivos_requeridos)')
+          .eq('gerente_id', profile.id),
+        supabase.from('medallas_vn_config').select('*').eq('activo', true)
+          .contains('canal', [canal]).contains('paises', [pais]),
+        supabase.from('medallas_vn_ganadas').select('medalla_id').eq('gerente_id', profile.id),
+      ]);
+
+      if (cancelled) return;
+
+      setVnRetos((retosData ?? []) as VnRetoConfig[]);
+      const cal = calData as any;
+      if (cal) {
+        setVnDiasHabiles(cal.dias_habiles ?? 20);
+        setVnFestivos(cal.festivos ?? []);
+        setVnSemanas(cal.semanas ?? []);
+      }
+      setVnMetaNubes(Number(metaNubesData?.meta_nubes ?? 0));
+      setVnProgresoDiario((progDiario ?? []) as VnProgresoDiario[]);
+      setVnProgresoSemanal((progSemanal ?? []) as VnProgresoSemanal[]);
+      setVnProgresoMensual((progMensual as VnProgresoMensual) ?? null);
+      setVnRachaEstados((rachaEstados ?? []) as VnRachaEstado[]);
+
+      const ganadosSet = new Set((medallasGanadas ?? []).map((m: any) => m.medalla_id));
+      setVnMedallas(
+        (medallasConf ?? []).map((m: any) => ({ ...m, ganada: ganadosSet.has(m.id) })) as VnMedalla[],
+      );
+    };
+
+    fetchVnData();
+    return () => { cancelled = true; };
+  }, [profile?.id, isVN, anioMesStr]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -450,6 +549,341 @@ const Retos = () => {
       </motion.div>
     );
   };
+
+  // ── Helpers VN ─────────────────────────────────────────────────────────────
+  const vnMetaDiaria = vnDiasHabiles > 0 ? vnMetaNubes / vnDiasHabiles : 0;
+
+  const vnSemanasConProgreso = vnSemanas.map((sem) => {
+    const prog = vnProgresoSemanal.find((p) => p.semana_numero === sem.numero);
+    const esFuturo = todayStr < sem.fecha_inicio;
+    const esActual = todayStr >= sem.fecha_inicio && todayStr <= sem.fecha_fin;
+    const acvReal  = prog?.acv_real ?? 0;
+    const metaSem  = prog?.meta_semanal_acv ?? 0;
+    return { ...sem, prog, esFuturo, esActual, acvReal, metaSem };
+  });
+
+  const vnSemanaActual = vnSemanas.find(
+    (s) => todayStr >= s.fecha_inicio && todayStr <= s.fecha_fin,
+  );
+  const vnProgSemanaActual = vnSemanaActual
+    ? vnProgresoSemanal.find((p) => p.semana_numero === vnSemanaActual.numero)
+    : null;
+
+  const vnProgHoy = vnProgresoDiario.find((p) => p.fecha_evaluacion === todayStr);
+  const esFestivoHoy = vnFestivos.includes(todayStr);
+
+  const vnRachasDiarias  = vnRachaEstados.filter((r) => r.rachas_vn_config?.tipo === 'DIARIA');
+  const vnRachasSemanales= vnRachaEstados.filter((r) => r.rachas_vn_config?.tipo === 'SEMANAL');
+
+  const fmtACV = (v: number) =>
+    v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : `$${v.toLocaleString()}`;
+
+  // ── Render VN section ───────────────────────────────────────────────────
+  if (isVN) {
+    return (
+      <Layout title="🎯 Retos VN">
+        <div className="space-y-8 max-w-4xl mx-auto">
+
+          {/* ── Header ── */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <span className="material-icons-outlined text-primary text-2xl">flag</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Mis Retos VN</h1>
+              <p className="text-sm text-muted-foreground">
+                {profile?.canal} · {profile?.pais} · {anioMesStr}
+              </p>
+            </div>
+          </div>
+
+          {dataLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48" />)}
+            </div>
+          ) : (
+            <>
+              {/* ── Cards de retos ── */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                {/* CARD 1: El Golazo del Día */}
+                {(() => {
+                  const reto = vnRetos.find((r) => r.tipo === 'DIARIO');
+                  if (!reto) return null;
+                  const nubes = vnProgHoy?.nubes_vendidas ?? 0;
+                  const meta  = vnProgHoy?.meta_diaria_nubes ?? vnMetaDiaria;
+                  const pct   = meta > 0 ? Math.min(100, (nubes / meta) * 100) : 0;
+                  const cumple= vnProgHoy?.cumple ?? false;
+                  const spGanado = vnProgHoy?.sp_con_racha ?? 0;
+                  const rachaD = vnRachasDiarias[0];
+                  const rachaActiva = rachaD?.racha_activa ?? false;
+                  return (
+                    <motion.div
+                      className={cn(
+                        'bg-white border rounded-2xl p-5 shadow-smooth-sm border-l-4',
+                        cumple ? 'border-l-accent' : 'border-l-primary',
+                      )}
+                      variants={scoreboardSlide}
+                      initial="hidden" animate="show"
+                      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">📅 DIARIO</span>
+                        {cumple && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ CUMPLIDO</span>}
+                        {esFestivoHoy && <span className="text-[9px] font-bold text-white bg-amber-500 px-2 py-0.5 rounded-full">🎉 FESTIVO</span>}
+                      </div>
+                      <div className="flex items-center gap-3 mb-3 mt-2">
+                        <span className="text-3xl">{cumple ? '⚽' : '🎯'}</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-foreground">{reto.nombre}</p>
+                          <p className="text-xs text-muted-foreground">Nubes vendidas hoy vs meta diaria</p>
+                          <div className="flex gap-1 mt-1.5 flex-wrap">
+                            <span className="text-[9px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              Meta: {Math.ceil(meta)} nubes/día
+                            </span>
+                            {rachaActiva && (
+                              <span className="text-[9px] font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                🔥 Racha x{rachaD?.rachas_vn_config?.multiplicador}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={cn(
+                            'text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block',
+                            cumple ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground',
+                          )}>
+                            🎁 {cumple ? `+${spGanado}` : reto.sp_base} SP
+                          </span>
+                        </div>
+                      </div>
+                      {!esFestivoHoy && (
+                        <div className="space-y-1.5 mt-2">
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>{nubes} / {Math.ceil(meta)} nubes</span>
+                            <span className="font-scoreboard">{Math.round(pct)}%</span>
+                          </div>
+                          <Progress value={pct} className="h-2" />
+                          {reto.acumular_finde_al_viernes && (
+                            <p className="text-[9px] text-muted-foreground">
+                              💡 Ventas sáb+dom se suman al viernes
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })()}
+
+                {/* CARD 2: La Jugada de la Semana */}
+                {(() => {
+                  const reto = vnRetos.find((r) => r.tipo === 'SEMANAL');
+                  if (!reto) return null;
+                  const prog = vnProgSemanaActual;
+                  const acvReal = prog?.acv_real ?? 0;
+                  const metaSem = prog?.meta_semanal_acv ?? 0;
+                  const pct = metaSem > 0 ? Math.min(100, (acvReal / metaSem) * 100) : 0;
+                  const cumple = prog?.cumple ?? false;
+                  const spDisponible = vnSemanaActual?.sp ?? reto.sp_semanal_sem1;
+                  const rachaS = vnRachasSemanales[0];
+                  const rachaActiva = rachaS?.racha_activa ?? false;
+                  return (
+                    <motion.div
+                      className={cn(
+                        'bg-white border rounded-2xl p-5 shadow-smooth-sm border-l-4',
+                        cumple ? 'border-l-accent' : 'border-l-siigo-yellow',
+                      )}
+                      variants={scoreboardSlide}
+                      initial="hidden" animate="show"
+                      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">📆 SEMANAL</span>
+                        {cumple && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ CUMPLIDO</span>}
+                      </div>
+                      <div className="flex items-center gap-3 mb-3 mt-2">
+                        <span className="text-3xl">{cumple ? '🏅' : '⚡'}</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-foreground">{reto.nombre}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {vnSemanaActual
+                              ? `Sem ${vnSemanaActual.numero} · ${vnSemanaActual.fecha_inicio} → ${vnSemanaActual.fecha_fin}`
+                              : 'ACV semanal vs meta'}
+                          </p>
+                          <div className="flex gap-1 mt-1.5 flex-wrap">
+                            {rachaActiva && (
+                              <span className="text-[9px] font-semibold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+                                ⚡ Racha x{rachaS?.rachas_vn_config?.multiplicador}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={cn(
+                            'text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block',
+                            cumple ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground',
+                          )}>
+                            🎁 {cumple ? `+${prog?.sp_con_racha ?? spDisponible}` : spDisponible} SP
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 mt-2">
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>{fmtACV(acvReal)} / {fmtACV(metaSem)}</span>
+                          <span className="font-scoreboard">{Math.round(pct)}%</span>
+                        </div>
+                        <Progress value={pct} className="h-2" />
+                      </div>
+                      {/* Mini tabla de semanas */}
+                      <div className="mt-3 grid grid-cols-4 gap-1">
+                        {vnSemanasConProgreso.map((s) => (
+                          <div key={s.numero}
+                            className={cn(
+                              'rounded-lg p-1.5 text-center border text-[9px]',
+                              s.prog?.cumple ? 'bg-accent/10 border-accent'
+                                : s.esActual ? 'bg-primary/10 border-primary'
+                                : s.esFuturo ? 'bg-muted/20 border-dashed border-muted'
+                                : 'bg-red-50 border-red-200',
+                            )}>
+                            <p className="font-bold">S{s.numero}</p>
+                            <p className="text-muted-foreground">{s.sp}SP</p>
+                            <p>{s.prog?.cumple ? '✅' : s.esFuturo ? '🔒' : s.esActual ? '▶️' : '❌'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+
+                {/* CARD 3: La Bota de Oro */}
+                {(() => {
+                  const reto = vnRetos.find((r) => r.tipo === 'MENSUAL');
+                  if (!reto) return null;
+                  const prog = vnProgresoMensual;
+                  const acvReal = prog?.acv_real ?? 0;
+                  const metaMes = prog?.meta_mensual_acv ?? 0;
+                  const pct = metaMes > 0 ? Math.min(100, (acvReal / metaMes) * 100) : 0;
+                  const cumple = prog?.cumple ?? false;
+                  const color = pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-amber-600' : 'text-red-600';
+                  return (
+                    <motion.div
+                      className={cn(
+                        'bg-white border rounded-2xl p-5 shadow-smooth-sm border-l-4',
+                        cumple ? 'border-l-accent' : 'border-l-muted',
+                      )}
+                      variants={scoreboardSlide}
+                      initial="hidden" animate="show"
+                      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">🗓️ MENSUAL</span>
+                        {cumple && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ LOGRADO</span>}
+                      </div>
+                      <div className="flex items-center gap-3 mb-3 mt-2">
+                        <span className="text-3xl">{cumple ? '👟' : '🥾'}</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-foreground">{reto.nombre}</p>
+                          <p className="text-xs text-muted-foreground">ACV mensual ≥ 100% meta</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={cn(
+                            'text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block',
+                            cumple ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground',
+                          )}>
+                            🎁 {cumple ? '+7' : '7'} SP
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 mt-2">
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>{fmtACV(acvReal)} / {fmtACV(metaMes)}</span>
+                          <span className={cn('font-scoreboard font-bold', color)}>{Math.round(pct)}%</span>
+                        </div>
+                        <Progress value={pct} className="h-2" />
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+              </div>
+
+              {/* ── Rachas ── */}
+              {vnRachaEstados.length > 0 && (
+                <div>
+                  <h2 className="text-base font-bold text-foreground mb-3">🔥 Mis Rachas</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {vnRachaEstados.map((estado) => {
+                      const conf = estado.rachas_vn_config;
+                      if (!conf) return null;
+                      const req  = conf.dias_consecutivos_requeridos;
+                      const actual = estado.dias_o_semanas_consecutivas;
+                      const pct = Math.min(100, (actual / req) * 100);
+                      const label = conf.tipo === 'DIARIA' ? 'días consecutivos' : 'semanas consecutivas';
+                      return (
+                        <motion.div key={estado.racha_id}
+                          className={cn(
+                            'bg-white border rounded-2xl p-5 shadow-smooth-sm border-l-4',
+                            estado.racha_activa ? 'border-l-orange-400' : 'border-l-muted',
+                          )}
+                          variants={scoreboardSlide} initial="hidden" animate="show">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em]">
+                              🔥 RACHA {conf.tipo}
+                            </span>
+                            {estado.racha_activa && (
+                              <span className="text-[9px] font-bold text-white bg-orange-500 px-2 py-0.5 rounded-full">
+                                🔥 ACTIVA x{conf.multiplicador}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-foreground mb-1">{conf.nombre}</p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            {estado.racha_activa
+                              ? `¡Multiplicador x${conf.multiplicador} activo! Mantén la racha.`
+                              : `Necesitas ${req} ${label} para activar el multiplicador x${conf.multiplicador}`}
+                          </p>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>{actual} / {req} {label}</span>
+                              <span className="font-scoreboard">{Math.round(pct)}%</span>
+                            </div>
+                            <Progress value={pct} className="h-2" />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Medallas ── */}
+              {vnMedallas.length > 0 && (
+                <div>
+                  <h2 className="text-base font-bold text-foreground mb-3">🏅 Mis Medallas VN</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {vnMedallas.map((m) => (
+                      <motion.div key={m.id}
+                        className={cn(
+                          'bg-white border rounded-xl p-4 text-center transition-all',
+                          m.ganada ? 'border-accent shadow-smooth-sm' : 'opacity-50 grayscale',
+                        )}
+                        variants={scoreboardSlide} initial="hidden" animate="show">
+                        <span className="text-3xl block mb-2">{m.emoji}</span>
+                        <p className="text-xs font-bold text-foreground">{m.nombre}</p>
+                        {m.descripcion && <p className="text-[9px] text-muted-foreground mt-0.5">{m.descripcion}</p>}
+                        <p className={cn('text-xs font-semibold mt-1', m.ganada ? 'text-accent' : 'text-muted-foreground')}>
+                          {m.ganada ? `✅ +${m.sp_reward} SP` : `🔒 ${m.sp_reward} SP`}
+                        </p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title="🎯 Retos">
