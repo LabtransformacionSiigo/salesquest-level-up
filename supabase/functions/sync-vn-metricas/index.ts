@@ -289,8 +289,10 @@ Deno.serve(async (req) => {
     // ── Replicar rowsA (gerente level) a ventas_gerente_mensual ─────────
     // rowsA ya viene agregado por celula/mes/familia desde QUERY_A_GERENTE.
     // NO usar records (mezcla gerente+asesor → duplica valores).
-    // Agrupamos por (pais, canal_direccion, periodo, gerente_normalizado, celula, familia)
-    // porque múltiples tipo_producto1 pueden mapear a la misma familia.
+    // Agrupamos por (pais, canal_direccion, periodo, gerente_normalizado, familia)
+    // porque esa es la llave única real de ventas_gerente_mensual. La celula se
+    // conserva como dato descriptivo, pero no puede abrir otra fila para el mismo
+    // gerente/familia sin romper ventas_gerente_mensual_unique.
     const YEAR = new Date().getFullYear();
     const MM = (n: number) => String(n).padStart(2, "0");
 
@@ -322,13 +324,14 @@ Deno.serve(async (req) => {
       const canal_direccion = normalizeCanal(r.equipo);
       if (!gnorm || !mes || !celula || !familia) continue;
       const periodo = `${anio}${MM(mes)}`;
-      const key = [pais, canal_direccion, periodo, gnorm, celula, familia].join("|");
+      const key = [pais, canal_direccion, periodo, gnorm, familia].join("|");
       const existing = vgmMap.get(key);
       const unidades = Math.round(Number(r.ventas) || 0);
       const acv = Math.round(Number(r.acv_total) || 0);
       if (existing) {
         existing.unidades += unidades;
         existing.acv += acv;
+        if (!existing.celula && celula) existing.celula = celula;
       } else {
         vgmMap.set(key, {
           pais,
@@ -364,7 +367,7 @@ Deno.serve(async (req) => {
         const slice = vgmRows.slice(i, i + BATCH_VGM);
         const { error } = await sb
           .from("ventas_gerente_mensual")
-          .upsert(slice, { onConflict: "periodo,familia,celula", ignoreDuplicates: false });
+          .upsert(slice, { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia", ignoreDuplicates: false });
         if (error) {
           console.error(`[vgm] insert batch ${i}:`, error.message);
         } else {
