@@ -26,7 +26,6 @@ import AdminCalculoSP from '@/pages/admin/AdminCalculoSP';
 import AdminDatabricks from '@/pages/admin/AdminDatabricks';
 import AdminPremios from '@/pages/admin/AdminPremios';
 import AdminEspecialista from '@/pages/admin/AdminEspecialista';
-import AdminEspecialistaVN from '@/pages/admin/AdminEspecialistaVN';
 import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
 import AdminSimulacion from '@/pages/admin/AdminSimulacion';
 import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
@@ -64,7 +63,6 @@ function App() {
             <Route path="/admin/especialistas-accesos" element={<AdminRoute><AdminEspecialistasAccesos /></AdminRoute>} />
             {/* Ruta canónica de la única interfaz de gamificación VC para Especialista */}
             <Route path="/especialista/gamificacion-vc" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
-            <Route path="/especialista/gamificacion-vn" element={<EspecialistaRoute><AdminEspecialistaVN /></EspecialistaRoute>} />
             {/* Redirects de rutas legacy a la canónica */}
             <Route path="/admin/especialista" element={<Navigate to="/especialista/gamificacion-vc" replace />} />
             <Route path="/admin/gamification" element={<Navigate to="/especialista/gamificacion-vc" replace />} />

@@ -36,12 +36,10 @@ const adminItems = [
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
   { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos Especialistas' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
-  { path: '/especialista/gamificacion-vn', icon: 'sports_soccer', label: 'Gamificación VN' },
 ];
 
 const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
-  { path: '/especialista/gamificacion-vn', icon: 'sports_soccer', label: 'Gamificación VN' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];

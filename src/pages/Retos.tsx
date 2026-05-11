@@ -230,9 +230,6 @@ const Retos = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const isVN = profile?.canal === 'VN_EMPRESARIOS' || profile?.canal === 'VN_ALIADOS';
-  if (isVN) return <VnRetosView />;
-
   const kpiLabel = (kpi?: string | null) => {
     switch (kpi) {
       case 'acv_plus': return 'ACV';
@@ -480,125 +477,6 @@ const Retos = () => {
                 )}
                 {vcRachas.map((r) => renderRachaCard(r))}
               </motion.div>
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
-    </Layout>
-  );
-};
-
-
-// =====================================================================
-// VN (Venta Nueva) — vista de retos para canales VN_EMPRESARIOS / VN_ALIADOS
-// =====================================================================
-const VN_VENTANAS = [
-  { key: 'DIARIO', label: '⚽ Golazo del Día' },
-  { key: 'SEMANAL', label: '🎯 Jugada de la Semana' },
-  { key: 'MENSUAL', label: '🏆 Bota de Oro' },
-] as const;
-
-const VnRetosView = () => {
-  const { profile } = useSupabaseAuthContext();
-  const [retos, setRetos] = useState<any[]>([]);
-  const [rachas, setRachas] = useState<any[]>([]);
-  const [medallasCfg, setMedallasCfg] = useState<any[]>([]);
-  const [medallasGanadas, setMedallasGanadas] = useState<any[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-
-  useEffect(() => {
-    if (!profile?.id || !profile?.canal || !profile?.pais) return;
-    let cancelled = false;
-    (async () => {
-      setLoadingData(true);
-      const [retosRes, rachasRes, medCfgRes, medGanRes] = await Promise.all([
-        supabase.from('retos_vn_config' as any).select('*').eq('activo', true).eq('canal', profile.canal).eq('pais', profile.pais),
-        supabase.from('rachas_vn_config' as any).select('*').eq('activo', true).eq('canal', profile.canal).eq('pais', profile.pais),
-        supabase.from('medallas_vn_config' as any).select('*').eq('activo', true).eq('canal', profile.canal).eq('pais', profile.pais),
-        supabase.from('medallas_vn_ganadas' as any).select('*').eq('gerente_id', profile.id),
-      ]);
-      if (cancelled) return;
-      setRetos((retosRes.data as any[]) || []);
-      setRachas((rachasRes.data as any[]) || []);
-      setMedallasCfg((medCfgRes.data as any[]) || []);
-      setMedallasGanadas((medGanRes.data as any[]) || []);
-      setLoadingData(false);
-    })();
-    return () => { cancelled = true; };
-  }, [profile?.id, profile?.canal, profile?.pais]);
-
-  return (
-    <Layout title="🎯 Retos VN">
-      <Tabs defaultValue="retos" className="space-y-6">
-        <TabsList className="w-full bg-white border border-border">
-          <TabsTrigger value="retos" className="flex-1">⚽ Retos</TabsTrigger>
-          <TabsTrigger value="rachas" className="flex-1">🔥 Rachas</TabsTrigger>
-          <TabsTrigger value="medallas" className="flex-1">🏅 Medallas</TabsTrigger>
-        </TabsList>
-
-        {loadingData ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
-        ) : (
-          <>
-            <TabsContent value="retos" className="space-y-6">
-              {VN_VENTANAS.map(v => {
-                const list = retos.filter(r => (r.ventana_tiempo || '').toUpperCase() === v.key);
-                return (
-                  <section key={v.key}>
-                    <h3 className="text-sm font-bold mb-3 text-foreground">{v.label}</h3>
-                    {list.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No hay reto activo.</p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {list.map(r => (
-                          <div key={r.id} className="bg-white border border-border rounded-xl p-4 shadow-sm">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="font-bold text-foreground">{r.emoji || '⚽'} {r.nombre}</p>
-                                {r.objetivo_descripcion && <p className="text-xs text-muted-foreground mt-1">{r.objetivo_descripcion}</p>}
-                              </div>
-                              <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary whitespace-nowrap">+{r.sp_otorgados || 0} SP</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
-            </TabsContent>
-
-            <TabsContent value="rachas">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {rachas.length === 0 && <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas.</p>}
-                {rachas.map(r => (
-                  <div key={r.id} className="bg-white border border-border rounded-xl p-4 shadow-sm">
-                    <p className="font-bold text-foreground">{r.emoji || '🔥'} {r.nombre}</p>
-                    {r.objetivo_descripcion && <p className="text-xs text-muted-foreground mt-1">{r.objetivo_descripcion}</p>}
-                    <p className="text-[11px] text-primary font-bold mt-2">x{r.multiplicador_sp || 1} multiplicador SP</p>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="medallas">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {medallasCfg.length === 0 && <p className="text-sm text-muted-foreground col-span-full text-center py-8">No hay medallas configuradas.</p>}
-                {medallasCfg.map(m => {
-                  const ganada = medallasGanadas.find(g => g.medalla_id === m.id || g.nombre === m.nombre);
-                  return (
-                    <div key={m.id} className={cn(
-                      "border rounded-xl p-4 shadow-sm transition-opacity",
-                      ganada ? "bg-white border-primary" : "bg-muted/30 border-border opacity-60"
-                    )}>
-                      <p className="font-bold text-foreground">{m.emoji || '🏅'} {m.nombre}</p>
-                      {m.descripcion && <p className="text-xs text-muted-foreground mt-1">{m.descripcion}</p>}
-                      <p className="text-[11px] font-bold mt-2 text-primary">+{m.sp_otorgados || 0} SP</p>
-                      {ganada && <p className="text-[10px] text-green-600 font-bold mt-1">✓ Desbloqueada</p>}
-                    </div>
-                  );
-                })}
-              </div>
             </TabsContent>
           </>
         )}
