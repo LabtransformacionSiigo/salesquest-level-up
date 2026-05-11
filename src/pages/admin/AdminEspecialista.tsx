@@ -462,6 +462,15 @@ const AdminEspecialista = () => {
               </div>
             </div>
           )}
+          {isAprobador && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 flex items-start gap-2">
+              <MI icon="verified_user" className="text-base" />
+              <span>
+                Eres <strong>Aprobador</strong>. Puedes activar o desactivar retos, rachas y medallas VN,
+                pero no crear, editar ni eliminar.
+              </span>
+            </div>
+          )}
         </div>
 
         {dataLoading ? (
