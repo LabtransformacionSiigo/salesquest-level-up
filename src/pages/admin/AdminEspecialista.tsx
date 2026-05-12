@@ -237,42 +237,45 @@ const AdminEspecialista = () => {
     setPermisos(perm);
 
     // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
+    const canalesScope = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
     let gerentesQuery = supabase.from('gerentes').select('id, nombre, canal, pais, celula').eq('activo', true).order('nombre');
     if (!isAdmin) {
-      const canales = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
       if (perm.paises.length > 0) gerentesQuery = gerentesQuery.in('pais', perm.paises);
-      if (canales.length > 0) gerentesQuery = gerentesQuery.in('canal', canales);
+      if (canalesScope.length > 0) gerentesQuery = gerentesQuery.in('canal', canalesScope);
     }
 
     // Filtros server-side por canal/pais (defensa en profundidad)
-    let retosQ = supabase.from('catalogo_retos').select('*').order('ventana_tiempo');
-    let rachasQ = supabase.from('config_rachas').select('*').order('nombre');
-    let medallasQ = supabase.from('catalogo_medallas').select('*').order('nombre');
-    if (!isAdmin) {
-      const canalesScope = perm.operaciones.map(opToCanalGlobal).filter(Boolean) as string[];
-      const paisesScope = perm.paises;
-      if (canalesScope.length > 0) {
-        retosQ = retosQ.in('canal', canalesScope);
-        rachasQ = rachasQ.in('canal', canalesScope);
-        medallasQ = medallasQ.in('canal', canalesScope);
-      } else {
-        // Sin canales asignados → no debe ver nada
-        retosQ = retosQ.eq('canal', '__NONE__');
-        rachasQ = rachasQ.eq('canal', '__NONE__');
-        medallasQ = medallasQ.eq('canal', '__NONE__');
+    const buildRetoQuery = () => {
+      let q = supabase.from('catalogo_retos').select('*').order('ventana_tiempo');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
       }
-      if (paisesScope.length > 0) {
-        retosQ = retosQ.in('pais', paisesScope);
-        rachasQ = rachasQ.in('pais', paisesScope);
-        medallasQ = medallasQ.in('pais', paisesScope);
-      } else {
-        retosQ = retosQ.eq('pais', '__NONE__');
-        rachasQ = rachasQ.eq('pais', '__NONE__');
-        medallasQ = medallasQ.eq('pais', '__NONE__');
+      return q;
+    };
+    const buildRachaQuery = () => {
+      let q = supabase.from('config_rachas').select('*').order('nombre');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
       }
-    }
+      return q;
+    };
+    const buildMedallaQuery = () => {
+      let q = supabase.from('catalogo_medallas').select('*').order('nombre');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
+      }
+      return q;
+    };
 
-    const [r1, r2, r3, gQ] = await Promise.all([retosQ, rachasQ, medallasQ, gerentesQuery]);
+    const [r1, r2, r3, gQ] = await Promise.all([
+      buildRetoQuery(),
+      buildRachaQuery(),
+      buildMedallaQuery(),
+      gerentesQuery,
+    ]);
     setRetos(r1.data || []);
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
@@ -301,19 +304,18 @@ const AdminEspecialista = () => {
   const isInScope = (item: any) => {
     if (isAdmin) return true;
     if (!permisos) return false;
-    // Items sin país o sin canal asignado NO son visibles para especialistas
     if (!item.pais) return false;
-    if (!permisos.paises.includes(item.pais)) return false;
-    if (!item.canal) return false;
+    if (!item.canal && !item.operacion) return false;
+    const paisOk = permisos.paises.includes(item.pais);
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
       VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
     };
-    const opFromCanal = canalToOp[item.canal];
-    if (!opFromCanal) return false;
+    const opFromCanal = item.canal ? canalToOp[item.canal] : null;
     const opEffective = item.operacion || opFromCanal;
-    return permisos.operaciones.includes(opEffective);
+    const opOk = opEffective ? permisos.operaciones.includes(opEffective) : false;
+    return paisOk && opOk;
   };
 
   // VN scope check: item tiene paises[] y canal[]
