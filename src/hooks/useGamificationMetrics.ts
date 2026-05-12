@@ -1829,16 +1829,29 @@ export const useGamificationMetrics = (
       )
       .subscribe();
 
-    // Auto-refresh cada 15 minutos para reflejar metas diarias actualizadas
-    // (relevante para VN Aliados/Empresarios MEX en "Avance del equipo")
+    // Realtime para ventas_diarias (solo VN) – refresca al instante
+    const channelVd = isVN
+      ? supabase
+          .channel(`vn-ventas-diarias-${profile.id}-${periodoSel}`)
+          .on('postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'ventas_diarias' },
+              () => { if (!cancelled) fetchAll(); })
+          .on('postgres_changes',
+              { event: 'UPDATE', schema: 'public', table: 'ventas_diarias' },
+              () => { if (!cancelled) fetchAll(); })
+          .subscribe()
+      : null;
+
+    // Auto-refresh cada 5 minutos
     const refreshInterval = setInterval(() => {
       if (!cancelled) fetchAll();
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
     return () => {
       cancelled = true;
       clearInterval(refreshInterval);
       supabase.removeChannel(channel);
+      if (channelVd) supabase.removeChannel(channelVd);
     };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
 
