@@ -219,16 +219,42 @@ const AdminEspecialista = () => {
 
     // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
     let gerentesQuery = supabase.from('gerentes').select('id, nombre, canal, pais, celula').eq('activo', true).order('nombre');
+    const canalesScope = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
     if (!isAdmin) {
-      const canales = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
       if (perm.paises.length > 0) gerentesQuery = gerentesQuery.in('pais', perm.paises);
-      if (canales.length > 0) gerentesQuery = gerentesQuery.in('canal', canales);
+      if (canalesScope.length > 0) gerentesQuery = gerentesQuery.in('canal', canalesScope);
     }
 
+    // Retos/Rachas/Medallas: filtrar server-side por canal y pais del especialista
+    const buildRetoQuery = () => {
+      let q = supabase.from('catalogo_retos').select('*').order('ventana_tiempo');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
+      }
+      return q;
+    };
+    const buildRachaQuery = () => {
+      let q = supabase.from('config_rachas').select('*').order('nombre');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
+      }
+      return q;
+    };
+    const buildMedallaQuery = () => {
+      let q = supabase.from('catalogo_medallas').select('*').order('nombre');
+      if (!isAdmin) {
+        if (canalesScope.length > 0) q = q.in('canal', canalesScope);
+        if (perm.paises.length > 0) q = q.in('pais', perm.paises);
+      }
+      return q;
+    };
+
     const [r1, r2, r3, gQ] = await Promise.all([
-      supabase.from('catalogo_retos').select('*').order('ventana_tiempo'),
-      supabase.from('config_rachas').select('*').order('nombre'),
-      supabase.from('catalogo_medallas').select('*').order('nombre'),
+      buildRetoQuery(),
+      buildRachaQuery(),
+      buildMedallaQuery(),
       gerentesQuery,
     ]);
     setRetos(r1.data || []);
@@ -241,8 +267,10 @@ const AdminEspecialista = () => {
   const isInScope = (item: any) => {
     if (isAdmin) return true;
     if (!permisos) return false;
-    const paisOk = !item.pais || permisos.paises.includes(item.pais);
-    // Mapear canal del item (VC / VN_ALIADOS / VN_EMPRESARIOS) a la operación equivalente
+    // Items sin pais o sin canal/operacion asignados se rechazan para especialistas
+    if (!item.pais) return false;
+    if (!item.canal && !item.operacion) return false;
+    const paisOk = permisos.paises.includes(item.pais);
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
@@ -250,7 +278,7 @@ const AdminEspecialista = () => {
     };
     const opFromCanal = item.canal ? canalToOp[item.canal] : null;
     const opEffective = item.operacion || opFromCanal;
-    const opOk = !opEffective || permisos.operaciones.includes(opEffective);
+    const opOk = opEffective ? permisos.operaciones.includes(opEffective) : false;
     return paisOk && opOk;
   };
 
