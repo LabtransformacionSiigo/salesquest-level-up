@@ -1578,9 +1578,19 @@ export const useGamificationMetrics = (
               const resolvedFam =
                 resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
                 resolveProductFamily(r.familia, r.pais || profile.pais);
-              const famRaw = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
-              const tipo: string = resolvedFam || (famRaw === 'CAMPANA' ? 'NUBE' : famRaw);
-              const dedupKey = `${key}|${tipo}`;
+              const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+              // Fallback robusto: si resolveProductFamily falla, usa contains sobre el
+              // string crudo (ej. "FE ILI", "NUBE PYME", "CAMPAÑA POS").
+              let tipo: string = resolvedFam || '';
+              if (!tipo) {
+                if (famRaw === 'FE' || famRaw.startsWith('FE ') || famRaw.includes('FACTURA')) tipo = 'FE';
+                else if (famRaw === 'NUBE' || famRaw.startsWith('NUBE') || famRaw === 'CAMPANA' || famRaw.startsWith('CAMPAN')) tipo = 'NUBE';
+                else tipo = famRaw;
+              }
+              // Granularidad por tipo_producto1 para no colisionar dedupKey entre
+              // dos SKUs distintos del mismo asesor que mapean a la misma familia.
+              const granKey = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
+              const dedupKey = `${key}|${tipo}|${granKey}`;
               const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
               const prev = dedupAsesor.get(dedupKey);
