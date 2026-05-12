@@ -1544,14 +1544,20 @@ export const useGamificationMetrics = (
             .forEach((r: any) => {
               const key = normalizeComparableText(r.asesor ?? '');
               if (!key || key === gerenteKey) return;
-              // Priorizar tipo_producto1 ('FE'/'NUBE' limpios desde Databricks).
-              // familia puede traer 'NOMINA', 'POS', 'NUBE PYME', etc. que no
-              // coinciden exactamente → resolveProductFamily los normaliza.
-              const resolvedFam =
-                resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
-                resolveProductFamily(r.familia, r.pais || profile.pais);
-              const famRaw = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
-              const tipo: string = resolvedFam || (famRaw === 'CAMPANA' ? 'NUBE' : famRaw);
+              // tipo_producto1 viene PRE-CLASIFICADO por Databricks como 'FE' o 'NUBE'.
+              // familia puede ser 'CAMPANA' (COL/ECU → NUBE), 'NOMINA', 'POS', etc.
+              // Regla: si tipo_producto1 es exactamente 'FE'|'NUBE'|'CONTADOR', usarlo
+              // directamente. Solo si no, intentar resolver familia.
+              const tp1 = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+              const famField = String(r.familia ?? '').toUpperCase().trim();
+              const tipo: string =
+                tp1 === 'FE'       ? 'FE' :
+                tp1 === 'NUBE'     ? 'NUBE' :
+                tp1 === 'CONTADOR' ? 'CONTADOR' :
+                famField === 'CAMPANA' ? 'NUBE' :
+                resolveProductFamily(famField, r.pais || profile.pais) ||
+                resolveProductFamily(tp1, r.pais || profile.pais) ||
+                famField || tp1;
               const dedupKey = `${key}|${tipo}`;
               const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
@@ -1563,8 +1569,8 @@ export const useGamificationMetrics = (
 
           dedupAsesor.forEach(({ uds, acv, tipo, key }) => {
             const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
-            if (tipo === 'FE')                          cur.fe   += uds;
-            if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
+            if (tipo === 'FE')   cur.fe   += uds;
+            if (tipo === 'NUBE') cur.nube += uds;
             cur.total += uds;
             cur.acv   += acv;
             ventasPorAsesor.set(key, cur);
