@@ -513,10 +513,9 @@ export const useGamificationMetrics = (
                 // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
-                  .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
+                  .select('pais, anio, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
-                  .gte('mes_nro', 1)
-                  .lte('mes_nro', 12)
+                  .eq('anio', anioActual)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
@@ -536,8 +535,7 @@ export const useGamificationMetrics = (
                   .from('vn_metricas_optimizadas' as any)
                   .select('pais, anio, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'gerente')
-                  .gte('mes_nro', 1)
-                  .lte('mes_nro', 12)
+                  .eq('anio', anioActual)
                   .limit(5000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
