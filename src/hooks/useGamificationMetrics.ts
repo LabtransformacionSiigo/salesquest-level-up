@@ -1575,8 +1575,11 @@ export const useGamificationMetrics = (
               const key = resolveTeamAsesorKey(rawKey);
               if (!rawKey || key === gerenteKey) return;
               if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
-              const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
-              const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
+              const resolvedFam =
+                resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
+                resolveProductFamily(r.familia, r.pais || profile.pais);
+              const famRaw = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
+              const tipo: string = resolvedFam || (famRaw === 'CAMPANA' ? 'NUBE' : famRaw);
               const dedupKey = `${key}|${tipo}`;
               const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
