@@ -304,19 +304,18 @@ const AdminEspecialista = () => {
   const isInScope = (item: any) => {
     if (isAdmin) return true;
     if (!permisos) return false;
-    // Items sin país o sin canal asignado NO son visibles para especialistas
     if (!item.pais) return false;
-    if (!permisos.paises.includes(item.pais)) return false;
-    if (!item.canal) return false;
+    if (!item.canal && !item.operacion) return false;
+    const paisOk = permisos.paises.includes(item.pais);
     const canalToOp: Record<string, string> = {
       VC: 'Venta Cruzada',
       VN_ALIADOS: 'Venta Nueva (Aliados)',
       VN_EMPRESARIOS: 'Venta Nueva (Empresarios)',
     };
-    const opFromCanal = canalToOp[item.canal];
-    if (!opFromCanal) return false;
+    const opFromCanal = item.canal ? canalToOp[item.canal] : null;
     const opEffective = item.operacion || opFromCanal;
-    return permisos.operaciones.includes(opEffective);
+    const opOk = opEffective ? permisos.operaciones.includes(opEffective) : false;
+    return paisOk && opOk;
   };
 
   // VN scope check: item tiene paises[] y canal[]
