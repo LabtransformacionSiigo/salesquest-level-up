@@ -1544,8 +1544,14 @@ export const useGamificationMetrics = (
             .forEach((r: any) => {
               const key = normalizeComparableText(r.asesor ?? '');
               if (!key || key === gerenteKey) return;
-              const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
-              const tipo = famRaw === 'CAMPANA' ? 'NUBE' : famRaw;
+              // Priorizar tipo_producto1 ('FE'/'NUBE' limpios desde Databricks).
+              // familia puede traer 'NOMINA', 'POS', 'NUBE PYME', etc. que no
+              // coinciden exactamente → resolveProductFamily los normaliza.
+              const resolvedFam =
+                resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
+                resolveProductFamily(r.familia, r.pais || profile.pais);
+              const famRaw = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
+              const tipo: string = resolvedFam || (famRaw === 'CAMPANA' ? 'NUBE' : famRaw);
               const dedupKey = `${key}|${tipo}`;
               const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
               const acv = Math.round(Number(r.acv_total) || 0);
