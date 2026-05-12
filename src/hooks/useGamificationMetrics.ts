@@ -1564,6 +1564,37 @@ export const useGamificationMetrics = (
             ventasPorAsesor.set(key, cur);
           });
 
+          // Fallback: si vn_metricas_optimizadas no tiene datos del mes actual
+          // (Databricks aún no procesó las ventas recientes), agregamos desde
+          // ventas_diarias para que "Avance del equipo" muestre datos frescos.
+          const vnAsesorHasCurrentMonth = vnAsesorData.some((r: any) => Number(r.mes_nro) === mesActualNro);
+          if (!vnAsesorHasCurrentMonth && vnVentasDiariasRows.length > 0) {
+            const mesStart = `${anioActual}-${String(mesActualNro).padStart(2, '0')}-01`;
+            const nextMesNro = mesActualNro === 12 ? 1 : mesActualNro + 1;
+            const nextMesAnio = mesActualNro === 12 ? anioActual + 1 : anioActual;
+            const mesEnd = `${nextMesAnio}-${String(nextMesNro).padStart(2, '0')}-01`;
+            vnVentasDiariasRows
+              .filter((row: any) => {
+                const fecha = String(row.fecha || '');
+                return fecha >= mesStart && fecha < mesEnd;
+              })
+              .forEach((row: any) => {
+                const key = normalizeComparableText(row.asesor ?? '');
+                if (!key || key === gerenteKey) return;
+                const fam = resolveProductFamily(row.producto, row.pais || profile.pais) ||
+                            String(row.tipo_producto || '').toUpperCase().trim();
+                const tipo = fam === 'CAMPANA' ? 'NUBE' : fam;
+                const uds = Math.round(Number(row.unidades) || 0);
+                const acv = Math.round(Number(row.acv) || 0);
+                const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+                if (tipo === 'FE') cur.fe += uds;
+                if (tipo === 'NUBE' || tipo === 'CAMPANA') cur.nube += uds;
+                cur.total += uds;
+                cur.acv += acv;
+                ventasPorAsesor.set(key, cur);
+              });
+          }
+
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
           const prodByName = new Map<string, any>();
           currentMonthProd.forEach((r: any) => {
@@ -1766,16 +1797,35 @@ export const useGamificationMetrics = (
       )
       .subscribe();
 
-    // Auto-refresh cada 15 minutos para reflejar metas diarias actualizadas
-    // (relevante para VN Aliados/Empresarios MEX en "Avance del equipo")
+    // Realtime adicional en ventas_diarias para VN: dispara refresh inmediato
+    // cuando llegan ventas nuevas antes de que Databricks las procese en vn_metricas_optimizadas.
+    const channelVd = isVN
+      ? supabase
+          .channel(`vn-ventas-diarias-${profile.id}-${periodoSel}`)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'ventas_diarias' },
+            () => { if (!cancelled) fetchAll(); },
+          )
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'ventas_diarias' },
+            () => { if (!cancelled) fetchAll(); },
+          )
+          .subscribe()
+      : null;
+
+    // Auto-refresh cada 5 minutos para reflejar ventas y metas actualizadas
+    // (relevante para VN Aliados/Empresarios en "Avance del equipo")
     const refreshInterval = setInterval(() => {
       if (!cancelled) fetchAll();
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
     return () => {
       cancelled = true;
       clearInterval(refreshInterval);
       supabase.removeChannel(channel);
+      if (channelVd) supabase.removeChannel(channelVd);
     };
   }, [profile?.id, profile?.canal, profile?.nombre, profile?.gerente_id, profile?.role, profile?.celula, isVcAdvisor, isVC, isVN, periodoOverride]);
 
