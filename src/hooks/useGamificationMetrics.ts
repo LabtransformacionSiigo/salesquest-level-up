@@ -523,6 +523,7 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
+                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
