@@ -141,6 +141,7 @@ const AdminEspecialista = () => {
       .from('sp_acumulados')
       .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes(nombre, canal, pais)')
       .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL', 'MEDALLA'])
+      .gt('sp', 0) // excluir logros revocados (sp=0) para no inflar el conteo
       .order('created_at', { ascending: false })
       .limit(500);
 
