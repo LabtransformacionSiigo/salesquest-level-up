@@ -41,10 +41,32 @@ const Medallas = () => {
         setDataLoading(false);
         return;
       }
+      const isVN = profile.canal === 'VN_ALIADOS' || profile.canal === 'VN_EMPRESARIOS';
+      if (isVN) {
+        const pais = profile.pais || 'COL';
+        const [gRes, cRes] = await Promise.all([
+          supabase.from('medallas_vn_ganadas').select('medalla_id, fecha_desbloqueo').eq('gerente_id', profile.id),
+          supabase.from('medallas_vn_config').select('*').eq('activo', true)
+            .contains('canal', [profile.canal])
+            .contains('paises', [pais])
+            .order('condicion_tipo').order('nombre'),
+        ]);
+        if (cancelled) return;
+        const configById = new Map((cRes.data || []).map((m: any) => [m.id, m]));
+        const normalized = (gRes.data || []).map((g: any) => ({
+          ...g,
+          medalla: configById.get(g.medalla_id)?.nombre ?? g.medalla_id,
+        }));
+        setMisMedallas(normalized);
+        setCatalogo(cRes.data || []);
+        setDataLoading(false);
+        return;
+      }
       const [mRes, cRes] = await Promise.all([
         supabase.from('medallas').select('*').eq('gerente_id', profile.id),
-        supabase.from('catalogo_medallas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`).order('condicion_tipo').order('nombre'),
+        supabase.from('catalogo_medallas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`).order('canal_id').order('nombre'),
       ]);
+
       if (cancelled) return;
       setMisMedallas(mRes.data || []);
       setCatalogo(filterCatalogByScope(cRes.data || [], profile));
