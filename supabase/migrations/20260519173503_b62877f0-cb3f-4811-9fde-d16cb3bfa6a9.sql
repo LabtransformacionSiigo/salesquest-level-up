@@ -1,0 +1,1 @@
+DELETE FROM public.sp_acumulados WHERE tipo_sp='canje' AND sp=0 AND fuente IN ('RETO_DIARIO','RETO_SEMANAL','RETO_MENSUAL');
