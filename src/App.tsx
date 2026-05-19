@@ -16,6 +16,7 @@ import MiEquipo from '@/pages/MiEquipo';
 import Retos from '@/pages/Retos';
 import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
+import PanelDirector from '@/pages/PanelDirector';
 
 // Admin Pages
 import AdminGerentes from '@/pages/admin/AdminGerentes';
