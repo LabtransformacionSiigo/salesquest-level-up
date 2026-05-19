@@ -34,7 +34,7 @@ const adminItems = [
   { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
   { path: '/admin/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
-  { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos Especialistas' },
+  { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos & Directores' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
 ];
 
