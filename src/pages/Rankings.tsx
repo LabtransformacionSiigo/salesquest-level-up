@@ -820,7 +820,7 @@ const Rankings = () => {
             acv_total_year: Math.round(totalAcvValue),
             meta_total: currentMetaAcv,
             meta_acv: currentMetaAcv,
-            meta_unidades: currentMonthly?.metaTotal || 0,
+            meta_unidades: currentMetaUnd,
             unidades_logradas: currentVentasValue,
             unidades_total: totalVentasValue,
             cant_recomendados: agg.currentRecomendados,
