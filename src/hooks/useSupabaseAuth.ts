@@ -29,6 +29,10 @@ export interface AuthUser extends Gerente {
   sp_convencion: number;
   sp_periodo_actual?: number;
   canal_direccion?: string | null;
+  // Director scope (solo cuando role === 'director')
+  director_canales?: string[];
+  director_paises?: string[];
+  director_cargo?: string | null;
 }
 
 
