@@ -1,62 +1,41 @@
-Plan de corrección definitiva para SP Convención
+## Plan: Rol "Director" y Panel Director
 
-Objetivo: que MiPerformance, Ranking, Header y Sidebar muestren exactamente el mismo SP Convención anual acumulado, sin usar `profile.sp_totales`, `sp_convencion` ni el SP mensual de `useGamificationMetrics` para esta moneda.
+Implementación de una nueva capa jerárquica entre admin y gerentes.
 
-Cambios propuestos
+### 1. Base de datos (migración)
+- Crear enum value `'director'` en `app_role`
+- Crear tabla `directores` (user_id, nombre, email, cargo, canales[], paises[], activo)
+- RLS: director lee su propia fila; admin gestiona todo
+- Insertar los 14 directores reales (inactivos, sin user_id)
 
-1. Centralizar el cálculo anual en `src/lib/sp-convencion-anual.ts`
-- Mantener `computeSpConvencionAnualForCelula` como fuente para gerentes/equipos VN.
-- Ajustarla para que replique el cálculo que hoy da 1,414 en MiPerformance/Header/Sidebar:
-  - aplicar fallback de split FE/Nube cuando meses antiguos tienen `meta_fe/meta_nube = 0` pero sí tienen `meta_total` o `meta_total_und`;
-  - conservar la fórmula exacta por mes:
-    `cap(pct_fe,300) + cap(pct_nube * 2,300) + cap(pct_acv,300)`;
-  - mantener match por célula y fallback por nombre normalizado del gerente.
-- Agregar `computeSpConvencionAnualForAsesor`, pero adaptado al esquema real del proyecto:
-  - `ejecucion_asesores` no tiene `familia`, `unidades` ni `nombre_asesor`; usa `ventas_fe`, `ventas_nube`, `ventas_total`, `acv_total`, `documento_asesor`;
-  - `productividad_asesores` usa `anio_mes`, `asesor`, `meta`, `acv_f`, no `mes/meta_acv/nombre_asesor`;
-  - matching por nombre normalizado y, cuando exista, por documento desde `metas_asesores`.
+### 2. Autenticación (`src/hooks/useSupabaseAuth.ts` + `SupabaseAuthContext.tsx`)
+- Extender tipo `AuthUser`/`Profile` con `director_canales?`, `director_paises?`, `director_cargo?`
+- Priorizar `director` antes de `gerente` al resolver el rol
+- Cuando rol = director, cargar fila de `directores` por `user_id` y poblar perfil
 
-2. Corregir la card hero de `src/pages/MiPerformance.tsx`
-- Crear estado local `spConvencionAnualDisplay`.
-- Para VN gerentes/equipos: calcular con `computeSpConvencionAnualForCelula` usando célula + nombre del perfil.
-- Para VN asesores: calcular con `computeSpConvencionAnualForAsesor`.
-- Reemplazar el valor actual de la card hero (`profile?.sp_totales || 0`) por ese valor anual.
-- Mantener SP Canje como está.
-- Seguir sincronizando el total anual al store global para que Header/Sidebar permanezcan alineados.
+### 3. Rutas y redirección (`src/App.tsx`)
+- Nueva ruta `/panel-director` protegida (admin o director)
+- Crear `DirectorRoute` wrapper
+- Login redirige directores a `/panel-director`
 
-3. Corregir Ranking VN en `src/pages/Rankings.tsx`
-- Tab Asesores/Comerciales:
-  - dejar de asignar SP por célula a cada asesor;
-  - calcular `sp_totales` con `computeSpConvencionAnualForAsesor` para cada asesor.
-- Tab Gerentes/Equipos:
-  - usar exclusivamente `computeSpConvencionAnualForCelula`;
-  - pasar siempre `celula` y `gerenteInfo?.nombre` como fallback;
-  - garantizar que las filas `ventas_gerente_mensual`, `metas_asesores` y `metas_acv_gerentes` incluyan país/canal para evitar cruces incorrectos;
-  - eliminar dependencias de `sp_convencion`/`sp_totales` para ordenar o mostrar SP Convención VN.
+### 4. Página `src/pages/PanelDirector.tsx`
+- Header con filtros: período (mes), país, canal (limitados al scope)
+- KPI cards: total gerentes, unidades vs meta, ACV total, mix Nube
+- Tabla semáforo de gerentes (FE, Nube, ACV, SP, racha, estado)
+- Distribución (en meta / riesgo / bajo meta) + Top 3 + Plan de choque
+- Tendencia 6 meses (barras)
+- Fuente VN: `vn_metricas_optimizadas` scope=gerente. VC: `ventas_diarias`/`sp_acumulados`
+- VPs (paises array con ARG/CHL): scope Latam sobre su canal
 
-4. No tocar Header/Sidebar
-- No modificar `src/components/layout/Header.tsx` ni `src/components/layout/Sidebar.tsx`, salvo que el build obligue a ajustar imports por tipos.
-- Deben seguir mostrando el valor correcto ya observado: 1,414.
+### 5. Admin — asignación de directores
+- Nuevo tab/sección en `src/pages/admin/AdminEspecialistasAccesos.tsx`
+- Listar `directores`, asignar `user_id` por email (edge function), activar/desactivar
 
-5. Verificación
-- Validar en código que ya no exista uso de `profile.sp_totales`, `sp_convencion` o `useGamificationMetrics.spConvencion` para mostrar SP Convención en:
-  - card hero de MiPerformance;
-  - Ranking asesores;
-  - Ranking gerentes.
-- Ejecutar búsqueda y build/lint si está disponible.
-- Verificar el caso Diana Maria Naranjo Mattheus:
-  - Header: 1,414;
-  - Sidebar: 1,414;
-  - Card hero MiPerformance: 1,414;
-  - Ranking: SP = 1,414 para su fila/equipo correspondiente.
+### 6. Sidebar (`src/components/layout/Sidebar.tsx`)
+- Cuando `role === 'director'`: mostrar solo "📊 Mi Panel" y "🏆 Rankings"
 
-Archivos a modificar
-- `src/lib/sp-convencion-anual.ts`
-- `src/pages/MiPerformance.tsx`
-- `src/pages/Rankings.tsx`
-
-Archivos a no modificar
-- `src/hooks/useGamificationMetrics.ts`
-- `src/components/layout/Header.tsx`
-- `src/components/layout/Sidebar.tsx`
-- archivos autogenerados de la integración backend.
+### Detalles técnicos
+- Edge function `link-director-user`: busca user en auth.users por email, asigna `user_id` a `directores`
+- Normalización de nombres (NFD + lowercase) para matching gerente↔vn_metricas
+- Si no hay metas reales, estimar: FE=2/asesor, Nube=1/asesor
+- Diseño: bg-card, border-border, rounded-2xl, font-scoreboard, semáforo emojis 🟢🟡🔴
