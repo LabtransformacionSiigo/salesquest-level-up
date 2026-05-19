@@ -16,6 +16,7 @@ import MiEquipo from '@/pages/MiEquipo';
 import Retos from '@/pages/Retos';
 import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
+import PanelDirector from '@/pages/PanelDirector';
 
 // Admin Pages
 import AdminGerentes from '@/pages/admin/AdminGerentes';
@@ -33,6 +34,7 @@ import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
 import AdminEspecialistasAccesos from '@/pages/admin/AdminEspecialistasAccesos';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
+import DirectorRoute from '@/components/auth/DirectorRoute';
 
 function App() {
   return (
@@ -50,6 +52,7 @@ function App() {
             <Route path="/mi-equipo" element={<MiEquipo />} />
             <Route path="/retos" element={<Retos />} />
             <Route path="/premios" element={<Premios />} />
+            <Route path="/panel-director" element={<DirectorRoute><PanelDirector /></DirectorRoute>} />
             {/* Admin - Solo administradores */}
             <Route path="/admin/gerentes" element={<AdminRoute><AdminGerentes /></AdminRoute>} />
             <Route path="/admin/asesores" element={<AdminRoute><AdminAsesores /></AdminRoute>} />

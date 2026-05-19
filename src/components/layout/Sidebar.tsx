@@ -34,7 +34,7 @@ const adminItems = [
   { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
   { path: '/admin/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
-  { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos Especialistas' },
+  { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos & Directores' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
 ];
 
@@ -42,6 +42,11 @@ const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
+];
+
+const directorItems = [
+  { path: '/panel-director', icon: 'dashboard', label: 'Mi Panel' },
+  { path: '/ranking', icon: 'leaderboard', label: 'Clasificación' },
 ];
 
 const Sidebar = () => {
@@ -60,6 +65,7 @@ const Sidebar = () => {
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
+  const isDirector = profile?.role === 'director';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
@@ -87,14 +93,14 @@ const Sidebar = () => {
       >
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-sidebar-primary/20 border-2 border-sidebar-primary/40 flex items-center justify-center text-lg">
-            <MI icon={isAdmin ? 'admin_panel_settings' : (isEspecialista || isAprobador) ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
+            <MI icon={isAdmin ? 'admin_panel_settings' : isDirector ? 'insights' : (isEspecialista || isAprobador) ? 'shield_person' : 'person'} className="text-sidebar-primary text-xl" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground truncate">{profile?.nombre || 'Usuario'}</p>
-            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isEspecialista ? 'Especialista' : isAprobador ? 'Aprobador' : (profile?.nivel || 'Nivel 1')}</p>
+            <p className="text-xs text-sidebar-primary font-semibold">{isAdmin ? 'Administrador' : isDirector ? (profile?.director_cargo || 'Director') : isEspecialista ? 'Especialista' : isAprobador ? 'Aprobador' : (profile?.nivel || 'Nivel 1')}</p>
           </div>
         </div>
-        {!isAdmin && !isEspecialista && !isAprobador && (
+        {!isAdmin && !isEspecialista && !isAprobador && !isDirector && (
           <>
             <motion.div 
               className="mt-3 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2.5"
@@ -125,7 +131,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {!isAdmin && !isEspecialista && !isAprobador && menuItems.map((item) => (
+        {!isAdmin && !isEspecialista && !isAprobador && !isDirector && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
@@ -144,12 +150,12 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {(isAdmin || isEspecialista || isAprobador) && (
+        {(isAdmin || isEspecialista || isAprobador || isDirector) && (
           <>
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
-              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
+              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isDirector ? '📊 Dirección' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
             </motion.div>
-            {(isAdmin ? adminItems : especialistaItems).map((item) => (
+            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItems).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}

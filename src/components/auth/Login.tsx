@@ -34,8 +34,22 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { isAuthenticated, signIn } = useSupabaseAuthContext();
+  const { isAuthenticated, signIn, profile } = useSupabaseAuthContext();
   const navigate = useNavigate();
+
+  const routeForRole = (role?: string | null) => {
+    if (role === 'admin') return '/dashboard';
+    if (role === 'director') return '/panel-director';
+    if (role === 'especialista') return '/especialista/gamificacion-vc';
+    return '/dashboard';
+  };
+
+  // Redirect once profile is loaded after authentication
+  useEffect(() => {
+    if (isAuthenticated && profile?.role) {
+      navigate(routeForRole(profile.role), { replace: true });
+    }
+  }, [isAuthenticated, profile?.role, navigate]);
 
   // Preload LCP background image to reduce resource load delay
   useEffect(() => {
@@ -54,11 +68,14 @@ const Login = () => {
     setIsLoading(true);
     const { error } = await signIn(email, password);
     if (error) setError(error.message);
-    else navigate('/dashboard');
+    // navegación la maneja el useEffect cuando profile carga
     setIsLoading(false);
   };
 
-  if (isAuthenticated) { navigate('/dashboard'); return null; }
+  if (isAuthenticated && profile?.role) {
+    navigate(routeForRole(profile.role), { replace: true });
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">

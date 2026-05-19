@@ -29,6 +29,10 @@ export interface AuthUser extends Gerente {
   sp_convencion: number;
   sp_periodo_actual?: number;
   canal_direccion?: string | null;
+  // Director scope (solo cuando role === 'director')
+  director_canales?: string[];
+  director_paises?: string[];
+  director_cargo?: string | null;
 }
 
 
@@ -236,9 +240,47 @@ export const useSupabaseAuth = () => {
           ? 'especialista'
           : roles.includes('aprobador')
             ? 'aprobador'
-            : roles.includes('gerente')
-              ? 'gerente'
-              : roles[0] ?? 'gerente';
+            : roles.includes('director')
+              ? 'director'
+              : roles.includes('gerente')
+                ? 'gerente'
+                : roles[0] ?? 'gerente';
+
+      // Director: capa entre admin y gerente — perfil con scope de canales/países
+      if (userRole === 'director') {
+        const { data: dir } = await supabase
+          .from('directores' as any)
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+        const d: any = dir || {};
+        setProfile({
+          id: d.id || userId,
+          user_id: userId,
+          gerente_id: null,
+          nombre: d.nombre || authEmail || 'Director',
+          email: d.email || authEmail || '',
+          canal: (d.canales && d.canales[0]) || null,
+          pais: (d.paises && d.paises[0]) || null,
+          lider: null,
+          celula: null,
+          activo: d.activo ?? true,
+          avatar_url: null,
+          created_at: d.created_at || '',
+          sp_totales: 0,
+          nivel: d.cargo || 'Director',
+          sp_nivel_actual: 0,
+          sp_siguiente_nivel: null,
+          role: 'director',
+          sp_canje: 0,
+          sp_convencion: 0,
+          director_canales: d.canales || [],
+          director_paises: d.paises || [],
+          director_cargo: d.cargo || null,
+        });
+        setLoading(false);
+        return;
+      }
 
       // Admins, Especialistas y Aprobadores no compiten — perfil simplificado
       if (userRole === 'admin' || userRole === 'especialista' || userRole === 'aprobador') {

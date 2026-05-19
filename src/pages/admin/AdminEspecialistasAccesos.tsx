@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users } from 'lucide-react';
+import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2 } from 'lucide-react';
 
 const DEFAULT_PASSWORD = 'Siigo2026!';
 
@@ -29,10 +29,23 @@ type Apr = {
   operaciones: string[];
 };
 
+type Director = {
+  id: string;
+  user_id: string | null;
+  nombre: string;
+  email: string;
+  cargo: string | null;
+  canales: string[];
+  paises: string[];
+  activo: boolean;
+};
+
 const AdminEspecialistasAccesos = () => {
   const { toast } = useToast();
   const [items, setItems] = useState<Esp[]>([]);
   const [aprobadores, setAprobadores] = useState<Apr[]>([]);
+  const [directores, setDirectores] = useState<Director[]>([]);
+  const [linkingDir, setLinkingDir] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [resetTarget, setResetTarget] = useState<Esp | null>(null);

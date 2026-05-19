@@ -678,6 +678,45 @@ export type Database = {
           },
         ]
       }
+      directores: {
+        Row: {
+          activo: boolean
+          canales: string[]
+          cargo: string | null
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          paises: string[]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          activo?: boolean
+          canales?: string[]
+          cargo?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          nombre: string
+          paises?: string[]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          activo?: boolean
+          canales?: string[]
+          cargo?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          paises?: string[]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ejecucion_asesores: {
         Row: {
           acv_total: number | null
@@ -3720,7 +3759,13 @@ export type Database = {
           }
     }
     Enums: {
-      app_role: "admin" | "gerente" | "asesor" | "especialista" | "aprobador"
+      app_role:
+        | "admin"
+        | "gerente"
+        | "asesor"
+        | "especialista"
+        | "aprobador"
+        | "director"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3848,7 +3893,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "gerente", "asesor", "especialista", "aprobador"],
+      app_role: [
+        "admin",
+        "gerente",
+        "asesor",
+        "especialista",
+        "aprobador",
+        "director",
+      ],
     },
   },
 } as const
