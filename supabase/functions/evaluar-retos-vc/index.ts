@@ -462,6 +462,7 @@ Deno.serve(async (req) => {
       retosInsertados: retosInsert.length,
       spInsertados: spInsert.length,
       rachasInsertadas: rachasInsert.length,
+      medallasOtorgadas,
       errores,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
