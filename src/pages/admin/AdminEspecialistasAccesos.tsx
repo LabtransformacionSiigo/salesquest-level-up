@@ -411,7 +411,12 @@ const AdminEspecialistasAccesos = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
+
+
 
       {/* Dialog Edit Email */}
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
