@@ -131,7 +131,7 @@ const Sidebar = () => {
         initial="hidden"
         animate="show"
       >
-        {!isAdmin && !isEspecialista && !isAprobador && menuItems.map((item) => (
+        {!isAdmin && !isEspecialista && !isAprobador && !isDirector && menuItems.map((item) => (
           <motion.button
             key={item.path}
             onClick={() => navigate(item.path)}
@@ -150,12 +150,12 @@ const Sidebar = () => {
           </motion.button>
         ))}
 
-        {(isAdmin || isEspecialista || isAprobador) && (
+        {(isAdmin || isEspecialista || isAprobador || isDirector) && (
           <>
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
-              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
+              <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isDirector ? '📊 Dirección' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
             </motion.div>
-            {(isAdmin ? adminItems : especialistaItems).map((item) => (
+            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItems).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}
