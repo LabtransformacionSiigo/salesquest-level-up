@@ -385,7 +385,7 @@ Deno.serve(async (req) => {
       if (error) errores.push(`rachas: ${error.message}`);
     }
 
-    // Sincronizar sp_canje de gerentes afectados (igual que evaluar-retos-vn)
+    // Sincronizar sp_canje de gerentes afectados (retos/rachas)
     const gerentesAfectados = [...new Set(spInsert.map((s) => s.gerente_id))];
     for (const gid of gerentesAfectados) {
       const totalSp = spInsert
@@ -393,6 +393,65 @@ Deno.serve(async (req) => {
         .reduce((sum, s) => sum + s.sp, 0);
       await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: totalSp });
     }
+
+    // ── Evaluar medallas VC (catalogo_medallas) ──
+    let medallasOtorgadas = 0;
+    const { data: catalogoMedallas } = await supabase
+      .from("catalogo_medallas")
+      .select("*")
+      .eq("activo", true)
+      .eq("canal", "VC");
+    const medallasVigentes = (catalogoMedallas || []).filter(isVigente);
+
+    if (medallasVigentes.length > 0) {
+      const { data: medallasYaGanadas } = await supabase
+        .from("medallas")
+        .select("gerente_id, medalla")
+        .in("gerente_id", gerenteIds);
+      const ganadasSet = new Set(
+        (medallasYaGanadas || []).map((m) => `${m.gerente_id}::${m.medalla}`),
+      );
+
+      for (const gerente of gerentes) {
+        const ventasG = (ventasByGerente.get(gerente.id) || []).filter(
+          (v) => typeof v.documento_factura === "string" && v.documento_factura.startsWith("PROD-"),
+        );
+        for (const med of medallasVigentes) {
+          // Filtro país: si la medalla define país y el gerente tiene país, deben coincidir
+          if (med.pais && (gerente as any).pais && med.pais !== (gerente as any).pais) continue;
+          // Filtro gerente_id (medalla personal)
+          if (med.gerente_id && med.gerente_id !== gerente.id) continue;
+          const key = `${gerente.id}::${med.nombre}`;
+          if (ganadasSet.has(key)) continue;
+
+          // Contar ventas que aplican según producto/familia
+          let conteo = 0;
+          const fam = (med.producto || "").toUpperCase();
+          if (fam === "NUBE" || fam === "LEGACY") {
+            conteo = ventasG.filter((v) => classifyFamiliaVc(v) === fam).length;
+          } else if (med.producto) {
+            const prodNorm = String(med.producto).toLowerCase();
+            conteo = ventasG.filter((v) => (v.producto || "").toLowerCase().includes(prodNorm)).length;
+          } else {
+            conteo = ventasG.length;
+          }
+
+          const req = Math.max(1, Number(med.cantidad_requerida) || 1);
+          if (conteo < req) continue;
+
+          const spMedalla = Number(med.sp) || 0;
+          const { data: ok } = await supabase.rpc("otorgar_medalla_si_aplica", {
+            p_gerente_id: gerente.id, p_medalla: med.nombre, p_sp: spMedalla,
+          });
+          if (ok) {
+            medallasOtorgadas++;
+            ganadasSet.add(key);
+          }
+        }
+      }
+    }
+
+
 
 
 
