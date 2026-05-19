@@ -411,6 +411,7 @@ const AdminEspecialistasAccesos = () => {
                     </div>
                   </TableCell>
                 </TableRow>
+              ))}
             </TableBody>
           </Table>
         </Card>
