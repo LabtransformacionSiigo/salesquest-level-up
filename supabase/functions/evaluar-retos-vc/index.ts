@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     const [retosRes, rachasRes, gerentesRes] = await Promise.all([
       supabase.from("catalogo_retos").select("*").eq("activo", true).eq("canal", "VC"),
       supabase.from("config_rachas").select("*").eq("activo", true).eq("canal", "VC"),
-      supabase.from("gerentes").select("id, nombre, canal").eq("canal", "VC").eq("activo", true),
+      supabase.from("gerentes").select("id, nombre, canal, pais").eq("canal", "VC").eq("activo", true),
     ]);
 
     const todayStr = now.toISOString().slice(0, 10);
