@@ -385,6 +385,17 @@ Deno.serve(async (req) => {
       if (error) errores.push(`rachas: ${error.message}`);
     }
 
+    // Sincronizar sp_canje de gerentes afectados (igual que evaluar-retos-vn)
+    const gerentesAfectados = [...new Set(spInsert.map((s) => s.gerente_id))];
+    for (const gid of gerentesAfectados) {
+      const totalSp = spInsert
+        .filter((s) => s.gerente_id === gid)
+        .reduce((sum, s) => sum + s.sp, 0);
+      await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: totalSp });
+    }
+
+
+
     return new Response(JSON.stringify({
       ok: true,
       gerentes: gerentes.length,
