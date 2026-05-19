@@ -63,15 +63,45 @@ const AdminEspecialistasAccesos = () => {
 
   const fetchItems = async () => {
     setLoading(true);
-    const [esp, apr] = await Promise.all([
+    const [esp, apr, dir] = await Promise.all([
       supabase.from('especialista_permisos').select('id,user_id,nombre,email,paises,operaciones').order('nombre'),
       supabase.from('aprobador_permisos').select('id,nombre,email,paises,operaciones').order('nombre'),
+      (supabase as any).from('directores').select('id,user_id,nombre,email,cargo,canales,paises,activo').order('nombre'),
     ]);
     if (esp.error) toast({ title: 'Error cargando especialistas', description: esp.error.message, variant: 'destructive' });
     if (apr.error) toast({ title: 'Error cargando aprobadores', description: apr.error.message, variant: 'destructive' });
+    if (dir.error) toast({ title: 'Error cargando directores', description: dir.error.message, variant: 'destructive' });
     setItems((esp.data || []) as Esp[]);
     setAprobadores((apr.data || []) as Apr[]);
+    setDirectores((dir.data || []) as Director[]);
     setLoading(false);
+  };
+
+  const vincularDirector = async (d: Director) => {
+    setLinkingDir(d.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('link-director-user', {
+        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: DEFAULT_PASSWORD },
+      });
+      if (error || (data as any)?.error) {
+        toast({ title: 'Error vinculando', description: error?.message || (data as any)?.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con ${DEFAULT_PASSWORD}` });
+      fetchItems();
+    } finally {
+      setLinkingDir(null);
+    }
+  };
+
+  const toggleDirectorActivo = async (d: Director) => {
+    const { error } = await (supabase as any).from('directores').update({ activo: !d.activo }).eq('id', d.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: d.activo ? 'Director desactivado' : 'Director activado' });
+    fetchItems();
   };
 
   useEffect(() => { fetchItems(); }, []);
@@ -303,7 +333,91 @@ const AdminEspecialistasAccesos = () => {
             </TableBody>
           </Table>
         </Card>
+
+        {/* Directores */}
+        <div className="flex items-start justify-between gap-4 pt-4">
+          <div>
+            <h2 className="text-2xl font-bold">Directores</h2>
+            <p className="text-muted-foreground mt-1">
+              Vincula a los directores con su usuario de autenticación para que accedan al Panel Director.
+              Cada uno solo verá los gerentes/asesores de los canales y países asignados.
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Director</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Cargo</TableHead>
+                <TableHead>Canales</TableHead>
+                <TableHead>Países</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+              ) : directores.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay directores registrados.</TableCell></TableRow>
+              ) : directores.map((d) => (
+                <TableRow key={d.id} className="align-top">
+                  <TableCell className="font-medium">{d.nombre}</TableCell>
+                  <TableCell>
+                    <button onClick={() => copy(d.email, 'Email copiado')} className="hover:underline inline-flex items-center gap-1.5 font-mono text-sm">
+                      {d.email} <Copy className="w-3 h-3 opacity-60" />
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{d.cargo || '—'}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(d.canales || []).map(c => <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(d.paises || []).map(p => <Badge key={p} variant="outline" className="text-xs">{p}</Badge>)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {d.user_id ? (
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Vinculado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600">
+                        Sin vincular
+                      </Badge>
+                    )}
+                    {!d.activo && <Badge variant="destructive" className="ml-1 text-xs">Inactivo</Badge>}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant={d.user_id ? 'outline' : 'default'}
+                        onClick={() => vincularDirector(d)}
+                        disabled={linkingDir === d.id}
+                      >
+                        {linkingDir === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4 mr-1.5" />}
+                        {d.user_id ? 'Re-vincular' : 'Vincular usuario'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => toggleDirectorActivo(d)}>
+                        {d.activo ? 'Desactivar' : 'Activar'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       </div>
+
+
 
       {/* Dialog Edit Email */}
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
