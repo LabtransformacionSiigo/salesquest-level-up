@@ -799,8 +799,11 @@ const Rankings = () => {
               const mm = MES_MAP[mes3];
               return mm && currentMonth.endsWith(mm);
             });
-          const currentMetaFe = Number(metasAcvMesActual?.meta_fe) || 0;
-          const currentMetaNube = Number(metasAcvMesActual?.meta_nube) || 0;
+          // Verdad por célula: suma de metas_asesores activos (excluye novedades).
+          // Si esa suma es 0, caemos al catálogo metas_acv_gerentes.
+          const currentMetaFe = (currentMonthly?.metaFe || 0) || Number(metasAcvMesActual?.meta_fe) || 0;
+          const currentMetaNube = (currentMonthly?.metaNube || 0) || Number(metasAcvMesActual?.meta_nube) || 0;
+          const currentMetaUnd = (currentMonthly?.metaTotal || 0) || Number(metasAcvMesActual?.meta_total_und) || 0;
           const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
           const pctFeMes = currentMetaFe > 0 ? capPct((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
@@ -817,7 +820,7 @@ const Rankings = () => {
             acv_total_year: Math.round(totalAcvValue),
             meta_total: currentMetaAcv,
             meta_acv: currentMetaAcv,
-            meta_unidades: currentMonthly?.metaTotal || 0,
+            meta_unidades: currentMetaUnd,
             unidades_logradas: currentVentasValue,
             unidades_total: totalVentasValue,
             cant_recomendados: agg.currentRecomendados,
@@ -868,6 +871,34 @@ const Rankings = () => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
             const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
+            const monthlyRowsMex = buildVnConventionMonthlyRows({
+              productivityRows: [],
+              metaRows: (metasAsesoresRes.data || []).filter((row: any) => normalizeComparableText(row.celula) === celulaKey),
+              ejecRows: [],
+            });
+            const cmMex = monthlyRowsMex.find((row) => row.period === currentMonth);
+            const acvCatMex = (metasAcvGerRes.data || []).find((r: any) => {
+              if (normalizeComparableText(r.celula) !== celulaKey) return false;
+              const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
+              const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+              const mm = MMAP[mes3];
+              return mm && currentMonth.endsWith(mm) && !String(r.archivo ?? '').toLowerCase().includes('inicio');
+            }) || (metasAcvGerRes.data || []).find((r: any) => {
+              if (normalizeComparableText(r.celula) !== celulaKey) return false;
+              const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
+              const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+              const mm = MMAP[mes3];
+              return mm && currentMonth.endsWith(mm);
+            });
+            const mxMetaUnd = (cmMex?.metaTotal || 0) || Number(acvCatMex?.meta_total_und) || 0;
+            const mxMetaFe = (cmMex?.metaFe || 0) || Number(acvCatMex?.meta_fe) || 0;
+            const mxMetaNube = (cmMex?.metaNube || 0) || Number(acvCatMex?.meta_nube) || 0;
+            const mxMetaAcv = Number(acvCatMex?.meta_total_acv) || 0;
+            const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
+            const pctAcvMx = mxMetaAcv > 0 && agg.acvMes > 0 ? capPct((agg.acvMes / mxMetaAcv) * 100) : 0;
+            const pctFeMx = mxMetaFe > 0 && agg.feMes > 0 ? capPct((agg.feMes / mxMetaFe) * 100) : 0;
+            const pctNubeMx = mxMetaNube > 0 && agg.nubeMes > 0 ? capPct((agg.nubeMes / mxMetaNube) * 100) : 0;
             entries.push({
               id: celulaKey,
               nombre: gerenteInfo?.nombre || agg.gerente || agg.celulaNombre,
@@ -876,19 +907,19 @@ const Rankings = () => {
               pais: 'MEX',
               kpi_value: Math.round(agg.acvMes),
               acv_total_year: Math.round(agg.acv),
-              meta_total: 0,
-              meta_acv: 0,
-              meta_unidades: 0,
+              meta_total: mxMetaAcv,
+              meta_acv: mxMetaAcv,
+              meta_unidades: mxMetaUnd,
               unidades_logradas: agg.feMes + agg.nubeMes,
               unidades_total: agg.fe + agg.nube,
               cant_recomendados: 0,
-              pct_cumplimiento: 0,
-              pct_fe: 0,
-              pct_nube: 0,
+              pct_cumplimiento: pctAcvMx,
+              pct_fe: pctFeMx,
+              pct_nube: pctNubeMx,
               unidades_fe_mes: agg.feMes,
               unidades_nube_mes: agg.nubeMes,
-              meta_fe_mes: 0,
-              meta_nube_mes: 0,
+              meta_fe_mes: mxMetaFe,
+              meta_nube_mes: mxMetaNube,
               sp_totales: spFinal,
               sp_canje: gerenteInfo?.sp_canje || 0,
               nivel: null,
