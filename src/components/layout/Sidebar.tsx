@@ -44,6 +44,11 @@ const especialistaItems = [
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];
 
+const directorItems = [
+  { path: '/panel-director', icon: 'dashboard', label: 'Mi Panel' },
+  { path: '/ranking', icon: 'leaderboard', label: 'Clasificación' },
+];
+
 const Sidebar = () => {
   const { profile, signOut } = useSupabaseAuthContext();
   const navigate = useNavigate();
