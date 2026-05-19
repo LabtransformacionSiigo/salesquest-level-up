@@ -29,10 +29,23 @@ type Apr = {
   operaciones: string[];
 };
 
+type Director = {
+  id: string;
+  user_id: string | null;
+  nombre: string;
+  email: string;
+  cargo: string | null;
+  canales: string[];
+  paises: string[];
+  activo: boolean;
+};
+
 const AdminEspecialistasAccesos = () => {
   const { toast } = useToast();
   const [items, setItems] = useState<Esp[]>([]);
   const [aprobadores, setAprobadores] = useState<Apr[]>([]);
+  const [directores, setDirectores] = useState<Director[]>([]);
+  const [linkingDir, setLinkingDir] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [resetTarget, setResetTarget] = useState<Esp | null>(null);
