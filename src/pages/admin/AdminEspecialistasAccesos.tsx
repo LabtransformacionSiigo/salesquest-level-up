@@ -63,15 +63,45 @@ const AdminEspecialistasAccesos = () => {
 
   const fetchItems = async () => {
     setLoading(true);
-    const [esp, apr] = await Promise.all([
+    const [esp, apr, dir] = await Promise.all([
       supabase.from('especialista_permisos').select('id,user_id,nombre,email,paises,operaciones').order('nombre'),
       supabase.from('aprobador_permisos').select('id,nombre,email,paises,operaciones').order('nombre'),
+      (supabase as any).from('directores').select('id,user_id,nombre,email,cargo,canales,paises,activo').order('nombre'),
     ]);
     if (esp.error) toast({ title: 'Error cargando especialistas', description: esp.error.message, variant: 'destructive' });
     if (apr.error) toast({ title: 'Error cargando aprobadores', description: apr.error.message, variant: 'destructive' });
+    if (dir.error) toast({ title: 'Error cargando directores', description: dir.error.message, variant: 'destructive' });
     setItems((esp.data || []) as Esp[]);
     setAprobadores((apr.data || []) as Apr[]);
+    setDirectores((dir.data || []) as Director[]);
     setLoading(false);
+  };
+
+  const vincularDirector = async (d: Director) => {
+    setLinkingDir(d.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('link-director-user', {
+        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: DEFAULT_PASSWORD },
+      });
+      if (error || (data as any)?.error) {
+        toast({ title: 'Error vinculando', description: error?.message || (data as any)?.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con ${DEFAULT_PASSWORD}` });
+      fetchItems();
+    } finally {
+      setLinkingDir(null);
+    }
+  };
+
+  const toggleDirectorActivo = async (d: Director) => {
+    const { error } = await (supabase as any).from('directores').update({ activo: !d.activo }).eq('id', d.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: d.activo ? 'Director desactivado' : 'Director activado' });
+    fetchItems();
   };
 
   useEffect(() => { fetchItems(); }, []);
