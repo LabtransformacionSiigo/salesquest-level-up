@@ -799,8 +799,11 @@ const Rankings = () => {
               const mm = MES_MAP[mes3];
               return mm && currentMonth.endsWith(mm);
             });
-          const currentMetaFe = Number(metasAcvMesActual?.meta_fe) || 0;
-          const currentMetaNube = Number(metasAcvMesActual?.meta_nube) || 0;
+          // Verdad por célula: suma de metas_asesores activos (excluye novedades).
+          // Si esa suma es 0, caemos al catálogo metas_acv_gerentes.
+          const currentMetaFe = (currentMonthly?.metaFe || 0) || Number(metasAcvMesActual?.meta_fe) || 0;
+          const currentMetaNube = (currentMonthly?.metaNube || 0) || Number(metasAcvMesActual?.meta_nube) || 0;
+          const currentMetaUnd = (currentMonthly?.metaTotal || 0) || Number(metasAcvMesActual?.meta_total_und) || 0;
           const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
           const pctFeMes = currentMetaFe > 0 ? capPct((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
