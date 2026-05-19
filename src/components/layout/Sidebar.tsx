@@ -65,6 +65,7 @@ const Sidebar = () => {
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
+  const isDirector = profile?.role === 'director';
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
