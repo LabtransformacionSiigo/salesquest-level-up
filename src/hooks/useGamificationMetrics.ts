@@ -560,49 +560,6 @@ export const useGamificationMetrics = (
 
         const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes, vnMetricasGerenteRes, metasGerentesMexRes] = results as any[];
 
-        // ───────────────────────────────────────────────────────────────
-        // Fallback MÉXICO VN (Aliados/Empresarios): cuando Databricks deja
-        // metas_acv_gerentes.meta_nube en 0 para México, la meta de Nube
-        // real es la suma de columnas COI + NOI dentro de metas_gerentes.
-        // Sobreescribimos las filas del catálogo IN-PLACE para que toda la
-        // lógica downstream (Mi Progreso , Panel General, Historial) use
-        // el valor correcto sin tocar el resto del flujo.
-        // ───────────────────────────────────────────────────────────────
-        if (
-          isVN
-          && String(profile.pais || '').toUpperCase() === 'MEX'
-          && Array.isArray(metasGerentesMexRes?.data)
-          && metasGerentesMexRes.data.length > 0
-          && Array.isArray(metasAcvCatalogRes?.data)
-        ) {
-          const mes3to2: Record<string, string> = {
-            ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
-            jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
-          };
-          const mgRows = (metasGerentesMexRes.data as any[]).slice().sort(
-            (a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || ''))
-          );
-          const mgByPeriod = new Map<string, any>();
-          mgRows.forEach((r: any) => {
-            const p = String(r.anio_mes || '');
-            if (!mgByPeriod.has(p)) mgByPeriod.set(p, r);
-          });
-          // Fila más reciente: usada como fallback cuando el período exacto no
-          // tiene registro en metas_gerentes (Databricks aún no sincronizó el mes).
-          const mgLatest = mgRows[0];
-          (metasAcvCatalogRes.data as any[]).forEach((r: any) => {
-            const mes2 = mes3to2[String(r.mes || '').trim().toLowerCase().slice(0, 3)] || '';
-            if (!mes2) return;
-            const period = `${anioActual}${mes2}`;
-            const mg = mgByPeriod.get(period) || mgLatest;
-            if (!mg) return;
-            const sumNube = (Number(mg.coi) || 0) + (Number(mg.noi) || 0);
-            if ((Number(r.meta_nube) || 0) === 0 && sumNube > 0) {
-              r.meta_nube = sumNube;
-            }
-          });
-        }
-
         // Filtrado client-side robusto para gerentes VN: si la query trajo más
         // filas de las del propio gerente (caso fallback sin celula), nos
         // quedamos solo con su celula o, en su defecto, con su nombre normalizado.
