@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { computeSpConvencionAnualForCelula, normalizeSpText } from '@/lib/sp-convencion-anual';
+import { computeSpConvencionAnualForCelula } from '@/lib/sp-convencion-anual';
 import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export function useSpConvencionAnualSelf(profile: any): number | null {
