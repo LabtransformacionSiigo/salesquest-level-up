@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
                 : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL";
       const periodo = `2026${String(mes).padStart(2, "0")}`;
       const celulaKey = (celula || "__SIN_CELULA__").toUpperCase();
-      const key = `${pais}|${periodo}|${canal}|${celulaKey}|${familia}`;
+      const key = `${periodo}|${familia}|${celulaKey}`;
       const cur = aggMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
         familia, mes, anio: 2026, periodo, pais, unidades: 0, acv: 0,
