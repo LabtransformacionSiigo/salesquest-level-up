@@ -169,15 +169,14 @@ export function computeSpConvencionAnualForCelula(
   // El match por célula queda solo como fallback porque Databricks puede traer aliases
   // duplicados para la misma célula (ej. nombre corto + nombre completo), lo que inflaba
   // Ranking/Header al sumar la misma ejecución dos veces.
-  const vgmByGerente = gerenteNorm
-    ? vgmRows.filter((row) => {
-        const rowGerente = normalizeSpText(row.gerente_normalizado || row.gerente);
-        return rowGerente === gerenteNorm;
-      })
-    : [];
-  const vgmBase = vgmByGerente.length > 0
-    ? vgmByGerente
-    : vgmRows.filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm);
+  // Si tenemos celula, EXIGIR filtro por celula. Solo si no hay celula se permite
+  // filtrar por gerente (caso de configuración sin celula asignada). Esto evita
+  // que un gerente que lidera más de una celula sume ventas de células ajenas.
+  const vgmBase = celulaNorm
+    ? vgmRows.filter((row) => normalizeSpText(row.celula) === celulaNorm)
+    : (gerenteNorm
+        ? vgmRows.filter((row) => normalizeSpText(row.gerente_normalizado || row.gerente) === gerenteNorm)
+        : []);
   const seenVgm = new Set<string>();
   const vgmFiltrados = vgmBase.filter((row) => {
     const key = [
