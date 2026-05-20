@@ -497,15 +497,16 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks).
-                  No filtrar por celula en DB: hay diferencias de tildes (México/Mexico).
-                  El match se hace normalizado en getAcvCatalogRowForPeriod. */
+          /* 21 – metas_acv_gerentes: VERDAD oficial de metas VN (Databricks).
+                  No filtrar por pais/celula en DB: Databricks guarda país como
+                  nombre (Mexico/Colombia) mientras perfiles usan códigos (MEX/COL),
+                  y las tildes también varían. El match real se hace por célula
+                  normalizada en getAcvCatalogRowForPeriod/enrich. */
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
                 .select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
-                .eq('pais', String(profile.pais || '').toUpperCase())
-                .limit(1000)
+                .limit(5000)
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
@@ -549,18 +550,9 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 24 – metas_gerentes (solo MEX VN): fallback meta_nube = coi + noi
-                  cuando metas_acv_gerentes.meta_nube viene en 0 desde Databricks. */
-          isVN && profile.role !== 'asesor'
-            && String(profile.pais || '').toUpperCase() === 'MEX'
-            && profile.celula
-            ? supabase
-                .from('metas_gerentes')
-                .select('celula, anio_mes, coi, noi, fe, nube, canal_direccion, pais_gestion')
-                .eq('celula', profile.celula)
-                .gte('anio_mes', `${anioActual}01`)
-                .lte('anio_mes', `${anioActual}12`)
-            : Promise.resolve({ data: [] }),
+          /* 24 – eliminado: no usar metas_gerentes ni COI/NOI como fallback.
+                  Historial mensual debe leer metas reales solo desde metas_acv_gerentes. */
+          Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
