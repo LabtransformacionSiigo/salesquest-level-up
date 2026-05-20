@@ -181,20 +181,44 @@ Deno.serve(async (req) => {
     console.log(`✓ ventas_diarias MX insertadas: ${inserted}`);
 
     // 4) Agrega ventas_gerente_mensual.
-    // La tabla tiene 2 unicidades: por gerente y por célula. Primero colapsamos
-    // por célula/familia/periodo para evitar duplicados cuando Databricks trae
-    // variantes de gerente para la misma célula; luego colapsamos por gerente.
+    // Primero traemos los líderes oficiales por célula (gerentes activos VN MEX).
+    // Si no asignamos el `gerente_normalizado` desde aquí, Databricks trae
+    // variantes (FE bajo un nombre, NUBE bajo otro) y cada familia termina
+    // bajo un líder diferente → aparecen ceros en el avance del mes.
+    const { data: gerentesMx } = await sb
+      .from("gerentes")
+      .select("id, nombre, canal, celula")
+      .eq("pais", "MEX")
+      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+      .eq("activo", true);
+
+    const leaderByCelula = new Map<string, { nombre: string; norm: string; canal: string }>();
+    for (const g of (gerentesMx || [])) {
+      if (!g.celula) continue;
+      leaderByCelula.set(norm(g.celula), {
+        nombre: g.nombre,
+        norm: norm(g.nombre),
+        canal: g.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados",
+      });
+    }
+
     const cellMap = new Map<string, any>();
     for (const r of rows) {
       const mes = Number(r.mes_nro);
       const familia = classifyFamilyMX(r.tipo_producto1);
-      const canal = normalizeCanalMX(r.equipo);
-      const gerente = String(r.gerente || "");
-      const gnorm = norm(gerente);
       const celula = String(r.celula || "").trim() || null;
+      const celKey = celula ? norm(celula) : null;
+      const leader = celKey ? leaderByCelula.get(celKey) : null;
+
+      // Si hay líder oficial para la célula, usamos su nombre y canal.
+      // De lo contrario, conservamos el director que venga de Databricks.
+      const gerente = leader ? leader.nombre : String(r.gerente || "");
+      const gnorm = leader ? leader.norm : norm(gerente);
+      const canal = leader ? leader.canal : normalizeCanalMX(r.equipo);
+
       const periodo = `${YEAR}${String(mes).padStart(2, "0")}`;
       const key = celula
-        ? `CEL|${periodo}|${familia}|${norm(celula)}`
+        ? `CEL|${periodo}|${familia}|${celKey}`
         : `GER|MEX|${periodo}|${canal}|${gnorm}|${familia}`;
       const cur = cellMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
@@ -202,10 +226,6 @@ Deno.serve(async (req) => {
       };
       cur.unidades += Number(r.ventas) || 0;
       cur.acv += Number(r.acv_total) || 0;
-      if (!cur.gerente && gerente) {
-        cur.gerente = gerente;
-        cur.gerente_normalizado = gnorm;
-      }
       cellMap.set(key, cur);
     }
     const aggMap = new Map<string, any>();
@@ -231,16 +251,7 @@ Deno.serve(async (req) => {
 
     // 5) Sincroniza kpis_mensuales para VN MEX a partir de ventas_gerente_mensual.
     //    Esto es la fuente que lee "Avance del mes" en el dashboard.
-    //    Cruzamos por célula (preferido) y por nombre normalizado como fallback.
-    const { data: gerentesMx } = await sb
-      .from("gerentes")
-      .select("id, nombre, canal, celula")
-      .eq("pais", "MEX")
-      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
-      .eq("activo", true);
-
-    // Limpia previos para evitar arrastrar valores stale de runs anteriores
-    // (incluyendo posibles asesores con valores incorrectos por crossing por célula).
+    // Limpia previos para evitar arrastrar valores stale de runs anteriores.
     const gerenteIdsMx = (gerentesMx || []).map((g: any) => g.id);
     if (gerenteIdsMx.length > 0) {
       const { error: delKpiErr } = await sb.from("kpis_mensuales")
@@ -250,6 +261,7 @@ Deno.serve(async (req) => {
         .lte("anio_mes", `${YEAR}12`);
       if (delKpiErr) console.error("[kpis_mensuales] delete previo:", delKpiErr.message);
     }
+
 
 
     const { data: metasMx } = await sb
