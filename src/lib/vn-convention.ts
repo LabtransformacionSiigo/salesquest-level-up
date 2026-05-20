@@ -307,22 +307,12 @@ export const buildVnConventionMonthlyRowsFromManagerSources = ({
       const periodProductivity = (productivityRows || []).filter((row) => String(row.anio_mes || '') === period);
       const periodMetas = (metaRows || []).filter((row) => String(row.anio_mes || '') === period);
       const activeMetas = periodMetas.filter(isActiveMetaRow);
-      const novedadNames = new Set(
-        periodMetas
-          .filter((row) => !isActiveMetaRow(row))
-          .map((row) => normalizeComparableText(row.nombre_asesor))
-          .filter(Boolean)
-      );
       const periodManagerRows = (managerRows || []).filter((row) => String(row.periodo || '') === period);
 
       const acv = periodManagerRows.reduce((sum, row) => sum + (Number(row.acv) || 0), 0);
-      // Verdad oficial: metas_acv_gerentes (Databricks). Fallback: suma productividad.
+      // Verdad oficial: metas_acv_gerentes (Databricks). Sin fallback.
       const officialMetaAcv = getOfficialMetaAcv(period, celula, acvCatalog);
-      const metaAcv = officialMetaAcv ?? periodProductivity.reduce((sum, row) => {
-        const advisorName = normalizeComparableText(row.asesor);
-        if (advisorName && novedadNames.has(advisorName)) return sum;
-        return sum + normalizeVnMetaAcv(row.meta, row.pais);
-      }, 0);
+      const metaAcv = officialMetaAcv ?? 0;
       const metaFe = activeMetas.reduce((sum, row) => sum + (Number(row.meta_fe) || 0), 0);
       const metaNube = activeMetas.reduce((sum, row) => sum + (Number(row.meta_nube) || 0), 0);
       const metaTotal = activeMetas.reduce((sum, row) => sum + (Number(row.meta_total) || 0), 0);
