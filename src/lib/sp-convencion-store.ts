@@ -1,7 +1,7 @@
-// Tiny global store to share the accumulated yearly SP Convención total
-// computed in MiPerformance with the Header/Sidebar badges.
-// The hook `useGamificationMetrics` only knows about the current month,
-// so the page-level historial publishes the total here for the chrome to consume.
+// Store global para el total anual de SP Convención del usuario logueado.
+// FUENTE ÚNICA: la columna `sp` de la tabla Historial Mensual
+// (vcMonthlyCumplimiento en useGamificationMetrics). Quien escriba aquí
+// debe usar esa misma suma — nunca un cálculo alterno.
 
 import { useSyncExternalStore } from 'react';
 
@@ -17,7 +17,8 @@ const getSnapshot = () => totalSp;
 const getServerSnapshot = () => null;
 
 export const setSpConvencionAnual = (value: number | null) => {
-  if (totalSp != null && value != null && totalSp > 0 && value > 0 && value < totalSp) return;
+  // Sin guard de "no bajar": el último cálculo del Historial Mensual SIEMPRE
+  // gana, porque es la única fuente válida.
   if (totalSp === value) return;
   totalSp = value;
   listeners.forEach((l) => l());
