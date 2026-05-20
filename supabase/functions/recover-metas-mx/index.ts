@@ -90,8 +90,8 @@ Deno.serve(async (req) => {
         .from("metas_acv_gerentes")
         .select("id, meta_fe, meta_nube, meta_total_und, meta_total_acv")
         .eq("celula", celula).eq("mes", mes).maybeSingle();
-      if (eSel) { errors++; continue; }
-      if (!cur) { skipped++; continue; }
+      if (eSel) { errors++; detail.push({ reason: "sel_err", celula, mes }); continue; }
+      if (!cur) { skipped++; detail.push({ reason: "no_match", celula, mes }); continue; }
 
       const patch: any = {};
       if ((cur.meta_fe || 0) === 0 && fe > 0) patch.meta_fe = fe;
