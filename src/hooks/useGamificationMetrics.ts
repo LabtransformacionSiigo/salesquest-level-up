@@ -1275,15 +1275,12 @@ export const useGamificationMetrics = (
           }
         }
 
-        // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
+          // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
         let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
         if (isVN && !isVC) {
           const celulaRows = vnCelulaRows;
-          // Calculate ACV meta from productividad_asesores.meta by month
-          const buildMonthMetaAcv = (period: string) =>
-            celulaRows
-              .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
-              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
+          // La meta ACV mensual se resuelve dentro de enrich() exclusivamente desde
+          // metas_acv_gerentes. No se calcula desde productividad_asesores.
 
           // Aggregate FE/Nube/Total per month.
           // ⭐ FUENTE ÚNICA: vgmDeduped (ventas_gerente_mensual filtrada por celula
@@ -1370,13 +1367,7 @@ export const useGamificationMetrics = (
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
-            const metaAcvFromProd = base.meta;
-            const esActual = period === mesActual;
-            const metaAcvFinal = catalogMetaAcv > 0
-              ? catalogMetaAcv
-              : metaAcvFromProd > 0
-                ? metaAcvFromProd
-                : (esActual && vnMetaAcvActual > 0 ? vnMetaAcvActual : 0);
+            const metaAcvFinal = catalogMetaAcv;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
@@ -1437,9 +1428,7 @@ export const useGamificationMetrics = (
               .map(([period, { ventas, meta, acv }]) => {
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-                const monthMetaAcv = buildMonthMetaAcv(period);
-                const pctVal = monthMetaAcv > 0 ? Math.round((acv / monthMetaAcv) * 100) : 0;
-                return enrich(period, { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal });
+                return enrich(period, { mes: mesName, acv, meta: 0, pct: 0 });
               });
           } else {
             // Fallback to kpis_mensuales (also enrich with team ejec data)
@@ -1456,9 +1445,7 @@ export const useGamificationMetrics = (
                 const ventas = Number(row.ventas) || 0;
                 const meta = Number(row.meta) || 0;
                 const acvF = normalizeStoredAcv(row.acv_f);
-                const monthMetaAcv = buildMonthMetaAcv(period);
-                const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
-                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal });
+                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: 0, pct: 0 });
               });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
