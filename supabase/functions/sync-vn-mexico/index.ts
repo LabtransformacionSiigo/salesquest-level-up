@@ -211,13 +211,14 @@ Deno.serve(async (req) => {
     const aggMap = new Map<string, any>();
     for (const row of cellMap.values()) {
       const key = `MEX|${row.periodo}|${row.canal_direccion}|${row.gerente_normalizado}|${row.familia}`;
-      const cur = aggMap.get(key) || { ...row };
-      if (cur !== row) {
-        cur.unidades += row.unidades;
-        cur.acv += row.acv;
-        if (!cur.celula && row.celula) cur.celula = row.celula;
+      const existing = aggMap.get(key);
+      if (!existing) {
+        aggMap.set(key, { ...row });
+      } else {
+        existing.unidades += row.unidades;
+        existing.acv += row.acv;
+        if (!existing.celula && row.celula) existing.celula = row.celula;
       }
-      aggMap.set(key, cur);
     }
     const aggRows = [...aggMap.values()];
     for (let i = 0; i < aggRows.length; i += BATCH) {
