@@ -229,6 +229,83 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ ventas_gerente_mensual MX: ${aggRows.length} filas`);
 
+    // 5) Sincroniza kpis_mensuales para VN MEX a partir de ventas_gerente_mensual.
+    //    Esto es la fuente que lee "Avance del mes" en el dashboard.
+    //    Cruzamos por célula (preferido) y por nombre normalizado como fallback.
+    const { data: gerentesMx } = await sb
+      .from("gerentes")
+      .select("id, nombre, canal, celula")
+      .eq("pais", "MEX")
+      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+      .eq("activo", true);
+
+    const { data: metasMx } = await sb
+      .from("metas_acv_gerentes")
+      .select("celula, mes, meta_total_und, meta_total_acv")
+      .eq("pais", "Mexico");
+
+    const MES_NUM: Record<string, string> = {
+      enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06",
+      julio: "07", agosto: "08", septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+    };
+    const metaByKey = new Map<string, { und: number; acv: number }>();
+    for (const m of (metasMx || [])) {
+      const mm = MES_NUM[String(m.mes || "").trim().toLowerCase()] || "";
+      if (!mm) continue;
+      const periodo = `${YEAR}${mm}`;
+      const key = `${norm(m.celula)}|${periodo}`;
+      const cur = metaByKey.get(key) || { und: 0, acv: 0 };
+      cur.und = Math.max(cur.und, Number(m.meta_total_und) || 0);
+      cur.acv = Math.max(cur.acv, Number(m.meta_total_acv) || 0);
+      metaByKey.set(key, cur);
+    }
+
+    // Aggregate ventas por (gerente_celula_or_name, periodo)
+    type KpiAgg = { ventas: number; acv: number };
+    const ventasByGerentePeriodo = new Map<string, KpiAgg>();
+    for (const r of aggRows) {
+      const keyCel = r.celula ? `CEL|${norm(r.celula)}|${r.periodo}` : null;
+      const keyNom = `NOM|${r.gerente_normalizado}|${r.periodo}`;
+      for (const k of [keyCel, keyNom].filter(Boolean) as string[]) {
+        const cur = ventasByGerentePeriodo.get(k) || { ventas: 0, acv: 0 };
+        cur.ventas += Number(r.unidades) || 0;
+        cur.acv += Number(r.acv) || 0;
+        ventasByGerentePeriodo.set(k, cur);
+      }
+    }
+
+    const kpiRows: any[] = [];
+    for (const g of (gerentesMx || [])) {
+      // Solo upsert para periodos con datos sintetizados
+      for (let mes = 1; mes <= 12; mes++) {
+        const periodo = `${YEAR}${String(mes).padStart(2, "0")}`;
+        let agg: KpiAgg | undefined;
+        if (g.celula) agg = ventasByGerentePeriodo.get(`CEL|${norm(g.celula)}|${periodo}`);
+        if (!agg) agg = ventasByGerentePeriodo.get(`NOM|${norm(g.nombre)}|${periodo}`);
+        if (!agg) continue;
+        const meta = g.celula ? metaByKey.get(`${norm(g.celula)}|${periodo}`) : undefined;
+        kpiRows.push({
+          gerente_id: g.id,
+          anio_mes: periodo,
+          canal: g.canal,
+          ventas: Math.round(agg.ventas),
+          acv_f: Math.round(agg.acv),
+          meta: Math.round(meta?.und || 0),
+          moneda: "COP",
+        });
+      }
+    }
+
+    let kpisUpserted = 0;
+    for (let i = 0; i < kpiRows.length; i += BATCH) {
+      const slice = kpiRows.slice(i, i + BATCH);
+      const { error } = await sb.from("kpis_mensuales")
+        .upsert(slice, { onConflict: "gerente_id,anio_mes" });
+      if (error) throw new Error(`upsert kpis_mensuales: ${error.message}`);
+      kpisUpserted += slice.length;
+    }
+    console.log(`✓ kpis_mensuales MX upserted: ${kpisUpserted}`);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -236,9 +313,11 @@ Deno.serve(async (req) => {
         rows_dbx: rows.length,
         ventas_diarias_insertadas: inserted,
         ventas_gerente_mensual_insertadas: aggRows.length,
+        kpis_mensuales_upserted: kpisUpserted,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (e: any) {
     console.error("ERROR:", e);
     return new Response(
