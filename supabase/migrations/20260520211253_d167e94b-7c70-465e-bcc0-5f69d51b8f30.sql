@@ -1,0 +1,1 @@
+ALTER TABLE public.ventas_gerente_mensual DROP CONSTRAINT IF EXISTS ventas_gerente_mensual_unique;

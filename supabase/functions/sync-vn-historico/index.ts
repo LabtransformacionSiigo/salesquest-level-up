@@ -193,17 +193,8 @@ Deno.serve(async (req) => {
       cur.acv += Number(r.acv_total) || 0;
       aggMap.set(key, cur);
     }
-    // Detecta colisiones del unique legacy y desambigua gerente_normalizado
-    const legacySeen = new Map<string, number>();
-    for (const row of aggMap.values()) {
-      const lk = `${row.pais}|${row.periodo}|${row.canal_direccion}|${row.gerente_normalizado}|${row.familia}`;
-      const n = (legacySeen.get(lk) || 0) + 1;
-      legacySeen.set(lk, n);
-      if (n > 1 && row.celula) {
-        row.gerente_normalizado = `${row.gerente_normalizado} [${norm(row.celula)}]`;
-      }
-    }
     const aggRows = [...aggMap.values()];
+
     for (let i = 0; i < aggRows.length; i += BATCH) {
       const slice = aggRows.slice(i, i + BATCH);
       const { error } = await sb.from("ventas_gerente_mensual")
