@@ -497,15 +497,16 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 21 – metas_acv_gerentes: VERDAD oficial de meta ACV (Databricks).
-                  No filtrar por celula en DB: hay diferencias de tildes (México/Mexico).
-                  El match se hace normalizado en getAcvCatalogRowForPeriod. */
+          /* 21 – metas_acv_gerentes: VERDAD oficial de metas VN (Databricks).
+                  No filtrar por pais/celula en DB: Databricks guarda país como
+                  nombre (Mexico/Colombia) mientras perfiles usan códigos (MEX/COL),
+                  y las tildes también varían. El match real se hace por célula
+                  normalizada en getAcvCatalogRowForPeriod/enrich. */
           isVN && profile.role !== 'asesor' && profile.celula
             ? supabase
                 .from('metas_acv_gerentes' as any)
                 .select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
-                .eq('pais', String(profile.pais || '').toUpperCase())
-                .limit(1000)
+                .limit(5000)
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
@@ -549,67 +550,15 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 24 – metas_gerentes (solo MEX VN): fallback meta_nube = coi + noi
-                  cuando metas_acv_gerentes.meta_nube viene en 0 desde Databricks. */
-          isVN && profile.role !== 'asesor'
-            && String(profile.pais || '').toUpperCase() === 'MEX'
-            && profile.celula
-            ? supabase
-                .from('metas_gerentes')
-                .select('celula, anio_mes, coi, noi, fe, nube, canal_direccion, pais_gestion')
-                .eq('celula', profile.celula)
-                .gte('anio_mes', `${anioActual}01`)
-                .lte('anio_mes', `${anioActual}12`)
-            : Promise.resolve({ data: [] }),
+          /* 24 – eliminado: no usar metas_gerentes ni COI/NOI como fallback.
+                  Historial mensual debe leer metas reales solo desde metas_acv_gerentes. */
+          Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
         if (cancelled) return;
 
         const [rachaRes, kpisRes, medallasRes, feedRes, unidadesRes, ventasSemanaRes, acvRes, productRes, rankingRes, teamRes, acvAllMonthsRes, canjeablesRes, ejecRes, metasRes, celulaProductividadRes, vnMetasRes, vnHistoryRes, _legacy17, vcTeamRes, ventasDiariasRes, ventasGerenteMensualRes, metasAcvCatalogRes, vnMetricasAsesorRes, vnMetricasGerenteRes, metasGerentesMexRes] = results as any[];
-
-        // ───────────────────────────────────────────────────────────────
-        // Fallback MÉXICO VN (Aliados/Empresarios): cuando Databricks deja
-        // metas_acv_gerentes.meta_nube en 0 para México, la meta de Nube
-        // real es la suma de columnas COI + NOI dentro de metas_gerentes.
-        // Sobreescribimos las filas del catálogo IN-PLACE para que toda la
-        // lógica downstream (Mi Progreso , Panel General, Historial) use
-        // el valor correcto sin tocar el resto del flujo.
-        // ───────────────────────────────────────────────────────────────
-        if (
-          isVN
-          && String(profile.pais || '').toUpperCase() === 'MEX'
-          && Array.isArray(metasGerentesMexRes?.data)
-          && metasGerentesMexRes.data.length > 0
-          && Array.isArray(metasAcvCatalogRes?.data)
-        ) {
-          const mes3to2: Record<string, string> = {
-            ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
-            jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
-          };
-          const mgRows = (metasGerentesMexRes.data as any[]).slice().sort(
-            (a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || ''))
-          );
-          const mgByPeriod = new Map<string, any>();
-          mgRows.forEach((r: any) => {
-            const p = String(r.anio_mes || '');
-            if (!mgByPeriod.has(p)) mgByPeriod.set(p, r);
-          });
-          // Fila más reciente: usada como fallback cuando el período exacto no
-          // tiene registro en metas_gerentes (Databricks aún no sincronizó el mes).
-          const mgLatest = mgRows[0];
-          (metasAcvCatalogRes.data as any[]).forEach((r: any) => {
-            const mes2 = mes3to2[String(r.mes || '').trim().toLowerCase().slice(0, 3)] || '';
-            if (!mes2) return;
-            const period = `${anioActual}${mes2}`;
-            const mg = mgByPeriod.get(period) || mgLatest;
-            if (!mg) return;
-            const sumNube = (Number(mg.coi) || 0) + (Number(mg.noi) || 0);
-            if ((Number(r.meta_nube) || 0) === 0 && sumNube > 0) {
-              r.meta_nube = sumNube;
-            }
-          });
-        }
 
         // Filtrado client-side robusto para gerentes VN: si la query trajo más
         // filas de las del propio gerente (caso fallback sin celula), nos
@@ -931,10 +880,8 @@ export const useGamificationMetrics = (
           const metaContextActual = getMetaContextForPeriod(mesActual);
           let { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
-          // VN: meta ACV (mensual) — PRIORIDAD:
-          //   1) metas_acv_gerentes (VERDAD oficial Databricks)
-          //   2) metas_gerentes.meta_total_acv (legacy)
-          //   3) suma productividad_asesores.meta del mes (último recurso)
+          // VN: meta ACV (mensual) — VERDAD oficial Databricks:
+          //   metas_acv_gerentes por célula/mes. Sin fallback a asesores ni legacy.
           const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
           // Mapea YYYYMM -> 'ene'/'feb'/... para hacer match con metas_acv_gerentes.mes
           const mesNumToMes3: Record<string, string> = {
@@ -1007,18 +954,9 @@ export const useGamificationMetrics = (
               : (_catalogFeMes + _catalogNubeMes);
           }
 
-          let metaAcvEquipo = 0;
-          if (acvOficial?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
-          } else {
-            // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
-             const currentMonthProductividad = celulaRows.filter((r: any) => {
-              const period = String(r.anio_mes || '');
-               const asesorName = normalizeComparableText(r.asesor);
-               return period === mesActual && !metaContextActual.asesoresConNovedad.has(asesorName);
-            });
-            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
-          }
+          const metaAcvEquipo = acvOficial?.meta_total_acv
+            ? normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais)
+            : 0;
           vnMetaAcvActual = metaAcvEquipo;
 
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
@@ -1337,15 +1275,12 @@ export const useGamificationMetrics = (
           }
         }
 
-        // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
+          // Build VN monthly cumplimiento from celula productividad or kpis_mensuales history
         let vnMonthlyCumpl: MonthlyCumplimiento[] = [];
         if (isVN && !isVC) {
           const celulaRows = vnCelulaRows;
-          // Calculate ACV meta from productividad_asesores.meta by month
-          const buildMonthMetaAcv = (period: string) =>
-            celulaRows
-              .filter((r: any) => r.anio_mes === period && !getMetaContextForPeriod(period).asesoresConNovedad.has(normalizeComparableText(r.asesor)))
-              .reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta, r.pais), 0);
+          // La meta ACV mensual se resuelve dentro de enrich() exclusivamente desde
+          // metas_acv_gerentes. No se calcula desde productividad_asesores.
 
           // Aggregate FE/Nube/Total per month.
           // ⭐ FUENTE ÚNICA: vgmDeduped (ventas_gerente_mensual filtrada por celula
@@ -1432,13 +1367,7 @@ export const useGamificationMetrics = (
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
               ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
               : 0;
-            const metaAcvFromProd = base.meta;
-            const esActual = period === mesActual;
-            const metaAcvFinal = catalogMetaAcv > 0
-              ? catalogMetaAcv
-              : metaAcvFromProd > 0
-                ? metaAcvFromProd
-                : (esActual && vnMetaAcvActual > 0 ? vnMetaAcvActual : 0);
+            const metaAcvFinal = catalogMetaAcv;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
@@ -1499,9 +1428,7 @@ export const useGamificationMetrics = (
               .map(([period, { ventas, meta, acv }]) => {
                 const monthNum = parseInt(period.slice(4), 10);
                 const mesName = MONTH_NAMES_ES[monthNum - 1] || period;
-                const monthMetaAcv = buildMonthMetaAcv(period);
-                const pctVal = monthMetaAcv > 0 ? Math.round((acv / monthMetaAcv) * 100) : 0;
-                return enrich(period, { mes: mesName, acv, meta: monthMetaAcv || meta, pct: pctVal });
+                return enrich(period, { mes: mesName, acv, meta: 0, pct: 0 });
               });
           } else {
             // Fallback to kpis_mensuales (also enrich with team ejec data)
@@ -1518,9 +1445,7 @@ export const useGamificationMetrics = (
                 const ventas = Number(row.ventas) || 0;
                 const meta = Number(row.meta) || 0;
                 const acvF = normalizeStoredAcv(row.acv_f);
-                const monthMetaAcv = buildMonthMetaAcv(period);
-                const pctVal = monthMetaAcv > 0 ? Math.round((acvF / monthMetaAcv) * 100) : 0;
-                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: monthMetaAcv || meta, pct: pctVal });
+                return enrich(period, { mes: mesName, acv: acvF || ventas, meta: 0, pct: 0 });
               });
           }
           vcMonthlyCumplimiento = vnMonthlyCumpl;
