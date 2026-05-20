@@ -1012,46 +1012,16 @@ export const useGamificationMetrics = (
           vgmDeduped = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
           const _yearNumGer = Number(anioActual);
 
-          // 1) PRIMARIA — vn_metricas_optimizadas (scope=gerente)
-          const vnMetGerenteRows: any[] = vnMetricasGerenteRes?.data || [];
-          const vmgFamMax = new Map<string, { uds: number; acv: number }>();
-          vnMetGerenteRows.forEach((r: any) => {
-            const mesNro = Number(r.mes_nro);
-            if (!mesNro || mesNro < 1 || mesNro > 12) return;
-            const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
-            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
-            if (!fam) return;
-            // Mapear nomenclaturas de Databricks (México: CAMPANA → NUBE)
-            const famNorm = fam === 'CAMPANA' ? 'NUBE'
-                          : (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') ? fam
-                          : 'OTRO';
-            const k = `${period}::${famNorm}`;
-            const uds = Math.round(Number(r.ventas) || 0);
-            const acvV = Math.round(Number(r.acv_total) || 0);
-            const prev = vmgFamMax.get(k);
-            // Tomamos MAX para colapsar variantes del nombre del gerente sin doblar.
-            if (!prev || uds > prev.uds) vmgFamMax.set(k, { uds, acv: acvV });
-          });
-          const vmgPeriodsWithData = new Set<string>();
-          vmgFamMax.forEach((val, k) => {
-            const [period, fam] = k.split('::');
-            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            if (fam === 'FE') cur.fe += val.uds;
-            else if (fam === 'NUBE') cur.nube += val.uds;
-            cur.total += val.uds;
-            cur.acv += val.acv;
-            vgmDeduped.set(period, cur);
-            vmgPeriodsWithData.add(period);
-          });
-
-          // 2) FALLBACK — ventas_gerente_mensual SOLO para periodos no cubiertos arriba.
+          // 1) PRIMARIA — ventas_gerente_mensual: tabla repoblada por sync-vn-historico.
+          //    Debe ganar sobre vn_metricas_optimizadas porque allí quedaron filas
+          //    antiguas de cierre (ej. abril Diana: 195/78) mientras VGM ya trae
+          //    la verdad corregida desde Databricks (200/81).
           const vgmAllRowsForMap: any[] = ventasGerenteMensualRes?.data || [];
           const vgmFamMax = new Map<string, { uds: number; acv: number }>();
           vgmAllRowsForMap.forEach((r: any) => {
             const period = String(r.periodo || '');
             const fam = String(r.familia || '').toUpperCase();
             if (!period || !fam) return;
-            if (vmgPeriodsWithData.has(period)) return; // ya cubierto por fuente primaria
             const k = `${period}::${fam}`;
             const uds = Math.round(Number(r.unidades) || 0);
             const acvV = Math.round(Number(r.acv) || 0);
@@ -1064,6 +1034,37 @@ export const useGamificationMetrics = (
             if (fam === 'FE') cur.fe += val.uds;
             else if (fam === 'NUBE') cur.nube += val.uds;
             cur.total += val.uds; // FE + NUBE + CONTADOR + OTRO
+            cur.acv += val.acv;
+            vgmDeduped.set(period, cur);
+          });
+          const vgmPeriodsWithData = new Set<string>(vgmDeduped.keys());
+
+          // 2) FALLBACK — vn_metricas_optimizadas (scope=gerente) SOLO para periodos
+          //    donde VGM aún no exista.
+          const vnMetGerenteRows: any[] = vnMetricasGerenteRes?.data || [];
+          const vmgFamMax = new Map<string, { uds: number; acv: number }>();
+          vnMetGerenteRows.forEach((r: any) => {
+            const mesNro = Number(r.mes_nro);
+            if (!mesNro || mesNro < 1 || mesNro > 12) return;
+            const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
+            if (vgmPeriodsWithData.has(period)) return;
+            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
+            if (!fam) return;
+            const famNorm = fam === 'CAMPANA' ? 'NUBE'
+                          : (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') ? fam
+                          : 'OTRO';
+            const k = `${period}::${famNorm}`;
+            const uds = Math.round(Number(r.ventas) || 0);
+            const acvV = Math.round(Number(r.acv_total) || 0);
+            const prev = vmgFamMax.get(k);
+            if (!prev || uds > prev.uds) vmgFamMax.set(k, { uds, acv: acvV });
+          });
+          vmgFamMax.forEach((val, k) => {
+            const [period, fam] = k.split('::');
+            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (fam === 'FE') cur.fe += val.uds;
+            else if (fam === 'NUBE') cur.nube += val.uds;
+            cur.total += val.uds;
             cur.acv += val.acv;
             vgmDeduped.set(period, cur);
           });
