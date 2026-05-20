@@ -1,6 +1,6 @@
-// Sync histórico VN México Ene-Abr 2026 desde Databricks (tbl_gld_Ventas_MX)
+// Sync VN México 2026 desde Databricks (tbl_gld_Ventas_MX)
 // Mapeo especial: CAMPANA → NUBE, FE → FE, CONTADOR → CONTADOR.
-// Reemplaza ventas_diarias y ventas_gerente_mensual de VN MEX para esos meses.
+// Reemplaza ventas_diarias y ventas_gerente_mensual de VN MEX para todo el año en curso.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -15,6 +15,10 @@ const DATABRICKS_TOKEN = Deno.env.get("DATABRICKS_TOKEN")!;
 const DATABRICKS_WAREHOUSE_ID = Deno.env.get("DATABRICKS_WAREHOUSE_ID")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const YEAR = new Date().getUTCFullYear();
+const YEAR_START = `${YEAR}-01-01`;
+const YEAR_END_EXCL = `${YEAR + 1}-01-01`;
 
 const QUERY = `
 WITH MaestroGerentes AS (
@@ -38,7 +42,7 @@ SELECT
   CAST(SUM(v.ACV) AS BIGINT) AS acv_total
 FROM analyticdl.db_comercial.tbl_gld_Ventas_MX v
 LEFT JOIN MaestroGerentes m ON UPPER(TRIM(v.ASESOR)) = m.asesor_key
-WHERE v.FECHA >= '2026-01-01' AND v.FECHA < '2026-05-01'
+WHERE v.FECHA >= '${YEAR_START}' AND v.FECHA < '${YEAR_END_EXCL}'
 GROUP BY 1,2,3,4,5,6,7,8
 `;
 
@@ -124,19 +128,18 @@ Deno.serve(async (req) => {
     const rows = await runDatabricks(QUERY);
     console.log(`← ${rows.length} filas MX recibidas`);
 
-    // 1) Limpia ventas_diarias VN MEX Ene-Abr 2026
+    // 1) Limpia ventas_diarias VN MEX del año en curso
     await sb.from("ventas_diarias")
       .delete()
-      .gte("fecha", "2026-01-01")
-      .lt("fecha", "2026-05-01")
+      .gte("fecha", YEAR_START)
+      .lt("fecha", YEAR_END_EXCL)
       .eq("pais", "MEX")
       .in("canal_direccion", ["Aliados", "Empresarios"]);
 
-    // 2) Limpia ventas_gerente_mensual VN MEX Ene-Abr 2026
+    // 2) Limpia ventas_gerente_mensual VN MEX del año en curso
     await sb.from("ventas_gerente_mensual")
       .delete()
-      .eq("anio", 2026)
-      .lte("mes", 4)
+      .eq("anio", YEAR)
       .eq("pais", "MEX")
       .in("canal_direccion", ["Aliados", "Empresarios"]);
 
@@ -189,13 +192,13 @@ Deno.serve(async (req) => {
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
       const celula = String(r.celula || "").trim() || null;
-      const periodo = `2026${String(mes).padStart(2, "0")}`;
+      const periodo = `${YEAR}${String(mes).padStart(2, "0")}`;
       const key = celula
         ? `CEL|${periodo}|${familia}|${norm(celula)}`
         : `GER|MEX|${periodo}|${canal}|${gnorm}|${familia}`;
       const cur = cellMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
-        familia, mes, anio: 2026, periodo, pais: "MEX", unidades: 0, acv: 0,
+        familia, mes, anio: YEAR, periodo, pais: "MEX", unidades: 0, acv: 0,
       };
       cur.unidades += Number(r.ventas) || 0;
       cur.acv += Number(r.acv_total) || 0;
