@@ -195,7 +195,10 @@ export function computeSpConvencionAnualForCelula(
   (inputs.ventasDiariasRows || []).forEach((row) => {
     const rowCelula = normalizeSpText(row.celula || row.equipo);
     const rowDirector = normalizeSpText(row.director);
-    if (!(celulaNorm && rowCelula === celulaNorm) && !(gerenteNorm && rowDirector === gerenteNorm)) return;
+    const include = celulaNorm
+      ? rowCelula === celulaNorm
+      : !!(gerenteNorm && rowDirector === gerenteNorm);
+    if (!include) return;
     const fecha = String(row.fecha || '');
     const periodo = fecha.length >= 7 ? fecha.slice(0, 7).replace('-', '') : '';
     if (!/^\d{6}$/.test(periodo)) return;
