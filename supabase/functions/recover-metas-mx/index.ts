@@ -63,6 +63,10 @@ Deno.serve(async (req) => {
     const pais: string = body?.pais || "Mexico";
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    const archivoFilter: string = body?.archivo_filter || "all"; // all | inicio | cierre
+    const archivoWhere =
+      archivoFilter === "inicio" ? "AND LOWER(archivo) LIKE '%inicio%'" :
+      archivoFilter === "cierre" ? "AND LOWER(archivo) LIKE '%cierre%'" : "";
     const sql = `
       SELECT pais_gestion AS pais, canal_direccion, director, celula, mes, archivo,
              CAST(fe AS BIGINT) fe, CAST(nube AS BIGINT) nube,
@@ -70,7 +74,7 @@ Deno.serve(async (req) => {
              meta_total_acv, cuota
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE LOWER(pais_gestion) = LOWER('${pais.replace(/'/g, "''")}')
-        AND LOWER(archivo) LIKE '%inicio%'
+        ${archivoWhere}
         AND celula IS NOT NULL AND celula <> ''
     `;
     const rows = await dbx(sql);
