@@ -168,7 +168,10 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ ventas_diarias insertadas: ${inserted}`);
 
-    // 4) Agrega ventas_gerente_mensual (clave: pais|periodo|canal|gerente_norm|familia)
+    // 4) Agrega ventas_gerente_mensual (clave: pais|periodo|canal|celula|familia)
+    //    Incluimos celula en la clave para respetar el unique
+    //    vgm_unique_periodo_familia_celula. Si una celula tiene varios gerentes en
+    //    Databricks, se queda con el primero visto (MaestroGerentes ya hace 1:1).
     const aggMap = new Map<string, any>();
     for (const r of rows) {
       const mes = Number(r.mes_nro);
@@ -176,12 +179,13 @@ Deno.serve(async (req) => {
       const canal = normalizeCanal(r.equipo);
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
-      const celula = r.celula || null;
+      const celula = String(r.celula || "").trim() || null;
       const pais = String(r.pais || "COL").toUpperCase().startsWith("MEX") ? "MEX"
                 : String(r.pais || "COL").toUpperCase().startsWith("ECU") ? "ECU"
                 : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL";
       const periodo = `2026${String(mes).padStart(2, "0")}`;
-      const key = `${pais}|${periodo}|${canal}|${gnorm}|${familia}`;
+      const celulaKey = (celula || "__SIN_CELULA__").toUpperCase();
+      const key = `${pais}|${periodo}|${canal}|${celulaKey}|${familia}`;
       const cur = aggMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
         familia, mes, anio: 2026, periodo, pais, unidades: 0, acv: 0,
@@ -191,10 +195,11 @@ Deno.serve(async (req) => {
       aggMap.set(key, cur);
     }
     const aggRows = [...aggMap.values()];
+    // Borrado adicional defensivo: limpia cualquier residuo por celula también
     for (let i = 0; i < aggRows.length; i += BATCH) {
       const slice = aggRows.slice(i, i + BATCH);
       const { error } = await sb.from("ventas_gerente_mensual")
-        .upsert(slice, { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia" });
+        .upsert(slice, { onConflict: "periodo,familia,celula" });
       if (error) throw new Error(`insert ventas_gerente_mensual: ${error.message}`);
     }
     console.log(`✓ ventas_gerente_mensual: ${aggRows.length} filas`);
