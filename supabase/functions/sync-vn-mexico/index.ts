@@ -192,13 +192,13 @@ Deno.serve(async (req) => {
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
       const celula = String(r.celula || "").trim() || null;
-      const periodo = `2026${String(mes).padStart(2, "0")}`;
+      const periodo = `${YEAR}${String(mes).padStart(2, "0")}`;
       const key = celula
         ? `CEL|${periodo}|${familia}|${norm(celula)}`
         : `GER|MEX|${periodo}|${canal}|${gnorm}|${familia}`;
       const cur = cellMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
-        familia, mes, anio: 2026, periodo, pais: "MEX", unidades: 0, acv: 0,
+        familia, mes, anio: YEAR, periodo, pais: "MEX", unidades: 0, acv: 0,
       };
       cur.unidades += Number(r.ventas) || 0;
       cur.acv += Number(r.acv_total) || 0;
