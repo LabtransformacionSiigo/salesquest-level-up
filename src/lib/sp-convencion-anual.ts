@@ -102,9 +102,13 @@ export function computeSpConvencionAnualForCelula(
     inputs.vnMetricasGerenteRows.forEach((r) => {
       const rowCelula = normalizeSpText(r.celula);
       const rowGerente = normalizeSpText(r.gerente_normalizado || r.gerente);
-      const matchesCelula = celulaNorm && rowCelula === celulaNorm;
-      const matchesGerente = gerenteNorm && rowGerente === gerenteNorm;
-      if (!matchesCelula && !matchesGerente) return;
+      // Si tenemos celula, EXIGIR match exacto por celula (evita que un gerente
+      // que lidera más de una celula sume ventas de células ajenas).
+      // Solo cuando NO hay celula se permite match por gerente.
+      const include = celulaNorm
+        ? rowCelula === celulaNorm
+        : !!(gerenteNorm && rowGerente === gerenteNorm);
+      if (!include) return;
       const mesNro = Number(r.mes_nro);
       if (!mesNro || mesNro < 1 || mesNro > 12) return;
       const period = `${yearNum}${String(mesNro).padStart(2, '0')}`;
