@@ -93,8 +93,9 @@ export function computeSpConvencionAnualForCelula(
   const gerenteNorm = normalizeSpText(gerenteNombre);
   const { vgmRows, metaAcvRows, year } = inputs;
 
-  // PRIMARY source: vn_metricas_optimizadas (scope='gerente') — same as useGamificationMetrics.
-  // Takes precedence over ventas_gerente_mensual for any period it covers.
+  // Fallback source: vn_metricas_optimizadas (scope='gerente').
+  // ventas_gerente_mensual takes precedence because sync-vn-historico repopulates it
+  // with the corrected Databricks totals (e.g. April Diana 200 FE / 81 NUBE).
   const yearNum = Number(year);
   const vmgPrimary = new Map<string, { fe: number; nube: number; acv: number }>();
   if (inputs.vnMetricasGerenteRows && inputs.vnMetricasGerenteRows.length > 0) {
@@ -225,8 +226,18 @@ export function computeSpConvencionAnualForCelula(
     const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
-    const primaryData = vmgPrimary.get(periodo);
-    if (primaryData) {
+    const periodVgmRows = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
+    if (periodVgmRows.length > 0) {
+      periodVgmRows.forEach((r) => {
+        const u = Math.round(Number(r.unidades) || 0);
+        const acv = Number(r.acv) || 0;
+        const fam = String(r.familia || '').toUpperCase();
+        if (fam === 'FE') ventas_fe += u;
+        else if (fam === 'NUBE') ventas_nube += u;
+        acv_total += acv;
+      });
+    } else if (vmgPrimary.has(periodo)) {
+      const primaryData = vmgPrimary.get(periodo)!;
       ventas_fe = primaryData.fe;
       ventas_nube = primaryData.nube;
       acv_total = primaryData.acv;
@@ -235,15 +246,6 @@ export function computeSpConvencionAnualForCelula(
       ventas_fe = vd.fe;
       ventas_nube = vd.nube;
       acv_total = vd.acv;
-    } else {
-      vgmFiltrados.filter((r) => String(r.periodo) === periodo).forEach((r) => {
-        const u = Math.round(Number(r.unidades) || 0);
-        const acv = Number(r.acv) || 0;
-        const fam = String(r.familia || '').toUpperCase();
-        if (fam === 'FE') ventas_fe += u;
-        else if (fam === 'NUBE') ventas_nube += u;
-        acv_total += acv;
-      });
     }
 
     const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
