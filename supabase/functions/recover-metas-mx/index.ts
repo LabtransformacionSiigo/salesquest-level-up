@@ -1,9 +1,9 @@
-// Recovery one-shot: rellena metas_acv_gerentes desde Databricks.
-// 1) Lee tbl_brz_cuotas_gerentes (fuente oficial)
-// 2) Para cualquier (celula, mes, archivo) sin datos válidos, hace fallback a
-//    tbl_brz_cuotas_asesores agregando por celula y DEDUPLICANDO por documento_asesor
-//    (la tabla de asesores tiene filas duplicadas).
+// Recovery one-shot: rellena metas_acv_gerentes EXCLUSIVAMENTE desde la fuente oficial
+// tbl_brz_cuotas_gerentes. No usa fallback de asesores ni rellena con datos derivados.
+// Si una (celula, mes, archivo) no existe o viene en NULL/0 en la fuente oficial,
+// se respeta tal cual y NO se inserta. Esto garantiza que la app muestre siempre el dato real.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -101,42 +101,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) Fallback: asesores agregado deduplicado por documento_asesor
-    // Nota: tbl_brz_cuotas_asesores duplica filas; usamos DISTINCT para evitar doble-conteo.
-    const sqlAse = `
-      SELECT pais, canal_direccion, gerente AS director, celula, mes, archivo,
-             SUM(meta_fe) fe, SUM(meta_nube) nube, SUM(meta_total) meta_total_und
-      FROM (
-        SELECT DISTINCT pais, canal_direccion, gerente, celula, mes, archivo, documento_asesor,
-               CAST(meta_fe AS DOUBLE) meta_fe,
-               CAST(meta_nube AS DOUBLE) meta_nube,
-               CAST(meta_total AS DOUBLE) meta_total
-        FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
-        WHERE LOWER(pais) = LOWER('${pais.replace(/'/g, "''")}')
-          ${archivoWhere}
-          AND celula IS NOT NULL AND celula <> ''
-      )
-      GROUP BY pais, canal_direccion, gerente, celula, mes, archivo
-    `;
-    const aseRows = await dbx(sqlAse);
+    // Sin fallback. Solo fuente oficial.
+    const fallbackUsed = 0;
+    const aseRows: any[] = [];
 
-    let fallbackUsed = 0;
-    for (const r of aseRows) {
-      const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
-      const celula = String(r.celula || "").trim();
-      const archivo = normArchivo(r.archivo);
-      const key = `${celula.toLowerCase()}|${mes}|${archivo}`;
-      if (validKeys.has(key)) continue; // ya hay dato oficial
-      const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und);
-      if (fe + nube + und === 0) continue;
-      fallbackUsed++;
-      finalRows.push({
-        pais: r.pais, canal_direccion: r.canal_direccion, director: r.director,
-        celula, _mes: mes, _celula: celula, _archivo: archivo,
-        _fe: fe, _nube: nube, _und: und, _acv: 0, cuota: 100,
-      });
-      validKeys.add(key);
-    }
 
     let inserted = 0, updated = 0, upgraded = 0, skipped = 0, errors = 0;
     const detail: any[] = [];
