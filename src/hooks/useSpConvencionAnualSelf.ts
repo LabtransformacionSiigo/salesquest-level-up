@@ -17,9 +17,11 @@ export function useSpConvencionAnualSelf(profile: any): number | null {
   const canal = profile?.canal;
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
 
-  // useGamificationMetrics se ejecuta siempre (cumple Rules of Hooks); para
-  // canales no-VN ignoramos su salida y retornamos null.
-  const metrics = useGamificationMetrics(profile);
+  // Solo activamos useGamificationMetrics cuando es VN — para canales VC no
+  // queremos disparar todas las queries de gamificación desde el Header.
+  // Pasamos null profile para que el hook salga temprano (early return).
+  const metrics = useGamificationMetrics(isVN ? profile : null);
+
 
   const total = useMemo(() => {
     if (!isVN) return null;
