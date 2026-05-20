@@ -469,7 +469,10 @@ Deno.serve(async (req) => {
     // que descargan UNA sola vez de Databricks y procesan ambos destinos (ventas_diarias + ventas).
     // Antes ejecutábamos la misma query 2 veces por canal → ahora 1 vez. ~50% menos tiempo en Databricks.
     if (table === "all_new" && mode === "sync") {
-      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios_combo", "ventas_aliados_combo", "productividad_asesores", "ventas_gerente_mensual"];
+      // ventas_gerente_mensual ya no se sincroniza desde este flujo legacy:
+      // lo actualiza sync-vn-metricas/sync-vn-mexico con la lógica oficial por célula/líder.
+      // Mantenerlo aquí borraba el año completo y podía pisar México con datos incorrectos.
+      const tables = ["metas_gerentes", "metas_asesores_sync", "ventas_empresarios_combo", "ventas_aliados_combo", "productividad_asesores"];
       const jobIds: Record<string, string> = {};
       for (const t of tables) {
         const { data: job } = await supabase
