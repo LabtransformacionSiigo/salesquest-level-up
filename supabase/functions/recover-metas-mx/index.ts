@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       detail.push({ celula, mes, ...patch });
     }
 
-    return new Response(JSON.stringify({ success: true, pais, dbx_rows: rows.length, updated, skipped, errors, sample: detail.slice(0, 20) }),
+    return new Response(JSON.stringify({ success: true, pais, dbx_rows: rows.length, updated, skipped, errors, sample: detail.slice(0, 40) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
