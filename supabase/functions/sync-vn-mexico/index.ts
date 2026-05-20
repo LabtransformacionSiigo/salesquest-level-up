@@ -239,6 +239,19 @@ Deno.serve(async (req) => {
       .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
       .eq("activo", true);
 
+    // Limpia previos para evitar arrastrar valores stale de runs anteriores
+    // (incluyendo posibles asesores con valores incorrectos por crossing por célula).
+    const gerenteIdsMx = (gerentesMx || []).map((g: any) => g.id);
+    if (gerenteIdsMx.length > 0) {
+      const { error: delKpiErr } = await sb.from("kpis_mensuales")
+        .delete()
+        .in("gerente_id", gerenteIdsMx)
+        .gte("anio_mes", `${YEAR}01`)
+        .lte("anio_mes", `${YEAR}12`);
+      if (delKpiErr) console.error("[kpis_mensuales] delete previo:", delKpiErr.message);
+    }
+
+
     const { data: metasMx } = await sb
       .from("metas_acv_gerentes")
       .select("celula, mes, meta_total_und, meta_total_acv")
