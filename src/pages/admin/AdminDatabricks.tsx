@@ -22,7 +22,7 @@ type SyncJob = {
 };
 
 const TABLE_LABELS: Record<string, { label: string; icon: string }> = {
-  productividad: { label: 'Productividad Progresiva', icon: 'trending_up' },
+  productividad: { label: 'Sync Progresivo', icon: 'trending_up' },
   ventas_vc_completo: { label: 'Ventas VC Completo', icon: 'storefront' },
   metas_gerentes: { label: 'Metas Gerentes', icon: 'assignment' },
   metas_asesores_sync: { label: 'Metas Asesores', icon: 'person_search' },
@@ -30,7 +30,7 @@ const TABLE_LABELS: Record<string, { label: string; icon: string }> = {
   ventas_aliados: { label: 'Ventas Aliados', icon: 'handshake' },
   ventas_empresarios_combo: { label: 'Ventas Empresarios (combo)', icon: 'business' },
   ventas_aliados_combo: { label: 'Ventas Aliados (combo)', icon: 'handshake' },
-  productividad_asesores: { label: 'Productividad Asesores', icon: 'emoji_events' },
+  productividad_asesores: { label: 'Asesores', icon: 'emoji_events' },
   ventas_vn_completo: { label: 'Ventas VN Completo', icon: 'sync_alt' },
   ventas_gerente_mensual: { label: 'Ventas Gerente Mensual', icon: 'leaderboard' },
   all_new: { label: 'Sync Completo (Nuevos)', icon: 'sync_alt' },
