@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       const celula = String(r.celula || "").trim();
       if (!mes || !celula) { skipped++; continue; }
       const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
-      if (fe === 0 && nube === 0 && und === 0 && acv === 0) { skipped++; continue; }
+      if (fe === 0 && nube === 0 && und === 0 && acv === 0) { skipped++; detail.push({ reason: "zero_dbx", celula, mes }); continue; }
 
       // Lee fila actual
       const { data: cur, error: eSel } = await sb
