@@ -1,102 +1,39 @@
-// Computes SP Convención anual for the currently logged-in user (asesor o gerente VN).
-// Used by Sidebar/Header so the badge stays correct on every page, not just /mi-performance.
+// FUENTE ÚNICA de SP Convención anual para el usuario logueado.
+// Se calcula EXACTAMENTE como el "Total SP Convención 2026" de la tabla
+// Historial Mensual en /mi-progreso. Cualquier UI que muestre SP Convención
+// (Header, Sidebar, Panel General, Ranking propio, etc.) debe consumir este
+// hook o el store `useSpConvencionAnual` que este hook alimenta.
+//
+// Implementación: reutiliza useGamificationMetrics (que ya produce
+// `vcMonthlyCumplimiento`, la misma estructura que renderiza la tabla
+// Historial Mensual) y suma su columna `sp`. Así nunca puede haber dos
+// totales distintos.
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { computeSpConvencionAnualForCelula } from '@/lib/sp-convencion-anual';
+import { useEffect, useMemo } from 'react';
+import { useGamificationMetrics } from '@/hooks/useGamificationMetrics';
 import { setSpConvencionAnual } from '@/lib/sp-convencion-store';
 
 export function useSpConvencionAnualSelf(profile: any): number | null {
-  const [total, setTotal] = useState<number | null>(null);
+  const canal = profile?.canal;
+  const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
+
+  // Solo activamos useGamificationMetrics cuando es VN — para canales VC no
+  // queremos disparar todas las queries de gamificación desde el Header.
+  // Pasamos null profile para que el hook salga temprano (early return).
+  const metrics = useGamificationMetrics(isVN ? profile : null);
+
+
+  const total = useMemo(() => {
+    if (!isVN) return null;
+    const rows = metrics?.vcMonthlyCumplimiento || [];
+    if (!rows.length) return null;
+    const sum = rows.reduce((s: number, m: any) => s + (Number(m?.sp) || 0), 0);
+    return sum;
+  }, [isVN, metrics?.vcMonthlyCumplimiento]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!profile?.canal) { setTotal(null); return; }
-    const isVN = profile.canal === 'VN_ALIADOS' || profile.canal === 'VN_EMPRESARIOS';
-    if (!isVN) { setTotal(null); return; }
-
-    (async () => {
-      const year = String(new Date().getFullYear());
-      const isAsesor = profile.role === 'asesor';
-
-      let celula = profile.celula || null;
-      if (!celula && isAsesor && profile.nombre) {
-        const { data } = await supabase
-          .from('metas_asesores')
-          .select('celula')
-          .ilike('nombre_asesor', profile.nombre)
-          .gte('anio_mes', `${year}01`)
-          .lte('anio_mes', `${year}12`)
-          .limit(1);
-        celula = data?.[0]?.celula || null;
-      }
-
-      const vnMetGerenteQuery = !isAsesor
-        ? (() => {
-            let q = (supabase
-              .from('vn_metricas_optimizadas' as any) as any)
-              .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente')
-              .eq('scope', 'gerente')
-              .gte('mes_nro', 1)
-              .lte('mes_nro', 12)
-              .limit(5000);
-            if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
-            return q;
-          })()
-        : Promise.resolve({ data: [] as any[] });
-
-      const [vgmRes, metasRes, metasAcvRes, vnMetGerenteRes, ventasDiariasRes] = await Promise.all([
-        supabase
-          .from('ventas_gerente_mensual')
-          .select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado')
-          .gte('periodo', `${year}01`)
-          .lte('periodo', `${year}12`)
-          .limit(10000),
-        supabase
-          .from('metas_asesores')
-          .select('anio_mes, novedad, celula, gerente, meta_fe, meta_nube, meta_total, nombre_asesor')
-          .gte('anio_mes', `${year}01`)
-          .lte('anio_mes', `${year}12`)
-          .limit(20000),
-        supabase
-          .from('metas_acv_gerentes')
-          .select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo')
-          .limit(2000),
-        vnMetGerenteQuery,
-        !isAsesor
-          ? supabase
-              .from('ventas_diarias')
-              .select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais')
-              .gte('fecha', `${year}-01-01`)
-              .lt('fecha', `${Number(year) + 1}-01-01`)
-              .eq('pais', String(profile.pais || '').toUpperCase())
-              .limit(10000)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-
-      const metasAcvRows = [...(metasAcvRes.data || [])] as any[];
-
-      const totalSp = computeSpConvencionAnualForCelula(
-        {
-          vgmRows: vgmRes.data || [],
-          metaAsesorRows: metasRes.data || [],
-          metaAcvRows: metasAcvRows,
-          year,
-          vnMetricasGerenteRows: ((vnMetGerenteRes as any)?.data as any[]) || [],
-          ventasDiariasRows: ((ventasDiariasRes as any)?.data as any[]) || [],
-        },
-        celula,
-        profile.nombre || null
-      );
-
-      if (!cancelled) {
-        setTotal(totalSp);
-        if (totalSp > 0) setSpConvencionAnual(totalSp);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [profile?.canal, profile?.role, profile?.celula, profile?.nombre, profile?.pais]);
+    if (total != null && total >= 0) setSpConvencionAnual(total);
+  }, [total]);
 
   return total;
 }
