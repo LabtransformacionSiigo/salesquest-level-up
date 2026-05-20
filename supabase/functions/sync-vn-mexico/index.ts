@@ -192,15 +192,34 @@ Deno.serve(async (req) => {
       .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
       .eq("activo", true);
 
-    const leaderByCelula = new Map<string, { nombre: string; norm: string; canal: string }>();
+    // Una misma célula puede tener varios "gerentes" (en realidad asesores).
+    // El líder real es el que da nombre a la célula. Si varios candidatos
+    // comparten la misma célula, escogemos aquel cuyo primer nombre aparece
+    // en el nombre de la célula (ej. "Equipo México Jhonathan" → Jhonathan).
+    const candidatesByCel = new Map<string, any[]>();
     for (const g of (gerentesMx || [])) {
       if (!g.celula) continue;
-      leaderByCelula.set(norm(g.celula), {
-        nombre: g.nombre,
-        norm: norm(g.nombre),
-        canal: g.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados",
+      const k = norm(g.celula);
+      if (!candidatesByCel.has(k)) candidatesByCel.set(k, []);
+      candidatesByCel.get(k)!.push(g);
+    }
+    const leaderByCelula = new Map<string, { nombre: string; norm: string; canal: string }>();
+    for (const [celKey, candidates] of candidatesByCel) {
+      let leader = candidates[0];
+      if (candidates.length > 1) {
+        const matched = candidates.find((c: any) => {
+          const firstName = norm(c.nombre).split(" ")[0];
+          return firstName && celKey.includes(firstName);
+        });
+        if (matched) leader = matched;
+      }
+      leaderByCelula.set(celKey, {
+        nombre: leader.nombre,
+        norm: norm(leader.nombre),
+        canal: leader.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados",
       });
     }
+
 
     const cellMap = new Map<string, any>();
     for (const r of rows) {
