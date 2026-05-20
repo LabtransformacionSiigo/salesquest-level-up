@@ -880,10 +880,8 @@ export const useGamificationMetrics = (
           const metaContextActual = getMetaContextForPeriod(mesActual);
           let { metaFe, metaNube, metaTotal: metaEquipoUnidades } = metaContextActual;
 
-          // VN: meta ACV (mensual) — PRIORIDAD:
-          //   1) metas_acv_gerentes (VERDAD oficial Databricks)
-          //   2) metas_gerentes.meta_total_acv (legacy)
-          //   3) suma productividad_asesores.meta del mes (último recurso)
+          // VN: meta ACV (mensual) — VERDAD oficial Databricks:
+          //   metas_acv_gerentes por célula/mes. Sin fallback a asesores ni legacy.
           const acvCatalogRows: any[] = (metasAcvCatalogRes?.data as any[]) || [];
           // Mapea YYYYMM -> 'ene'/'feb'/... para hacer match con metas_acv_gerentes.mes
           const mesNumToMes3: Record<string, string> = {
@@ -956,18 +954,9 @@ export const useGamificationMetrics = (
               : (_catalogFeMes + _catalogNubeMes);
           }
 
-          let metaAcvEquipo = 0;
-          if (acvOficial?.meta_total_acv) {
-            metaAcvEquipo = normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais);
-          } else {
-            // Fallback: sum from productividad_asesores.meta (current month, excluding novedad)
-             const currentMonthProductividad = celulaRows.filter((r: any) => {
-              const period = String(r.anio_mes || '');
-               const asesorName = normalizeComparableText(r.asesor);
-               return period === mesActual && !metaContextActual.asesoresConNovedad.has(asesorName);
-            });
-            metaAcvEquipo = currentMonthProductividad.reduce((s: number, r: any) => s + normalizeVnMetaAcv(r.meta), 0);
-          }
+          const metaAcvEquipo = acvOficial?.meta_total_acv
+            ? normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais)
+            : 0;
           vnMetaAcvActual = metaAcvEquipo;
 
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
