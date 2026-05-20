@@ -260,29 +260,29 @@ Deno.serve(async (req) => {
       metaByKey.set(key, cur);
     }
 
-    // Aggregate ventas por (gerente_celula_or_name, periodo)
+    // Aggregate ventas por (gerente_normalizado, periodo).
+    // ventas_gerente_mensual ya está agregado al nivel del LIDER de célula:
+    // su `gerente_normalizado` es el nombre del líder. Por eso cruzamos por
+    // nombre normalizado del gerente (no por célula, para no duplicar el
+    // total del equipo en cada asesor que comparta esa célula).
     type KpiAgg = { ventas: number; acv: number };
     const ventasByGerentePeriodo = new Map<string, KpiAgg>();
     for (const r of aggRows) {
-      const keyCel = r.celula ? `CEL|${norm(r.celula)}|${r.periodo}` : null;
-      const keyNom = `NOM|${r.gerente_normalizado}|${r.periodo}`;
-      for (const k of [keyCel, keyNom].filter(Boolean) as string[]) {
-        const cur = ventasByGerentePeriodo.get(k) || { ventas: 0, acv: 0 };
-        cur.ventas += Number(r.unidades) || 0;
-        cur.acv += Number(r.acv) || 0;
-        ventasByGerentePeriodo.set(k, cur);
-      }
+      const key = `${r.gerente_normalizado}|${r.periodo}`;
+      const cur = ventasByGerentePeriodo.get(key) || { ventas: 0, acv: 0 };
+      cur.ventas += Number(r.unidades) || 0;
+      cur.acv += Number(r.acv) || 0;
+      ventasByGerentePeriodo.set(key, cur);
     }
 
     const kpiRows: any[] = [];
     for (const g of (gerentesMx || [])) {
-      // Solo upsert para periodos con datos sintetizados
+      const nameKey = norm(g.nombre);
       for (let mes = 1; mes <= 12; mes++) {
         const periodo = `${YEAR}${String(mes).padStart(2, "0")}`;
-        let agg: KpiAgg | undefined;
-        if (g.celula) agg = ventasByGerentePeriodo.get(`CEL|${norm(g.celula)}|${periodo}`);
-        if (!agg) agg = ventasByGerentePeriodo.get(`NOM|${norm(g.nombre)}|${periodo}`);
+        const agg = ventasByGerentePeriodo.get(`${nameKey}|${periodo}`);
         if (!agg) continue;
+
         const meta = g.celula ? metaByKey.get(`${norm(g.celula)}|${periodo}`) : undefined;
         kpiRows.push({
           gerente_id: g.id,
