@@ -320,11 +320,16 @@ Deno.serve(async (req) => {
       if (delErr) throw new Error(`delete previo vn_metricas: ${delErr.message}`);
     }
 
+    const mexicoLeadersByCelula = rowsC.length > 0
+      ? await getMexicoLeadersByCelula(sb)
+      : new Map<string, MexicoLeader>();
+    const rowsCAligned = alignMexicoRowsToOfficialLeader(rowsC as any[], mexicoLeadersByCelula);
+
     const records = mergeByUniqueGrain([
       ...rowsA.map((r: any) => buildRecord(r, "gerente")),
       ...rowsB.map((r: any) => buildRecord(r, "asesor")),
-      ...rowsC.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsC.map((r: any) => buildRecord(r, "asesor")),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente")),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor")),
     ]);
 
     // Filtrar SOLO al mes en curso para no tocar histórico
@@ -367,7 +372,7 @@ Deno.serve(async (req) => {
     };
 
     const vgmMap = new Map<string, VgmRow>();
-    for (const r of [...(rowsA as any[]), ...(rowsC as any[])]) {
+    for (const r of [...(rowsA as any[]), ...rowsCAligned]) {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
       // SOLO mes en curso para preservar histórico
@@ -450,7 +455,7 @@ Deno.serve(async (req) => {
     };
 
     const ejecMap = new Map<string, EjecRow>();
-    for (const r of [...(rowsB as any[]), ...(rowsC as any[])]) {
+    for (const r of [...(rowsB as any[]), ...rowsCAligned]) {
       const nombre = String(r.asesor || "").trim();
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
