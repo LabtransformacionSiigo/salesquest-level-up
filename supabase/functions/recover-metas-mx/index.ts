@@ -1,9 +1,9 @@
-// Recovery one-shot: rellena metas_acv_gerentes desde Databricks.
-// 1) Lee tbl_brz_cuotas_gerentes (fuente oficial)
-// 2) Para cualquier (celula, mes, archivo) sin datos válidos, hace fallback a
-//    tbl_brz_cuotas_asesores agregando por celula y DEDUPLICANDO por documento_asesor
-//    (la tabla de asesores tiene filas duplicadas).
+// Recovery one-shot: rellena metas_acv_gerentes EXCLUSIVAMENTE desde la fuente oficial
+// tbl_brz_cuotas_gerentes. No usa fallback de asesores ni rellena con datos derivados.
+// Si una (celula, mes, archivo) no existe o viene en NULL/0 en la fuente oficial,
+// se respeta tal cual y NO se inserta. Esto garantiza que la app muestre siempre el dato real.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
