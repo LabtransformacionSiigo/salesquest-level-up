@@ -123,12 +123,11 @@ Deno.serve(async (req) => {
       .lt("fecha", "2026-05-01")
       .in("canal_direccion", ["Aliados", "Empresarios"]);
 
-    // 2) Limpia ventas_gerente_mensual VN Ene-Abr 2026
+    // 2) Limpia ventas_gerente_mensual Ene-Abr 2026 (VN únicamente — VC no usa vgm)
     await sb.from("ventas_gerente_mensual")
       .delete()
       .eq("anio", 2026)
-      .lte("mes", 4)
-      .in("canal_direccion", ["Aliados", "Empresarios"]);
+      .lte("mes", 4);
 
     // 3) Inserta ventas_diarias en lotes (registro_idx por clave única)
     const idxMap = new Map<string, number>();
@@ -168,7 +167,10 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ ventas_diarias insertadas: ${inserted}`);
 
-    // 4) Agrega ventas_gerente_mensual (clave: pais|periodo|canal|gerente_norm|familia)
+    // 4) Agrega ventas_gerente_mensual por (periodo, familia, celula).
+    //    Dedupe primario por esa clave. Para respetar también el unique legacy
+    //    (pais, periodo, canal, gerente_normalizado, familia), si dos celulas
+    //    comparten gerente_normalizado, le añadimos sufijo " [celula]".
     const aggMap = new Map<string, any>();
     for (const r of rows) {
       const mes = Number(r.mes_nro);
@@ -176,12 +178,13 @@ Deno.serve(async (req) => {
       const canal = normalizeCanal(r.equipo);
       const gerente = String(r.gerente || "");
       const gnorm = norm(gerente);
-      const celula = r.celula || null;
+      const celula = String(r.celula || "").trim() || null;
       const pais = String(r.pais || "COL").toUpperCase().startsWith("MEX") ? "MEX"
                 : String(r.pais || "COL").toUpperCase().startsWith("ECU") ? "ECU"
                 : String(r.pais || "COL").toUpperCase().startsWith("URU") ? "URU" : "COL";
       const periodo = `2026${String(mes).padStart(2, "0")}`;
-      const key = `${pais}|${periodo}|${canal}|${gnorm}|${familia}`;
+      const celulaKey = (celula || `__SC_${gnorm}__`).toUpperCase();
+      const key = `${periodo}|${familia}|${celulaKey}`;
       const cur = aggMap.get(key) || {
         gerente, gerente_normalizado: gnorm, canal_direccion: canal, celula,
         familia, mes, anio: 2026, periodo, pais, unidades: 0, acv: 0,
@@ -190,11 +193,21 @@ Deno.serve(async (req) => {
       cur.acv += Number(r.acv_total) || 0;
       aggMap.set(key, cur);
     }
+    // Detecta colisiones del unique legacy y desambigua gerente_normalizado
+    const legacySeen = new Map<string, number>();
+    for (const row of aggMap.values()) {
+      const lk = `${row.pais}|${row.periodo}|${row.canal_direccion}|${row.gerente_normalizado}|${row.familia}`;
+      const n = (legacySeen.get(lk) || 0) + 1;
+      legacySeen.set(lk, n);
+      if (n > 1 && row.celula) {
+        row.gerente_normalizado = `${row.gerente_normalizado} [${norm(row.celula)}]`;
+      }
+    }
     const aggRows = [...aggMap.values()];
     for (let i = 0; i < aggRows.length; i += BATCH) {
       const slice = aggRows.slice(i, i + BATCH);
       const { error } = await sb.from("ventas_gerente_mensual")
-        .upsert(slice, { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia" });
+        .upsert(slice, { onConflict: "periodo,familia,celula" });
       if (error) throw new Error(`insert ventas_gerente_mensual: ${error.message}`);
     }
     console.log(`✓ ventas_gerente_mensual: ${aggRows.length} filas`);
