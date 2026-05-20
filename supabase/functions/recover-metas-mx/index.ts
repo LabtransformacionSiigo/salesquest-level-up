@@ -1,6 +1,8 @@
-// Recovery one-shot: re-lee tbl_brz_cuotas_gerentes en Databricks SOLO para
-// archivos Inicio 2026 (todos los meses) y rellena valores en metas_acv_gerentes
-// que actualmente están en 0. Nunca pisa valores >0. Filtrable por país.
+// Recovery one-shot: rellena metas_acv_gerentes desde Databricks.
+// 1) Lee tbl_brz_cuotas_gerentes (fuente oficial)
+// 2) Para cualquier (celula, mes, archivo) sin datos válidos, hace fallback a
+//    tbl_brz_cuotas_asesores agregando por celula y DEDUPLICANDO por documento_asesor
+//    (la tabla de asesores tiene filas duplicadas).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -55,6 +57,9 @@ const deriveMesFromArchivo = (s: string) => {
   const m = (s || "").match(/\s([A-Za-zÁÉÍÓÚáéíóú]{3,})_/);
   return m ? m[1].charAt(0).toUpperCase() + m[1].slice(1, 3).toLowerCase() : "";
 };
+const normArchivo = (s: unknown): "Inicio" | "Cierre" => {
+  return String(s || "").toLowerCase().includes("cier") ? "Cierre" : "Inicio";
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -63,11 +68,13 @@ Deno.serve(async (req) => {
     const pais: string = body?.pais || "Mexico";
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const archivoFilter: string = body?.archivo_filter || "all"; // all | inicio | cierre
+    const archivoFilter: string = body?.archivo_filter || "all";
     const archivoWhere =
       archivoFilter === "inicio" ? "AND LOWER(archivo) LIKE '%inicio%'" :
       archivoFilter === "cierre" ? "AND LOWER(archivo) LIKE '%cierre%'" : "";
-    const sql = `
+
+    // 1) Fuente oficial: gerentes
+    const sqlGer = `
       SELECT pais_gestion AS pais, canal_direccion, director, celula, mes, archivo,
              CAST(fe AS BIGINT) fe, CAST(nube AS BIGINT) nube,
              CAST(meta_total_und AS BIGINT) meta_total_und,
@@ -77,45 +84,94 @@ Deno.serve(async (req) => {
         ${archivoWhere}
         AND celula IS NOT NULL AND celula <> ''
     `;
-    const rows = await dbx(sql);
+    const gerRows = await dbx(sqlGer);
+
+    // Construir set de filas válidas (con al menos un valor > 0) por (celula|mes|archivo)
+    const validKeys = new Set<string>();
+    const finalRows: any[] = [];
+    for (const r of gerRows) {
+      const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
+      const celula = String(r.celula || "").trim();
+      const archivo = normArchivo(r.archivo);
+      const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
+      const key = `${celula.toLowerCase()}|${mes}|${archivo}`;
+      if (fe + nube + und + acv > 0) {
+        validKeys.add(key);
+        finalRows.push({ ...r, _mes: mes, _celula: celula, _archivo: archivo, _fe: fe, _nube: nube, _und: und, _acv: acv });
+      }
+    }
+
+    // 2) Fallback: asesores agregado deduplicado por documento_asesor
+    // Nota: tbl_brz_cuotas_asesores duplica filas; usamos DISTINCT para evitar doble-conteo.
+    const sqlAse = `
+      SELECT pais, canal_direccion, gerente AS director, celula, mes, archivo,
+             SUM(meta_fe) fe, SUM(meta_nube) nube, SUM(meta_total) meta_total_und
+      FROM (
+        SELECT DISTINCT pais, canal_direccion, gerente, celula, mes, archivo, documento_asesor,
+               CAST(meta_fe AS DOUBLE) meta_fe,
+               CAST(meta_nube AS DOUBLE) meta_nube,
+               CAST(meta_total AS DOUBLE) meta_total
+        FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
+        WHERE LOWER(pais) = LOWER('${pais.replace(/'/g, "''")}')
+          ${archivoWhere}
+          AND celula IS NOT NULL AND celula <> ''
+      )
+      GROUP BY pais, canal_direccion, gerente, celula, mes, archivo
+    `;
+    const aseRows = await dbx(sqlAse);
+
+    let fallbackUsed = 0;
+    for (const r of aseRows) {
+      const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
+      const celula = String(r.celula || "").trim();
+      const archivo = normArchivo(r.archivo);
+      const key = `${celula.toLowerCase()}|${mes}|${archivo}`;
+      if (validKeys.has(key)) continue; // ya hay dato oficial
+      const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und);
+      if (fe + nube + und === 0) continue;
+      fallbackUsed++;
+      finalRows.push({
+        pais: r.pais, canal_direccion: r.canal_direccion, director: r.director,
+        celula, _mes: mes, _celula: celula, _archivo: archivo,
+        _fe: fe, _nube: nube, _und: und, _acv: 0, cuota: 100,
+      });
+      validKeys.add(key);
+    }
 
     let inserted = 0, updated = 0, upgraded = 0, skipped = 0, errors = 0;
     const detail: any[] = [];
 
-    for (const r of rows) {
-      const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
-      const celula = String(r.celula || "").trim();
-      if (!mes || !celula) { skipped++; continue; }
-      const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
-      if (fe === 0 && nube === 0 && und === 0 && acv === 0) { skipped++; detail.push({ reason: "zero_dbx", celula, mes }); continue; }
-
-      const archivoNorm = String(r.archivo || "").toLowerCase().includes("cier") ? "Cierre" : "Inicio";
-
+    for (const r of finalRows) {
       const { data: rpcData, error: eRpc } = await sb.rpc("upsert_meta_acv_gerente", {
         p_pais: String(r.pais || pais),
         p_canal: String(r.canal_direccion || ""),
         p_director: r.director ? String(r.director) : null,
-        p_celula: celula,
+        p_celula: r._celula,
         p_esquema: null,
         p_cuota: toNum(r.cuota),
-        p_meta_total_und: und,
-        p_meta_total_acv: acv,
-        p_mes: mes,
-        p_archivo: archivoNorm,
-        p_meta_fe: fe,
-        p_meta_nube: nube,
+        p_meta_total_und: r._und,
+        p_meta_total_acv: r._acv,
+        p_mes: r._mes,
+        p_archivo: r._archivo,
+        p_meta_fe: r._fe,
+        p_meta_nube: r._nube,
       });
-      if (eRpc) { errors++; detail.push({ reason: "rpc_err", celula, mes, error: eRpc.message }); continue; }
+      if (eRpc) { errors++; detail.push({ reason: "rpc_err", celula: r._celula, mes: r._mes, error: eRpc.message }); continue; }
       const action = (rpcData as any)?.action;
       if (action === "inserted") inserted++;
       else if (action === "upgraded_to_cierre") upgraded++;
-      else if (action === "backfilled_cierre" || action === "updated_inicio") updated++;
+      else if (action === "backfilled_cierre" || action === "updated_inicio" || action === "backfilled_fe_nube") updated++;
       else skipped++;
-      detail.push({ celula, mes, archivo: archivoNorm, action, fe, nube, und, acv });
+      detail.push({ celula: r._celula, mes: r._mes, archivo: r._archivo, action, fe: r._fe, nube: r._nube, und: r._und, acv: r._acv });
     }
 
-    return new Response(JSON.stringify({ success: true, pais, dbx_rows: rows.length, inserted, updated, upgraded, skipped, errors, sample: detail.slice(0, 60) }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({
+      success: true, pais,
+      gerentes_rows: gerRows.length, asesores_agg_rows: aseRows.length,
+      fallback_used: fallbackUsed, processed: finalRows.length,
+      inserted, updated, upgraded, skipped, errors,
+      sample: detail.slice(0, 80),
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
