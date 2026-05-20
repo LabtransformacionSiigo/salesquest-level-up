@@ -964,9 +964,9 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
-    // Refresco automático cada 15 minutos para mantener Clasificación al día
-    // (especialmente para MEX donde los SP se recalculan tras cada sync de Databricks).
-    const refreshInterval = setInterval(() => fetchRanking(), 15 * 60 * 1000);
+    // Refresco automático cada 1 minuto para mantener Clasificación sincronizada
+    // con el header / Historial Mensual (mismo cálculo, una sola fuente).
+    const refreshInterval = setInterval(() => fetchRanking(), 60 * 1000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(refreshInterval);

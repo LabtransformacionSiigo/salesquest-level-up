@@ -102,9 +102,13 @@ export function computeSpConvencionAnualForCelula(
     inputs.vnMetricasGerenteRows.forEach((r) => {
       const rowCelula = normalizeSpText(r.celula);
       const rowGerente = normalizeSpText(r.gerente_normalizado || r.gerente);
-      const matchesCelula = celulaNorm && rowCelula === celulaNorm;
-      const matchesGerente = gerenteNorm && rowGerente === gerenteNorm;
-      if (!matchesCelula && !matchesGerente) return;
+      // Si tenemos celula, EXIGIR match exacto por celula (evita que un gerente
+      // que lidera más de una celula sume ventas de células ajenas).
+      // Solo cuando NO hay celula se permite match por gerente.
+      const include = celulaNorm
+        ? rowCelula === celulaNorm
+        : !!(gerenteNorm && rowGerente === gerenteNorm);
+      if (!include) return;
       const mesNro = Number(r.mes_nro);
       if (!mesNro || mesNro < 1 || mesNro > 12) return;
       const period = `${yearNum}${String(mesNro).padStart(2, '0')}`;
@@ -165,15 +169,14 @@ export function computeSpConvencionAnualForCelula(
   // El match por célula queda solo como fallback porque Databricks puede traer aliases
   // duplicados para la misma célula (ej. nombre corto + nombre completo), lo que inflaba
   // Ranking/Header al sumar la misma ejecución dos veces.
-  const vgmByGerente = gerenteNorm
-    ? vgmRows.filter((row) => {
-        const rowGerente = normalizeSpText(row.gerente_normalizado || row.gerente);
-        return rowGerente === gerenteNorm;
-      })
-    : [];
-  const vgmBase = vgmByGerente.length > 0
-    ? vgmByGerente
-    : vgmRows.filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm);
+  // Si tenemos celula, EXIGIR filtro por celula. Solo si no hay celula se permite
+  // filtrar por gerente (caso de configuración sin celula asignada). Esto evita
+  // que un gerente que lidera más de una celula sume ventas de células ajenas.
+  const vgmBase = celulaNorm
+    ? vgmRows.filter((row) => normalizeSpText(row.celula) === celulaNorm)
+    : (gerenteNorm
+        ? vgmRows.filter((row) => normalizeSpText(row.gerente_normalizado || row.gerente) === gerenteNorm)
+        : []);
   const seenVgm = new Set<string>();
   const vgmFiltrados = vgmBase.filter((row) => {
     const key = [
@@ -192,7 +195,10 @@ export function computeSpConvencionAnualForCelula(
   (inputs.ventasDiariasRows || []).forEach((row) => {
     const rowCelula = normalizeSpText(row.celula || row.equipo);
     const rowDirector = normalizeSpText(row.director);
-    if (!(celulaNorm && rowCelula === celulaNorm) && !(gerenteNorm && rowDirector === gerenteNorm)) return;
+    const include = celulaNorm
+      ? rowCelula === celulaNorm
+      : !!(gerenteNorm && rowDirector === gerenteNorm);
+    if (!include) return;
     const fecha = String(row.fecha || '');
     const periodo = fecha.length >= 7 ? fecha.slice(0, 7).replace('-', '') : '';
     if (!/^\d{6}$/.test(periodo)) return;
