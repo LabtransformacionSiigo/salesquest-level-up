@@ -82,7 +82,7 @@ SELECT
   MONTH(v.FECHA) AS mes_nro,
   YEAR(v.FECHA)  AS anio,
   COALESCE(m.gerente_asignado, v.Director) AS gerente,
-  m.celula_asignada AS celula,
+  v.CELULA AS celula,
   v.EQUIPO AS equipo,
   v.ASESOR  AS asesor,
   v.TIPO_PRODUCTO AS tipo_producto1,
@@ -170,6 +170,62 @@ function normalizePais(p: any): string {
   if (n.startsWith("URU") || n === "UY") return "URU";
   if (n.startsWith("COL") || n === "CO") return "COL";
   return n || "COL";
+}
+
+type MexicoLeader = { nombre: string; norm: string; canal: string };
+
+async function getMexicoLeadersByCelula(sb: any): Promise<Map<string, MexicoLeader>> {
+  const { data, error } = await sb
+    .from("gerentes")
+    .select("nombre, canal, celula")
+    .eq("pais", "MEX")
+    .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+    .eq("activo", true);
+
+  if (error) {
+    console.warn("[MEX leaders] no se pudieron cargar líderes oficiales:", error.message);
+    return new Map();
+  }
+
+  const candidatesByCelula = new Map<string, any[]>();
+  for (const g of data || []) {
+    if (!g.celula) continue;
+    const key = norm(g.celula);
+    const candidates = candidatesByCelula.get(key) || [];
+    candidates.push(g);
+    candidatesByCelula.set(key, candidates);
+  }
+
+  const leaders = new Map<string, MexicoLeader>();
+  for (const [celKey, candidates] of candidatesByCelula) {
+    let leader = candidates[0];
+    if (candidates.length > 1) {
+      const matched = candidates.find((c: any) => {
+        const firstName = norm(c.nombre).split(" ")[0];
+        return firstName && celKey.includes(firstName);
+      });
+      if (matched) leader = matched;
+    }
+    leaders.set(celKey, {
+      nombre: leader.nombre,
+      norm: norm(leader.nombre),
+      canal: leader.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados",
+    });
+  }
+  return leaders;
+}
+
+function alignMexicoRowsToOfficialLeader(rows: any[], leadersByCelula: Map<string, MexicoLeader>) {
+  return rows.map((row) => {
+    const celKey = norm(row.celula);
+    const leader = celKey ? leadersByCelula.get(celKey) : null;
+    if (!leader) return row;
+    return {
+      ...row,
+      gerente: leader.nombre,
+      equipo: leader.canal,
+    };
+  });
 }
 
 function buildRecord(r: any, scope: "gerente" | "asesor") {
@@ -264,11 +320,16 @@ Deno.serve(async (req) => {
       if (delErr) throw new Error(`delete previo vn_metricas: ${delErr.message}`);
     }
 
+    const mexicoLeadersByCelula = rowsC.length > 0
+      ? await getMexicoLeadersByCelula(sb)
+      : new Map<string, MexicoLeader>();
+    const rowsCAligned = alignMexicoRowsToOfficialLeader(rowsC as any[], mexicoLeadersByCelula);
+
     const records = mergeByUniqueGrain([
       ...rowsA.map((r: any) => buildRecord(r, "gerente")),
       ...rowsB.map((r: any) => buildRecord(r, "asesor")),
-      ...rowsC.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsC.map((r: any) => buildRecord(r, "asesor")),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente")),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor")),
     ]);
 
     // Filtrar SOLO al mes en curso para no tocar histórico
@@ -311,7 +372,7 @@ Deno.serve(async (req) => {
     };
 
     const vgmMap = new Map<string, VgmRow>();
-    for (const r of [...(rowsA as any[]), ...(rowsC as any[])]) {
+    for (const r of [...(rowsA as any[]), ...rowsCAligned]) {
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
       // SOLO mes en curso para preservar histórico
@@ -394,7 +455,7 @@ Deno.serve(async (req) => {
     };
 
     const ejecMap = new Map<string, EjecRow>();
-    for (const r of [...(rowsB as any[]), ...(rowsC as any[])]) {
+    for (const r of [...(rowsB as any[]), ...rowsCAligned]) {
       const nombre = String(r.asesor || "").trim();
       const mes = Number(r.mes_nro);
       const anio = Number(r.anio) || YEAR;
