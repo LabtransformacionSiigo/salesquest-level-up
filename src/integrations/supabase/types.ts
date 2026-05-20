@@ -3724,39 +3724,23 @@ export type Database = {
         Returns: boolean
       }
       unaccent: { Args: { "": string }; Returns: string }
-      upsert_meta_acv_gerente:
-        | {
-            Args: {
-              p_archivo: string
-              p_canal: string
-              p_celula: string
-              p_cuota: number
-              p_director: string
-              p_esquema: string
-              p_mes: string
-              p_meta_total_acv: number
-              p_meta_total_und: number
-              p_pais: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_archivo: string
-              p_canal: string
-              p_celula: string
-              p_cuota: number
-              p_director: string
-              p_esquema: string
-              p_mes: string
-              p_meta_fe?: number
-              p_meta_nube?: number
-              p_meta_total_acv: number
-              p_meta_total_und: number
-              p_pais: string
-            }
-            Returns: Json
-          }
+      upsert_meta_acv_gerente: {
+        Args: {
+          p_archivo: string
+          p_canal: string
+          p_celula: string
+          p_cuota: number
+          p_director: string
+          p_esquema: string
+          p_mes: string
+          p_meta_fe?: number
+          p_meta_nube?: number
+          p_meta_total_acv: number
+          p_meta_total_und: number
+          p_pais: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
