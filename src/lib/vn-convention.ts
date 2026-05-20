@@ -141,7 +141,7 @@ const periodToMes3 = (period: string): string => {
 /**
  * Busca la meta ACV oficial de la célula para un periodo dado.
  * Cierre tiene prioridad sobre Inicio — NUNCA suma ambas (evita meta duplicada).
- * Devuelve null si no hay registro en el catálogo (para hacer fallback).
+ * Devuelve null solo si no existe registro oficial para esa célula/mes.
  */
 export const getOfficialMetaAcv = (
   period: string,
@@ -158,8 +158,7 @@ export const getOfficialMetaAcv = (
   });
   if (!matches.length) return null;
   const match = matches.find((r) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? matches[0];
-  const v = Number(match.meta_total_acv) || 0;
-  return v > 0 ? v : null;
+  return Number(match.meta_total_acv) || 0;
 };
 
 export const normalizeStoredAcv = (value: number | null | undefined) => {
@@ -225,13 +224,9 @@ export const buildVnConventionMonthlyRows = ({
       );
 
       const acv = periodProductivity.reduce((sum, row) => sum + normalizeStoredAcv(row.acv_f), 0);
-      // Verdad oficial: metas_acv_gerentes (Databricks). Fallback: suma productividad.
+      // Verdad oficial: metas_acv_gerentes (Databricks). Sin fallback.
       const officialMetaAcv = getOfficialMetaAcv(period, celula, acvCatalog);
-      const metaAcv = officialMetaAcv ?? periodProductivity.reduce((sum, row) => {
-        const advisorName = normalizeComparableText(row.asesor);
-        if (advisorName && novedadNames.has(advisorName)) return sum;
-        return sum + normalizeVnMetaAcv(row.meta, row.pais);
-      }, 0);
+      const metaAcv = officialMetaAcv ?? 0;
       const metaFe = activeMetas.reduce((sum, row) => sum + (Number(row.meta_fe) || 0), 0);
       const metaNube = activeMetas.reduce((sum, row) => sum + (Number(row.meta_nube) || 0), 0);
       const metaTotal = activeMetas.reduce((sum, row) => sum + (Number(row.meta_total) || 0), 0);
