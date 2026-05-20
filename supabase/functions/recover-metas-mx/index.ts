@@ -61,11 +61,64 @@ const normArchivo = (s: unknown): "Inicio" | "Cierre" => {
   return String(s || "").toLowerCase().includes("cier") ? "Cierre" : "Inicio";
 };
 
+async function processPais(sb: any, pais: string, archivoWhere: string) {
+  const sqlGer = `
+    SELECT pais_gestion AS pais, canal_direccion, director, celula, mes, archivo,
+           CAST(fe AS BIGINT) fe, CAST(nube AS BIGINT) nube,
+           CAST(meta_total_und AS BIGINT) meta_total_und,
+           meta_total_acv, cuota
+    FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
+    WHERE LOWER(pais_gestion) = LOWER('${pais.replace(/'/g, "''")}')
+      ${archivoWhere}
+      AND celula IS NOT NULL AND celula <> ''
+  `;
+  const gerRows = await dbx(sqlGer);
+
+  const finalRows: any[] = [];
+  for (const r of gerRows) {
+    const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
+    const celula = String(r.celula || "").trim();
+    const archivo = normArchivo(r.archivo);
+    const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
+    if (fe + nube + und + acv > 0) {
+      finalRows.push({ ...r, _mes: mes, _celula: celula, _archivo: archivo, _fe: fe, _nube: nube, _und: und, _acv: acv });
+    }
+  }
+
+  let inserted = 0, updated = 0, upgraded = 0, skipped = 0, errors = 0;
+  const detail: any[] = [];
+
+  for (const r of finalRows) {
+    const { data: rpcData, error: eRpc } = await sb.rpc("upsert_meta_acv_gerente", {
+      p_pais: String(r.pais || pais),
+      p_canal: String(r.canal_direccion || ""),
+      p_director: r.director ? String(r.director) : null,
+      p_celula: r._celula,
+      p_esquema: null,
+      p_cuota: toNum(r.cuota),
+      p_meta_total_und: r._und,
+      p_meta_total_acv: r._acv,
+      p_mes: r._mes,
+      p_archivo: r._archivo,
+      p_meta_fe: r._fe,
+      p_meta_nube: r._nube,
+    });
+    if (eRpc) { errors++; detail.push({ reason: "rpc_err", celula: r._celula, mes: r._mes, error: eRpc.message }); continue; }
+    const action = (rpcData as any)?.action;
+    if (action === "inserted") inserted++;
+    else if (action === "upgraded_to_cierre") upgraded++;
+    else if (action === "backfilled_cierre" || action === "updated_inicio" || action === "backfilled_fe_nube") updated++;
+    else skipped++;
+    detail.push({ celula: r._celula, mes: r._mes, archivo: r._archivo, action, fe: r._fe, nube: r._nube, und: r._und, acv: r._acv });
+  }
+
+  return { pais, gerentes_rows: gerRows.length, processed: finalRows.length, inserted, updated, upgraded, skipped, errors, sample: detail.slice(0, 40) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));
-    const pais: string = body?.pais || "Mexico";
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const archivoFilter: string = body?.archivo_filter || "all";
@@ -73,73 +126,32 @@ Deno.serve(async (req) => {
       archivoFilter === "inicio" ? "AND LOWER(archivo) LIKE '%inicio%'" :
       archivoFilter === "cierre" ? "AND LOWER(archivo) LIKE '%cierre%'" : "";
 
-    // 1) Fuente oficial: gerentes
-    const sqlGer = `
-      SELECT pais_gestion AS pais, canal_direccion, director, celula, mes, archivo,
-             CAST(fe AS BIGINT) fe, CAST(nube AS BIGINT) nube,
-             CAST(meta_total_und AS BIGINT) meta_total_und,
-             meta_total_acv, cuota
-      FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
-      WHERE LOWER(pais_gestion) = LOWER('${pais.replace(/'/g, "''")}')
-        ${archivoWhere}
-        AND celula IS NOT NULL AND celula <> ''
-    `;
-    const gerRows = await dbx(sqlGer);
+    const paisParam: string = body?.pais || "all";
+    const paises = paisParam.toLowerCase() === "all"
+      ? ["Colombia", "Mexico", "Ecuador", "Uruguay"]
+      : [paisParam];
 
-    // Construir set de filas válidas (con al menos un valor > 0) por (celula|mes|archivo)
-    const validKeys = new Set<string>();
-    const finalRows: any[] = [];
-    for (const r of gerRows) {
-      const mes = deriveMesFromArchivo(String(r.archivo || "")) || normMes(r.mes);
-      const celula = String(r.celula || "").trim();
-      const archivo = normArchivo(r.archivo);
-      const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
-      const key = `${celula.toLowerCase()}|${mes}|${archivo}`;
-      if (fe + nube + und + acv > 0) {
-        validKeys.add(key);
-        finalRows.push({ ...r, _mes: mes, _celula: celula, _archivo: archivo, _fe: fe, _nube: nube, _und: und, _acv: acv });
+    const results: any[] = [];
+    for (const p of paises) {
+      try {
+        results.push(await processPais(sb, p, archivoWhere));
+      } catch (e) {
+        results.push({ pais: p, error: (e as Error).message });
       }
     }
 
-    // Sin fallback. Solo fuente oficial.
-    const fallbackUsed = 0;
-    const aseRows: any[] = [];
+    const totals = results.reduce((a, r) => ({
+      gerentes_rows: a.gerentes_rows + (r.gerentes_rows || 0),
+      processed: a.processed + (r.processed || 0),
+      inserted: a.inserted + (r.inserted || 0),
+      updated: a.updated + (r.updated || 0),
+      upgraded: a.upgraded + (r.upgraded || 0),
+      skipped: a.skipped + (r.skipped || 0),
+      errors: a.errors + (r.errors || 0),
+    }), { gerentes_rows: 0, processed: 0, inserted: 0, updated: 0, upgraded: 0, skipped: 0, errors: 0 });
 
-
-    let inserted = 0, updated = 0, upgraded = 0, skipped = 0, errors = 0;
-    const detail: any[] = [];
-
-    for (const r of finalRows) {
-      const { data: rpcData, error: eRpc } = await sb.rpc("upsert_meta_acv_gerente", {
-        p_pais: String(r.pais || pais),
-        p_canal: String(r.canal_direccion || ""),
-        p_director: r.director ? String(r.director) : null,
-        p_celula: r._celula,
-        p_esquema: null,
-        p_cuota: toNum(r.cuota),
-        p_meta_total_und: r._und,
-        p_meta_total_acv: r._acv,
-        p_mes: r._mes,
-        p_archivo: r._archivo,
-        p_meta_fe: r._fe,
-        p_meta_nube: r._nube,
-      });
-      if (eRpc) { errors++; detail.push({ reason: "rpc_err", celula: r._celula, mes: r._mes, error: eRpc.message }); continue; }
-      const action = (rpcData as any)?.action;
-      if (action === "inserted") inserted++;
-      else if (action === "upgraded_to_cierre") upgraded++;
-      else if (action === "backfilled_cierre" || action === "updated_inicio" || action === "backfilled_fe_nube") updated++;
-      else skipped++;
-      detail.push({ celula: r._celula, mes: r._mes, archivo: r._archivo, action, fe: r._fe, nube: r._nube, und: r._und, acv: r._acv });
-    }
-
-    return new Response(JSON.stringify({
-      success: true, pais,
-      gerentes_rows: gerRows.length, asesores_agg_rows: aseRows.length,
-      fallback_used: fallbackUsed, processed: finalRows.length,
-      inserted, updated, upgraded, skipped, errors,
-      sample: detail.slice(0, 80),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: true, paises, totals, results }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
