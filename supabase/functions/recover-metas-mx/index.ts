@@ -63,6 +63,10 @@ Deno.serve(async (req) => {
     const pais: string = body?.pais || "Mexico";
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    const archivoFilter: string = body?.archivo_filter || "all"; // all | inicio | cierre
+    const archivoWhere =
+      archivoFilter === "inicio" ? "AND LOWER(archivo) LIKE '%inicio%'" :
+      archivoFilter === "cierre" ? "AND LOWER(archivo) LIKE '%cierre%'" : "";
     const sql = `
       SELECT pais_gestion AS pais, canal_direccion, director, celula, mes, archivo,
              CAST(fe AS BIGINT) fe, CAST(nube AS BIGINT) nube,
@@ -70,12 +74,12 @@ Deno.serve(async (req) => {
              meta_total_acv, cuota
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE LOWER(pais_gestion) = LOWER('${pais.replace(/'/g, "''")}')
-        AND LOWER(archivo) LIKE '%inicio%'
+        ${archivoWhere}
         AND celula IS NOT NULL AND celula <> ''
     `;
     const rows = await dbx(sql);
 
-    let updated = 0, skipped = 0, errors = 0;
+    let inserted = 0, updated = 0, upgraded = 0, skipped = 0, errors = 0;
     const detail: any[] = [];
 
     for (const r of rows) {
@@ -85,28 +89,32 @@ Deno.serve(async (req) => {
       const fe = toNum(r.fe), nube = toNum(r.nube), und = toNum(r.meta_total_und), acv = toNum(r.meta_total_acv);
       if (fe === 0 && nube === 0 && und === 0 && acv === 0) { skipped++; detail.push({ reason: "zero_dbx", celula, mes }); continue; }
 
-      // Lee fila actual
-      const { data: cur, error: eSel } = await sb
-        .from("metas_acv_gerentes")
-        .select("id, meta_fe, meta_nube, meta_total_und, meta_total_acv")
-        .eq("celula", celula).eq("mes", mes).maybeSingle();
-      if (eSel) { errors++; detail.push({ reason: "sel_err", celula, mes }); continue; }
-      if (!cur) { skipped++; detail.push({ reason: "no_match", celula, mes }); continue; }
+      const archivoNorm = String(r.archivo || "").toLowerCase().includes("cier") ? "Cierre" : "Inicio";
 
-      const patch: any = {};
-      if ((cur.meta_fe || 0) === 0 && fe > 0) patch.meta_fe = fe;
-      if ((cur.meta_nube || 0) === 0 && nube > 0) patch.meta_nube = nube;
-      if ((cur.meta_total_und || 0) === 0 && und > 0) patch.meta_total_und = und;
-      if (Number(cur.meta_total_acv || 0) === 0 && acv > 0) patch.meta_total_acv = acv;
-      if (Object.keys(patch).length === 0) { skipped++; continue; }
-
-      const { error: eUp } = await sb.from("metas_acv_gerentes").update(patch).eq("id", cur.id);
-      if (eUp) { errors++; continue; }
-      updated++;
-      detail.push({ celula, mes, ...patch });
+      const { data: rpcData, error: eRpc } = await sb.rpc("upsert_meta_acv_gerente", {
+        p_pais: String(r.pais || pais),
+        p_canal: String(r.canal_direccion || ""),
+        p_director: r.director ? String(r.director) : null,
+        p_celula: celula,
+        p_esquema: null,
+        p_cuota: toNum(r.cuota),
+        p_meta_total_und: und,
+        p_meta_total_acv: acv,
+        p_mes: mes,
+        p_archivo: archivoNorm,
+        p_meta_fe: fe,
+        p_meta_nube: nube,
+      });
+      if (eRpc) { errors++; detail.push({ reason: "rpc_err", celula, mes, error: eRpc.message }); continue; }
+      const action = (rpcData as any)?.action;
+      if (action === "inserted") inserted++;
+      else if (action === "upgraded_to_cierre") upgraded++;
+      else if (action === "backfilled_cierre" || action === "updated_inicio") updated++;
+      else skipped++;
+      detail.push({ celula, mes, archivo: archivoNorm, action, fe, nube, und, acv });
     }
 
-    return new Response(JSON.stringify({ success: true, pais, dbx_rows: rows.length, updated, skipped, errors, sample: detail.slice(0, 40) }),
+    return new Response(JSON.stringify({ success: true, pais, dbx_rows: rows.length, inserted, updated, upgraded, skipped, errors, sample: detail.slice(0, 60) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
