@@ -1188,7 +1188,16 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     };
     if (tipo === 'reto') {
       const kpiCfg = KPIS_RETOS.find((k) => k.value === form.kpi);
-      const tipoMetricaAuto = canalFinal === 'VC' && kpiCfg ? kpiCfg.tipoMetrica : form.tipo_metrica;
+      // VC: tipo_metrica deriva del KPI.
+      // VN: si eligieron familia FE/NUBE el tipo_metrica es esa familia; si no, deriva del KPI.
+      let tipoMetricaAuto = form.tipo_metrica;
+      if (canalFinal === 'VC' && kpiCfg) {
+        tipoMetricaAuto = kpiCfg.tipoMetrica;
+      } else if (canalFinal !== 'VC') {
+        tipoMetricaAuto = (form.familia === 'FE' || form.familia === 'NUBE')
+          ? form.familia
+          : (kpiCfg?.tipoMetrica || 'ACV');
+      }
       payload = {
         ...payload,
         canal: canalFinal,
@@ -1367,33 +1376,23 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                 </Field>
               )}
               {form.canal !== 'VC' && (
-                <Field label="Tipo de métrica" hint={`Métricas válidas para ${canalForm || form.operacion || 'el frente'}`}>
-                  <select
-                    value={form.tipo_metrica}
-                    onChange={(e) => setForm({ ...form, tipo_metrica: e.target.value })}
-                    className={inputClass}
-                  >
-                    {metricasDisponibles.map((t) => (
-                      <option key={t} value={t}>
-                        {t === 'NUBE' ? nubeLabel.toUpperCase() : t}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-              {form.canal !== 'VC' && (
-                <Field label="Familia (opcional)" hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais}` : 'Selecciona un país para ver SKUs'}>
+                <Field
+                  label={`Familia de producto (${nubeLabel} / FE)`}
+                  hint={form.pais ? `SKUs de ${PAISES_LABEL[form.pais] || form.pais} · define qué productos cuentan` : 'Selecciona un país para ver SKUs'}
+                >
                   <select
                     value={form.familia}
                     onChange={(e) => setForm({ ...form, familia: e.target.value })}
                     className={inputClass}
                   >
-                    <option value="">— N/A —</option>
-                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[])).map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
+                    <option value="">— Todas las familias —</option>
+                    {(form.pais ? getFamiliesForCountry(form.pais as CountryCode) : (['FE','NUBE','CONTADOR'] as ProductFamily[]))
+                      .filter((f) => f !== 'CONTADOR')
+                      .map((f) => (
+                        <option key={f} value={f}>
+                          {f === 'NUBE' ? nubeLabel.toUpperCase() : f}
+                        </option>
+                      ))}
                   </select>
                 </Field>
               )}
