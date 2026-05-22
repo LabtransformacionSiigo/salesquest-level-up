@@ -424,7 +424,7 @@ export const useGamificationMetrics = (
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
-                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente')
+                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_a_cuota_lider, aplica_cuota_lider, archivo')
                   .gte('anio_mes', `${anioActual}01`)
                   .lte('anio_mes', `${anioActual}12`)
                   .limit(5000);
@@ -877,12 +877,22 @@ export const useGamificationMetrics = (
               }
             });
 
-            const validRows = rows.filter((row: any) => {
-              // Excluir filas agregadas CEL_* (nombre_asesor null) — ya son la suma de
-              // los asesores individuales, incluirlas duplicaría las metas del equipo.
-              if (!row.nombre_asesor) return false;
+            // Dedup: para el mismo asesor+periodo, preferir fila 'Cierre' sobre 'Inicio'
+            const rowsByAsesor = new Map<string, any>();
+            rows.forEach((row: any) => {
+              if (!row.nombre_asesor) return;
+              const key = `${row.documento_asesor || row.nombre_asesor}|${row.anio_mes}`;
+              const existing = rowsByAsesor.get(key);
+              const isCierre = String(row.archivo || '').toLowerCase().includes('cierre');
+              if (!existing || isCierre) rowsByAsesor.set(key, row);
+            });
+
+            const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
-              return novedadRaw === '' || novedadRaw === 'Sin novedad';
+              if (novedadRaw !== '' && novedadRaw !== 'Sin novedad') return false;
+              // Solo incluir asesores cuya cuota aplica al lider
+              const aplica = String(row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
+              return aplica === 'si';
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
@@ -967,18 +977,20 @@ export const useGamificationMetrics = (
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
 
-          // Sobreescribir metas del mes actual con metas_acv_gerentes (fuente única,
-          // misma que enrich() del historial). Evita "Meta: 0 UDS" cuando el match
-          // por celula/gerente en metas_asesores no coincide.
+          // PRIORIDAD: metas_asesores (aplica_a_cuota_lider='Si', Cierre > Inicio) como
+          // fuente primaria. metas_acv_gerentes solo como fallback cuando el sum es 0.
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
-          if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
-            metaFe = _catalogFeMes;
-            metaNube = _catalogNubeMes;
-            metaEquipoUnidades = _catalogUndMes > 0
-              ? _catalogUndMes
-              : (_catalogFeMes + _catalogNubeMes);
+          if (metaFe === 0 && metaNube === 0) {
+            // metas_asesores no tiene datos: caer en metas_acv_gerentes
+            if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
+              metaFe = _catalogFeMes;
+              metaNube = _catalogNubeMes;
+              metaEquipoUnidades = _catalogUndMes > 0
+                ? _catalogUndMes
+                : (_catalogFeMes + _catalogNubeMes);
+            }
           }
 
           let metaAcvEquipo = 0;
