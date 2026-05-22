@@ -1144,6 +1144,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     if (metricasValidas && !metricasValidas.includes(form.tipo_metrica)) {
       setForm((f: any) => ({ ...f, tipo_metrica: metricasValidas[0] }));
     }
+    // Si el KPI actual no aplica al canal, resetear al primero válido
+    if (canal) {
+      const kpisValidos = KPIS_RETOS.filter(k => k.canales.includes(canal));
+      if (form.kpi && !kpisValidos.some(k => k.value === form.kpi)) {
+        setForm((f: any) => ({ ...f, kpi: kpisValidos[0]?.value || '' }));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.operacion]);
 
