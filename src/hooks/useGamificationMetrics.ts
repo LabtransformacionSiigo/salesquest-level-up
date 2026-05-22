@@ -431,7 +431,7 @@ export const useGamificationMetrics = (
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
-                  .select('anio_mes, mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_a_cuota_lider, aplica_cuota_lider, archivo')
+                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_cuota_lider')
                   .limit(5000);
                 if (orParts.length > 0) q = q.or(orParts.join(','));
                 return q;
@@ -728,25 +728,9 @@ export const useGamificationMetrics = (
           });
 
           const getTeamMetaRowsForPeriod = (period: string) => {
-            const MES_TEXT_MAP: Record<string, string> = {
-              'ene': '01', 'jan': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'apr': '04',
-              'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'aug': '08',
-              'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12', 'dec': '12',
-            };
-
-            const periodRows = vnMetasAsesores.filter((row: any) => {
-              // Match exacto por anio_mes (formato YYYYMM)
-              if (String(row.anio_mes || '') === period) return true;
-
-              // Fallback: match por columna 'mes' (texto) cuando anio_mes es null/vacío
-              if (!row.anio_mes) {
-                const mesTxt = String(row.mes || '').toLowerCase().slice(0, 3);
-                const mesNum = MES_TEXT_MAP[mesTxt];
-                if (mesNum && `${period.slice(0, 4)}${mesNum}` === period) return true;
-              }
-
-              return false;
-            });
+            const periodRows = vnMetasAsesores.filter(
+              (row: any) => String(row.anio_mes || '') === period
+            );
 
             // Paso 2: filtrar por células identificadas o por nombre de gerente
             const rowsByTeam = periodRows.filter((row: any) => {
@@ -868,14 +852,12 @@ export const useGamificationMetrics = (
               }
             });
 
-            // Dedup: para el mismo asesor+periodo, preferir fila 'Cierre' sobre 'Inicio'
+            // Dedup: una fila por asesor+periodo
             const rowsByAsesor = new Map<string, any>();
             rows.forEach((row: any) => {
               if (!row.nombre_asesor) return;
               const key = `${row.documento_asesor || row.nombre_asesor}|${row.anio_mes}`;
-              const existing = rowsByAsesor.get(key);
-              const isCierre = String(row.archivo || '').toLowerCase().includes('cierre');
-              if (!existing || isCierre) rowsByAsesor.set(key, row);
+              if (!rowsByAsesor.has(key)) rowsByAsesor.set(key, row);
             });
             const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
@@ -884,12 +866,9 @@ export const useGamificationMetrics = (
             });
 
             // Para el aggregate del gerente, solo sumar asesores cuya cuota aplica al lider
-            // El campo puede llamarse aplica_a_cuota_lider o aplica_cuota_lider según la versión de Databricks
             // Tratar null/vacío como 'Si' para no romper datos sin ese campo
             const validMetaRows = validRows.filter((row: any) => {
-              const aplica = String(
-                row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si'
-              ).trim().toLowerCase();
+              const aplica = String(row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
               return aplica === 'si' || aplica === 'sí' || aplica === '';
             });
 
