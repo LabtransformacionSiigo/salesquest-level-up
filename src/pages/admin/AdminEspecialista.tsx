@@ -1188,7 +1188,16 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     };
     if (tipo === 'reto') {
       const kpiCfg = KPIS_RETOS.find((k) => k.value === form.kpi);
-      const tipoMetricaAuto = canalFinal === 'VC' && kpiCfg ? kpiCfg.tipoMetrica : form.tipo_metrica;
+      // VC: tipo_metrica deriva del KPI.
+      // VN: si eligieron familia FE/NUBE el tipo_metrica es esa familia; si no, deriva del KPI.
+      let tipoMetricaAuto = form.tipo_metrica;
+      if (canalFinal === 'VC' && kpiCfg) {
+        tipoMetricaAuto = kpiCfg.tipoMetrica;
+      } else if (canalFinal !== 'VC') {
+        tipoMetricaAuto = (form.familia === 'FE' || form.familia === 'NUBE')
+          ? form.familia
+          : (kpiCfg?.tipoMetrica || 'ACV');
+      }
       payload = {
         ...payload,
         canal: canalFinal,
