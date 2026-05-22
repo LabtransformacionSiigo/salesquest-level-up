@@ -1322,13 +1322,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="KPI de medición">
+              <Field label="KPI de medición" hint={`KPIs válidos para ${form.canal || 'el canal seleccionado'}`}>
                 <select
                   value={form.kpi}
                   onChange={(e) => setForm({ ...form, kpi: e.target.value })}
                   className={inputClass}
                 >
-                  {KPIS_RETOS.map((k) => (
+                  {KPIS_RETOS.filter(k => !form.canal || k.canales.includes(form.canal)).map((k) => (
                     <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
