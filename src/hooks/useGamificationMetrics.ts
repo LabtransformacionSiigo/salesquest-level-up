@@ -949,18 +949,19 @@ export const useGamificationMetrics = (
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
 
-          // Sobreescribir metas del mes actual con metas_acv_gerentes (fuente única,
-          // misma que enrich() del historial). Evita "Meta: 0 UDS" cuando el match
-          // por celula/gerente en metas_asesores no coincide.
+          // PRIORIDAD: metas_asesores (aplica_a_cuota_lider='Si') como fuente primaria.
+          // metas_acv_gerentes solo como fallback cuando el sum es 0.
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
-          if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
-            metaFe = _catalogFeMes;
-            metaNube = _catalogNubeMes;
-            metaEquipoUnidades = _catalogUndMes > 0
-              ? _catalogUndMes
-              : (_catalogFeMes + _catalogNubeMes);
+          if (metaFe === 0 && metaNube === 0) {
+            if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
+              metaFe = _catalogFeMes;
+              metaNube = _catalogNubeMes;
+              metaEquipoUnidades = _catalogUndMes > 0
+                ? _catalogUndMes
+                : (_catalogFeMes + _catalogNubeMes);
+            }
           }
 
           const metaAcvEquipo = acvOficial?.meta_total_acv
