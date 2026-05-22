@@ -45,7 +45,7 @@ const CANALES_RETOS = [
   { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
 ];
 const KPIS_RETOS = [
-  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en pesos COP (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV' },
+  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en MONTO (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV' },
   { value: 'upgrades', label: '⬆️ Upgrades (cantidad)', shortLabel: 'Upgrades', valorLabel: 'Número de upgrades requeridos', valorHint: 'Los asesores deben alcanzar esta cantidad', tipoMetrica: 'UNIDADES' },
   { value: 'conversiones', label: '🔄 Conversiones (% sobre cuota)', shortLabel: 'Conversiones', valorLabel: '% mínimo de conversiones (ej: 33)', valorHint: 'Porcentaje mínimo de conversiones requerido', tipoMetrica: 'UNIDADES' },
   { value: 'cumplimiento_pct', label: '🎯 % Cumplimiento de meta', shortLabel: '% Cumplimiento', valorLabel: '% de cumplimiento requerido (ej: 120)', valorHint: 'Porcentaje de la meta que deben alcanzar', tipoMetrica: 'CUMPLIMIENTO_META_ACV_PLUS' },
