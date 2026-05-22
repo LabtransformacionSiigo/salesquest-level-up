@@ -852,12 +852,21 @@ export const useGamificationMetrics = (
               }
             });
 
-            const validRows = rows.filter((row: any) => {
-              // Excluir filas agregadas CEL_* (nombre_asesor null) — ya son la suma de
-              // los asesores individuales, incluirlas duplicaría las metas del equipo.
-              if (!row.nombre_asesor) return false;
+            // Dedup: para el mismo asesor+periodo, preferir fila 'Cierre' sobre 'Inicio'
+            const rowsByAsesor = new Map<string, any>();
+            rows.forEach((row: any) => {
+              if (!row.nombre_asesor) return;
+              const key = `${row.documento_asesor || row.nombre_asesor}|${row.anio_mes}`;
+              const existing = rowsByAsesor.get(key);
+              const isCierre = String(row.archivo || '').toLowerCase().includes('cierre');
+              if (!existing || isCierre) rowsByAsesor.set(key, row);
+            });
+            const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
-              return novedadRaw === '' || novedadRaw === 'Sin novedad';
+              if (novedadRaw !== '' && novedadRaw !== 'Sin novedad') return false;
+              // Solo incluir asesores cuya cuota aplica al lider
+              const aplica = String(row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
+              return aplica === 'si';
             });
 
             const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
