@@ -865,11 +865,12 @@ export const useGamificationMetrics = (
               return true;
             });
 
-            // Para el aggregate del gerente, solo sumar asesores cuya cuota aplica al lider
-            // Tratar null/vacío como 'Si' para no romper datos sin ese campo
+            // Para el aggregate del gerente, SOLO sumar asesores cuya cuota aplica
+            // explícitamente al líder (aplica_cuota_lider === 'Si').
+            // null / vacío / 'No' NO suman a la meta del gerente.
             const validMetaRows = validRows.filter((row: any) => {
-              const aplica = String(row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
-              return aplica === 'si' || aplica === 'sí' || aplica === '';
+              const aplica = String(row.aplica_cuota_lider ?? '').trim().toLowerCase();
+              return aplica === 'si' || aplica === 'sí';
             });
 
             // Para el aggregate del gerente: suma solo aplica='Si'
