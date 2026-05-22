@@ -880,14 +880,23 @@ export const useGamificationMetrics = (
             const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
               if (novedadRaw !== '' && novedadRaw !== 'Sin novedad') return false;
-              // Solo incluir asesores cuya cuota aplica al lider
-              const aplica = String(row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
-              return aplica === 'si';
+              return true;
             });
 
-            const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
-            const metaNube = validRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
-            const metaTotal = validRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+            // Para el aggregate del gerente, solo sumar asesores cuya cuota aplica al lider
+            // El campo puede llamarse aplica_a_cuota_lider o aplica_cuota_lider según la versión de Databricks
+            // Tratar null/vacío como 'Si' para no romper datos sin ese campo
+            const validMetaRows = validRows.filter((row: any) => {
+              const aplica = String(
+                row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si'
+              ).trim().toLowerCase();
+              return aplica === 'si' || aplica === 'sí' || aplica === '';
+            });
+
+            // Para el aggregate del gerente: suma solo aplica='Si'
+            const metaFe = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+            const metaNube = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+            const metaTotal = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
 
             return { rows: rows.filter((row: any) => !!row.nombre_asesor), asesoresConNovedad, metaFe, metaNube, metaTotal };
           };
