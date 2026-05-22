@@ -431,9 +431,7 @@ export const useGamificationMetrics = (
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
-                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_a_cuota_lider, aplica_cuota_lider, archivo')
-                  .gte('anio_mes', `${anioActual}01`)
-                  .lte('anio_mes', `${anioActual}12`)
+                  .select('anio_mes, mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_a_cuota_lider, aplica_cuota_lider, archivo')
                   .limit(5000);
                 if (orParts.length > 0) q = q.or(orParts.join(','));
                 return q;
@@ -730,7 +728,25 @@ export const useGamificationMetrics = (
           });
 
           const getTeamMetaRowsForPeriod = (period: string) => {
-            const periodRows = vnMetasAsesores.filter((row: any) => String(row.anio_mes || '') === period);
+            const MES_TEXT_MAP: Record<string, string> = {
+              'ene': '01', 'jan': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'apr': '04',
+              'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'aug': '08',
+              'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12', 'dec': '12',
+            };
+
+            const periodRows = vnMetasAsesores.filter((row: any) => {
+              // Match exacto por anio_mes (formato YYYYMM)
+              if (String(row.anio_mes || '') === period) return true;
+
+              // Fallback: match por columna 'mes' (texto) cuando anio_mes es null/vacío
+              if (!row.anio_mes) {
+                const mesTxt = String(row.mes || '').toLowerCase().slice(0, 3);
+                const mesNum = MES_TEXT_MAP[mesTxt];
+                if (mesNum && `${period.slice(0, 4)}${mesNum}` === period) return true;
+              }
+
+              return false;
+            });
 
             // Paso 2: filtrar por células identificadas o por nombre de gerente
             const rowsByTeam = periodRows.filter((row: any) => {
@@ -864,14 +880,23 @@ export const useGamificationMetrics = (
             const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
               if (novedadRaw !== '' && novedadRaw !== 'Sin novedad') return false;
-              // Solo incluir asesores cuya cuota aplica al lider
-              const aplica = String(row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
-              return aplica === 'si';
+              return true;
             });
 
-            const metaFe = validRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
-            const metaNube = validRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
-            const metaTotal = validRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+            // Para el aggregate del gerente, solo sumar asesores cuya cuota aplica al lider
+            // El campo puede llamarse aplica_a_cuota_lider o aplica_cuota_lider según la versión de Databricks
+            // Tratar null/vacío como 'Si' para no romper datos sin ese campo
+            const validMetaRows = validRows.filter((row: any) => {
+              const aplica = String(
+                row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si'
+              ).trim().toLowerCase();
+              return aplica === 'si' || aplica === 'sí' || aplica === '';
+            });
+
+            // Para el aggregate del gerente: suma solo aplica='Si'
+            const metaFe = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
+            const metaNube = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
+            const metaTotal = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
 
             return { rows: rows.filter((row: any) => !!row.nombre_asesor), asesoresConNovedad, metaFe, metaNube, metaTotal };
           };
@@ -949,19 +974,20 @@ export const useGamificationMetrics = (
           };
           const acvOficial = getAcvCatalogRowForPeriod(mesActual);
 
-          // PRIORIDAD: metas_asesores (aplica_a_cuota_lider='Si') como fuente primaria.
-          // metas_acv_gerentes solo como fallback cuando el sum es 0.
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
-          if (metaFe === 0 && metaNube === 0) {
-            if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
-              metaFe = _catalogFeMes;
-              metaNube = _catalogNubeMes;
-              metaEquipoUnidades = _catalogUndMes > 0
-                ? _catalogUndMes
-                : (_catalogFeMes + _catalogNubeMes);
-            }
+          // metas_asesores (con aplica='Si') es la fuente primaria para FE y Nube.
+          // Solo usar metas_acv_gerentes si metas_asesores no tiene datos.
+          if (metaFe === 0 && metaNube === 0 && (_catalogFeMes > 0 || _catalogNubeMes > 0)) {
+            metaFe = _catalogFeMes;
+            metaNube = _catalogNubeMes;
+            if (_catalogUndMes > 0) metaEquipoUnidades = _catalogUndMes;
+          }
+
+          // Total de unidades: usar metas_acv_gerentes si el cálculo por asesor no da un total razonable
+          if (metaEquipoUnidades === 0 && _catalogUndMes > 0) {
+            metaEquipoUnidades = _catalogUndMes;
           }
 
           const metaAcvEquipo = acvOficial?.meta_total_acv
