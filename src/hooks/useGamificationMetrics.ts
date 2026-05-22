@@ -431,7 +431,7 @@ export const useGamificationMetrics = (
                 if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
-                  .select('anio_mes, mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_a_cuota_lider, aplica_cuota_lider, archivo')
+                  .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_cuota_lider')
                   .limit(5000);
                 if (orParts.length > 0) q = q.or(orParts.join(','));
                 return q;
