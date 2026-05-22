@@ -1376,9 +1376,18 @@ export const useGamificationMetrics = (
               });
             }
             const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
-            const mFe = Number(catalogRowForAcv?.meta_fe) || 0;
-            const mNube = Number(catalogRowForAcv?.meta_nube) || 0;
-            const mTotal = (mFe + mNube) || Number(catalogRowForAcv?.meta_total_und) || 0;
+            // FUENTE PRIMARIA: metas_asesores filtrado por aplica_cuota_lider='Si'.
+            // Solo cae al catálogo metas_acv_gerentes si metas_asesores no tiene datos
+            // para ese periodo. Esto garantiza que el Historial Mensual respete la
+            // exclusión de asesores con aplica_cuota_lider='No' (igual que el
+            // Rendimiento del Mes), evitando inflar la meta del gerente.
+            const asesorCtx = getMetaContextForPeriod(period);
+            const catalogFe = Number(catalogRowForAcv?.meta_fe) || 0;
+            const catalogNube = Number(catalogRowForAcv?.meta_nube) || 0;
+            const catalogUnd = Number(catalogRowForAcv?.meta_total_und) || 0;
+            const mFe = asesorCtx.metaFe > 0 ? asesorCtx.metaFe : catalogFe;
+            const mNube = asesorCtx.metaNube > 0 ? asesorCtx.metaNube : catalogNube;
+            const mTotal = (mFe + mNube) || asesorCtx.metaTotal || catalogUnd || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
