@@ -45,10 +45,10 @@ const CANALES_RETOS = [
   { value: 'VN_EMPRESARIOS', label: 'VN Empresarios' },
 ];
 const KPIS_RETOS = [
-  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en MONTO (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV' },
-  { value: 'upgrades', label: '⬆️ Upgrades (cantidad)', shortLabel: 'Upgrades', valorLabel: 'Número de upgrades requeridos', valorHint: 'Los asesores deben alcanzar esta cantidad', tipoMetrica: 'UNIDADES' },
-  { value: 'conversiones', label: '🔄 Conversiones (% sobre cuota)', shortLabel: 'Conversiones', valorLabel: '% mínimo de conversiones (ej: 33)', valorHint: 'Porcentaje mínimo de conversiones requerido', tipoMetrica: 'UNIDADES' },
-  { value: 'cumplimiento_pct', label: '🎯 % Cumplimiento de meta', shortLabel: '% Cumplimiento', valorLabel: '% de cumplimiento requerido (ej: 120)', valorHint: 'Porcentaje de la meta que deben alcanzar', tipoMetrica: 'CUMPLIMIENTO_META_ACV_PLUS' },
+  { value: 'acv_plus', label: '💰 ACV+ (monto en pesos)', shortLabel: 'ACV', valorLabel: 'Meta en MONTO (ej: 15000000)', valorHint: 'Los asesores deben superar este monto', tipoMetrica: 'ACV', canales: ['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'] },
+  { value: 'upgrades', label: '⬆️ Upgrades (cantidad)', shortLabel: 'Upgrades', valorLabel: 'Número de upgrades requeridos', valorHint: 'Los asesores deben alcanzar esta cantidad', tipoMetrica: 'UNIDADES', canales: ['VC'] },
+  { value: 'conversiones', label: '🔄 Conversiones (% sobre cuota)', shortLabel: 'Conversiones', valorLabel: '% mínimo de conversiones (ej: 33)', valorHint: 'Porcentaje mínimo de conversiones requerido', tipoMetrica: 'UNIDADES', canales: ['VC'] },
+  { value: 'cumplimiento_pct', label: '🎯 % Cumplimiento de meta', shortLabel: '% Cumplimiento', valorLabel: '% de cumplimiento requerido (ej: 120)', valorHint: 'Porcentaje de la meta que deben alcanzar', tipoMetrica: 'CUMPLIMIENTO_META_ACV_PLUS', canales: ['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'] },
 ];
 const FAMILIAS_VC = [
   { value: 'NUBE', label: '☁️ Nube' },
@@ -1144,6 +1144,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
     if (metricasValidas && !metricasValidas.includes(form.tipo_metrica)) {
       setForm((f: any) => ({ ...f, tipo_metrica: metricasValidas[0] }));
     }
+    // Si el KPI actual no aplica al canal, resetear al primero válido
+    if (canal) {
+      const kpisValidos = KPIS_RETOS.filter(k => k.canales.includes(canal));
+      if (form.kpi && !kpisValidos.some(k => k.value === form.kpi)) {
+        setForm((f: any) => ({ ...f, kpi: kpisValidos[0]?.value || '' }));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.operacion]);
 
@@ -1322,13 +1329,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   ))}
                 </select>
               </Field>
-              <Field label="KPI de medición">
+              <Field label="KPI de medición" hint={`KPIs válidos para ${form.canal || 'el canal seleccionado'}`}>
                 <select
                   value={form.kpi}
                   onChange={(e) => setForm({ ...form, kpi: e.target.value })}
                   className={inputClass}
                 >
-                  {KPIS_RETOS.map((k) => (
+                  {KPIS_RETOS.filter(k => !form.canal || k.canales.includes(form.canal)).map((k) => (
                     <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
@@ -1460,13 +1467,13 @@ const EditDrawer = ({ tipo, data, permisos, gerentes = [], isAdmin, onClose, onS
                   </select>
                 </Field>
               )}
-              <Field label="KPI de medición">
+              <Field label="KPI de medición" hint={`KPIs válidos para ${form.canal || 'el canal seleccionado'}`}>
                 <select
                   value={form.kpi}
                   onChange={(e) => setForm({ ...form, kpi: e.target.value })}
                   className={inputClass}
                 >
-                  {KPIS_RETOS.map((k) => (
+                  {KPIS_RETOS.filter(k => !form.canal || k.canales.includes(form.canal)).map((k) => (
                     <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
