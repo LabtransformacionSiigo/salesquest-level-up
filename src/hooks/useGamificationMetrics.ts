@@ -865,15 +865,18 @@ export const useGamificationMetrics = (
               return true;
             });
 
-            // Para el aggregate del gerente, SOLO sumar asesores cuya cuota aplica
-            // explícitamente al líder (aplica_cuota_lider === 'Si').
-            // null / vacío / 'No' NO suman a la meta del gerente.
-            const validMetaRows = validRows.filter((row: any) => {
+            // Para el aggregate del gerente: SUMA TODOS los asesores cuya cuota
+            // aplica al líder (aplica_cuota_lider === 'Si'), SIN importar novedad.
+            // Regla de negocio: la meta del gerente es la sumatoria de meta_fe /
+            // meta_nube de su equipo donde aplica_cuota_lider = 'Si'. Asesores con
+            // novedad (VAC/INC/Retiro) SÍ cuentan para la meta del líder mientras
+            // tengan aplica='Si'. Solo se excluyen los marcados 'No' (o vacío/null).
+            const allRowsDedup = [...rowsByAsesor.values()];
+            const validMetaRows = allRowsDedup.filter((row: any) => {
               const aplica = String(row.aplica_cuota_lider ?? '').trim().toLowerCase();
               return aplica === 'si' || aplica === 'sí';
             });
 
-            // Para el aggregate del gerente: suma solo aplica='Si'
             const metaFe = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
             const metaNube = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
             const metaTotal = validMetaRows.reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
