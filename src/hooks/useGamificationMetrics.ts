@@ -852,14 +852,12 @@ export const useGamificationMetrics = (
               }
             });
 
-            // Dedup: para el mismo asesor+periodo, preferir fila 'Cierre' sobre 'Inicio'
+            // Dedup: una fila por asesor+periodo
             const rowsByAsesor = new Map<string, any>();
             rows.forEach((row: any) => {
               if (!row.nombre_asesor) return;
               const key = `${row.documento_asesor || row.nombre_asesor}|${row.anio_mes}`;
-              const existing = rowsByAsesor.get(key);
-              const isCierre = String(row.archivo || '').toLowerCase().includes('cierre');
-              if (!existing || isCierre) rowsByAsesor.set(key, row);
+              if (!rowsByAsesor.has(key)) rowsByAsesor.set(key, row);
             });
             const validRows = [...rowsByAsesor.values()].filter((row: any) => {
               const novedadRaw = String(row.novedad || '').trim();
@@ -868,12 +866,9 @@ export const useGamificationMetrics = (
             });
 
             // Para el aggregate del gerente, solo sumar asesores cuya cuota aplica al lider
-            // El campo puede llamarse aplica_a_cuota_lider o aplica_cuota_lider según la versión de Databricks
             // Tratar null/vacío como 'Si' para no romper datos sin ese campo
             const validMetaRows = validRows.filter((row: any) => {
-              const aplica = String(
-                row.aplica_a_cuota_lider ?? row.aplica_cuota_lider ?? 'Si'
-              ).trim().toLowerCase();
+              const aplica = String(row.aplica_cuota_lider ?? 'Si').trim().toLowerCase();
               return aplica === 'si' || aplica === 'sí' || aplica === '';
             });
 
