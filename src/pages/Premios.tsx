@@ -20,7 +20,10 @@ interface Premio {
   imagen_url: string | null;
   stock: number;
   activo: boolean;
+  pais: string | null;
+  operacion: string | null;
 }
+
 
 interface Canje {
   id: string;
