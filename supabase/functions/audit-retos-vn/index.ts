@@ -33,29 +33,56 @@ Deno.serve(async (req) => {
   const run = async () => {
     for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
       const fecha = d.toISOString().slice(0, 10);
-      try {
-        const r = await fetch(`${supabaseUrl}/functions/v1/evaluar-retos-vn`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: serviceRoleKey,
-          },
-          body: JSON.stringify({ fecha }),
-        });
-        const txt = await r.text();
-        let parsed: any = {};
-        try { parsed = JSON.parse(txt); } catch { parsed = { raw: txt.slice(0, 200) }; }
-        const sp = Number(parsed.sp_total) || 0;
-        totalSp += sp;
-        results.push({ fecha, status: r.status, sp_total: sp, errores: parsed.errores || [] });
-        console.log(`[audit] ${fecha} status=${r.status} sp=${sp}`);
-      } catch (e) {
-        results.push({ fecha, error: String(e) });
-        console.error(`[audit] ${fecha} error`, e);
+      let attempts = 0;
+      let done = false;
+      while (!done && attempts < 6) {
+        attempts++;
+        try {
+          const r = await fetch(`${supabaseUrl}/functions/v1/evaluar-retos-vn`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+              apikey: serviceRoleKey,
+            },
+            body: JSON.stringify({ fecha }),
+          });
+          const txt = await r.text();
+          let parsed: any = {};
+          try { parsed = JSON.parse(txt); } catch { parsed = { raw: txt.slice(0, 200) }; }
+
+          // Rate limit handling
+          if (r.status === 429 || /RateLimit/i.test(txt)) {
+            const retryMs = Number(parsed?.retryAfterMs) || 35000;
+            console.warn(`[audit] ${fecha} rate-limited, sleeping ${retryMs}ms (attempt ${attempts})`);
+            await new Promise((res) => setTimeout(res, retryMs));
+            continue;
+          }
+
+          const sp = Number(parsed.sp_total) || 0;
+          totalSp += sp;
+          results.push({ fecha, status: r.status, sp_total: sp, errores: parsed.errores || [] });
+          console.log(`[audit] ${fecha} status=${r.status} sp=${sp}`);
+          done = true;
+        } catch (e: any) {
+          const msg = String(e?.message || e);
+          if (/RateLimit/i.test(msg)) {
+            const m = msg.match(/Retry after (\d+)ms/);
+            const retryMs = m ? Number(m[1]) + 500 : 35000;
+            console.warn(`[audit] ${fecha} caught rate-limit, sleeping ${retryMs}ms (attempt ${attempts})`);
+            await new Promise((res) => setTimeout(res, retryMs));
+            continue;
+          }
+          results.push({ fecha, error: msg });
+          console.error(`[audit] ${fecha} error`, e);
+          done = true;
+        }
       }
+      // Pequeña pausa entre días para no saturar
+      await new Promise((res) => setTimeout(res, 1500));
     }
     console.log(`[audit] total_sp=${totalSp} dias=${results.length}`);
+
   };
 
   // @ts-ignore EdgeRuntime existe en runtime de Supabase
