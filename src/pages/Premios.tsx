@@ -48,9 +48,18 @@ const Premios = () => {
         supabase.from('premios').select('*').eq('activo', true).gt('stock', 0).order('costo_puntos', { ascending: true }),
         supabase.from('canjes').select('id, puntos_gastados, fecha_canje, estado, premios(nombre, imagen_url)').eq('gerente_id', profile.id).order('fecha_canje', { ascending: false }),
       ]);
-      setPremios((premiosRes.data || []) as Premio[]);
+      const norm = (v?: string | null) => String(v || '').trim().toUpperCase();
+      const userPais = norm(profile?.pais);
+      const userCanal = norm(profile?.canal);
+      const scoped = ((premiosRes.data || []) as Premio[]).filter((p) => {
+        const paisOk = !p.pais || norm(p.pais) === userPais;
+        const canalOk = !p.operacion || norm(p.operacion) === userCanal;
+        return paisOk && canalOk;
+      });
+      setPremios(scoped);
       setCanjes((canjesRes.data || []) as any[]);
       setDataLoading(false);
+
     };
     fetch();
   }, [profile?.id]);
