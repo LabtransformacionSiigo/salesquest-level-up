@@ -163,7 +163,35 @@ Deno.serve(async (req) => {
 
     // Permitimos pasar `mes` (ej "May"/"Mayo"/"202605") y `pais` para limitar el alcance opcionalmente.
     // Por defecto sincroniza el mes actual para evitar timeouts y dejar el botón listo mes a mes.
+    // Si `all_2026=true` (o `mes='all_2026'`/`'all'`), iteramos Ene..mes actual.
     const body = await req.json().catch(() => ({}));
+    const wantsAll2026 =
+      body?.all_2026 === true ||
+      ["all_2026", "all"].includes(String(body?.mes || "").toLowerCase());
+
+    if (wantsAll2026) {
+      const currentIdx = new Date().getMonth(); // 0-based, mes actual incluido
+      const meses = Object.values(MES_ALIASES).slice(0, currentIdx + 1);
+      const results: any[] = [];
+      for (const m of meses) {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/sync-metas-acv-databricks`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            apikey: SERVICE_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ mes: m.mes3, pais: body?.pais }),
+        });
+        const j = await r.json().catch(() => ({ raw: "non-json" }));
+        results.push({ mes: m.mes3, status: r.status, summary: j?.summary, error: j?.error });
+      }
+      return new Response(
+        JSON.stringify({ success: true, all_2026: true, meses: meses.map((m) => m.mes3), results }, null, 2),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const filterMes = body?.all ? null : (normalizeMesFilter(body?.mes) || currentMesFilter());
     const filterPais: string | undefined = body?.pais;
 
