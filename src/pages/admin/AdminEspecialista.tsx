@@ -840,7 +840,7 @@ const AdminEspecialista = () => {
                   disabled={ejecutando}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {ejecutando ? '⏳ Evaluando...' : '▶ Ejecutar Evaluación Ahora'}
+                  {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
                 </Button>
               </div>
               {/* Filtros */}
