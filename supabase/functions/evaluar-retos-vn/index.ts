@@ -95,10 +95,30 @@ Deno.serve(async (req) => {
     const rachas = (rachasRes.data || []).filter(isVigente);
     const medallas = (medallasRes.data || []).filter(isVigente);
 
-    // Calendarios por país: días hábiles del mes
+    // Calendarios por país: días hábiles del mes + semanas comerciales
     const diasHabilesByPais = new Map<string, number>();
+    // weekByPais: para fechaBase, da {start, endExcl, num} segun calendario comercial.
+    // null = no hay calendario configurado → se usa fallback ISO (weekStart/weekEnd/semNumMes).
+    const weekByPais = new Map<string, { start: string; end: string; num: number } | null>();
     for (const c of calRes.data || []) {
       diasHabilesByPais.set(c.pais, Number(c.dias_habiles) || 20);
+      const semanas: any[] = Array.isArray(c.semanas) ? c.semanas : [];
+      const hit = semanas.find((s) => {
+        const ini = String(s.fecha_inicio || "");
+        const fin = String(s.fecha_fin || "");
+        return ini && fin && today >= ini && today <= fin;
+      });
+      if (hit) {
+        const finDate = new Date(`${hit.fecha_fin}T12:00:00Z`);
+        finDate.setUTCDate(finDate.getUTCDate() + 1);
+        weekByPais.set(c.pais, {
+          start: String(hit.fecha_inicio),
+          end: finDate.toISOString().slice(0, 10),
+          num: Number(hit.numero) || 1,
+        });
+      } else {
+        weekByPais.set(c.pais, null);
+      }
     }
 
     // Metas por (celula, mes-num). Mes en metas viene como "Ene","Feb",... o "Mayo"
@@ -239,9 +259,9 @@ Deno.serve(async (req) => {
     const spInserts: any[] = [];
     const resultados: any[] = [];
 
-    // SP semanal según semana del mes
-    const spSemanalFor = (reto: any) => {
-      switch (semNumMes) {
+    // SP semanal según semana del mes (por país, usando calendario comercial)
+    const spSemanalForN = (reto: any, n: number) => {
+      switch (n) {
         case 1: return Number(reto.sp_semanal_sem1) || 0;
         case 2: return Number(reto.sp_semanal_sem2) || 0;
         case 3: return Number(reto.sp_semanal_sem3) || 0;
@@ -256,6 +276,12 @@ Deno.serve(async (req) => {
       const meta = g.celula ? metasByCelula.get(g.celula) : null;
       const diasHabiles = diasHabilesByPais.get(pais) || 20;
 
+      // Semana comercial del país (si hay calendario en config_calendario_vn)
+      const wkCal = weekByPais.get(pais);
+      const gWeekStart = wkCal?.start ?? weekStart;
+      const gWeekEnd = wkCal?.end ?? weekEnd;
+      const gSemNum = wkCal?.num ?? semNumMes;
+
       const metaNubeMes = Number(meta?.meta_nube) || 0;
       const metaAcvMes = Number(meta?.meta_total_acv) || 0;
       const metaTotalUndMes = Number(meta?.meta_total_und) || 0;
@@ -265,8 +291,8 @@ Deno.serve(async (req) => {
       const nubesHoy = ventas.filter((v) => v.fecha_facturacion === today && isNube(v)).length;
       const unidadesHoy = ventas.filter((v) => v.fecha_facturacion === today).length;
       const pctUndDia = metaDiariaUnd > 0 ? (unidadesHoy / metaDiariaUnd) * 100 : 0;
-      const nubesSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd && isNube(v)).length;
-      const acvSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd)
+      const nubesSemana = ventas.filter((v) => v.fecha_facturacion >= gWeekStart && v.fecha_facturacion < gWeekEnd && isNube(v)).length;
+      const acvSemana = ventas.filter((v) => v.fecha_facturacion >= gWeekStart && v.fecha_facturacion < gWeekEnd)
         .reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const acvMes = ventas.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const pctMes = metaAcvMes > 0 ? (acvMes / metaAcvMes) * 100 : 0;
@@ -314,7 +340,7 @@ Deno.serve(async (req) => {
             const metaSemNubes = metaNubeMes > 0 ? Math.ceil(metaNubeMes / 4) : 0;
             cumple = metaSemNubes > 0 && nubesSemana >= metaSemNubes;
             detalle = `nubes_sem:${nubesSemana} meta:${metaSemNubes}`;
-            sp = cumple ? spSemanalFor(reto) : 0;
+            sp = cumple ? spSemanalForN(reto, gSemNum) : 0;
           } else if (kpi === "ACV_SEM_GTE_100K") {
             cumple = acvSemana >= 100000;
             sp = cumple ? (Number(reto.sp_base) || 0) : 0;
@@ -329,12 +355,12 @@ Deno.serve(async (req) => {
             detalle = `acv_sem:${Math.round(acvSemana)} (62.5k-87.5k)`;
           } else {
             cumple = pctSemana >= 100;
-            sp = cumple ? spSemanalFor(reto) : 0;
+            sp = cumple ? spSemanalForN(reto, gSemNum) : 0;
             detalle = `acv_sem:${Math.round(acvSemana)} pct:${pctSemana.toFixed(1)}`;
           }
           upsertsSemanal.push({
             reto_id: reto.id, gerente_id: g.id, anio_mes: monthKey,
-            semana_numero: semNumMes, fecha_inicio_semana: weekStart, fecha_fin_semana: weekEnd,
+            semana_numero: gSemNum, fecha_inicio_semana: gWeekStart, fecha_fin_semana: gWeekEnd,
             acv_real: acvSemana, meta_semanal_acv: metaSemanalAcv,
             pct_cumplimiento: pctSemana, cumple, sp_otorgados: sp, sp_con_racha: sp,
           });
@@ -358,7 +384,7 @@ Deno.serve(async (req) => {
 
         if (cumple && sp > 0) {
           const fuente = tipo === "DIARIO" ? "RETO_DIARIO" : tipo === "SEMANAL" ? "RETO_SEMANAL" : "RETO_MENSUAL";
-          const periodo = tipo === "DIARIO" ? today : tipo === "SEMANAL" ? `${monthKey}-S${semNumMes}` : monthKey;
+          const periodo = tipo === "DIARIO" ? today : tipo === "SEMANAL" ? `${monthKey}-S${gSemNum}` : monthKey;
           spInserts.push({
             gerente_id: g.id, fuente, sp, periodo, tipo_sp: "canje",
             detalle: `${reto.nombre} · ${tipo} · ${kpi} · ${detalle}`,
@@ -400,7 +426,7 @@ Deno.serve(async (req) => {
           racha_id: racha.id, gerente_id: g.id,
           dias_o_semanas_consecutivas: nuevoConteo,
           racha_activa: activa,
-          ultima_fecha_cumplida: cumpleHoy ? (tipo === "DIARIA" ? today : weekEnd) : (estadoPrev?.ultima_fecha_cumplida ?? null),
+          ultima_fecha_cumplida: cumpleHoy ? (tipo === "DIARIA" ? today : gWeekEnd) : (estadoPrev?.ultima_fecha_cumplida ?? null),
         });
 
         if (activa) {
@@ -419,7 +445,7 @@ Deno.serve(async (req) => {
               gerente_id: g.id,
               fuente: tipo === "DIARIA" ? "RETO_DIARIO" : "RETO_SEMANAL",
               sp: bonus,
-              periodo: tipo === "DIARIA" ? today : `${monthKey}-S${semNumMes}`,
+              periodo: tipo === "DIARIA" ? today : `${monthKey}-S${gSemNum}`,
               tipo_sp: "canje",
               detalle: `RACHA · ${racha.nombre} · multiplicador ${racha.multiplicador}x`,
             });
