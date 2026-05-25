@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
             const metaSemNubes = metaNubeMes > 0 ? Math.ceil(metaNubeMes / 4) : 0;
             cumple = metaSemNubes > 0 && nubesSemana >= metaSemNubes;
             detalle = `nubes_sem:${nubesSemana} meta:${metaSemNubes}`;
-            sp = cumple ? spSemanalFor(reto) : 0;
+            sp = cumple ? spSemanalForN(reto, gSemNum) : 0;
           } else if (kpi === "ACV_SEM_GTE_100K") {
             cumple = acvSemana >= 100000;
             sp = cumple ? (Number(reto.sp_base) || 0) : 0;
