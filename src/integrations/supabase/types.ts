@@ -3724,6 +3724,7 @@ export type Database = {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
       }
+      recalcular_sp_canje_global: { Args: never; Returns: Json }
       unaccent: { Args: { "": string }; Returns: string }
       upsert_meta_acv_gerente: {
         Args: {
