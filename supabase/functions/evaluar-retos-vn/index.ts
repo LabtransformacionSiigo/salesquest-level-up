@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
 
         if (cumple && sp > 0) {
           const fuente = tipo === "DIARIO" ? "RETO_DIARIO" : tipo === "SEMANAL" ? "RETO_SEMANAL" : "RETO_MENSUAL";
-          const periodo = tipo === "DIARIO" ? today : tipo === "SEMANAL" ? `${monthKey}-S${semNumMes}` : monthKey;
+          const periodo = tipo === "DIARIO" ? today : tipo === "SEMANAL" ? `${monthKey}-S${gSemNum}` : monthKey;
           spInserts.push({
             gerente_id: g.id, fuente, sp, periodo, tipo_sp: "canje",
             detalle: `${reto.nombre} · ${tipo} · ${kpi} · ${detalle}`,
