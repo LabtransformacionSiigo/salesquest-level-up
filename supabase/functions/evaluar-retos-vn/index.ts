@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
           }
           upsertsSemanal.push({
             reto_id: reto.id, gerente_id: g.id, anio_mes: monthKey,
-            semana_numero: semNumMes, fecha_inicio_semana: weekStart, fecha_fin_semana: weekEnd,
+            semana_numero: gSemNum, fecha_inicio_semana: gWeekStart, fecha_fin_semana: gWeekEnd,
             acv_real: acvSemana, meta_semanal_acv: metaSemanalAcv,
             pct_cumplimiento: pctSemana, cumple, sp_otorgados: sp, sp_con_racha: sp,
           });
