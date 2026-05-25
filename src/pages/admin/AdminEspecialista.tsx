@@ -102,27 +102,40 @@ const AdminEspecialista = () => {
     setEjecutando(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vc`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ dry_run: false }),
-        }
-      );
-      const result = await res.json();
-      if (result.ok) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      };
+      const base = import.meta.env.VITE_SUPABASE_URL;
+      const [vcRes, vnRes] = await Promise.all([
+        fetch(`${base}/functions/v1/evaluar-retos-vc`, {
+          method: 'POST', headers, body: JSON.stringify({ dry_run: false }),
+        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
+        fetch(`${base}/functions/v1/evaluar-retos-vn`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ fecha: new Date().toISOString().split('T')[0], dry_run: false }),
+        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
+      ]);
+
+      const vcOk = vcRes?.ok;
+      const vnOk = vnRes?.ok;
+      const vcRetos = vcRes?.totalRetos ?? 0;
+      const vcSp = vcRes?.totalSp ?? 0;
+      const vnEval = vnRes?.evaluados ?? (vnRes?.resultados?.length ?? 0);
+
+      if (vcOk && vnOk) {
         toast({
-          title: '✅ Evaluación completada',
-          description: `Retos otorgados: ${result.totalRetos} · SP Canje: ${result.totalSp}`,
+          title: '✅ Evaluación completada (VC + VN)',
+          description: `VC: ${vcRetos} retos · ${vcSp} SP Canje · VN: ${vnEval} evaluaciones`,
         });
-        fetchLogros();
       } else {
-        toast({ title: '⚠️ Resultado con errores', description: JSON.stringify(result.errores?.slice(0, 2)), variant: 'destructive' });
+        toast({
+          title: '⚠️ Resultado con errores',
+          description: `VC ${vcOk ? 'ok' : 'falló'} · VN ${vnOk ? 'ok' : 'falló'}`,
+          variant: 'destructive',
+        });
       }
+      fetchLogros();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
