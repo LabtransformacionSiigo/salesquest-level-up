@@ -318,6 +318,15 @@ Deno.serve(async (req) => {
         summary.invalid++;
         return;
       }
+      // Override FE/NUBE con el agregado oficial de asesores (aplica_cuota_lider = Si).
+      // Si no hay override, mantenemos lo de Databricks.
+      const mes3lower = mes.toLowerCase();
+      const periodoBuscado = MES3_TO_PERIOD[mes3lower];
+      const overrideKey = `${String(celula).trim().toLowerCase()}|${normCanal(String(canal))}|${periodoBuscado}`;
+      const override = cellFeNubeMap.get(overrideKey);
+      const feFinal = override ? override.fe : Math.round(toNum(feRaw));
+      const nubeFinal = override ? override.nube : Math.round(toNum(nubeRaw));
+
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
         p_canal: normCanal(String(canal)),
@@ -329,8 +338,8 @@ Deno.serve(async (req) => {
         p_meta_total_acv: toNum(metaAcv),
         p_mes: mes,
         p_archivo: archivo,
-        p_meta_fe: Math.round(toNum(feRaw)),
-        p_meta_nube: Math.round(toNum(nubeRaw)),
+        p_meta_fe: feFinal,
+        p_meta_nube: nubeFinal,
       });
       if (error) {
         errors.push({ row: r, error: error.message });
