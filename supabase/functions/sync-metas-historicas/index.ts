@@ -147,6 +147,19 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const url = new URL(req.url);
+    if (url.searchParams.get("debug") === "1") {
+      const dbg = await runDatabricksQuery(`
+        SELECT mes, archivo, canal_direccion, COUNT(*) AS n
+        FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
+        WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
+        GROUP BY mes, archivo, canal_direccion
+        ORDER BY mes, archivo, canal_direccion
+      `);
+      return new Response(JSON.stringify({ debug: true, rows: dbg }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
