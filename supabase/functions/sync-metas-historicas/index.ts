@@ -231,11 +231,15 @@ Deno.serve(async (req) => {
     // key: documento|canal|periodo  →  best row (Cierre gana sobre Inicio)
     const asesorMap = new Map<string, AsesorRow>();
     // key: celula|canal|periodo|archivo → agregados separados por archivo
+    // SOLO suma asesores con aplica_a_cuota_lider = 'Si'
     const celulaAggByArchivo = new Map<string, {
       celula: string; canal_direccion: string; gerente: string | null;
       pais: string; anio_mes: string; archivo: "Inicio" | "Cierre";
       meta_fe: number; meta_nube: number; meta_total: number;
     }>();
+    // Dedupe dentro del mismo archivo: evita que filas duplicadas (ej. Cierre + Cierre1)
+    // se sumen dos veces al agregado por célula.
+    const seenAggByDocArchivo = new Set<string>();
 
     for (const r of rows) {
       const mesRaw = clean(r.mes);
