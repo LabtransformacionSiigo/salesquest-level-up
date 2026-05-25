@@ -95,10 +95,30 @@ Deno.serve(async (req) => {
     const rachas = (rachasRes.data || []).filter(isVigente);
     const medallas = (medallasRes.data || []).filter(isVigente);
 
-    // Calendarios por país: días hábiles del mes
+    // Calendarios por país: días hábiles del mes + semanas comerciales
     const diasHabilesByPais = new Map<string, number>();
+    // weekByPais: para fechaBase, da {start, endExcl, num} segun calendario comercial.
+    // null = no hay calendario configurado → se usa fallback ISO (weekStart/weekEnd/semNumMes).
+    const weekByPais = new Map<string, { start: string; end: string; num: number } | null>();
     for (const c of calRes.data || []) {
       diasHabilesByPais.set(c.pais, Number(c.dias_habiles) || 20);
+      const semanas: any[] = Array.isArray(c.semanas) ? c.semanas : [];
+      const hit = semanas.find((s) => {
+        const ini = String(s.fecha_inicio || "");
+        const fin = String(s.fecha_fin || "");
+        return ini && fin && today >= ini && today <= fin;
+      });
+      if (hit) {
+        const finDate = new Date(`${hit.fecha_fin}T12:00:00Z`);
+        finDate.setUTCDate(finDate.getUTCDate() + 1);
+        weekByPais.set(c.pais, {
+          start: String(hit.fecha_inicio),
+          end: finDate.toISOString().slice(0, 10),
+          num: Number(hit.numero) || 1,
+        });
+      } else {
+        weekByPais.set(c.pais, null);
+      }
     }
 
     // Metas por (celula, mes-num). Mes en metas viene como "Ene","Feb",... o "Mayo"
