@@ -520,17 +520,23 @@ const AdminEspecialista = () => {
         {dataLoading ? (
           <Skeleton className="h-96" />
         ) : (
-          <Tabs defaultValue="retos" className="w-full">
-            <TabsList className={`grid w-full ${tieneVN ? 'grid-cols-6 max-w-3xl' : 'grid-cols-4 max-w-xl'}`}>
-              <TabsTrigger value="retos">
-                <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
-              </TabsTrigger>
-              <TabsTrigger value="rachas">
-                <MI icon="local_fire_department" className="text-sm mr-1.5" /> Rachas
-              </TabsTrigger>
-              <TabsTrigger value="medallas">
-                <MI icon="military_tech" className="text-sm mr-1.5" /> Medallas
-              </TabsTrigger>
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className={`grid w-full ${tieneVC && tieneVN ? 'grid-cols-6 max-w-3xl' : tieneVN ? 'grid-cols-3 max-w-md' : 'grid-cols-4 max-w-xl'}`}>
+              {tieneVC && (
+                <TabsTrigger value="retos">
+                  <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
+                </TabsTrigger>
+              )}
+              {tieneVC && (
+                <TabsTrigger value="rachas">
+                  <MI icon="local_fire_department" className="text-sm mr-1.5" /> Rachas
+                </TabsTrigger>
+              )}
+              {tieneVC && (
+                <TabsTrigger value="medallas">
+                  <MI icon="military_tech" className="text-sm mr-1.5" /> Medallas
+                </TabsTrigger>
+              )}
               {tieneVN && (
                 <TabsTrigger value="retos-vn">
                   <MI icon="sports_soccer" className="text-sm mr-1.5" /> Retos VN
@@ -543,6 +549,7 @@ const AdminEspecialista = () => {
               )}
               <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="retos" className="mt-6">
               <ItemList
