@@ -960,9 +960,10 @@ export const useGamificationMetrics = (
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
-          // metas_asesores (con aplica='Si') es la fuente primaria para FE y Nube.
-          // Solo usar metas_acv_gerentes si metas_asesores no tiene datos.
-          if (metaFe === 0 && metaNube === 0 && (_catalogFeMes > 0 || _catalogNubeMes > 0)) {
+          // FUENTE PRIMARIA VN GERENTES: metas_acv_gerentes (Abril Cierre, etc.).
+          // metas_asesores con aplica_cuota_lider='Si' queda solo como fallback cuando
+          // Databricks aún no publicó la meta agregada de la célula para ese periodo.
+          if (_catalogFeMes > 0 || _catalogNubeMes > 0) {
             metaFe = _catalogFeMes;
             metaNube = _catalogNubeMes;
             if (_catalogUndMes > 0) metaEquipoUnidades = _catalogUndMes;
@@ -1379,18 +1380,18 @@ export const useGamificationMetrics = (
               });
             }
             const catalogRowForAcv = catalogMatches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? catalogMatches[0];
-            // FUENTE PRIMARIA: metas_asesores filtrado por aplica_cuota_lider='Si'.
-            // Solo cae al catálogo metas_acv_gerentes si metas_asesores no tiene datos
-            // para ese periodo. Esto garantiza que el Historial Mensual respete la
-            // exclusión de asesores con aplica_cuota_lider='No' (igual que el
-            // Rendimiento del Mes), evitando inflar la meta del gerente.
+            // FUENTE PRIMARIA VN GERENTES: metas_acv_gerentes. Así Abril Cierre
+            // reemplaza el agregado por asesores y el Historial muestra la meta oficial
+            // de Databricks. metas_asesores con aplica_cuota_lider='Si' queda solo como
+            // fallback si no existe catálogo para el periodo.
             const asesorCtx = getMetaContextForPeriod(period);
             const catalogFe = Number(catalogRowForAcv?.meta_fe) || 0;
             const catalogNube = Number(catalogRowForAcv?.meta_nube) || 0;
             const catalogUnd = Number(catalogRowForAcv?.meta_total_und) || 0;
-            const mFe = asesorCtx.metaFe > 0 ? asesorCtx.metaFe : catalogFe;
-            const mNube = asesorCtx.metaNube > 0 ? asesorCtx.metaNube : catalogNube;
-            const mTotal = (mFe + mNube) || asesorCtx.metaTotal || catalogUnd || 0;
+            const hasCatalogSplit = catalogFe > 0 || catalogNube > 0;
+            const mFe = hasCatalogSplit ? catalogFe : asesorCtx.metaFe;
+            const mNube = hasCatalogSplit ? catalogNube : asesorCtx.metaNube;
+            const mTotal = (hasCatalogSplit ? catalogUnd : asesorCtx.metaTotal) || (mFe + mNube) || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
             const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
