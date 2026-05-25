@@ -315,17 +315,26 @@ Deno.serve(async (req) => {
         // si cur ya es Cierre, ignoramos cualquier Inicio adicional
       }
 
-      // ── (2) Agregado por célula por archivo (luego elegimos Cierre si existe) ──
-      const ckey = `${celula}|${canal}|${periodo}|${archivo}`;
-      const cAgg = celulaAggByArchivo.get(ckey) || {
-        celula, canal_direccion: canal, gerente, pais, anio_mes: periodo, archivo,
-        meta_fe: 0, meta_nube: 0, meta_total: 0,
-      };
-      cAgg.meta_fe += fe;
-      cAgg.meta_nube += nube;
-      cAgg.meta_total += totalMeta;
-      if (!cAgg.gerente && gerente) cAgg.gerente = gerente;
-      celulaAggByArchivo.set(ckey, cAgg);
+      // ── (2) Agregado por célula+archivo: SOLO asesores con aplica_a_cuota_lider = 'Si',
+      //         deduplicando por (documento, canal, periodo, archivo) por si Databricks
+      //         devuelve dos filas del mismo archivo (ej. Cierre + Cierre1).
+      const aplicaSi = (clean(r.aplica_a_cuota_lider) || "").toLowerCase() === "si";
+      if (aplicaSi && documento) {
+        const dedupeKey = `${documento}|${canal}|${periodo}|${archivo}`;
+        if (!seenAggByDocArchivo.has(dedupeKey)) {
+          seenAggByDocArchivo.add(dedupeKey);
+          const ckey = `${celula}|${canal}|${periodo}|${archivo}`;
+          const cAgg = celulaAggByArchivo.get(ckey) || {
+            celula, canal_direccion: canal, gerente, pais, anio_mes: periodo, archivo,
+            meta_fe: 0, meta_nube: 0, meta_total: 0,
+          };
+          cAgg.meta_fe += fe;
+          cAgg.meta_nube += nube;
+          cAgg.meta_total += totalMeta;
+          if (!cAgg.gerente && gerente) cAgg.gerente = gerente;
+          celulaAggByArchivo.set(ckey, cAgg);
+        }
+      }
     }
 
     // Para cada (celula,canal,periodo) preferir Cierre sobre Inicio
