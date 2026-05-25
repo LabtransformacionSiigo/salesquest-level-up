@@ -450,6 +450,8 @@ const AdminEspecialista = () => {
   if (!isAdmin && !isEspecialista && !isAprobador) return <Navigate to="/dashboard" replace />;
 
   const tieneVN = isAdmin || (permisos?.operaciones || []).some((op: string) => op.includes('Venta Nueva'));
+  const tieneVC = isAdmin || (permisos?.operaciones || []).some((op: string) => op === 'Venta Cruzada');
+  const defaultTab = tieneVC ? 'retos' : (tieneVN ? 'retos-vn' : 'retos');
 
   return (
     <Layout title="Panel Especialista">
