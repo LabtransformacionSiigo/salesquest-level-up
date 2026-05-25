@@ -132,6 +132,64 @@ Deno.serve(async (req) => {
       ventasByGerente.set(v.gerente_id, arr);
     }
 
+    // ── MEX: complementar desde ventas_diarias (la tabla `ventas` no se popula para MEX).
+    // Mapeamos por célula → líder oficial (gerente activo de esa célula).
+    const norm = (s: any) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    const mexGerentes = gerentesArr.filter((g) => (g.pais || "").toUpperCase() === "MEX" && g.celula);
+    if (mexGerentes.length > 0) {
+      const candByCel = new Map<string, any[]>();
+      for (const g of mexGerentes) {
+        const k = norm(g.celula);
+        if (!candByCel.has(k)) candByCel.set(k, []);
+        candByCel.get(k)!.push(g);
+      }
+      const leaderByCel = new Map<string, any>();
+      for (const [k, cands] of candByCel) {
+        let leader = cands[0];
+        if (cands.length > 1) {
+          const m = cands.find((c) => {
+            const fn = norm(c.nombre).split(" ")[0];
+            return fn && k.includes(fn);
+          });
+          if (m) leader = m;
+        }
+        leaderByCel.set(k, leader);
+      }
+
+      const celulasReales = mexGerentes.map((g) => g.celula!).filter((c, i, a) => a.indexOf(c) === i);
+      const { data: vd } = await supabase
+        .from("ventas_diarias")
+        .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
+        .eq("pais", "MEX")
+        .in("canal_direccion", ["Aliados", "Empresarios"])
+        .in("celula", celulasReales)
+        .gte("fecha", monthStart)
+        .lt("fecha", monthEnd);
+
+      for (const r of vd || []) {
+        if (!r.celula) continue;
+        const leader = leaderByCel.get(norm(r.celula));
+        if (!leader) continue;
+        const unidades = Math.max(1, Number(r.unidades) || 0);
+        const acvUnit = (Number(r.acv) || 0) / unidades;
+        const arr = ventasByGerente.get(leader.id) || [];
+        const producto = String(r.tipo_producto || "").toUpperCase(); // 'NUBE' activa isNube()
+        for (let i = 0; i < unidades; i++) {
+          arr.push({
+            gerente_id: leader.id,
+            fecha_facturacion: r.fecha,
+            acv_plus: acvUnit,
+            producto,
+            categoria_producto_venta: producto,
+            bloque_venta: producto,
+            documento_factura: `VD-MEX-${r.fecha}-${i}`,
+            canal: leader.canal,
+          });
+        }
+        ventasByGerente.set(leader.id, arr);
+      }
+    }
+
     // Clasificar familia NUBE simple (cualquier "nube" o "cloud" o "pyme" o "siigo nube")
     const NUBE_KW = ["nube","cloud","pyme","lite","emprendedor","premium","profesional independiente","sci","contai","mto","nomina ili"];
     const isNube = (sale: any) => {
