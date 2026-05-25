@@ -94,7 +94,8 @@ Deno.serve(async (req) => {
     );
 
     const year = 2026;
-    const yStart = `${year}01`;
+    // VN gamification (SP Convención por CUMPLIMIENTO_META) inicia en Mayo 2026
+    const yStart = `${year}05`;
     const yEnd = `${year}12`;
 
     let paisFilter: string[] | null = null;
@@ -280,6 +281,7 @@ Deno.serve(async (req) => {
       const monthlyDbg: any[] = [];
 
       for (const period of periods) {
+        if (period < '202605') continue; // VN gamification inicia Mayo 2026
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
         const novedadNames = new Set(
@@ -408,6 +410,7 @@ Deno.serve(async (req) => {
       const monthly: { period: string; sp: number }[] = [];
 
       for (const period of periods) {
+        if (period < '202605') continue; // VN gamification inicia Mayo 2026
         const pProd = aProd.filter((p: any) => String(p.anio_mes) === period);
         const pMetas = aMetas.filter(
           (m: any) => String(m.anio_mes) === period && isActiveMeta(m),
