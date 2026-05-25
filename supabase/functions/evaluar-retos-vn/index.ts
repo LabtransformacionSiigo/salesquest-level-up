@@ -259,9 +259,9 @@ Deno.serve(async (req) => {
     const spInserts: any[] = [];
     const resultados: any[] = [];
 
-    // SP semanal según semana del mes
-    const spSemanalFor = (reto: any) => {
-      switch (semNumMes) {
+    // SP semanal según semana del mes (por país, usando calendario comercial)
+    const spSemanalForN = (reto: any, n: number) => {
+      switch (n) {
         case 1: return Number(reto.sp_semanal_sem1) || 0;
         case 2: return Number(reto.sp_semanal_sem2) || 0;
         case 3: return Number(reto.sp_semanal_sem3) || 0;
@@ -276,6 +276,12 @@ Deno.serve(async (req) => {
       const meta = g.celula ? metasByCelula.get(g.celula) : null;
       const diasHabiles = diasHabilesByPais.get(pais) || 20;
 
+      // Semana comercial del país (si hay calendario en config_calendario_vn)
+      const wkCal = weekByPais.get(pais);
+      const gWeekStart = wkCal?.start ?? weekStart;
+      const gWeekEnd = wkCal?.end ?? weekEnd;
+      const gSemNum = wkCal?.num ?? semNumMes;
+
       const metaNubeMes = Number(meta?.meta_nube) || 0;
       const metaAcvMes = Number(meta?.meta_total_acv) || 0;
       const metaTotalUndMes = Number(meta?.meta_total_und) || 0;
@@ -285,8 +291,8 @@ Deno.serve(async (req) => {
       const nubesHoy = ventas.filter((v) => v.fecha_facturacion === today && isNube(v)).length;
       const unidadesHoy = ventas.filter((v) => v.fecha_facturacion === today).length;
       const pctUndDia = metaDiariaUnd > 0 ? (unidadesHoy / metaDiariaUnd) * 100 : 0;
-      const nubesSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd && isNube(v)).length;
-      const acvSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd)
+      const nubesSemana = ventas.filter((v) => v.fecha_facturacion >= gWeekStart && v.fecha_facturacion < gWeekEnd && isNube(v)).length;
+      const acvSemana = ventas.filter((v) => v.fecha_facturacion >= gWeekStart && v.fecha_facturacion < gWeekEnd)
         .reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const acvMes = ventas.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const pctMes = metaAcvMes > 0 ? (acvMes / metaAcvMes) * 100 : 0;
