@@ -281,6 +281,7 @@ Deno.serve(async (req) => {
       const monthlyDbg: any[] = [];
 
       for (const period of periods) {
+        if (period < '202605') continue; // VN gamification inicia Mayo 2026
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
         const novedadNames = new Set(
