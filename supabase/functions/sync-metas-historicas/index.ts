@@ -1,5 +1,5 @@
 // Sincroniza TODAS las metas históricas desde Databricks
-// hive_metastore.db_comercial.tbl_brz_cuotas_asesores → metas_asesores
+// analyticdl.db_comercial.tbl_brz_cuotas_asesores → metas_asesores
 //
 // Reglas clave:
 //   - Trae TODAS las columnas relevantes (asesor + célula + flags + bonos + archivo).
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
     if (url.searchParams.get("debug") === "1") {
       const dbg = await runDatabricksQuery(`
         SELECT mes, archivo, canal_direccion, COUNT(*) AS n
-        FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
+        FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
         WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
         GROUP BY mes, archivo, canal_direccion
         ORDER BY mes, archivo, canal_direccion
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
              fe_bono_trimestral_categorizacion AS fe_bono,
              nube_bono_trimestral_categorizacion AS nube_bono,
              total_bono_trimestral_categorizacion AS total_bono
-      FROM hive_metastore.db_comercial.tbl_brz_cuotas_asesores
+      FROM analyticdl.db_comercial.tbl_brz_cuotas_asesores
       WHERE canal_direccion IN ('Aliados','SMBS','Empresarios')
     `;
 
