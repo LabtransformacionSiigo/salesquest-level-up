@@ -3673,6 +3673,7 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_metas_acv_mex_vn: { Args: never; Returns: undefined }
       calcular_multiplicador: {
         Args: { semanas_consecutivas: number }
         Returns: number
