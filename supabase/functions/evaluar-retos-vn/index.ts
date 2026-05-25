@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
       const canal = g.canal as string;
       const pais = (g.pais || "COL").toUpperCase();
       const ventas = ventasByGerente.get(g.id) || [];
-      const meta = g.celula ? metasByCelula.get(g.celula) : null;
+      const meta = g.celula ? metasByCelula.get(normCelula(g.celula)) : null;
       const diasHabiles = diasHabilesByPais.get(pais) || 20;
 
       // Semana comercial del país (si hay calendario en config_calendario_vn)
