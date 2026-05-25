@@ -102,27 +102,40 @@ const AdminEspecialista = () => {
     setEjecutando(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluar-retos-vc`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ dry_run: false }),
-        }
-      );
-      const result = await res.json();
-      if (result.ok) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      };
+      const base = import.meta.env.VITE_SUPABASE_URL;
+      const [vcRes, vnRes] = await Promise.all([
+        fetch(`${base}/functions/v1/evaluar-retos-vc`, {
+          method: 'POST', headers, body: JSON.stringify({ dry_run: false }),
+        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
+        fetch(`${base}/functions/v1/evaluar-retos-vn`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ fecha: new Date().toISOString().split('T')[0], dry_run: false }),
+        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
+      ]);
+
+      const vcOk = vcRes?.ok;
+      const vnOk = vnRes?.ok;
+      const vcRetos = vcRes?.totalRetos ?? 0;
+      const vcSp = vcRes?.totalSp ?? 0;
+      const vnEval = vnRes?.evaluados ?? (vnRes?.resultados?.length ?? 0);
+
+      if (vcOk && vnOk) {
         toast({
-          title: '✅ Evaluación completada',
-          description: `Retos otorgados: ${result.totalRetos} · SP Canje: ${result.totalSp}`,
+          title: '✅ Evaluación completada (VC + VN)',
+          description: `VC: ${vcRetos} retos · ${vcSp} SP Canje · VN: ${vnEval} evaluaciones`,
         });
-        fetchLogros();
       } else {
-        toast({ title: '⚠️ Resultado con errores', description: JSON.stringify(result.errores?.slice(0, 2)), variant: 'destructive' });
+        toast({
+          title: '⚠️ Resultado con errores',
+          description: `VC ${vcOk ? 'ok' : 'falló'} · VN ${vnOk ? 'ok' : 'falló'}`,
+          variant: 'destructive',
+        });
       }
+      fetchLogros();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -670,56 +683,7 @@ const AdminEspecialista = () => {
                   </div>
                 </div>
 
-                {!isAprobador && (
-                  <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                    <h3 className="font-semibold text-sm">⚙️ Ejecutar evaluación VN</h3>
-                    <div className="flex items-end gap-4 flex-wrap">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold">Fecha a evaluar</label>
-                        <input type="date" className={inputClass + ' w-48'} value={evalFechaVN}
-                          onChange={(e) => setEvalFechaVN(e.target.value)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold">Modo</label>
-                        <div className="flex items-center gap-2 pt-1">
-                          <Switch checked={evalDryRunVN} onCheckedChange={setEvalDryRunVN} />
-                          <span className={`text-xs font-semibold ${evalDryRunVN ? 'text-amber-600' : 'text-green-600'}`}>
-                            {evalDryRunVN ? 'Simulación' : 'Evaluación real'}
-                          </span>
-                        </div>
-                      </div>
-                      <Button onClick={ejecutarEvaluacionVN} disabled={evalLoadingVN}
-                        className={!evalDryRunVN ? 'bg-green-600 hover:bg-green-700' : ''}>
-                        {evalLoadingVN ? 'Evaluando…' : evalDryRunVN ? 'Simular' : 'Ejecutar evaluación'}
-                      </Button>
-                    </div>
-                    {evalResultadosVN.length > 0 && (
-                      <div className="overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-xs">
-                          <thead className="bg-muted/50">
-                            <tr>{['Gerente','País','Reto','Tipo','Cumple','%','SP base','SP+Racha'].map(h => (
-                              <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>
-                            ))}</tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {evalResultadosVN.map((r: any, i: number) => (
-                              <tr key={i} className={r.cumple ? 'bg-green-50/40' : r.cumple === false ? 'bg-red-50/20' : ''}>
-                                <td className="px-3 py-1.5">{r.gerente}</td>
-                                <td className="px-3 py-1.5">{r.pais}</td>
-                                <td className="px-3 py-1.5">{r.reto}</td>
-                                <td className="px-3 py-1.5">{r.tipo ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.cumple === true ? '✅' : r.cumple === false ? '❌' : r.resultado ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.pct ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.spBase ?? r.sp ?? '—'}</td>
-                                <td className="px-3 py-1.5 font-semibold text-primary">{r.spConRacha ?? r.sp ?? '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Evaluación VN movida al botón unificado "Ejecutar Evaluación Ahora" en la pestaña Logros */}
               </TabsContent>
             )}
 
@@ -876,7 +840,7 @@ const AdminEspecialista = () => {
                   disabled={ejecutando}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {ejecutando ? '⏳ Evaluando...' : '▶ Ejecutar Evaluación Ahora'}
+                  {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
                 </Button>
               </div>
               {/* Filtros */}
