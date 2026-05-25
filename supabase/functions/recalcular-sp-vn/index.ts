@@ -410,6 +410,7 @@ Deno.serve(async (req) => {
       const monthly: { period: string; sp: number }[] = [];
 
       for (const period of periods) {
+        if (period < '202605') continue; // VN gamification inicia Mayo 2026
         const pProd = aProd.filter((p: any) => String(p.anio_mes) === period);
         const pMetas = aMetas.filter(
           (m: any) => String(m.anio_mes) === period && isActiveMeta(m),
