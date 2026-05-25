@@ -326,6 +326,7 @@ Deno.serve(async (req) => {
       const override = cellFeNubeMap.get(overrideKey);
       const feFinal = override ? override.fe : Math.round(toNum(feRaw));
       const nubeFinal = override ? override.nube : Math.round(toNum(nubeRaw));
+      const metaUndFinal = override ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: normPais(String(pais)),
@@ -334,7 +335,7 @@ Deno.serve(async (req) => {
         p_celula: String(celula).trim(),
         p_esquema: null,
         p_cuota: toNum(cuota),
-        p_meta_total_und: Math.round(toNum(metaUnd)),
+        p_meta_total_und: metaUndFinal,
         p_meta_total_acv: toNum(metaAcv),
         p_mes: mes,
         p_archivo: archivo,
