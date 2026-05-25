@@ -445,7 +445,7 @@ Deno.serve(async (req) => {
               gerente_id: g.id,
               fuente: tipo === "DIARIA" ? "RETO_DIARIO" : "RETO_SEMANAL",
               sp: bonus,
-              periodo: tipo === "DIARIA" ? today : `${monthKey}-S${semNumMes}`,
+              periodo: tipo === "DIARIA" ? today : `${monthKey}-S${gSemNum}`,
               tipo_sp: "canje",
               detalle: `RACHA · ${racha.nombre} · multiplicador ${racha.multiplicador}x`,
             });
