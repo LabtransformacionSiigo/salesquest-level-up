@@ -269,6 +269,42 @@ Deno.serve(async (req) => {
     console.log(`[sync-metas-acv] Total Databricks: ${rows.length} → deduped: ${dedupedRows.length}`);
     summary.total = dedupedRows.length;
 
+    // ─────────────────────────────────────────────────────────────
+    // Override FE/NUBE con el agregado oficial desde metas_asesores
+    // (ya filtrado por aplica_cuota_lider = 'Si'). ACV/und/cuota
+    // siguen viniendo de tbl_brz_cuotas_gerentes.
+    // ─────────────────────────────────────────────────────────────
+    const MES3_TO_PERIOD: Record<string, string> = {
+      ene: "202601", feb: "202602", mar: "202603", abr: "202604",
+      may: "202605", jun: "202606", jul: "202607", ago: "202608",
+      sep: "202609", oct: "202610", nov: "202611", dic: "202612",
+    };
+    const periodosNecesarios = new Set<string>();
+    for (const r of dedupedRows) {
+      const [, , , , mesRaw, archivoRaw] = r;
+      const mes3 = (deriveMesFromArchivo(String(archivoRaw || "")) || normMes(String(mesRaw || ""))).toLowerCase();
+      const p = MES3_TO_PERIOD[mes3];
+      if (p) periodosNecesarios.add(p);
+    }
+    const cellFeNubeMap = new Map<string, { fe: number; nube: number }>();
+    if (periodosNecesarios.size > 0) {
+      const { data: celRows, error: celErr } = await supabase
+        .from("metas_asesores")
+        .select("celula, canal_direccion, anio_mes, meta_fe, meta_nube")
+        .in("anio_mes", Array.from(periodosNecesarios))
+        .like("documento_asesor", "CEL_%");
+      if (celErr) {
+        console.error("[sync-metas-acv] No se pudo precargar CEL_ overrides:", celErr.message);
+      } else {
+        for (const c of celRows || []) {
+          const key = `${String(c.celula).trim().toLowerCase()}|${c.canal_direccion}|${c.anio_mes}`;
+          cellFeNubeMap.set(key, { fe: Number(c.meta_fe) || 0, nube: Number(c.meta_nube) || 0 });
+        }
+        console.log(`[sync-metas-acv] CEL_ overrides cargados: ${cellFeNubeMap.size}`);
+      }
+    }
+
+
     // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
