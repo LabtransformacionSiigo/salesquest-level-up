@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
     const fechaBase = fechaInput ? new Date(`${fechaInput}T12:00:00Z`) : new Date();
     const today = fechaBase.toISOString().slice(0, 10);
     const monthKey = toMonthKey(fechaBase);
+
+    // Guard: VN gamification (retos / rachas / medallas) solo aplica desde Mayo 2026
+    const MIN_PERIOD_VN = "202605";
+    if (monthKey < MIN_PERIOD_VN) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: `Periodo ${monthKey} < ${MIN_PERIOD_VN}: gamificación VN inicia Mayo 2026` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { start: monthStart, end: monthEnd } = toMonthRange(fechaBase);
     const { start: weekStart, end: weekEnd } = isoWeekRange(fechaBase);
     const semNumMes = weekOfMonth(fechaBase);
