@@ -456,17 +456,34 @@ Deno.serve(async (req) => {
       if (error) errores.push(`medallas: ${error.message}`);
     }
     if (spInserts.length > 0) {
-      for (const c of chunk(spInserts)) {
+      // Idempotencia: descartar SP ya registrados para (gerente_id, fuente, periodo, detalle)
+      const periodos = Array.from(new Set(spInserts.map((s) => s.periodo)));
+      const { data: yaExistentes } = await supabase
+        .from("sp_acumulados")
+        .select("gerente_id, fuente, periodo, detalle")
+        .in("gerente_id", gerenteIds)
+        .in("periodo", periodos);
+      const seen = new Set(
+        (yaExistentes || []).map(
+          (r: any) => `${r.gerente_id}::${r.fuente}::${r.periodo}::${r.detalle || ""}`,
+        ),
+      );
+      const nuevosSp = spInserts.filter(
+        (s) => !seen.has(`${s.gerente_id}::${s.fuente}::${s.periodo}::${s.detalle || ""}`),
+      );
+
+      for (const c of chunk(nuevosSp)) {
         const { error } = await supabase.from("sp_acumulados").insert(c);
         if (error) errores.push(`sp_acumulados: ${error.message}`);
       }
-      // Incrementar gerentes.sp_canje
+      // Incrementar gerentes.sp_canje solo por el delta neto
       const totalsByGid = new Map<string, number>();
-      for (const s of spInserts) totalsByGid.set(s.gerente_id, (totalsByGid.get(s.gerente_id) || 0) + s.sp);
+      for (const s of nuevosSp) totalsByGid.set(s.gerente_id, (totalsByGid.get(s.gerente_id) || 0) + s.sp);
       for (const [gid, tot] of totalsByGid.entries()) {
-        await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: tot });
+        if (tot > 0) await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: tot });
       }
     }
+
 
     return new Response(JSON.stringify({
       ok: true,
