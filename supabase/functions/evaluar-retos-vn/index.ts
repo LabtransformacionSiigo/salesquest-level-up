@@ -355,7 +355,7 @@ Deno.serve(async (req) => {
             detalle = `acv_sem:${Math.round(acvSemana)} (62.5k-87.5k)`;
           } else {
             cumple = pctSemana >= 100;
-            sp = cumple ? spSemanalFor(reto) : 0;
+            sp = cumple ? spSemanalForN(reto, gSemNum) : 0;
             detalle = `acv_sem:${Math.round(acvSemana)} pct:${pctSemana.toFixed(1)}`;
           }
           upsertsSemanal.push({
