@@ -94,7 +94,8 @@ Deno.serve(async (req) => {
     );
 
     const year = 2026;
-    const yStart = `${year}01`;
+    // VN gamification (SP Convención por CUMPLIMIENTO_META) inicia en Mayo 2026
+    const yStart = `${year}05`;
     const yEnd = `${year}12`;
 
     let paisFilter: string[] | null = null;
