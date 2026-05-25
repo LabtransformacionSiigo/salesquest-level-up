@@ -683,56 +683,7 @@ const AdminEspecialista = () => {
                   </div>
                 </div>
 
-                {!isAprobador && (
-                  <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                    <h3 className="font-semibold text-sm">⚙️ Ejecutar evaluación VN</h3>
-                    <div className="flex items-end gap-4 flex-wrap">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold">Fecha a evaluar</label>
-                        <input type="date" className={inputClass + ' w-48'} value={evalFechaVN}
-                          onChange={(e) => setEvalFechaVN(e.target.value)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold">Modo</label>
-                        <div className="flex items-center gap-2 pt-1">
-                          <Switch checked={evalDryRunVN} onCheckedChange={setEvalDryRunVN} />
-                          <span className={`text-xs font-semibold ${evalDryRunVN ? 'text-amber-600' : 'text-green-600'}`}>
-                            {evalDryRunVN ? 'Simulación' : 'Evaluación real'}
-                          </span>
-                        </div>
-                      </div>
-                      <Button onClick={ejecutarEvaluacionVN} disabled={evalLoadingVN}
-                        className={!evalDryRunVN ? 'bg-green-600 hover:bg-green-700' : ''}>
-                        {evalLoadingVN ? 'Evaluando…' : evalDryRunVN ? 'Simular' : 'Ejecutar evaluación'}
-                      </Button>
-                    </div>
-                    {evalResultadosVN.length > 0 && (
-                      <div className="overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-xs">
-                          <thead className="bg-muted/50">
-                            <tr>{['Gerente','País','Reto','Tipo','Cumple','%','SP base','SP+Racha'].map(h => (
-                              <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>
-                            ))}</tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {evalResultadosVN.map((r: any, i: number) => (
-                              <tr key={i} className={r.cumple ? 'bg-green-50/40' : r.cumple === false ? 'bg-red-50/20' : ''}>
-                                <td className="px-3 py-1.5">{r.gerente}</td>
-                                <td className="px-3 py-1.5">{r.pais}</td>
-                                <td className="px-3 py-1.5">{r.reto}</td>
-                                <td className="px-3 py-1.5">{r.tipo ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.cumple === true ? '✅' : r.cumple === false ? '❌' : r.resultado ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.pct ?? '—'}</td>
-                                <td className="px-3 py-1.5">{r.spBase ?? r.sp ?? '—'}</td>
-                                <td className="px-3 py-1.5 font-semibold text-primary">{r.spConRacha ?? r.sp ?? '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Evaluación VN movida al botón unificado "Ejecutar Evaluación Ahora" en la pestaña Logros */}
               </TabsContent>
             )}
 
