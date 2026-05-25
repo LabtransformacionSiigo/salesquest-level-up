@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
           racha_id: racha.id, gerente_id: g.id,
           dias_o_semanas_consecutivas: nuevoConteo,
           racha_activa: activa,
-          ultima_fecha_cumplida: cumpleHoy ? (tipo === "DIARIA" ? today : weekEnd) : (estadoPrev?.ultima_fecha_cumplida ?? null),
+          ultima_fecha_cumplida: cumpleHoy ? (tipo === "DIARIA" ? today : gWeekEnd) : (estadoPrev?.ultima_fecha_cumplida ?? null),
         });
 
         if (activa) {
