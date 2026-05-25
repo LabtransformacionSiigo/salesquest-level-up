@@ -200,9 +200,13 @@ Deno.serve(async (req) => {
 
       const metaNubeMes = Number(meta?.meta_nube) || 0;
       const metaAcvMes = Number(meta?.meta_total_acv) || 0;
+      const metaTotalUndMes = Number(meta?.meta_total_und) || 0;
       const metaDiariaNubes = metaNubeMes > 0 ? metaNubeMes / diasHabiles : 0;
+      const metaDiariaUnd = metaTotalUndMes > 0 ? metaTotalUndMes / diasHabiles : 0;
 
       const nubesHoy = ventas.filter((v) => v.fecha_facturacion === today && isNube(v)).length;
+      const unidadesHoy = ventas.filter((v) => v.fecha_facturacion === today).length;
+      const pctUndDia = metaDiariaUnd > 0 ? (unidadesHoy / metaDiariaUnd) * 100 : 0;
       const nubesSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd && isNube(v)).length;
       const acvSemana = ventas.filter((v) => v.fecha_facturacion >= weekStart && v.fecha_facturacion < weekEnd)
         .reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
@@ -233,16 +237,43 @@ Deno.serve(async (req) => {
             nubes_vendidas: nubesHoy, meta_diaria_nubes: metaDiariaNubes,
             cumple, sp_otorgados: sp, sp_con_racha: sp,
           });
+        } else if (tipo === "DIARIO" && (kpi === "UNIDADES_70_79" || kpi === "UNIDADES_80_89" || kpi === "UNIDADES_90")) {
+          // El Golazo del Día: rangos exclusivos de % unidades vs meta diaria
+          if (metaDiariaUnd > 0) {
+            if (kpi === "UNIDADES_70_79") cumple = pctUndDia >= 70 && pctUndDia < 80;
+            else if (kpi === "UNIDADES_80_89") cumple = pctUndDia >= 80 && pctUndDia < 90;
+            else cumple = pctUndDia >= 90;
+          }
+          sp = cumple ? (Number(reto.sp_base) || 0) : 0;
+          detalle = `und:${unidadesHoy} meta_dia:${metaDiariaUnd.toFixed(2)} pct:${pctUndDia.toFixed(1)}`;
+          upsertsDiario.push({
+            reto_id: reto.id, gerente_id: g.id, fecha_evaluacion: today,
+            nubes_vendidas: unidadesHoy, meta_diaria_nubes: metaDiariaUnd,
+            cumple, sp_otorgados: sp, sp_con_racha: sp,
+          });
         } else if (tipo === "SEMANAL") {
           if (kpi === "NUBES") {
             const metaSemNubes = metaNubeMes > 0 ? Math.ceil(metaNubeMes / 4) : 0;
             cumple = metaSemNubes > 0 && nubesSemana >= metaSemNubes;
             detalle = `nubes_sem:${nubesSemana} meta:${metaSemNubes}`;
+            sp = cumple ? spSemanalFor(reto) : 0;
+          } else if (kpi === "ACV_SEM_GTE_100K") {
+            cumple = acvSemana >= 100000;
+            sp = cumple ? (Number(reto.sp_base) || 0) : 0;
+            detalle = `acv_sem:${Math.round(acvSemana)} (>=100k)`;
+          } else if (kpi === "ACV_SEM_87K_100K") {
+            cumple = acvSemana >= 87500 && acvSemana < 100000;
+            sp = cumple ? (Number(reto.sp_base) || 0) : 0;
+            detalle = `acv_sem:${Math.round(acvSemana)} (87.5k-100k)`;
+          } else if (kpi === "ACV_SEM_62K_87K") {
+            cumple = acvSemana >= 62500 && acvSemana < 87500;
+            sp = cumple ? (Number(reto.sp_base) || 0) : 0;
+            detalle = `acv_sem:${Math.round(acvSemana)} (62.5k-87.5k)`;
           } else {
             cumple = pctSemana >= 100;
+            sp = cumple ? spSemanalFor(reto) : 0;
             detalle = `acv_sem:${Math.round(acvSemana)} pct:${pctSemana.toFixed(1)}`;
           }
-          sp = cumple ? spSemanalFor(reto) : 0;
           upsertsSemanal.push({
             reto_id: reto.id, gerente_id: g.id, anio_mes: monthKey,
             semana_numero: semNumMes, fecha_inicio_semana: weekStart, fecha_fin_semana: weekEnd,
@@ -250,9 +281,14 @@ Deno.serve(async (req) => {
             pct_cumplimiento: pctSemana, cumple, sp_otorgados: sp, sp_con_racha: sp,
           });
         } else if (tipo === "MENSUAL") {
-          cumple = pctMes >= 100;
+          if (kpi === "ACV_MES_80") {
+            cumple = pctMes >= 80;
+            detalle = `pct_mes:${pctMes.toFixed(1)} (>=80%)`;
+          } else {
+            cumple = pctMes >= 100;
+            detalle = `pct_mes:${pctMes.toFixed(1)}`;
+          }
           sp = cumple ? (Number(reto.sp_base) || 0) : 0;
-          detalle = `pct_mes:${pctMes.toFixed(1)}`;
           upsertsMensual.push({
             reto_id: reto.id, gerente_id: g.id, anio_mes: monthKey,
             acv_real: acvMes, meta_mensual_acv: metaAcvMes,
@@ -271,6 +307,7 @@ Deno.serve(async (req) => {
           });
         }
       }
+
 
       // ── Rachas VN ──
       for (const racha of rachas) {
