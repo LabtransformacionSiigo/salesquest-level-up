@@ -123,15 +123,21 @@ const AdminEspecialista = () => {
       const vcSp = vcRes?.totalSp ?? 0;
       const vnEval = vnRes?.evaluados ?? (vnRes?.resultados?.length ?? 0);
 
+      // Recalcular SP Canje en toda la plataforma (gerentes + asesores)
+      const { data: recalcData, error: recalcErr } = await supabase.rpc('recalcular_sp_canje_global');
+      const recalcInfo = recalcErr
+        ? ` · ⚠️ recálculo SP Canje falló`
+        : ` · SP Canje sincronizado (G:${(recalcData as any)?.gerentes_actualizados ?? 0} / A:${(recalcData as any)?.asesores_actualizados ?? 0})`;
+
       if (vcOk && vnOk) {
         toast({
           title: '✅ Evaluación completada (VC + VN)',
-          description: `VC: ${vcRetos} retos · ${vcSp} SP Canje · VN: ${vnEval} evaluaciones`,
+          description: `VC: ${vcRetos} retos · ${vcSp} SP Canje · VN: ${vnEval} evaluaciones${recalcInfo}`,
         });
       } else {
         toast({
           title: '⚠️ Resultado con errores',
-          description: `VC ${vcOk ? 'ok' : 'falló'} · VN ${vnOk ? 'ok' : 'falló'}`,
+          description: `VC ${vcOk ? 'ok' : 'falló'} · VN ${vnOk ? 'ok' : 'falló'}${recalcInfo}`,
           variant: 'destructive',
         });
       }
