@@ -260,10 +260,11 @@ Deno.serve(async (req) => {
       }
     }
     const aggRows = [...aggMap.values()];
+    // Ya hicimos DELETE de MEX del año arriba, así que insertamos plano (sin upsert)
+    // para no depender de constraints únicas que pueden chocar con datos de otros países.
     for (let i = 0; i < aggRows.length; i += BATCH) {
       const slice = aggRows.slice(i, i + BATCH);
-      const { error } = await sb.from("ventas_gerente_mensual")
-        .upsert(slice, { onConflict: "pais,periodo,canal_direccion,gerente_normalizado,familia" });
+      const { error } = await sb.from("ventas_gerente_mensual").insert(slice);
       if (error) throw new Error(`insert ventas_gerente_mensual: ${error.message}`);
     }
     console.log(`✓ ventas_gerente_mensual MX: ${aggRows.length} filas`);
