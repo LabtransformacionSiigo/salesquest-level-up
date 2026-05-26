@@ -495,9 +495,9 @@ const Retos = () => {
   // === VN render: usa retos_vn_config / rachas_vn_config ===
   const renderVnCard = (reto: any, _periodo: string) => {
     const tipo = String(reto.tipo || '').toUpperCase();
-    // Para DIARIO: cualquier cumplimiento del mes actual aparece desbloqueado en la tarjeta.
-    // Para SEMANAL: matchea la semana actual del mes (YYYYMM-S{n}).
-    // Para MENSUAL: matchea YYYYMM.
+    const mesStr = `${anio}${String(mes + 1).padStart(2, '0')}`;
+
+    // Estado completado por ventana
     let completed = false;
     if (tipo === 'DIARIO') {
       const prefijoMes = `${anio}-${String(mes + 1).padStart(2, '0')}-`;
@@ -506,14 +506,24 @@ const Retos = () => {
         if (nombre === reto.nombre && periodo?.startsWith(prefijoMes)) { completed = true; break; }
       }
     } else if (tipo === 'SEMANAL') {
-      completed = vnCompletados.has(`${reto.nombre}::${periodoSemanaVn}`);
+      // Marcado como "ganado en esta semana" sólo si la semana actual está completada
+      completed = vnCompletados.has(`${reto.nombre}::${mesStr}-S${semanaDelMes}`);
     } else {
-      completed = vnCompletados.has(`${reto.nombre}::${periodoMes}`);
+      completed = vnCompletados.has(`${reto.nombre}::${mesStr}`);
     }
 
-    const sp = reto.tipo === 'SEMANAL'
-      ? `${reto.sp_semanal_sem1}/${reto.sp_semanal_sem2}/${reto.sp_semanal_sem3}/${reto.sp_semanal_sem4}`
-      : String(reto.sp_base ?? 0);
+    // Para SEMANAL, calcular estado por cada una de las 4 semanas
+    const semanasSp = [reto.sp_semanal_sem1, reto.sp_semanal_sem2, reto.sp_semanal_sem3, reto.sp_semanal_sem4];
+    const semanasEstado = tipo === 'SEMANAL'
+      ? semanasSp.map((sp: number, i: number) => ({
+          sem: i + 1,
+          sp: Number(sp ?? 0),
+          ganada: vnCompletados.has(`${reto.nombre}::${mesStr}-S${i + 1}`),
+          actual: (i + 1) === semanaDelMes,
+        }))
+      : [];
+    const spBase = Number(reto.sp_base ?? 0);
+
     return (
       <motion.div
         key={reto.id}
@@ -523,11 +533,11 @@ const Retos = () => {
       >
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">{reto.tipo}</span>
-          {completed && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>}
+          {completed && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ GANADO</span>}
         </div>
-        <div className="flex items-center gap-3 mb-2 mt-2">
+        <div className="flex items-start gap-3 mb-3 mt-2">
           <span className="text-3xl">{completed ? '✅' : '🎯'}</span>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
             <p className="text-xs text-muted-foreground">KPI: {reto.kpi}</p>
             <div className="flex gap-1 mt-1.5 flex-wrap">
@@ -541,13 +551,54 @@ const Retos = () => {
               )}
             </div>
           </div>
-          <div className="text-right">
-            <span className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}>🎁 {sp} SP</span>
-          </div>
+          {tipo !== 'SEMANAL' && (
+            <div className="text-right shrink-0">
+              <span
+                className={cn(
+                  'text-sm font-bold font-scoreboard px-3 py-1.5 rounded-lg inline-flex items-center gap-1 border',
+                  completed
+                    ? 'bg-accent text-white border-accent shadow-sm'
+                    : 'bg-muted/40 text-muted-foreground border-muted'
+                )}
+                title="Puntos canjeables otorgados al cumplir"
+              >🎁 {completed ? `+${spBase}` : spBase} <span className="text-[10px] opacity-80">SP</span></span>
+            </div>
+          )}
         </div>
+
+        {tipo === 'SEMANAL' && (
+          <div className="mt-2">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">SP por semana del mes</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {semanasEstado.map((s) => (
+                <div
+                  key={s.sem}
+                  className={cn(
+                    'rounded-lg px-2 py-1.5 text-center border transition-all',
+                    s.ganada
+                      ? 'bg-accent text-white border-accent shadow-sm'
+                      : s.actual
+                      ? 'bg-primary/10 text-primary border-primary ring-2 ring-primary/30'
+                      : 'bg-muted/30 text-muted-foreground border-muted'
+                  )}
+                  title={s.ganada ? 'Ganado' : s.actual ? 'Semana actual' : `Semana ${s.sem}`}
+                >
+                  <p className="text-[9px] font-bold uppercase tracking-wide opacity-80">
+                    S{s.sem} {s.ganada && '✓'}
+                  </p>
+                  <p className="text-sm font-bold font-scoreboard leading-tight">
+                    {s.ganada ? `+${s.sp}` : s.sp}
+                  </p>
+                  <p className="text-[8px] opacity-70 leading-none">SP</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     );
   };
+
 
   const renderVnTab = (windowKey: 'DIARIO' | 'SEMANAL' | 'MENSUAL', periodo: string) => {
     const items = vnRetos.filter((r) => String(r.tipo || '').toUpperCase() === windowKey);
