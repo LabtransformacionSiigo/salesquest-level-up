@@ -65,6 +65,7 @@ function App() {
             <Route path="/admin/simulacion" element={<AdminRoute><AdminSimulacion /></AdminRoute>} />
             <Route path="/admin/metas-acv" element={<AdminRoute><AdminMetasAcv /></AdminRoute>} />
             <Route path="/admin/especialistas-accesos" element={<AdminRoute><AdminEspecialistasAccesos /></AdminRoute>} />
+            <Route path="/admin/sp-canje" element={<AdminSpCanjeMensual />} />
             {/* Ruta canónica de la única interfaz de gamificación VC para Especialista */}
             <Route path="/especialista/gamificacion-vc" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             {/* Redirects de rutas legacy a la canónica */}
