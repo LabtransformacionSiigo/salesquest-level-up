@@ -109,6 +109,8 @@ const Retos = () => {
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
+  const [vnRetos, setVnRetos] = useState<any[]>([]);
+  const [vnRachas, setVnRachas] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
     dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
@@ -117,6 +119,8 @@ const Retos = () => {
     monthlyCumplimientoPct: 0, monthlyAcvSum: 0, monthlyMetaSum: 0,
     artilleroDias: [],
   });
+
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
