@@ -406,15 +406,18 @@ const Rankings = () => {
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
 
-          // Ventas FE/Nube del mes actual desde ejecucion_asesores (por documento, fallback por nombre)
+          // Ventas FE/Nube del mes actual desde ejecucion_asesores.
+          // OJO: en COL/ECU/URU el campo `documento_asesor` realmente contiene el NOMBRE
+          // (problema conocido del sync). Por eso se intenta por documento real y, si no
+          // hay match, se hace fallback por nombre normalizado contra ese mismo campo.
           const docAsesor = String(
             (metasAsesoresRes.data || []).find((m: any) => normalizePersonName(m.nombre_asesor) === key)?.documento_asesor ?? ''
-          );
+          ).trim();
           const ejecMesActual = docAsesor
             ? (ejecAsesoresRes.data || []).filter((r: any) => String(r.documento_asesor) === docAsesor && String(r.periodo) === currentMonth)
             : [];
           const ejecMesActualByName = (ejecAsesoresRes.data || []).filter((r: any) =>
-            normalizePersonName((r as any).nombre_asesor ?? (r as any).asesor ?? '') === key &&
+            normalizePersonName((r as any).documento_asesor ?? (r as any).nombre_asesor ?? (r as any).asesor ?? '') === key &&
             String(r.periodo) === currentMonth
           );
           const ejecRowsCurrent = ejecMesActual.length > 0 ? ejecMesActual : ejecMesActualByName;
@@ -449,18 +452,33 @@ const Rankings = () => {
           const pctFeMes = currentMetaFe > 0 ? capPctAsesor((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPctAsesor((currentNube / currentMetaNube) * 100) : 0;
 
-          // Si este asesor también es gerente con célula, recalcular SP via celula (igual que header)
+          // Meta unidades del mes actual: tomar meta_total del periodo (incluso con
+          // novedad) y, si está vacío, caer al último periodo con meta>0 del año.
+          const metaTotalMesActual = (metasAsesoresRes.data || [])
+            .filter((r: any) => normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth)
+            .reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
+          let metaUnidadesFallback = 0;
+          if (metaTotalMesActual === 0) {
+            const metasAsesorAll = (metasAsesoresRes.data || [])
+              .filter((r: any) => normalizePersonName(r.nombre_asesor) === key && (Number(r.meta_total) || 0) > 0)
+              .sort((a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
+            metaUnidadesFallback = Number(metasAsesorAll[0]?.meta_total) || 0;
+          }
+          const metaUnidadesFinal = currentMonthly?.metaTotal || metaTotalMesActual || metaUnidadesFallback || 0;
+
+          // SP CONVENCIÓN — SIEMPRE por asesor individual. NO sustituir por la fórmula
+          // de célula aunque el asesor aparezca también en `gerentes` (todos los VN
+          // tienen un registro espejo en gerentes con la misma celula, lo que hacía
+          // que TODOS los asesores de una célula reportaran el mismo SP).
           const gerMatch = gerenteCelulaByName.get(key);
-          const spForRanking = gerMatch
-            ? computeSpConvencionAnualForCelula(spCelulaInputs, gerMatch.celula, gerMatch.nombre)
-            : spFinal;
+          const spForRanking = spFinal;
           entries.push({
             id: asesorInfo?.id || key,
             nombre: originalName,
             gerente_nombre: agg.celula,
             kpi_value: Math.round(currentAcv || agg.acv),
             meta_acv: currentMetaAcv,
-            meta_unidades: currentMonthly?.metaTotal || 0,
+            meta_unidades: metaUnidadesFinal,
             unidades_logradas: agg.ventas,
             unidades_total: agg.unidades,
             cant_recomendados: agg.recomendados,
@@ -472,7 +490,7 @@ const Rankings = () => {
             canal: profile.canal,
             pais: userPais,
             sp_totales: spForRanking,
-            sp_canje: gerMatch?.sp_canje || asesorInfo?.sp_canje || 0,
+            sp_canje: asesorInfo?.sp_canje || gerMatch?.sp_canje || 0,
             nivel: null,
           });
         });
