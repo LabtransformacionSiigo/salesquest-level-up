@@ -974,9 +974,12 @@ export const useGamificationMetrics = (
             metaEquipoUnidades = _catalogUndMes;
           }
 
-          const metaAcvEquipo = acvOficial?.meta_total_acv
-            ? normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais)
-            : 0;
+          // metas_acv_gerentes.meta_total_acv ya está en la moneda real del país
+          // (USD para ECU, COP para COL, MXN para MEX, UYU para URU). NO aplicar
+          // factor de escala — eso solo aplica a productividad_asesores.meta
+          // (que viene en miles/cientos). Hacerlo aquí inflaba la meta ECU/MEX
+          // (p. ej. $35K → $3.5M) y dejaba %ACV cerca de 0.
+          const metaAcvEquipo = Math.round(Number(acvOficial?.meta_total_acv) || 0);
           vnMetaAcvActual = metaAcvEquipo;
 
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
