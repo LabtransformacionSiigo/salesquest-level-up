@@ -107,11 +107,13 @@ interface VcMetrics {
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
+  const [vnCompletados, setVnCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
   const [vnRetos, setVnRetos] = useState<any[]>([]);
   const [vnRachas, setVnRachas] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+
   const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
     dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
     weeklyUpgradesNube: 0, weeklyUpgradesLegacy: 0, weeklyUpgradesTotal: 0,
