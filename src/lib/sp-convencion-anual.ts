@@ -288,8 +288,10 @@ export interface MetaAsesorFullRow extends MetaAsesorRow {
 
 export interface VnMetricaRow {
   pais?:           string | null;
+  periodo?:        string | null;
   mes_nro?:        number | null;
   asesor?:         string | null;
+  familia?:        string | null;
   tipo_producto1?: string | null;
   ventas?:         number | null;
   total_productos?: number | null;
@@ -309,7 +311,6 @@ export interface SpAnualAsesorInputs {
   ejecAsesorRows: EjecAsesorRow[];
   /** @deprecated no longer used for VN asesor convention points */
   productividadRows: ProductividadAsesorRow[];
-  /** @deprecated no longer used for VN asesor convention points */
   vnMetricasRows?: VnMetricaRow[];
   year: string;
 }
@@ -346,12 +347,10 @@ export function computeSpConvencionAnualForAsesor(
   if (!asesorNorm) return 0;
   const { metaAsesorRows, year } = inputs;
 
-  // Metas FE/Nube por periodo (sólo "Sin novedad").
+  // Metas FE/Nube por periodo del asesor individual.
   const metasPorPeriodo = new Map<string, { fe: number; nube: number }>();
   metaAsesorRows.forEach((row) => {
     if (normalizeSpText(row.nombre_asesor) !== asesorNorm) return;
-    const nov = String(row.novedad ?? '').trim();
-    if (nov && nov !== 'Sin novedad') return;
     const p = String(row.anio_mes ?? '');
     if (!/^\d{6}$/.test(p)) return;
     const cur = metasPorPeriodo.get(p) ?? { fe: 0, nube: 0 };
@@ -360,8 +359,24 @@ export function computeSpConvencionAnualForAsesor(
     metasPorPeriodo.set(p, cur);
   });
 
-  // Ejecución FE/Nube por periodo desde ventas_diarias. No se usan alternativas.
-  const ejecPorPeriodo = new Map<string, { fe: number; nube: number }>();
+  // Ejecución FE/Nube por periodo desde la tabla consolidada por asesor.
+  const metricasPorPeriodo = new Map<string, { fe: number; nube: number }>();
+  (inputs.vnMetricasRows || []).forEach((row) => {
+    if (normalizeSpText(row.asesor) !== asesorNorm) return;
+    const p = String(row.periodo || (row.mes_nro ? `${year}${String(row.mes_nro).padStart(2, '0')}` : ''));
+    if (!/^\d{6}$/.test(p)) return;
+    const tipo = String(row.familia || row.tipo_producto1 || '').toUpperCase().trim();
+    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
+    if (fam !== 'FE' && fam !== 'NUBE') return;
+    const cur = metricasPorPeriodo.get(p) ?? { fe: 0, nube: 0 };
+    const unidades = Math.round(Number(row.ventas ?? row.total_productos) || 0);
+    if (fam === 'FE') cur.fe += unidades;
+    if (fam === 'NUBE') cur.nube += unidades;
+    metricasPorPeriodo.set(p, cur);
+  });
+
+  // Ejecución FE/Nube por periodo desde ventas_diarias cuando no exista consolidado.
+  const ventasDiariasPorPeriodo = new Map<string, { fe: number; nube: number }>();
   (inputs.ventasDiariasRows || []).forEach((row) => {
     if (normalizeSpText(row.asesor) !== asesorNorm) return;
     const fecha = String(row.fecha ?? '');
@@ -370,15 +385,16 @@ export function computeSpConvencionAnualForAsesor(
     const tipo = String(row.tipo_producto || row.producto || '').toUpperCase().trim();
     const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
     if (fam !== 'FE' && fam !== 'NUBE') return;
-    const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0 };
+    const cur = ventasDiariasPorPeriodo.get(p) ?? { fe: 0, nube: 0 };
     if (fam === 'FE') cur.fe += Math.round(Number(row.unidades) || 0);
     if (fam === 'NUBE') cur.nube += Math.round(Number(row.unidades) || 0);
-    ejecPorPeriodo.set(p, cur);
+    ventasDiariasPorPeriodo.set(p, cur);
   });
 
   const periodos = new Set<string>([
     ...metasPorPeriodo.keys(),
-    ...ejecPorPeriodo.keys(),
+    ...metricasPorPeriodo.keys(),
+    ...ventasDiariasPorPeriodo.keys(),
   ]);
 
   // FÓRMULA SP CONVENCIÓN — ASESORES VN (todos los países)
@@ -389,7 +405,7 @@ export function computeSpConvencionAnualForAsesor(
   periodos.forEach((periodo) => {
     if (!periodo.startsWith(year)) return;
     const metas = metasPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
-    const ejec = ejecPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
+    const ejec = metricasPorPeriodo.get(periodo) ?? ventasDiariasPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
 
     const pct_fe = metas.fe > 0 ? cap((ejec.fe / metas.fe) * 100) : 0;
     const pct_nube = metas.nube > 0 ? cap((ejec.nube / metas.nube) * 100) : 0;
