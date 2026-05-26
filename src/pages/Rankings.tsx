@@ -1124,9 +1124,11 @@ const Rankings = () => {
                           <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
                           <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
-                        </td>
+                        {!isComercialTab && (
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
+                          </td>
+                        )}
                         {(isComercialTab || isGerentesVCTab) && !isVN && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
