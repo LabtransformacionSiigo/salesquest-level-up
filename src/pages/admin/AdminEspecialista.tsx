@@ -939,6 +939,10 @@ const AdminEspecialista = () => {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="sp-canje" className="mt-4">
+              <SpCanjeMensual gerentes={gerentes} isAdmin={isAdmin} />
+            </TabsContent>
           </Tabs>
         )}
 
