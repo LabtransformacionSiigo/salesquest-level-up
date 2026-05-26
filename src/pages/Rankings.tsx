@@ -451,11 +451,7 @@ const Rankings = () => {
           const unidadesAnoTotal = (vdAgg?.feYear || 0) + (vdAgg?.nubeYear || 0);
 
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
-          const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
-            const nov = String(r.novedad ?? '').trim().toLowerCase();
-            if (nov && nov !== 'sin novedad') return false;
-            return normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth;
-          });
+          const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth);
           const currentMetaFe = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
           const currentMetaNube = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
           const capPctAsesor = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
