@@ -46,6 +46,32 @@ const normalizeComparableText = (value: unknown) =>
 
 const getCurrentConventionYear = () => new Date().getFullYear();
 
+const PAIS_FULL_NAME: Record<string, string> = { COL: 'COLOMBIA', MEX: 'MEXICO', ECU: 'ECUADOR', URU: 'URUGUAY' };
+
+// Fetch all rows from metas_asesores for a year, paginated (PostgREST caps at 1000 per request)
+async function fetchAllMetasAsesores(year: number, paisCode?: string) {
+  const paisFull = paisCode ? PAIS_FULL_NAME[paisCode] : undefined;
+  const pageSize = 1000;
+  let from = 0;
+  const all: any[] = [];
+  // Safety cap: 20 pages = 20,000 rows
+  for (let i = 0; i < 20; i++) {
+    let q: any = supabase
+      .from('metas_asesores')
+      .select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente, pais')
+      .gte('anio_mes', `${year}01`)
+      .lte('anio_mes', `${year}12`)
+      .range(from, from + pageSize - 1);
+    if (paisFull) q = q.eq('pais', paisFull);
+    const { data, error } = await q;
+    if (error || !data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all };
+}
+
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
@@ -266,7 +292,7 @@ const Rankings = () => {
         const [productividadRes, asesoresRes, metasAsesoresRes, ventasDiariasRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, ventas_mm_sql, sc_creados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
-          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
+          fetchAllMetasAsesores(currentConventionYear, userPais),
           supabase.from('ventas_diarias').select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).range(0, 49999),
         ]);
         const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
@@ -343,17 +369,6 @@ const Rankings = () => {
           vnMetricasRows: [],
           year: String(currentConventionYear),
         };
-        console.log('[VN-RANKING-DEBUG]', {
-          currentMonth,
-          userPais,
-          metasAsesoresCount: (metasAsesoresRes.data || []).length,
-          metasMesActualCount: (metasAsesoresRes.data || []).filter((r: any) => String(r.anio_mes) === currentMonth).length,
-          productividadCount: (productividadRes.data || []).length,
-          ventasDiariasCount: ((ventasDiariasRes as any)?.data || []).length,
-          sampleMeta: (metasAsesoresRes.data || []).slice(0, 3),
-          sampleProd: (productividadRes.data || []).slice(0, 2),
-          advisorAggKeys: Array.from(advisorAgg.keys()).slice(0, 5),
-        });
         advisorAgg.forEach((agg, key) => {
           const asesorInfo = asesorInfoMap.get(key);
           const currentAcv = agg.currentAcv;
@@ -437,7 +452,7 @@ const Rankings = () => {
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
+          fetchAllMetasAsesores(currentConventionYear, userPais),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
