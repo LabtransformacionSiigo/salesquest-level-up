@@ -310,7 +310,6 @@ const Rankings = () => {
         });
         // Build ranking entries
         const entries: any[] = [];
-        const esMexico = userPais === 'MEX';
         const mesActualNro = new Date().getMonth() + 1;
 
         // ─── Ventas reales por asesor desde ventas_diarias ───────────────────
