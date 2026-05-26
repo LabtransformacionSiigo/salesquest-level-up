@@ -1,6 +1,7 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
@@ -20,6 +21,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
+  const navigate = useNavigate();
   const [racha, setRacha] = useState<any>(null);
   const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
@@ -96,11 +98,16 @@ const Header = ({ title }: HeaderProps) => {
               <span className="text-xs font-bold text-primary-foreground font-scoreboard">{spDisplay.toLocaleString()}</span>
               <span className="text-[10px] text-primary-foreground/70">SP Convención</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5" title="SP Canje · Medallas, retos y reconocimientos">
+            <button
+              type="button"
+              onClick={() => navigate('/mis-logros')}
+              className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5 hover:brightness-110 transition"
+              title="Ver desglose: retos, medallas y reconocimientos"
+            >
               <MI icon="redeem" className="text-sm text-accent-foreground" />
               <span className="text-xs font-bold text-accent-foreground font-scoreboard">{(profile?.sp_canje || 0).toLocaleString()}</span>
               <span className="text-[10px] text-accent-foreground/70">SP Canje</span>
-            </div>
+            </button>
           </motion.div>
         )}
 

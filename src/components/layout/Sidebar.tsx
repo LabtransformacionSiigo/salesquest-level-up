@@ -19,6 +19,7 @@ const menuItems = [
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
   { path: '/retos', icon: 'flag', label: 'Retos' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
+  { path: '/mis-logros', icon: 'emoji_events', label: 'Mis Logros' },
   { path: '/premios', icon: 'redeem', label: 'Beneficios ' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
@@ -112,15 +113,18 @@ const Sidebar = () => {
               <span className="text-base font-bold font-scoreboard text-sidebar-primary">{spDisplay.toLocaleString()}</span>
               <span className="text-xs text-sidebar-muted font-medium">SP Convención</span>
             </motion.div>
-            <motion.div 
-              className="mt-2 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2"
+            <motion.button
+              type="button"
+              onClick={() => navigate('/mis-logros')}
+              className="mt-2 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2 w-full hover:bg-sidebar-accent/80 transition-colors"
               whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
-              title="SP Canje · Medallas, retos y reconocimientos"
+              title="Ver desglose de retos, medallas y reconocimientos"
             >
               <MI icon="redeem" className="text-accent text-lg" />
               <span className="text-sm font-bold font-scoreboard text-accent">{(profile?.sp_canje || 0).toLocaleString()}</span>
               <span className="text-xs text-sidebar-muted font-medium">SP Canje</span>
-            </motion.div>
+              <MI icon="chevron_right" className="text-sidebar-muted text-sm ml-auto" />
+            </motion.button>
           </>
         )}
       </motion.div>
