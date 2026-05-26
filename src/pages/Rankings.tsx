@@ -49,8 +49,9 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const PAIS_FULL_NAME: Record<string, string> = { COL: 'COLOMBIA', MEX: 'MEXICO', ECU: 'ECUADOR', URU: 'URUGUAY' };
 
 // Fetch all rows from metas_asesores for a year, paginated (PostgREST caps at 1000 per request)
-async function fetchAllMetasAsesores(year: number, paisCode?: string) {
+async function fetchAllMetasAsesores(year: number, paisCode?: string, canal?: string) {
   const paisFull = paisCode ? PAIS_FULL_NAME[paisCode] : undefined;
+  const canalDir = canal === 'VN_ALIADOS' ? 'VN_ALIADOS' : canal === 'VN_EMPRESARIOS' ? 'VN_EMPRESARIOS' : undefined;
   const pageSize = 1000;
   let from = 0;
   const all: any[] = [];
@@ -58,11 +59,57 @@ async function fetchAllMetasAsesores(year: number, paisCode?: string) {
   for (let i = 0; i < 20; i++) {
     let q: any = supabase
       .from('metas_asesores')
-      .select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente, pais')
+      .select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente, pais, canal_direccion')
       .gte('anio_mes', `${year}01`)
       .lte('anio_mes', `${year}12`)
       .range(from, from + pageSize - 1);
     if (paisFull) q = q.eq('pais', paisFull);
+    if (canalDir) q = q.eq('canal_direccion', canalDir);
+    const { data, error } = await q;
+    if (error || !data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all };
+}
+
+async function fetchAllVentasDiarias(year: number, paisCode?: string) {
+  const pageSize = 1000;
+  let from = 0;
+  const all: any[] = [];
+  for (let i = 0; i < 80; i++) {
+    let q: any = supabase
+      .from('ventas_diarias')
+      .select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais')
+      .gte('fecha', `${year}-01-01`)
+      .lt('fecha', `${year + 1}-01-01`)
+      .range(from, from + pageSize - 1);
+    if (paisCode) q = q.eq('pais', paisCode);
+    const { data, error } = await q;
+    if (error || !data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all };
+}
+
+async function fetchAllVnMetricasAsesores(year: number, paisCode?: string, canal?: string) {
+  const canalDir = paisCode === 'MEX'
+    ? (canal === 'VN_ALIADOS' ? 'Aliados' : canal === 'VN_EMPRESARIOS' ? 'Empresarios' : undefined)
+    : undefined;
+  const pageSize = 1000;
+  let from = 0;
+  const all: any[] = [];
+  for (let i = 0; i < 20; i++) {
+    let q: any = (supabase.from('vn_metricas_optimizadas' as any) as any)
+      .select('periodo, mes_nro, asesor, tipo_producto1, familia, ventas, pais, canal_direccion')
+      .eq('scope', 'asesor')
+      .eq('anio', year)
+      .range(from, from + pageSize - 1);
+    if (paisCode) q = q.eq('pais', String(paisCode).toUpperCase());
+    if (canalDir) q = q.eq('canal_direccion', canalDir);
     const { data, error } = await q;
     if (error || !data || data.length === 0) break;
     all.push(...data);
@@ -289,11 +336,12 @@ const Rankings = () => {
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, asesoresRes, metasAsesoresRes, ventasDiariasRes] = await Promise.all([
+        const [productividadRes, asesoresRes, metasAsesoresRes, ventasDiariasRes, vnMetricasAsesorRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, ventas_mm_sql, sc_creados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
-          fetchAllMetasAsesores(currentConventionYear, userPais),
-          supabase.from('ventas_diarias').select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).range(0, 49999),
+          fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
+          fetchAllVentasDiarias(currentConventionYear, userPais),
+          fetchAllVnMetricasAsesores(currentConventionYear, userPais, profile.canal),
         ]);
         const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
         (asesoresRes.data || []).forEach((a: any) => {
@@ -338,10 +386,28 @@ const Rankings = () => {
         const entries: any[] = [];
         const mesActualNro = new Date().getMonth() + 1;
 
-        // ─── Ventas reales por asesor desde ventas_diarias ───────────────────
-        // Fuente de verdad para Unidades / %FE / %Nube por asesor (COL/ECU/URU/MEX).
+        // ─── Ventas reales por asesor desde fuente consolidada ───────────────
+        // Fuente de verdad para Unidades / %FE / %Nube por asesor: vn_metricas_optimizadas.
+        // ventas_diarias queda como respaldo sólo si no existe consolidado para el asesor.
         // Agregamos FE/NUBE del mes actual y del año.
         type VdAgg = { feCurrent: number; nubeCurrent: number; feYear: number; nubeYear: number };
+        const metricasByAsesor = new Map<string, VdAgg>();
+        (((vnMetricasAsesorRes as any)?.data as any[]) || []).forEach((row: any) => {
+          const name = row.asesor;
+          if (!name) return;
+          const k = normalizePersonName(name);
+          const period = String(row.periodo || (row.mes_nro ? `${currentConventionYear}${String(row.mes_nro).padStart(2, '0')}` : ''));
+          if (!period.startsWith(String(currentConventionYear))) return;
+          const tipo = String(row.familia || row.tipo_producto1 || '').toUpperCase().trim();
+          const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE'
+                    : (tipo === 'FE' || tipo === 'NUBE') ? tipo : 'OTRO';
+          if (fam === 'OTRO') return;
+          const u = Math.round(Number(row.ventas ?? row.total_productos) || 0);
+          const cur = metricasByAsesor.get(k) || { feCurrent: 0, nubeCurrent: 0, feYear: 0, nubeYear: 0 };
+          if (fam === 'FE') { cur.feYear += u; if (period === currentMonth) cur.feCurrent += u; }
+          else { cur.nubeYear += u; if (period === currentMonth) cur.nubeCurrent += u; }
+          metricasByAsesor.set(k, cur);
+        });
         const ventasDiariasByAsesor = new Map<string, VdAgg>();
         const currentMonthPrefix = `${currentConventionYear}-${String(mesActualNro).padStart(2, '0')}`;
         ((ventasDiariasRes as any)?.data as any[] || []).forEach((row: any) => {
@@ -366,7 +432,7 @@ const Rankings = () => {
           ventasDiariasRows: ((ventasDiariasRes as any)?.data as any[]) || [],
           ejecAsesorRows: [],
           productividadRows: productividadRes.data || [],
-          vnMetricasRows: [],
+          vnMetricasRows: ((vnMetricasAsesorRes as any)?.data as any[]) || [],
           year: String(currentConventionYear),
         };
         advisorAgg.forEach((agg, key) => {
@@ -378,7 +444,7 @@ const Rankings = () => {
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
 
-          const vdAgg = ventasDiariasByAsesor.get(key);
+          const vdAgg = metricasByAsesor.get(key) || ventasDiariasByAsesor.get(key);
           const currentFe = vdAgg?.feCurrent || 0;
           const currentNube = vdAgg?.nubeCurrent || 0;
           const unidadesMesActual = currentFe + currentNube;
@@ -452,7 +518,7 @@ const Rankings = () => {
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('user_roles').select('user_id, role'),
-          fetchAllMetasAsesores(currentConventionYear, userPais),
+          fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
