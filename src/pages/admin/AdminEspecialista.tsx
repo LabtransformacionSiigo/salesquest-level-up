@@ -541,7 +541,7 @@ const AdminEspecialista = () => {
           <Skeleton className="h-96" />
         ) : (
           <Tabs defaultValue={defaultTab} className="w-full">
-            <TabsList className={`grid w-full ${tieneVC && tieneVN ? 'grid-cols-6 max-w-3xl' : tieneVN ? 'grid-cols-3 max-w-md' : 'grid-cols-4 max-w-xl'}`}>
+            <TabsList className={`grid w-full ${tieneVC && tieneVN ? 'grid-cols-7 max-w-4xl' : tieneVN ? 'grid-cols-4 max-w-xl' : 'grid-cols-5 max-w-2xl'}`}>
               {tieneVC && (
                 <TabsTrigger value="retos">
                   <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
