@@ -979,6 +979,8 @@ const Rankings = () => {
   const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
   const isGerentesVNTab = isVN && tab === 'gerentes';
+  // Asesores VN (todos los países): no tienen meta ACV, solo se muestran FE/Nube/Unidades.
+  const isAsesoresVNTab = isVN && isComercialTab;
 
   // Sort by SP totales as primary, then by % cumplimiento
   const sorted = [...ranking].sort((a, b) => {
