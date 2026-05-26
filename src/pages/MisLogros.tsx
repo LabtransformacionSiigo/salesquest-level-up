@@ -24,6 +24,20 @@ interface CanjeRow {
   estado: string;
 }
 
+interface RetoAsignado {
+  id: string;
+  nombre: string;
+  tipo: string; // DIARIO | SEMANAL | MENSUAL
+  sp_total: number;
+  fuente: 'VC' | 'VN';
+  ganados: number; // veces que aparece en retos_completados este mes
+  sp_ganado: number;
+  emoji?: string;
+  familia?: string | null;
+  kpi?: string | null;
+}
+
+
 const FUENTE_META: Record<string, { label: string; icon: string; color: string }> = {
   RETO_DIARIO: { label: 'Reto diario', icon: '📅', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
   RETO_SEMANAL: { label: 'Reto semanal', icon: '📆', color: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' },
