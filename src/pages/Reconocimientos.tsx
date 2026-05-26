@@ -62,18 +62,30 @@ const Reconocimientos = () => {
       ]);
       let colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
 
-      // Fallback VN: si no hay asesores asignados, traer asesores del mes actual por célula
+      // Fallback VN: si no hay asesores asignados, traer desde metas_asesores por célula del mes actual
       if (!isVC && colabs.length === 0 && profile?.celula) {
         const periodo = `${currentYear}${String(currentMonth).padStart(2, '0')}`;
-        const { data: prod } = await supabase
-          .from('productividad_asesores')
-          .select('asesor')
+        let { data: metas } = await supabase
+          .from('metas_asesores')
+          .select('nombre_asesor, documento_asesor')
           .eq('celula', profile.celula)
           .eq('anio_mes', periodo);
+        // Si no hay del mes actual, intentar el mes anterior
+        if (!metas || metas.length === 0) {
+          const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+          const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+          const prevPeriodo = `${prevYear}${String(prevMonth).padStart(2, '0')}`;
+          const res = await supabase
+            .from('metas_asesores')
+            .select('nombre_asesor, documento_asesor')
+            .eq('celula', profile.celula)
+            .eq('anio_mes', prevPeriodo);
+          metas = res.data;
+        }
         const seen = new Set<string>();
-        colabs = (prod || [])
-          .map((p: any) => String(p.asesor || '').trim())
-          .filter((n: string) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()))
+        colabs = (metas || [])
+          .map((m: any) => String(m.nombre_asesor || '').trim())
+          .filter((n: string) => n && !n.startsWith('CEL_') && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()))
           .map((n: string) => ({ id: null, nombre: n }));
       }
 
