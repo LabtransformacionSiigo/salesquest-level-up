@@ -21,6 +21,7 @@ const MI = ({ icon, className }: { icon: string; className?: string }) => (
 
 const Header = ({ title }: HeaderProps) => {
   const { profile } = useSupabaseAuthContext();
+  const navigate = useNavigate();
   const [racha, setRacha] = useState<any>(null);
   const [vnMetrics, setVnMetrics] = useState<{ unidades: number; referidos: number } | null>(null);
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
