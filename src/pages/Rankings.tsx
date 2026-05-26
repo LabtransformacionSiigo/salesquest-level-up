@@ -947,11 +947,13 @@ const Rankings = () => {
                       </div>
                     </motion.div>
 
-                    <div className="mt-2 flex justify-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
-                        🎁 {(g.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
-                      </span>
-                    </div>
+                    {!isComercialTab && (
+                      <div className="mt-2 flex justify-center">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
+                          🎁 {(g.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
+                        </span>
+                      </div>
+                    )}
 
                     {/* Secondary metrics */}
                     <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
