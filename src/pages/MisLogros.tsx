@@ -252,13 +252,86 @@ const MisLogros = () => {
       <div className="max-w-[1200px] mx-auto space-y-6">
         {/* Header */}
         <div className="border border-border rounded-2xl bg-gradient-to-br from-accent/10 via-primary/5 to-transparent p-6">
-          <h2 className="text-2xl font-bold text-secondary flex items-center gap-2">
-            🏆 Mis Logros
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Aquí ves todos los retos, medallas y reconocimientos que has desbloqueado, y cómo se acumulan en tu saldo de <b>SP Canje</b>.
-          </p>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-2xl font-bold text-secondary flex items-center gap-2">
+                🏆 Mis Logros
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Aquí ves todos los retos, medallas y reconocimientos que has desbloqueado, y cómo se acumulan en tu saldo de <b>SP Canje</b>.
+              </p>
+            </div>
+            <div className="text-[11px] text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+              </span>
+              Auto-actualiza cada 5 min · Última: {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
         </div>
+
+        {/* Retos asignados a tu frente */}
+        {retosAsignados.length > 0 && (
+          <div className="border border-border rounded-2xl bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-bold text-secondary flex items-center gap-2">🎯 Retos activos asignados a ti</h3>
+                <p className="text-xs text-muted-foreground">
+                  Filtrados por tu frente: <b>{(profile as any).pais || '—'}</b> · <b>{(profile as any).canal || '—'}</b>
+                  {(profile as any).familia_vc ? <> · <b>{(profile as any).familia_vc}</b></> : null}
+                </p>
+              </div>
+              <Badge variant="outline">{retosAsignados.length} retos</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {retosAsignados
+                .sort((a, b) => (b.ganados - a.ganados) || a.nombre.localeCompare(b.nombre))
+                .map(r => {
+                  const desbloqueado = r.ganados > 0;
+                  return (
+                    <div
+                      key={`${r.fuente}-${r.id}`}
+                      className={cn(
+                        'border rounded-xl p-3 transition-all',
+                        desbloqueado
+                          ? 'border-accent bg-accent/5'
+                          : 'border-border bg-muted/20'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                            <span>{r.emoji || (r.tipo === 'DIARIO' ? '📅' : r.tipo === 'SEMANAL' ? '📆' : '🗓️')}</span>
+                            {r.tipo || '—'} · {r.fuente}
+                          </div>
+                          <div className="text-sm font-bold text-foreground truncate" title={r.nombre}>
+                            {r.nombre}
+                          </div>
+                          {r.kpi && <div className="text-[10px] text-muted-foreground mt-0.5">KPI: {r.kpi}</div>}
+                        </div>
+                        <Badge
+                          className={cn(
+                            'shrink-0 text-[10px]',
+                            desbloqueado ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {desbloqueado ? `✓ GANADO ×${r.ganados}` : 'PENDIENTE'}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">SP potencial: <b className="text-foreground">{r.sp_total}</b></span>
+                        <span className={cn('font-bold tabular-nums', desbloqueado ? 'text-accent' : 'text-muted-foreground')}>
+                          {desbloqueado ? `+${r.sp_ganado} SP` : '0 SP'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
 
         {/* Tarjetas resumen */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
