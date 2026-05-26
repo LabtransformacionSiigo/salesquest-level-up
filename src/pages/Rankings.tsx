@@ -264,7 +264,7 @@ const Rankings = () => {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, asesoresRes, metasAsesoresRes, ejecAsesoresRes, vgmRes, metasAcvRes, vnMetricasMexRes, vnMetricasGerenteRes, ventasDiariasRes, gerentesAllRes, metasGerentesMexCommRes] = await Promise.all([
-          supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
+          supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, ventas_mm_sql, sc_creados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
@@ -417,11 +417,6 @@ const Rankings = () => {
           year: String(currentConventionYear),
         };
         advisorAgg.forEach((agg, key) => {
-          const monthlyRows = buildVnConventionMonthlyRows({
-            productivityRows: (productividadRes.data || []).filter((row: any) => normalizePersonName(row.asesor) === key),
-            metaRows: (metasAsesoresRes.data || []).filter((row: any) => normalizePersonName(row.nombre_asesor) === key),
-            ejecRows: ejecAsesoresRes.data || [],
-          });
           const asesorInfo = asesorInfoMap.get(key);
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
@@ -471,7 +466,6 @@ const Rankings = () => {
           // de célula aunque el asesor aparezca también en `gerentes` (todos los VN
           // tienen un registro espejo en gerentes con la misma celula, lo que hacía
           // que TODOS los asesores de una célula reportaran el mismo SP).
-          const gerMatch = gerenteCelulaByName.get(key);
           const spForRanking = spFinal;
           entries.push({
             id: asesorInfo?.id || key,
@@ -495,66 +489,6 @@ const Rankings = () => {
             nivel: getNivelData(spForRanking, profile.canal).nivel,
           });
         });
-
-        // México: agregar asesores que están en vn_metricas_optimizadas pero no en productividad_asesores
-        if (esMexico) {
-          const vnMexData = ((vnMetricasMexRes?.data as any[]) || []);
-          const mexAdvisorMap = new Map<string, { nombre: string; celula: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
-          vnMexData.forEach((r: any) => {
-            const key = normalizePersonName(r.asesor ?? '');
-            if (!key) return;
-            const cur = mexAdvisorMap.get(key) ?? {
-              nombre: r.asesor, celula: r.celula ?? '', gerente: r.gerente ?? '',
-              fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0,
-            };
-            if (!cur.celula && r.celula) cur.celula = r.celula;
-            if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
-            const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
-            const v = Number(r.ventas) || 0;
-            const acv = Number(r.acv_total) || 0;
-            if (tipo === 'FE') cur.fe += v;
-            if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
-            cur.acv += acv;
-            if (Number(r.mes_nro) === mesActualNro) {
-              if (tipo === 'FE') cur.feMes += v;
-              if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += v;
-              cur.acvMes += acv;
-            }
-            mexAdvisorMap.set(key, cur);
-          });
-
-          const existingKeys = new Set(entries.map((e: any) => normalizePersonName(e.nombre)));
-          mexAdvisorMap.forEach((agg, key) => {
-            if (existingKeys.has(key)) return;
-            const asesorInfo = asesorInfoMap.get(key);
-            const spAsesor = computeSpConvencionAnualForAsesor(spAsesorInputs, agg.nombre);
-            const gerMatchMex = gerenteCelulaByName.get(key);
-            const spForRanking = gerMatchMex
-              ? computeSpConvencionAnualForCelula(spCelulaInputs, gerMatchMex.celula, gerMatchMex.nombre)
-              : spAsesor;
-            entries.push({
-              id: asesorInfo?.id || key,
-              nombre: agg.nombre,
-              gerente_nombre: agg.celula || agg.gerente,
-              kpi_value: Math.round(agg.acvMes),
-              meta_acv: 0,
-              meta_unidades: 0,
-              unidades_logradas: agg.feMes + agg.nubeMes,
-              unidades_total: agg.fe + agg.nube,
-              cant_recomendados: 0,
-              pct_cumplimiento: 0,
-              pct_fe: 0,
-              pct_nube: 0,
-              ventas_count: agg.feMes + agg.nubeMes,
-              posicion: 0,
-              canal: profile.canal,
-              pais: 'MEX',
-              sp_totales: spForRanking,
-              sp_canje: gerMatchMex?.sp_canje || asesorInfo?.sp_canje || 0,
-              nivel: null,
-            });
-          });
-        }
 
         setRanking(entries);
       } else {
