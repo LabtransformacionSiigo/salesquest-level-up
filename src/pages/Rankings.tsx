@@ -412,7 +412,7 @@ const Rankings = () => {
             canal: profile.canal,
             pais: userPais,
             sp_totales: spForRanking,
-            sp_canje: asesorInfo?.sp_canje || calcCanje || 0,
+            sp_canje: 0,
             nivel: getNivelData(spForRanking, profile.canal).nivel,
           });
         });
