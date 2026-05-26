@@ -359,11 +359,15 @@ export function computeSpConvencionAnualForAsesor(
     metasPorPeriodo.set(p, cur);
   });
 
-  // Ejecución FE/Nube/ACV por periodo (por documento).
+  // Ejecución FE/Nube/ACV por periodo. Match por documento real; si no hay match
+  // se intenta por nombre normalizado contra `documento_asesor` (en COL/ECU/URU
+  // ese campo trae el nombre por un problema de sync de origen).
   const ejecPorPeriodo = new Map<string, { fe: number; nube: number; acv: number }>();
   ejecAsesorRows.forEach((row) => {
-    const doc = String(row.documento_asesor ?? '').trim();
-    if (!doc || !documentos.has(doc)) return;
+    const docOrName = String(row.documento_asesor ?? '').trim();
+    const matchByDoc = docOrName && documentos.has(docOrName);
+    const matchByName = normalizeSpText(docOrName) === asesorNorm;
+    if (!matchByDoc && !matchByName) return;
     const p = String(row.periodo ?? '');
     if (!/^\d{6}$/.test(p)) return;
     const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0, acv: 0 };
