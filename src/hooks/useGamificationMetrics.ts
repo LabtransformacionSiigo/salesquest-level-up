@@ -974,9 +974,12 @@ export const useGamificationMetrics = (
             metaEquipoUnidades = _catalogUndMes;
           }
 
-          const metaAcvEquipo = acvOficial?.meta_total_acv
-            ? normalizeVnMetaAcv(acvOficial.meta_total_acv, acvOficial.pais)
-            : 0;
+          // metas_acv_gerentes.meta_total_acv ya está en la moneda real del país
+          // (USD para ECU, COP para COL, MXN para MEX, UYU para URU). NO aplicar
+          // factor de escala — eso solo aplica a productividad_asesores.meta
+          // (que viene en miles/cientos). Hacerlo aquí inflaba la meta ECU/MEX
+          // (p. ej. $35K → $3.5M) y dejaba %ACV cerca de 0.
+          const metaAcvEquipo = Math.round(Number(acvOficial?.meta_total_acv) || 0);
           vnMetaAcvActual = metaAcvEquipo;
 
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
@@ -1264,7 +1267,7 @@ export const useGamificationMetrics = (
                   normalizeComparableText(r.celula) === celulaAsesor
                 );
                 const acvOficialAsesor = matches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? matches[0];
-                const teamMetaAcv = normalizeVnMetaAcv(acvOficialAsesor?.meta_total_acv, acvOficialAsesor?.pais);
+                const teamMetaAcv = Math.round(Number(acvOficialAsesor?.meta_total_acv) || 0);
                 const teamMetaTotal = Math.round(Number(acvOficialAsesor?.meta_total_und) || 0);
                 const asesorMetaTotal = Number(matchingMeta.meta_total) || 0;
                 if (teamMetaAcv > 0 && teamMetaTotal > 0 && asesorMetaTotal > 0) {
@@ -1394,9 +1397,7 @@ export const useGamificationMetrics = (
             const mTotal = (hasCatalogSplit ? catalogUnd : asesorCtx.metaTotal) || (mFe + mNube) || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
-            const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
-              ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
-              : 0;
+            const catalogMetaAcv = Math.round(Number(catalogRowForAcv?.meta_total_acv) || 0);
             const metaAcvFinal = catalogMetaAcv;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
