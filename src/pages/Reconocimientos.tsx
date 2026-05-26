@@ -60,7 +60,23 @@ const Reconocimientos = () => {
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).gte('created_at', mesStart).lt('created_at', mesEnd),
       ]);
-      const colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
+      let colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
+
+      // Fallback VN: si no hay asesores asignados, traer asesores del mes actual por célula
+      if (!isVC && colabs.length === 0 && profile?.celula) {
+        const periodo = `${currentYear}${String(currentMonth).padStart(2, '0')}`;
+        const { data: prod } = await supabase
+          .from('productividad_asesores')
+          .select('asesor')
+          .eq('celula', profile.celula)
+          .eq('anio_mes', periodo);
+        const seen = new Set<string>();
+        colabs = (prod || [])
+          .map((p: any) => String(p.asesor || '').trim())
+          .filter((n: string) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()))
+          .map((n: string) => ({ id: null, nombre: n }));
+      }
+
       setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
