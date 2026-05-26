@@ -137,15 +137,28 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, snapshot] = await Promise.all([
-        supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
-        supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+      const pais = profile.pais || 'COL';
+      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, { data: vnRetosData }, { data: vnRachasData }, snapshot] = await Promise.all([
+        isVN
+          ? Promise.resolve({ data: [] as any[] })
+          : supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+        isVN
+          ? Promise.resolve({ data: [] as any[] })
+          : supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        isVN
+          ? supabase.from('retos_vn_config' as any).select('*').eq('activo', true).contains('canal', [profile.canal]).contains('paises', [pais])
+          : Promise.resolve({ data: [] as any[] }),
+        isVN
+          ? supabase.from('rachas_vn_config' as any).select('*').eq('activo', true).contains('canal', [profile.canal]).contains('paises', [pais])
+          : Promise.resolve({ data: [] as any[] }),
         isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
       setVcRachas(filterCatalogByScope((rachasCfg || []) as VcRacha[], profile));
+      setVnRetos((vnRetosData || []) as any[]);
+      setVnRachas((vnRachasData || []) as any[]);
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
 
       if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
