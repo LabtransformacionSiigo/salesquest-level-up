@@ -24,6 +24,20 @@ interface CanjeRow {
   estado: string;
 }
 
+interface RetoAsignado {
+  id: string;
+  nombre: string;
+  tipo: string; // DIARIO | SEMANAL | MENSUAL
+  sp_total: number;
+  fuente: 'VC' | 'VN';
+  ganados: number; // veces que aparece en retos_completados este mes
+  sp_ganado: number;
+  emoji?: string;
+  familia?: string | null;
+  kpi?: string | null;
+}
+
+
 const FUENTE_META: Record<string, { label: string; icon: string; color: string }> = {
   RETO_DIARIO: { label: 'Reto diario', icon: '📅', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
   RETO_SEMANAL: { label: 'Reto semanal', icon: '📆', color: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' },
@@ -48,34 +62,120 @@ const MisLogros = () => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SpRow[]>([]);
   const [canjes, setCanjes] = useState<CanjeRow[]>([]);
+  const [retosAsignados, setRetosAsignados] = useState<RetoAsignado[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const cargar = async () => {
+    if (!profile?.id) return;
+    const mes = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const canal = (profile as any).canal as string | null;
+    const pais = (profile as any).pais as string | null;
+    const familia = (profile as any).familia_vc as string | null;
+
+    const [spRes, canjesRes, completadosRes, vcRes, vnRes] = await Promise.all([
+      supabase
+        .from('sp_acumulados')
+        .select('fuente, sp, periodo, detalle, created_at')
+        .eq('gerente_id', profile.id)
+        .eq('tipo_sp', 'canje')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('canjes')
+        .select('id, puntos_gastados, fecha_canje, estado, premios(nombre)')
+        .eq('gerente_id', profile.id)
+        .order('fecha_canje', { ascending: false }),
+      supabase
+        .from('retos_completados')
+        .select('reto, sp, periodo, tipo')
+        .eq('gerente_id', profile.id)
+        .ilike('periodo', `${mes}%`),
+      canal === 'VC'
+        ? supabase
+            .from('catalogo_retos')
+            .select('id, nombre, ventana_tiempo, sp_otorgados, emoji, familia, kpi, pais, canal, familia_vc, activo')
+            .eq('activo', true)
+        : Promise.resolve({ data: [] as any[] }),
+      canal && canal !== 'VC'
+        ? supabase
+            .from('retos_vn_config')
+            .select('id, nombre, tipo, sp_base, sp_semanal_sem1, sp_semanal_sem2, sp_semanal_sem3, sp_semanal_sem4, kpi, paises, canal, activo, fecha_inicio, fecha_fin')
+            .eq('activo', true)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    setRows((spRes.data || []) as SpRow[]);
+    setCanjes(((canjesRes.data || []) as any[]).map(c => ({
+      id: c.id,
+      puntos_gastados: c.puntos_gastados,
+      fecha_canje: c.fecha_canje,
+      estado: c.estado,
+      premio_nombre: c.premios?.nombre || null,
+    })));
+
+    // Aggregate completados by reto name
+    const ganadosMap = new Map<string, { count: number; sp: number }>();
+    for (const c of (completadosRes.data || []) as any[]) {
+      const key = String(c.reto || '').trim();
+      const prev = ganadosMap.get(key) || { count: 0, sp: 0 };
+      ganadosMap.set(key, { count: prev.count + 1, sp: prev.sp + Number(c.sp || 0) });
+    }
+
+    const asignados: RetoAsignado[] = [];
+
+    // VC: filtrar por país + familia_vc del usuario
+    for (const r of (vcRes.data || []) as any[]) {
+      if (pais && r.pais && r.pais !== pais) continue;
+      if (r.canal && r.canal !== 'VC') continue;
+      if (familia && r.familia_vc && r.familia_vc !== familia) continue;
+      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      asignados.push({
+        id: r.id,
+        nombre: r.nombre,
+        tipo: String(r.ventana_tiempo || '').toUpperCase(),
+        sp_total: Number(r.sp_otorgados || 0),
+        fuente: 'VC',
+        ganados: g.count,
+        sp_ganado: g.sp,
+        emoji: r.emoji,
+        familia: r.familia || r.familia_vc,
+        kpi: r.kpi,
+      });
+    }
+
+    // VN: filtrar por país + canal del usuario
+    for (const r of (vnRes.data || []) as any[]) {
+      const paises: string[] = r.paises || [];
+      const canales: string[] = r.canal || [];
+      if (pais && paises.length && !paises.includes(pais)) continue;
+      if (canal && canales.length && !canales.includes(canal)) continue;
+      const sp_total = r.tipo === 'SEMANAL'
+        ? Number(r.sp_semanal_sem1 || 0) + Number(r.sp_semanal_sem2 || 0) + Number(r.sp_semanal_sem3 || 0) + Number(r.sp_semanal_sem4 || 0)
+        : Number(r.sp_base || 0);
+      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      asignados.push({
+        id: r.id,
+        nombre: r.nombre,
+        tipo: r.tipo,
+        sp_total,
+        fuente: 'VN',
+        ganados: g.count,
+        sp_ganado: g.sp,
+        kpi: r.kpi,
+      });
+    }
+
+    setRetosAsignados(asignados);
+    setLastUpdate(new Date());
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!profile?.id) return;
-    (async () => {
-      setLoading(true);
-      const [spRes, canjesRes] = await Promise.all([
-        supabase
-          .from('sp_acumulados')
-          .select('fuente, sp, periodo, detalle, created_at')
-          .eq('gerente_id', profile.id)
-          .eq('tipo_sp', 'canje')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('canjes')
-          .select('id, puntos_gastados, fecha_canje, estado, premios(nombre)')
-          .eq('gerente_id', profile.id)
-          .order('fecha_canje', { ascending: false }),
-      ]);
-      setRows((spRes.data || []) as SpRow[]);
-      setCanjes(((canjesRes.data || []) as any[]).map(c => ({
-        id: c.id,
-        puntos_gastados: c.puntos_gastados,
-        fecha_canje: c.fecha_canje,
-        estado: c.estado,
-        premio_nombre: c.premios?.nombre || null,
-      })));
-      setLoading(false);
-    })();
+    setLoading(true);
+    cargar();
+    const interval = setInterval(cargar, 5 * 60 * 1000); // 5 min
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
   const totales = useMemo(() => {
@@ -90,6 +190,8 @@ const MisLogros = () => {
       .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
     return { porFuente, ganado, gastado, saldo: Math.max(ganado - gastado, 0) };
   }, [rows, canjes]);
+
+
 
   const renderTabla = (filtro: (r: SpRow) => boolean, emptyMsg: string) => {
     const list = rows.filter(filtro);
@@ -150,13 +252,86 @@ const MisLogros = () => {
       <div className="max-w-[1200px] mx-auto space-y-6">
         {/* Header */}
         <div className="border border-border rounded-2xl bg-gradient-to-br from-accent/10 via-primary/5 to-transparent p-6">
-          <h2 className="text-2xl font-bold text-secondary flex items-center gap-2">
-            🏆 Mis Logros
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Aquí ves todos los retos, medallas y reconocimientos que has desbloqueado, y cómo se acumulan en tu saldo de <b>SP Canje</b>.
-          </p>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-2xl font-bold text-secondary flex items-center gap-2">
+                🏆 Mis Logros
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Aquí ves todos los retos, medallas y reconocimientos que has desbloqueado, y cómo se acumulan en tu saldo de <b>SP Canje</b>.
+              </p>
+            </div>
+            <div className="text-[11px] text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+              </span>
+              Auto-actualiza cada 5 min · Última: {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
         </div>
+
+        {/* Retos asignados a tu frente */}
+        {retosAsignados.length > 0 && (
+          <div className="border border-border rounded-2xl bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-bold text-secondary flex items-center gap-2">🎯 Retos activos asignados a ti</h3>
+                <p className="text-xs text-muted-foreground">
+                  Filtrados por tu frente: <b>{(profile as any).pais || '—'}</b> · <b>{(profile as any).canal || '—'}</b>
+                  {(profile as any).familia_vc ? <> · <b>{(profile as any).familia_vc}</b></> : null}
+                </p>
+              </div>
+              <Badge variant="outline">{retosAsignados.length} retos</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {retosAsignados
+                .sort((a, b) => (b.ganados - a.ganados) || a.nombre.localeCompare(b.nombre))
+                .map(r => {
+                  const desbloqueado = r.ganados > 0;
+                  return (
+                    <div
+                      key={`${r.fuente}-${r.id}`}
+                      className={cn(
+                        'border rounded-xl p-3 transition-all',
+                        desbloqueado
+                          ? 'border-accent bg-accent/5'
+                          : 'border-border bg-muted/20'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                            <span>{r.emoji || (r.tipo === 'DIARIO' ? '📅' : r.tipo === 'SEMANAL' ? '📆' : '🗓️')}</span>
+                            {r.tipo || '—'} · {r.fuente}
+                          </div>
+                          <div className="text-sm font-bold text-foreground truncate" title={r.nombre}>
+                            {r.nombre}
+                          </div>
+                          {r.kpi && <div className="text-[10px] text-muted-foreground mt-0.5">KPI: {r.kpi}</div>}
+                        </div>
+                        <Badge
+                          className={cn(
+                            'shrink-0 text-[10px]',
+                            desbloqueado ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {desbloqueado ? `✓ GANADO ×${r.ganados}` : 'PENDIENTE'}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">SP potencial: <b className="text-foreground">{r.sp_total}</b></span>
+                        <span className={cn('font-bold tabular-nums', desbloqueado ? 'text-accent' : 'text-muted-foreground')}>
+                          {desbloqueado ? `+${r.sp_ganado} SP` : '0 SP'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
 
         {/* Tarjetas resumen */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
