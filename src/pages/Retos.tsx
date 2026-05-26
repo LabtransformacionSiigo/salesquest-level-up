@@ -468,6 +468,86 @@ const Retos = () => {
     );
   };
 
+  // === VN render: usa retos_vn_config / rachas_vn_config ===
+  const renderVnCard = (reto: any, periodo: string) => {
+    const completed = completados.has(`${reto.nombre}::${periodo}`);
+    const sp = reto.tipo === 'SEMANAL'
+      ? `${reto.sp_semanal_sem1}/${reto.sp_semanal_sem2}/${reto.sp_semanal_sem3}/${reto.sp_semanal_sem4}`
+      : String(reto.sp_base ?? 0);
+    return (
+      <motion.div
+        key={reto.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">{reto.tipo}</span>
+          {completed && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>}
+        </div>
+        <div className="flex items-center gap-3 mb-2 mt-2">
+          <span className="text-3xl">{completed ? '✅' : '🎯'}</span>
+          <div className="flex-1">
+            <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
+            <p className="text-xs text-muted-foreground">KPI: {reto.kpi}</p>
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              {(reto.paises || []).map((p: string) => (
+                <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
+              ))}
+              {(reto.fecha_inicio || reto.fecha_fin) && (
+                <span className="text-[9px] font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">
+                  Vigente: {reto.fecha_inicio} → {reto.fecha_fin}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <span className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}>🎁 {sp} SP</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderVnTab = (windowKey: 'DIARIO' | 'SEMANAL' | 'MENSUAL', periodo: string) => {
+    const items = vnRetos.filter((r) => String(r.tipo || '').toUpperCase() === windowKey);
+    return (
+      <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+        {items.map((r) => renderVnCard(r, periodo))}
+        {items.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay retos activos en este momento.</p>
+        )}
+      </motion.div>
+    );
+  };
+
+  const renderVnRachaCard = (racha: any) => (
+    <motion.div
+      key={racha.id}
+      className="bg-white border rounded-2xl p-5 border-l-4 border-l-siigo-yellow shadow-smooth-sm"
+      variants={scoreboardSlide}
+      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">🔥 RACHA · {racha.tipo}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-3xl">🔥</span>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-foreground">{racha.nombre}</p>
+          <p className="text-xs text-muted-foreground">{racha.dias_consecutivos_requeridos} días consecutivos · x{racha.multiplicador} SP</p>
+          <div className="flex gap-1 mt-1.5 flex-wrap">
+            {(racha.paises || []).map((p: string) => (
+              <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+
+
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
