@@ -339,9 +339,9 @@ const Rankings = () => {
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ventasDiariasRows: ((ventasDiariasRes as any)?.data as any[]) || [],
-          ejecAsesorRows: ejecAsesoresRes.data || [],
+          ejecAsesorRows: [],
           productividadRows: productividadRes.data || [],
-          vnMetricasRows: (vnMetricasMexRes?.data as any[]) || [],
+          vnMetricasRows: [],
           year: String(currentConventionYear),
         };
         advisorAgg.forEach((agg, key) => {
