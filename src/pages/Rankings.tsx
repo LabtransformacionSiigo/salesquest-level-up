@@ -369,17 +369,6 @@ const Rankings = () => {
           vnMetricasRows: [],
           year: String(currentConventionYear),
         };
-        console.log('[VN-RANKING-DEBUG]', {
-          currentMonth,
-          userPais,
-          metasAsesoresCount: (metasAsesoresRes.data || []).length,
-          metasMesActualCount: (metasAsesoresRes.data || []).filter((r: any) => String(r.anio_mes) === currentMonth).length,
-          productividadCount: (productividadRes.data || []).length,
-          ventasDiariasCount: ((ventasDiariasRes as any)?.data || []).length,
-          sampleMeta: (metasAsesoresRes.data || []).slice(0, 3),
-          sampleProd: (productividadRes.data || []).slice(0, 2),
-          advisorAggKeys: Array.from(advisorAgg.keys()).slice(0, 5),
-        });
         advisorAgg.forEach((agg, key) => {
           const asesorInfo = asesorInfoMap.get(key);
           const currentAcv = agg.currentAcv;
