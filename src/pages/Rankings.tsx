@@ -464,6 +464,19 @@ const Rankings = () => {
               .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
           }
 
+          // FUENTE PREFERIDA — ventas_diarias por asesor (cuando hay datos).
+          // Si ventas_diarias reporta unidades para este asesor, esa es la verdad
+          // para %FE/%Nube y la columna Unidades. Esto soluciona COL/ECU/URU donde
+          // ejecucion_asesores trae el campo `documento_asesor` con el NOMBRE.
+          const vdAgg = ventasDiariasByAsesor.get(key);
+          const usingVd = !!vdAgg && (vdAgg.feCurrent + vdAgg.nubeCurrent + vdAgg.feYear + vdAgg.nubeYear) > 0;
+          if (usingVd) {
+            currentFe = vdAgg!.feCurrent;
+            currentNube = vdAgg!.nubeCurrent;
+          }
+          const unidadesMesActual = usingVd ? (vdAgg!.feCurrent + vdAgg!.nubeCurrent) : (currentFe + currentNube);
+          const unidadesAnoTotal = usingVd ? (vdAgg!.feYear + vdAgg!.nubeYear) : agg.unidades;
+
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
           const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
             const nov = String(r.novedad ?? '').trim().toLowerCase();
@@ -488,7 +501,7 @@ const Rankings = () => {
               .sort((a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
             metaUnidadesFallback = Number(metasAsesorAll[0]?.meta_total) || 0;
           }
-          const metaUnidadesFinal = currentMonthly?.metaTotal || metaTotalMesActual || metaUnidadesFallback || 0;
+          const metaUnidadesFinal = metaTotalMesActual || currentMonthly?.metaTotal || metaUnidadesFallback || 0;
 
           // SP CONVENCIÓN — SIEMPRE por asesor individual. NO sustituir por la fórmula
           // de célula aunque el asesor aparezca también en `gerentes` (todos los VN
