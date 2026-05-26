@@ -1405,14 +1405,17 @@ export const useGamificationMetrics = (
             // SP del mes (cap por componente, sin %Uds)
             const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
             const spMes = cap(pctFeFinal) + cap(pctNubeFinal) * 2 + cap(pctAcvFinal);
+            // Si el gerente NO operó ese mes (sin metas en ninguna familia ni ACV),
+            // mostramos 0 en ventas para no traer datos heredados de la célula.
+            const sinMeta = mFe <= 0 && mNube <= 0 && mTotal <= 0 && metaAcvFinal <= 0;
             return {
               ...base,
-              acv: acvFinal,
+              acv: sinMeta ? 0 : acvFinal,
               meta: metaAcvFinal,
               pct: pctAcvFinal,
-              ventas_fe: ej.fe,
-              ventas_nube: ej.nube,
-              ventas_total: ej.total,
+              ventas_fe: sinMeta ? 0 : ej.fe,
+              ventas_nube: sinMeta ? 0 : ej.nube,
+              ventas_total: sinMeta ? 0 : ej.total,
               meta_fe: mFe,
               meta_nube: mNube,
               meta_total: mTotal,
