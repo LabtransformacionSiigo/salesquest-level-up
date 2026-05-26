@@ -205,7 +205,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
               const data = grouped[g.id] || {};
               const open = !!expanded[g.id];
               return (
-                <>
+                <Fragment key={g.id}>
                   <tr
                     key={g.id}
                     className={cn('border-t border-border hover:bg-muted/30 cursor-pointer', g.total === 0 && 'opacity-60')}
