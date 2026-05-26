@@ -184,7 +184,7 @@ const Reconocimientos = () => {
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block leading-tight">{tipo.nombre}</span>
-                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para} SP</span>
+                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para} SP Canje</span>
                         </motion.button>
                     ))}
                   </motion.div>
