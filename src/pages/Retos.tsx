@@ -167,6 +167,24 @@ const Retos = () => {
       setVnRachas((vnRachasData || []) as any[]);
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
 
+      // Para VN, los retos cumplidos están en sp_acumulados (fuente RETO_DIARIO/SEMANAL/MENSUAL)
+      if (isVN) {
+        const { data: spRetos } = await supabase
+          .from('sp_acumulados')
+          .select('fuente, detalle, periodo')
+          .eq('gerente_id', profile.id)
+          .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL']);
+        if (!cancelled) {
+          const set = new Set<string>();
+          (spRetos || []).forEach((r: any) => {
+            const nombre = String(r.detalle || '').split(' —')[0].split(' -')[0].trim();
+            if (nombre && r.periodo) set.add(`${nombre}::${r.periodo}`);
+          });
+          setVnCompletados(set);
+        }
+      }
+
+
       if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
         // Gerente VC: réplica de la lógica del edge function (SUM- vs PROD-)
         const now = new Date();
