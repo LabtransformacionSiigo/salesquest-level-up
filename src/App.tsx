@@ -32,6 +32,7 @@ import AdminSimulacion from '@/pages/admin/AdminSimulacion';
 import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
 import AdminEspecialistasAccesos from '@/pages/admin/AdminEspecialistasAccesos';
+import AdminSpCanjeMensual from '@/pages/admin/AdminSpCanjeMensual';
 import AdminRoute from '@/components/auth/AdminRoute';
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 import DirectorRoute from '@/components/auth/DirectorRoute';
@@ -64,6 +65,7 @@ function App() {
             <Route path="/admin/simulacion" element={<AdminRoute><AdminSimulacion /></AdminRoute>} />
             <Route path="/admin/metas-acv" element={<AdminRoute><AdminMetasAcv /></AdminRoute>} />
             <Route path="/admin/especialistas-accesos" element={<AdminRoute><AdminEspecialistasAccesos /></AdminRoute>} />
+            <Route path="/admin/sp-canje" element={<AdminSpCanjeMensual />} />
             {/* Ruta canónica de la única interfaz de gamificación VC para Especialista */}
             <Route path="/especialista/gamificacion-vc" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             {/* Redirects de rutas legacy a la canónica */}

@@ -36,6 +36,7 @@ const adminItems = [
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
   { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos & Directores' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
+  { path: '/admin/sp-canje', icon: 'redeem', label: 'SP Canje mensual' },
 ];
 
 const especialistaItems = [

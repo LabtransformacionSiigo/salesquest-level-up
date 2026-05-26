@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
@@ -540,7 +541,7 @@ const AdminEspecialista = () => {
           <Skeleton className="h-96" />
         ) : (
           <Tabs defaultValue={defaultTab} className="w-full">
-            <TabsList className={`grid w-full ${tieneVC && tieneVN ? 'grid-cols-6 max-w-3xl' : tieneVN ? 'grid-cols-3 max-w-md' : 'grid-cols-4 max-w-xl'}`}>
+            <TabsList className={`grid w-full ${tieneVC && tieneVN ? 'grid-cols-7 max-w-4xl' : tieneVN ? 'grid-cols-4 max-w-xl' : 'grid-cols-5 max-w-2xl'}`}>
               {tieneVC && (
                 <TabsTrigger value="retos">
                   <MI icon="emoji_events" className="text-sm mr-1.5" /> Retos
@@ -567,6 +568,7 @@ const AdminEspecialista = () => {
                 </TabsTrigger>
               )}
               <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
+              <TabsTrigger value="sp-canje">💰 SP Canje</TabsTrigger>
             </TabsList>
 
 
@@ -936,6 +938,10 @@ const AdminEspecialista = () => {
                   </table>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="sp-canje" className="mt-4">
+              <SpCanjeMensual gerentes={gerentes} isAdmin={isAdmin} />
             </TabsContent>
           </Tabs>
         )}
