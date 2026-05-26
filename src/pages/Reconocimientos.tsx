@@ -114,7 +114,7 @@ const Reconocimientos = () => {
           supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }),
         ]);
       }
-      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canjeables para tu colaborador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canje para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
