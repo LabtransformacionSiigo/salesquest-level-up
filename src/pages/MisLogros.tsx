@@ -62,35 +62,135 @@ const MisLogros = () => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SpRow[]>([]);
   const [canjes, setCanjes] = useState<CanjeRow[]>([]);
+  const [retosAsignados, setRetosAsignados] = useState<RetoAsignado[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const cargar = async () => {
+    if (!profile?.id) return;
+    const mes = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const canal = (profile as any).canal as string | null;
+    const pais = (profile as any).pais as string | null;
+    const familia = (profile as any).familia_vc as string | null;
+
+    const [spRes, canjesRes, completadosRes, vcRes, vnRes] = await Promise.all([
+      supabase
+        .from('sp_acumulados')
+        .select('fuente, sp, periodo, detalle, created_at')
+        .eq('gerente_id', profile.id)
+        .eq('tipo_sp', 'canje')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('canjes')
+        .select('id, puntos_gastados, fecha_canje, estado, premios(nombre)')
+        .eq('gerente_id', profile.id)
+        .order('fecha_canje', { ascending: false }),
+      supabase
+        .from('retos_completados')
+        .select('reto, sp, periodo, tipo')
+        .eq('gerente_id', profile.id)
+        .ilike('periodo', `${mes}%`),
+      canal === 'VC'
+        ? supabase
+            .from('catalogo_retos')
+            .select('id, nombre, ventana_tiempo, sp_otorgados, emoji, familia, kpi, pais, canal, familia_vc, activo')
+            .eq('activo', true)
+        : Promise.resolve({ data: [] as any[] }),
+      canal && canal !== 'VC'
+        ? supabase
+            .from('retos_vn_config')
+            .select('id, nombre, tipo, sp_base, sp_semanal_sem1, sp_semanal_sem2, sp_semanal_sem3, sp_semanal_sem4, kpi, paises, canal, activo, fecha_inicio, fecha_fin')
+            .eq('activo', true)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    setRows((spRes.data || []) as SpRow[]);
+    setCanjes(((canjesRes.data || []) as any[]).map(c => ({
+      id: c.id,
+      puntos_gastados: c.puntos_gastados,
+      fecha_canje: c.fecha_canje,
+      estado: c.estado,
+      premio_nombre: c.premios?.nombre || null,
+    })));
+
+    // Aggregate completados by reto name
+    const ganadosMap = new Map<string, { count: number; sp: number }>();
+    for (const c of (completadosRes.data || []) as any[]) {
+      const key = String(c.reto || '').trim();
+      const prev = ganadosMap.get(key) || { count: 0, sp: 0 };
+      ganadosMap.set(key, { count: prev.count + 1, sp: prev.sp + Number(c.sp || 0) });
+    }
+
+    const asignados: RetoAsignado[] = [];
+
+    // VC: filtrar por país + familia_vc del usuario
+    for (const r of (vcRes.data || []) as any[]) {
+      if (pais && r.pais && r.pais !== pais) continue;
+      if (r.canal && r.canal !== 'VC') continue;
+      if (familia && r.familia_vc && r.familia_vc !== familia) continue;
+      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      asignados.push({
+        id: r.id,
+        nombre: r.nombre,
+        tipo: String(r.ventana_tiempo || '').toUpperCase(),
+        sp_total: Number(r.sp_otorgados || 0),
+        fuente: 'VC',
+        ganados: g.count,
+        sp_ganado: g.sp,
+        emoji: r.emoji,
+        familia: r.familia || r.familia_vc,
+        kpi: r.kpi,
+      });
+    }
+
+    // VN: filtrar por país + canal del usuario
+    for (const r of (vnRes.data || []) as any[]) {
+      const paises: string[] = r.paises || [];
+      const canales: string[] = r.canal || [];
+      if (pais && paises.length && !paises.includes(pais)) continue;
+      if (canal && canales.length && !canales.includes(canal)) continue;
+      const sp_total = r.tipo === 'SEMANAL'
+        ? Number(r.sp_semanal_sem1 || 0) + Number(r.sp_semanal_sem2 || 0) + Number(r.sp_semanal_sem3 || 0) + Number(r.sp_semanal_sem4 || 0)
+        : Number(r.sp_base || 0);
+      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      asignados.push({
+        id: r.id,
+        nombre: r.nombre,
+        tipo: r.tipo,
+        sp_total,
+        fuente: 'VN',
+        ganados: g.count,
+        sp_ganado: g.sp,
+        kpi: r.kpi,
+      });
+    }
+
+    setRetosAsignados(asignados);
+    setLastUpdate(new Date());
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!profile?.id) return;
-    (async () => {
-      setLoading(true);
-      const [spRes, canjesRes] = await Promise.all([
-        supabase
-          .from('sp_acumulados')
-          .select('fuente, sp, periodo, detalle, created_at')
-          .eq('gerente_id', profile.id)
-          .eq('tipo_sp', 'canje')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('canjes')
-          .select('id, puntos_gastados, fecha_canje, estado, premios(nombre)')
-          .eq('gerente_id', profile.id)
-          .order('fecha_canje', { ascending: false }),
-      ]);
-      setRows((spRes.data || []) as SpRow[]);
-      setCanjes(((canjesRes.data || []) as any[]).map(c => ({
-        id: c.id,
-        puntos_gastados: c.puntos_gastados,
-        fecha_canje: c.fecha_canje,
-        estado: c.estado,
-        premio_nombre: c.premios?.nombre || null,
-      })));
-      setLoading(false);
-    })();
+    setLoading(true);
+    cargar();
+    const interval = setInterval(cargar, 5 * 60 * 1000); // 5 min
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
+
+  const totales = useMemo(() => {
+    const porFuente: Record<string, number> = {};
+    let ganado = 0;
+    for (const r of rows) {
+      porFuente[r.fuente] = (porFuente[r.fuente] || 0) + (Number(r.sp) || 0);
+      ganado += Number(r.sp) || 0;
+    }
+    const gastado = canjes
+      .filter(c => c.estado !== 'rechazado')
+      .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
+    return { porFuente, ganado, gastado, saldo: Math.max(ganado - gastado, 0) };
+  }, [rows, canjes]);
+
 
   const totales = useMemo(() => {
     const porFuente: Record<string, number> = {};
