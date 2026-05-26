@@ -568,6 +568,7 @@ const AdminEspecialista = () => {
                 </TabsTrigger>
               )}
               <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
+              <TabsTrigger value="sp-canje">💰 SP Canje</TabsTrigger>
             </TabsList>
 
 
