@@ -243,7 +243,7 @@ const Reconocimientos = () => {
                         <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
                         {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
                         <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canjeables</span>
+                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canje</span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>
