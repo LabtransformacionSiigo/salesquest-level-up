@@ -284,7 +284,7 @@ const Rankings = () => {
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
             return q;
           })(),
-          supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).limit(10000),
+          supabase.from('ventas_diarias').select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).limit(10000),
           supabase.from('gerentes').select('id, nombre, celula, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
           userPais === 'MEX'
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
@@ -410,6 +410,7 @@ const Rankings = () => {
 
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
+          ventasDiariasRows: ((ventasDiariasRes as any)?.data as any[]) || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
           productividadRows: productividadRes.data || [],
           vnMetricasRows: (vnMetricasMexRes?.data as any[]) || [],
@@ -421,61 +422,19 @@ const Rankings = () => {
             metaRows: (metasAsesoresRes.data || []).filter((row: any) => normalizePersonName(row.nombre_asesor) === key),
             ejecRows: ejecAsesoresRes.data || [],
           });
-          const currentMonthly = monthlyRows.find((row) => row.period === currentMonth);
           const asesorInfo = asesorInfoMap.get(key);
           const currentAcv = agg.currentAcv;
           const currentMetaAcv = agg.meta;
-          const pct = currentMonthly?.pctAcv ?? (currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0);
+          const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
           const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
 
-          // Ventas FE/Nube del mes actual desde ejecucion_asesores.
-          // OJO: en COL/ECU/URU el campo `documento_asesor` realmente contiene el NOMBRE
-          // (problema conocido del sync). Por eso se intenta por documento real y, si no
-          // hay match, se hace fallback por nombre normalizado contra ese mismo campo.
-          const docAsesor = String(
-            (metasAsesoresRes.data || []).find((m: any) => normalizePersonName(m.nombre_asesor) === key)?.documento_asesor ?? ''
-          ).trim();
-          const ejecMesActual = docAsesor
-            ? (ejecAsesoresRes.data || []).filter((r: any) => String(r.documento_asesor) === docAsesor && String(r.periodo) === currentMonth)
-            : [];
-          const ejecMesActualByName = (ejecAsesoresRes.data || []).filter((r: any) =>
-            normalizePersonName((r as any).documento_asesor ?? (r as any).nombre_asesor ?? (r as any).asesor ?? '') === key &&
-            String(r.periodo) === currentMonth
-          );
-          const ejecRowsCurrent = ejecMesActual.length > 0 ? ejecMesActual : ejecMesActualByName;
-          let currentFe = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_fe) || 0), 0);
-          let currentNube = ejecRowsCurrent.reduce((s: number, r: any) => s + (Number(r.ventas_nube) || 0), 0);
-
-          // México: leer del mes actual desde vn_metricas_optimizadas (CAMPANA = NUBE)
-          if (esMexico) {
-            const vnMex = ((vnMetricasMexRes?.data as any[]) || []).filter((r: any) =>
-              normalizePersonName(r.asesor) === key && Number(r.mes_nro) === mesActualNro
-            );
-            currentFe = vnMex
-              .filter((r: any) => String(r.tipo_producto1 ?? '').toUpperCase().trim() === 'FE')
-              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-            currentNube = vnMex
-              .filter((r: any) => {
-                const t = String(r.tipo_producto1 ?? '').toUpperCase().trim();
-                return t === 'CAMPANA' || t === 'CAMPAÑA' || t === 'NUBE';
-              })
-              .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-          }
-
-          // FUENTE PREFERIDA — ventas_diarias por asesor (cuando hay datos).
-          // Si ventas_diarias reporta unidades para este asesor, esa es la verdad
-          // para %FE/%Nube y la columna Unidades. Esto soluciona COL/ECU/URU donde
-          // ejecucion_asesores trae el campo `documento_asesor` con el NOMBRE.
           const vdAgg = ventasDiariasByAsesor.get(key);
-          const usingVd = !!vdAgg && (vdAgg.feCurrent + vdAgg.nubeCurrent + vdAgg.feYear + vdAgg.nubeYear) > 0;
-          if (usingVd) {
-            currentFe = vdAgg!.feCurrent;
-            currentNube = vdAgg!.nubeCurrent;
-          }
-          const unidadesMesActual = usingVd ? (vdAgg!.feCurrent + vdAgg!.nubeCurrent) : (currentFe + currentNube);
-          const unidadesAnoTotal = usingVd ? (vdAgg!.feYear + vdAgg!.nubeYear) : agg.unidades;
+          const currentFe = vdAgg?.feCurrent || 0;
+          const currentNube = vdAgg?.nubeCurrent || 0;
+          const unidadesMesActual = currentFe + currentNube;
+          const unidadesAnoTotal = (vdAgg?.feYear || 0) + (vdAgg?.nubeYear || 0);
 
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
           const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
@@ -489,19 +448,24 @@ const Rankings = () => {
           const pctFeMes = currentMetaFe > 0 ? capPctAsesor((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPctAsesor((currentNube / currentMetaNube) * 100) : 0;
 
-          // Meta unidades del mes actual: tomar meta_total del periodo (incluso con
-          // novedad) y, si está vacío, caer al último periodo con meta>0 del año.
+          // Meta unidades del mes actual: tomar únicamente meta_total del periodo.
           const metaTotalMesActual = (metasAsesoresRes.data || [])
             .filter((r: any) => normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth)
             .reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
-          let metaUnidadesFallback = 0;
-          if (metaTotalMesActual === 0) {
-            const metasAsesorAll = (metasAsesoresRes.data || [])
-              .filter((r: any) => normalizePersonName(r.nombre_asesor) === key && (Number(r.meta_total) || 0) > 0)
-              .sort((a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
-            metaUnidadesFallback = Number(metasAsesorAll[0]?.meta_total) || 0;
-          }
-          const metaUnidadesFinal = metaTotalMesActual || currentMonthly?.metaTotal || metaUnidadesFallback || 0;
+          const metaUnidadesFinal = metaTotalMesActual || 0;
+          const prodCurrent = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key && String(r.anio_mes) === currentMonth);
+          const calcCanje = (() => {
+            const recomendados = Number(prodCurrent?.cant_recomendados) || 0;
+            const ventasSql = Number((prodCurrent as any)?.ventas_mm_sql) || 0;
+            const scCreados = Number((prodCurrent as any)?.sc_creados) || 0;
+            let total = ventasSql * 50;
+            if (recomendados >= 20) total += 500;
+            else if (recomendados >= 10) total += 300;
+            else if (recomendados >= 5) total += 150;
+            if (scCreados >= 10) total += 250;
+            else if (scCreados >= 5) total += 100;
+            return total;
+          })();
 
           // SP CONVENCIÓN — SIEMPRE por asesor individual. NO sustituir por la fórmula
           // de célula aunque el asesor aparezca también en `gerentes` (todos los VN
@@ -527,8 +491,8 @@ const Rankings = () => {
             canal: profile.canal,
             pais: userPais,
             sp_totales: spForRanking,
-            sp_canje: asesorInfo?.sp_canje || gerMatch?.sp_canje || 0,
-            nivel: null,
+            sp_canje: asesorInfo?.sp_canje || calcCanje || 0,
+            nivel: getNivelData(spForRanking, profile.canal).nivel,
           });
         });
 
