@@ -46,6 +46,32 @@ const normalizeComparableText = (value: unknown) =>
 
 const getCurrentConventionYear = () => new Date().getFullYear();
 
+const PAIS_FULL_NAME: Record<string, string> = { COL: 'COLOMBIA', MEX: 'MEXICO', ECU: 'ECUADOR', URU: 'URUGUAY' };
+
+// Fetch all rows from metas_asesores for a year, paginated (PostgREST caps at 1000 per request)
+async function fetchAllMetasAsesores(year: number, paisCode?: string) {
+  const paisFull = paisCode ? PAIS_FULL_NAME[paisCode] : undefined;
+  const pageSize = 1000;
+  let from = 0;
+  const all: any[] = [];
+  // Safety cap: 20 pages = 20,000 rows
+  for (let i = 0; i < 20; i++) {
+    let q: any = supabase
+      .from('metas_asesores')
+      .select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente, pais')
+      .gte('anio_mes', `${year}01`)
+      .lte('anio_mes', `${year}12`)
+      .range(from, from + pageSize - 1);
+    if (paisFull) q = q.eq('pais', paisFull);
+    const { data, error } = await q;
+    if (error || !data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all };
+}
+
 const sumMonthlyConvention = <T extends { sp?: number | null }>(rows: T[]) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
