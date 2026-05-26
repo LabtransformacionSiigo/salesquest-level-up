@@ -132,6 +132,10 @@ const Retos = () => {
   const periodoHoy = todayStr;
   const periodoSemana = `${anio}-W${String(semanaISO).padStart(2, '0')}`;
   const periodoMes = `${anio}${String(mes + 1).padStart(2, '0')}`;
+  // Periodo semanal VN: YYYYMM-S{semana_del_mes}
+  const semanaDelMes = Math.ceil(today.getDate() / 7);
+  const periodoSemanaVn = `${anio}${String(mes + 1).padStart(2, '0')}-S${semanaDelMes}`;
+
 
   useEffect(() => {
     if (!profile?.id) return;
