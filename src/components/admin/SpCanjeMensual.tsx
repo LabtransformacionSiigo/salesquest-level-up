@@ -237,7 +237,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
                       </tr>
                     );
                   })}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
