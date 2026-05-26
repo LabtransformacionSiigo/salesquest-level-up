@@ -932,9 +932,9 @@ const Rankings = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
       .subscribe();
-    // Refresco automático cada 1 minuto para mantener Clasificación sincronizada
+    // Refresco automático cada 5 minutos para mantener Clasificación sincronizada
     // con el header / Historial Mensual (mismo cálculo, una sola fuente).
-    const refreshInterval = setInterval(() => fetchRanking(), 60 * 1000);
+    const refreshInterval = setInterval(() => fetchRanking(), 5 * 60 * 1000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(refreshInterval);
