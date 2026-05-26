@@ -259,10 +259,9 @@ export function computeSpConvencionAnualForCelula(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-asesor SP Convención anual (VN). Source tables:
-//  - metas_asesores (FE/Nube goals + documento + novedad)
-//  - ejecucion_asesores (ventas_fe, ventas_nube, acv_total) keyed by documento_asesor
-//  - productividad_asesores (acv_f + meta as fallback ACV) keyed by asesor name
-// Formula identical to celula version: cap(%FE) + cap(%Nube)*2 + cap(%ACV).
+//  - metas_asesores (FE/Nube goals + novedad)
+//  - ventas_diarias (FE/Nube execution by asesor)
+// Formula asesores VN: cap(%FE) + cap(%Nube)*2. Sin ACV y sin fuentes fallback.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EjecAsesorRow {
@@ -299,8 +298,18 @@ export interface VnMetricaRow {
 
 export interface SpAnualAsesorInputs {
   metaAsesorRows: MetaAsesorFullRow[];
+  ventasDiariasRows?: Array<{
+    fecha?: string | null;
+    asesor?: string | null;
+    tipo_producto?: string | null;
+    producto?: string | null;
+    unidades?: number | null;
+  }>;
+  /** @deprecated no longer used for VN asesor convention points */
   ejecAsesorRows: EjecAsesorRow[];
+  /** @deprecated no longer used for VN asesor convention points */
   productividadRows: ProductividadAsesorRow[];
+  /** @deprecated no longer used for VN asesor convention points */
   vnMetricasRows?: VnMetricaRow[];
   year: string;
 }
@@ -335,15 +344,7 @@ export function computeSpConvencionAnualForAsesor(
 ): number {
   const asesorNorm = normalizeSpText(nombreAsesor);
   if (!asesorNorm) return 0;
-  const { metaAsesorRows, ejecAsesorRows, productividadRows, year } = inputs;
-
-  // Identify documento(s) for this asesor from metas_asesores.
-  const documentos = new Set<string>();
-  metaAsesorRows.forEach((row) => {
-    if (normalizeSpText(row.nombre_asesor) === asesorNorm && row.documento_asesor) {
-      documentos.add(String(row.documento_asesor).trim());
-    }
-  });
+  const { metaAsesorRows, year } = inputs;
 
   // Metas FE/Nube por periodo (sólo "Sin novedad").
   const metasPorPeriodo = new Map<string, { fe: number; nube: number }>();
@@ -359,57 +360,25 @@ export function computeSpConvencionAnualForAsesor(
     metasPorPeriodo.set(p, cur);
   });
 
-  // Ejecución FE/Nube/ACV por periodo. Match por documento real; si no hay match
-  // se intenta por nombre normalizado contra `documento_asesor` (en COL/ECU/URU
-  // ese campo trae el nombre por un problema de sync de origen).
-  const ejecPorPeriodo = new Map<string, { fe: number; nube: number; acv: number }>();
-  ejecAsesorRows.forEach((row) => {
-    const docOrName = String(row.documento_asesor ?? '').trim();
-    const matchByDoc = docOrName && documentos.has(docOrName);
-    const matchByName = normalizeSpText(docOrName) === asesorNorm;
-    if (!matchByDoc && !matchByName) return;
-    const p = String(row.periodo ?? '');
-    if (!/^\d{6}$/.test(p)) return;
-    const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0, acv: 0 };
-    cur.fe += Number(row.ventas_fe) || 0;
-    cur.nube += Number(row.ventas_nube) || 0;
-    cur.acv += Number(row.acv_total) || 0;
-    ejecPorPeriodo.set(p, cur);
-  });
-
-  // Fallback México: ventas desde vn_metricas_optimizadas (CAMPANA = NUBE)
-  const YEAR_NUM = Number(year);
-  (inputs.vnMetricasRows || [])
-    .filter((r) => normalizeSpText(r.asesor) === asesorNorm && resolveCountryCode(r.pais) === 'MEX')
-    .forEach((r) => {
-      const mm = String(r.mes_nro ?? '').padStart(2, '0');
-      const p = `${YEAR_NUM}${mm}`;
-      if (!/^\d{6}$/.test(p)) return;
-      const tipo = String(r.tipo_producto1 ?? '').toUpperCase().trim();
-      const v = Math.round(Number(r.ventas ?? r.total_productos) || 0);
-      const acv = Math.round(Number(r.acv_total) || 0);
-      const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0, acv: 0 };
-      if (tipo === 'FE') cur.fe += v;
-      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += v;
-      cur.acv += acv;
-      ejecPorPeriodo.set(p, cur);
-    });
-
-  // Productividad: ACV real (acv_f) y meta ACV (meta escalada) por periodo.
-  const acvPorPeriodo = new Map<string, number>();
-  const metaAcvPorPeriodo = new Map<string, number>();
-  productividadRows.forEach((row) => {
+  // Ejecución FE/Nube por periodo desde ventas_diarias. No se usan alternativas.
+  const ejecPorPeriodo = new Map<string, { fe: number; nube: number }>();
+  (inputs.ventasDiariasRows || []).forEach((row) => {
     if (normalizeSpText(row.asesor) !== asesorNorm) return;
-    const p = String(row.anio_mes ?? '');
+    const fecha = String(row.fecha ?? '');
+    const p = fecha.length >= 7 ? fecha.slice(0, 7).replace('-', '') : '';
     if (!/^\d{6}$/.test(p)) return;
-    acvPorPeriodo.set(p, (acvPorPeriodo.get(p) ?? 0) + (Number(row.acv_f) || 0));
-    metaAcvPorPeriodo.set(p, (metaAcvPorPeriodo.get(p) ?? 0) + normalizeMetaAcv(row.meta, row.pais));
+    const tipo = String(row.tipo_producto || row.producto || '').toUpperCase().trim();
+    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
+    if (fam !== 'FE' && fam !== 'NUBE') return;
+    const cur = ejecPorPeriodo.get(p) ?? { fe: 0, nube: 0 };
+    if (fam === 'FE') cur.fe += Math.round(Number(row.unidades) || 0);
+    if (fam === 'NUBE') cur.nube += Math.round(Number(row.unidades) || 0);
+    ejecPorPeriodo.set(p, cur);
   });
 
   const periodos = new Set<string>([
     ...metasPorPeriodo.keys(),
     ...ejecPorPeriodo.keys(),
-    ...metaAcvPorPeriodo.keys(),
   ]);
 
   // FÓRMULA SP CONVENCIÓN — ASESORES VN (todos los países)
@@ -420,7 +389,7 @@ export function computeSpConvencionAnualForAsesor(
   periodos.forEach((periodo) => {
     if (!periodo.startsWith(year)) return;
     const metas = metasPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
-    const ejec = ejecPorPeriodo.get(periodo) ?? { fe: 0, nube: 0, acv: 0 };
+    const ejec = ejecPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
 
     const pct_fe = metas.fe > 0 ? cap((ejec.fe / metas.fe) * 100) : 0;
     const pct_nube = metas.nube > 0 ? cap((ejec.nube / metas.nube) * 100) : 0;
