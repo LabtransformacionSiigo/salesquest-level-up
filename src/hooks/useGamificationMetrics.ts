@@ -1267,7 +1267,7 @@ export const useGamificationMetrics = (
                   normalizeComparableText(r.celula) === celulaAsesor
                 );
                 const acvOficialAsesor = matches.find((r: any) => String(r.archivo || '').toLowerCase().includes('cierre')) ?? matches[0];
-                const teamMetaAcv = normalizeVnMetaAcv(acvOficialAsesor?.meta_total_acv, acvOficialAsesor?.pais);
+                const teamMetaAcv = Math.round(Number(acvOficialAsesor?.meta_total_acv) || 0);
                 const teamMetaTotal = Math.round(Number(acvOficialAsesor?.meta_total_und) || 0);
                 const asesorMetaTotal = Number(matchingMeta.meta_total) || 0;
                 if (teamMetaAcv > 0 && teamMetaTotal > 0 && asesorMetaTotal > 0) {
