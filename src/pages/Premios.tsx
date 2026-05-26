@@ -89,7 +89,6 @@ const Premios = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
    const saldo = profile?.sp_canje || 0;
-  const siigoPoints = profile?.sp_totales || 0;
 
   return (
     <Layout title="🎁 Tienda de Beneficios ">
@@ -101,17 +100,10 @@ const Premios = () => {
           variants={fadeUpItem}
         >
           <div className="flex items-center justify-between gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1">
-              <div>
-                <p className="text-sm opacity-80">Tus Siigo Points</p>
-                <p className="text-4xl font-black font-scoreboard">{siigoPoints.toLocaleString()}</p>
-                <p className="text-xs opacity-60 mt-1">Solo cumplimiento de meta</p>
-              </div>
-              <div>
-                <p className="text-sm opacity-80">Tus canjeables</p>
-                <p className="text-4xl font-black font-scoreboard">{saldo.toLocaleString()}</p>
-                <p className="text-xs opacity-60 mt-1">Medallas, retos y reconocimientos</p>
-              </div>
+            <div className="flex-1">
+              <p className="text-sm opacity-80">Siigo Points Canje</p>
+              <p className="text-4xl font-black font-scoreboard">{saldo.toLocaleString()}</p>
+              <p className="text-xs opacity-60 mt-1">Medallas, retos y reconocimientos</p>
             </div>
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}

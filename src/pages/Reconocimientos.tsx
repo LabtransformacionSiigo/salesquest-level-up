@@ -60,7 +60,23 @@ const Reconocimientos = () => {
         supabase.from('feed_reconocimientos').select('*').limit(20),
         supabase.from('reconocimientos').select('id', { count: 'exact' }).eq('de_gerente_id', profile.id).gte('created_at', mesStart).lt('created_at', mesEnd),
       ]);
-      const colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
+      let colabs = (colaboradoresRes.data || []).map((c: any) => ({ id: c.id || null, nombre: c.nombre }));
+
+      // Fallback VN: si no hay asesores asignados, traer asesores del mes actual por célula
+      if (!isVC && colabs.length === 0 && profile?.celula) {
+        const periodo = `${currentYear}${String(currentMonth).padStart(2, '0')}`;
+        const { data: prod } = await supabase
+          .from('productividad_asesores')
+          .select('asesor')
+          .eq('celula', profile.celula)
+          .eq('anio_mes', periodo);
+        const seen = new Set<string>();
+        colabs = (prod || [])
+          .map((p: any) => String(p.asesor || '').trim())
+          .filter((n: string) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()))
+          .map((n: string) => ({ id: null, nombre: n }));
+      }
+
       setAsesores(colabs);
       setFeed(feedRes.data || []);
       setSentCount(countRes.count || 0);
@@ -98,7 +114,7 @@ const Reconocimientos = () => {
           supabase.rpc('increment_sp_canje' as any, { p_gerente_id: paraId, p_amount: tipo.sp_para }),
         ]);
       }
-      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canjeables para tu colaborador` });
+      toast({ title: '✅ ¡Reconocimiento enviado!', description: `+${tipo.sp_para} SP Canje para tu colaborador` });
       setSentCount(prev => prev + 1);
       setSelectedGerente(''); setSelectedTipo(''); setMensaje('');
     }
@@ -168,7 +184,7 @@ const Reconocimientos = () => {
                         >
                           <span className="text-lg block mb-1">{tipo.emoji}</span>
                           <span className="font-medium text-[10px] block leading-tight">{tipo.nombre}</span>
-                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para} SP</span>
+                          <span className="text-[9px] text-muted-foreground block font-scoreboard">🎁 +{tipo.sp_para} SP Canje</span>
                         </motion.button>
                     ))}
                   </motion.div>
@@ -227,7 +243,7 @@ const Reconocimientos = () => {
                         <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
                         {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
                         <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canjeables</span>
+                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canje</span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>
