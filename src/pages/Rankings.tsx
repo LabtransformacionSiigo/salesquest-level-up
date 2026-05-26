@@ -384,6 +384,30 @@ const Rankings = () => {
         const entries: any[] = [];
         const esMexico = userPais === 'MEX';
         const mesActualNro = new Date().getMonth() + 1;
+
+        // ─── Ventas reales por asesor desde ventas_diarias ───────────────────
+        // Fuente de verdad para Unidades / %FE / %Nube por asesor (COL/ECU/URU/MEX).
+        // Agregamos FE/NUBE del mes actual y del año.
+        type VdAgg = { feCurrent: number; nubeCurrent: number; feYear: number; nubeYear: number };
+        const ventasDiariasByAsesor = new Map<string, VdAgg>();
+        const currentMonthPrefix = `${currentConventionYear}-${String(mesActualNro).padStart(2, '0')}`;
+        ((ventasDiariasRes as any)?.data as any[] || []).forEach((row: any) => {
+          const name = row.asesor;
+          if (!name) return;
+          const k = normalizePersonName(name);
+          const fecha = String(row.fecha || '');
+          if (!fecha.startsWith(String(currentConventionYear))) return;
+          const tipo = String(row.tipo_producto || '').toUpperCase().trim();
+          const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE'
+                    : (tipo === 'FE' || tipo === 'NUBE') ? tipo : 'OTRO';
+          if (fam === 'OTRO') return; // CONTADOR u otros no cuentan a unidades VN
+          const u = Math.round(Number(row.unidades) || 0);
+          const cur = ventasDiariasByAsesor.get(k) || { feCurrent: 0, nubeCurrent: 0, feYear: 0, nubeYear: 0 };
+          if (fam === 'FE') { cur.feYear += u; if (fecha.startsWith(currentMonthPrefix)) cur.feCurrent += u; }
+          else { cur.nubeYear += u; if (fecha.startsWith(currentMonthPrefix)) cur.nubeCurrent += u; }
+          ventasDiariasByAsesor.set(k, cur);
+        });
+
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
@@ -440,6 +464,19 @@ const Rankings = () => {
               .reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
           }
 
+          // FUENTE PREFERIDA — ventas_diarias por asesor (cuando hay datos).
+          // Si ventas_diarias reporta unidades para este asesor, esa es la verdad
+          // para %FE/%Nube y la columna Unidades. Esto soluciona COL/ECU/URU donde
+          // ejecucion_asesores trae el campo `documento_asesor` con el NOMBRE.
+          const vdAgg = ventasDiariasByAsesor.get(key);
+          const usingVd = !!vdAgg && (vdAgg.feCurrent + vdAgg.nubeCurrent + vdAgg.feYear + vdAgg.nubeYear) > 0;
+          if (usingVd) {
+            currentFe = vdAgg!.feCurrent;
+            currentNube = vdAgg!.nubeCurrent;
+          }
+          const unidadesMesActual = usingVd ? (vdAgg!.feCurrent + vdAgg!.nubeCurrent) : (currentFe + currentNube);
+          const unidadesAnoTotal = usingVd ? (vdAgg!.feYear + vdAgg!.nubeYear) : agg.unidades;
+
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
           const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => {
             const nov = String(r.novedad ?? '').trim().toLowerCase();
@@ -464,7 +501,7 @@ const Rankings = () => {
               .sort((a: any, b: any) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
             metaUnidadesFallback = Number(metasAsesorAll[0]?.meta_total) || 0;
           }
-          const metaUnidadesFinal = currentMonthly?.metaTotal || metaTotalMesActual || metaUnidadesFallback || 0;
+          const metaUnidadesFinal = metaTotalMesActual || currentMonthly?.metaTotal || metaUnidadesFallback || 0;
 
           // SP CONVENCIÓN — SIEMPRE por asesor individual. NO sustituir por la fórmula
           // de célula aunque el asesor aparezca también en `gerentes` (todos los VN
@@ -479,8 +516,8 @@ const Rankings = () => {
             kpi_value: Math.round(currentAcv || agg.acv),
             meta_acv: currentMetaAcv,
             meta_unidades: metaUnidadesFinal,
-            unidades_logradas: agg.ventas,
-            unidades_total: agg.unidades,
+            unidades_logradas: unidadesMesActual,
+            unidades_total: unidadesAnoTotal,
             cant_recomendados: agg.recomendados,
             pct_cumplimiento: pct,
             pct_fe: pctFeMes,
