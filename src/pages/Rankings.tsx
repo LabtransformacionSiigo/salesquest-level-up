@@ -979,6 +979,8 @@ const Rankings = () => {
   const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
   const isGerentesVNTab = isVN && tab === 'gerentes';
+  // Asesores VN (todos los países): no tienen meta ACV, solo se muestran FE/Nube/Unidades.
+  const isAsesoresVNTab = isVN && isComercialTab;
 
   // Sort by SP totales as primary, then by % cumplimiento
   const sorted = [...ranking].sort((a, b) => {
@@ -1075,11 +1077,13 @@ const Rankings = () => {
                     <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
                       {(isComercialTab || isGerentesVCTab || isGerentesVNTab) && (
                         <>
-                          {/* % Cumpl — always shown */}
-                          <div>
-                            <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
-                          </div>
+                          {/* % Cumpl ACV — oculto para asesores VN (no tienen meta ACV) */}
+                          {!isAsesoresVNTab && (
+                            <div>
+                              <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
+                                  <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
+                            </div>
+                          )}
                           {/* VN: FE% + Nube% + Unidades + Referidos */}
                           {(isGerentesVNTab || (isVN && isComercialTab)) && (
                             <>
@@ -1111,16 +1115,21 @@ const Rankings = () => {
                                 <p className="text-sm font-bold font-scoreboard text-muted-foreground">{(g.meta_unidades || 0).toLocaleString()}</p>
                                 <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta Uds</p>
                               </div>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
-                              </div>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'Meta ACV+' : 'Meta ACV'}</p>
-                              </div>
+                              {/* ACV y Meta ACV — sólo gerentes VN, NO asesores */}
+                              {!isAsesoresVNTab && (
+                                <>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
+                                  </div>
+                                  <div className="w-px h-6 bg-border" />
+                                  <div>
+                                    <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
+                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'Meta ACV+' : 'Meta ACV'}</p>
+                                  </div>
+                                </>
+                              )}
                             </>
                           )}
                           {/* VC: ACV + Meta */}
@@ -1178,13 +1187,20 @@ const Rankings = () => {
                       )}
                       {(isGerentesVNTab || (isVN && isComercialTab)) && (
                         <>
-                           <th className="text-right px-4 py-3">{isVC ? '% Cumpl. ACV+' : '% Cumpl. ACV'}</th>
+                          {/* % Cumpl ACV y ACV — sólo gerentes VN, NO asesores */}
+                          {!isAsesoresVNTab && (
+                            <th className="text-right px-4 py-3">{isVC ? '% Cumpl. ACV+' : '% Cumpl. ACV'}</th>
+                          )}
                            <th className="text-right px-4 py-3">% FE</th>
                            <th className="text-right px-4 py-3">{userPais === 'MEX' ? '% Campaña' : '% Nube'}</th>
                           <th className="text-right px-4 py-3">Unidades</th>
                           <th className="text-right px-4 py-3">Meta Uds</th>
-                          <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
-                           <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
+                          {!isAsesoresVNTab && (
+                            <>
+                              <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
+                              <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
+                            </>
+                          )}
                         </>
                       )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
@@ -1238,13 +1254,19 @@ const Rankings = () => {
                         )}
                         {(isGerentesVNTab || (isVN && isComercialTab)) && (
                           <>
-                            <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            {!isAsesoresVNTab && (
+                              <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
+                            )}
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_fe != null ? `${g.pct_fe}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_nube != null ? `${g.pct_nube}%` : '—'}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{(g.meta_unidades || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
-                            <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
+                            {!isAsesoresVNTab && (
+                              <>
+                                <td className="px-4 py-3 text-sm font-scoreboard text-primary text-right">{formatMoney(g.kpi_value)}</td>
+                                <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(g.meta_acv)}</td>
+                              </>
+                            )}
                           </>
                         )}
                         {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (

@@ -408,18 +408,19 @@ export function computeSpConvencionAnualForAsesor(
     ...metaAcvPorPeriodo.keys(),
   ]);
 
+  // FÓRMULA SP CONVENCIÓN — ASESORES VN (todos los países)
+  // Los asesores NO tienen meta ACV: SP_mes = cap(%FE) + cap(%NUBE) * 2.
+  // Los gerentes VN siguen usando la fórmula completa (FE + NUBE*2 + ACV) en
+  // computeSpConvencionAnualForCelula — esto NO los afecta.
   let totalSp = 0;
   periodos.forEach((periodo) => {
     if (!periodo.startsWith(year)) return;
     const metas = metasPorPeriodo.get(periodo) ?? { fe: 0, nube: 0 };
     const ejec = ejecPorPeriodo.get(periodo) ?? { fe: 0, nube: 0, acv: 0 };
-    const acv = acvPorPeriodo.get(periodo) ?? ejec.acv;
-    const metaAcv = metaAcvPorPeriodo.get(periodo) ?? 0;
 
     const pct_fe = metas.fe > 0 ? cap((ejec.fe / metas.fe) * 100) : 0;
     const pct_nube = metas.nube > 0 ? cap((ejec.nube / metas.nube) * 100) : 0;
-    const pct_acv = metaAcv > 0 ? cap((acv / metaAcv) * 100) : 0;
-    totalSp += pct_fe + pct_nube * 2 + pct_acv;
+    totalSp += pct_fe + pct_nube * 2;
   });
 
   return totalSp;
