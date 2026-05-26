@@ -192,18 +192,6 @@ const MisLogros = () => {
   }, [rows, canjes]);
 
 
-  const totales = useMemo(() => {
-    const porFuente: Record<string, number> = {};
-    let ganado = 0;
-    for (const r of rows) {
-      porFuente[r.fuente] = (porFuente[r.fuente] || 0) + (Number(r.sp) || 0);
-      ganado += Number(r.sp) || 0;
-    }
-    const gastado = canjes
-      .filter(c => c.estado !== 'rechazado')
-      .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
-    return { porFuente, ganado, gastado, saldo: Math.max(ganado - gastado, 0) };
-  }, [rows, canjes]);
 
   const renderTabla = (filtro: (r: SpRow) => boolean, emptyMsg: string) => {
     const list = rows.filter(filtro);
