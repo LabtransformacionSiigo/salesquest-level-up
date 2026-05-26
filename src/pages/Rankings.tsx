@@ -384,6 +384,30 @@ const Rankings = () => {
         const entries: any[] = [];
         const esMexico = userPais === 'MEX';
         const mesActualNro = new Date().getMonth() + 1;
+
+        // ─── Ventas reales por asesor desde ventas_diarias ───────────────────
+        // Fuente de verdad para Unidades / %FE / %Nube por asesor (COL/ECU/URU/MEX).
+        // Agregamos FE/NUBE del mes actual y del año.
+        type VdAgg = { feCurrent: number; nubeCurrent: number; feYear: number; nubeYear: number };
+        const ventasDiariasByAsesor = new Map<string, VdAgg>();
+        const currentMonthPrefix = `${currentConventionYear}-${String(mesActualNro).padStart(2, '0')}`;
+        ((ventasDiariasRes as any)?.data as any[] || []).forEach((row: any) => {
+          const name = row.asesor;
+          if (!name) return;
+          const k = normalizePersonName(name);
+          const fecha = String(row.fecha || '');
+          if (!fecha.startsWith(String(currentConventionYear))) return;
+          const tipo = String(row.tipo_producto || '').toUpperCase().trim();
+          const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE'
+                    : (tipo === 'FE' || tipo === 'NUBE') ? tipo : 'OTRO';
+          if (fam === 'OTRO') return; // CONTADOR u otros no cuentan a unidades VN
+          const u = Math.round(Number(row.unidades) || 0);
+          const cur = ventasDiariasByAsesor.get(k) || { feCurrent: 0, nubeCurrent: 0, feYear: 0, nubeYear: 0 };
+          if (fam === 'FE') { cur.feYear += u; if (fecha.startsWith(currentMonthPrefix)) cur.feCurrent += u; }
+          else { cur.nubeYear += u; if (fecha.startsWith(currentMonthPrefix)) cur.nubeCurrent += u; }
+          ventasDiariasByAsesor.set(k, cur);
+        });
+
         const spAsesorInputs = {
           metaAsesorRows: metasAsesoresRes.data || [],
           ejecAsesorRows: ejecAsesoresRes.data || [],
