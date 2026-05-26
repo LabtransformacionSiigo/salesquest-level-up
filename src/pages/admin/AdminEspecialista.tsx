@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
