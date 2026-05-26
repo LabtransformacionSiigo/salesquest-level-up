@@ -109,6 +109,8 @@ const Retos = () => {
   const [completados, setCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
+  const [vnRetos, setVnRetos] = useState<any[]>([]);
+  const [vnRachas, setVnRachas] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
     dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
@@ -117,6 +119,8 @@ const Retos = () => {
     monthlyCumplimientoPct: 0, monthlyAcvSum: 0, monthlyMetaSum: 0,
     artilleroDias: [],
   });
+
+  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -133,15 +137,28 @@ const Retos = () => {
 
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, snapshot] = await Promise.all([
-        supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
-        supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+      const pais = profile.pais || 'COL';
+      const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, { data: vnRetosData }, { data: vnRachasData }, snapshot] = await Promise.all([
+        isVN
+          ? Promise.resolve({ data: [] as any[] })
+          : supabase.from('catalogo_retos').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
+        isVN
+          ? Promise.resolve({ data: [] as any[] })
+          : supabase.from('config_rachas').select('*').eq('activo', true).or(`canal.eq.${profile.canal ?? 'VC'},canal.is.null`),
         supabase.from('retos_completados').select('reto, periodo').eq('gerente_id', profile.id),
+        isVN
+          ? supabase.from('retos_vn_config' as any).select('*').eq('activo', true).contains('canal', [profile.canal]).contains('paises', [pais])
+          : Promise.resolve({ data: [] as any[] }),
+        isVN
+          ? supabase.from('rachas_vn_config' as any).select('*').eq('activo', true).contains('canal', [profile.canal]).contains('paises', [pais])
+          : Promise.resolve({ data: [] as any[] }),
         isVcAdvisorProfile(profile) ? getVcAdvisorSnapshot(profile) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       setVcCatalog(filterCatalogByScope((catalog || []) as VcCatalogReto[], profile));
       setVcRachas(filterCatalogByScope((rachasCfg || []) as VcRacha[], profile));
+      setVnRetos((vnRetosData || []) as any[]);
+      setVnRachas((vnRachasData || []) as any[]);
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
 
       if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
@@ -451,6 +468,86 @@ const Retos = () => {
     );
   };
 
+  // === VN render: usa retos_vn_config / rachas_vn_config ===
+  const renderVnCard = (reto: any, periodo: string) => {
+    const completed = completados.has(`${reto.nombre}::${periodo}`);
+    const sp = reto.tipo === 'SEMANAL'
+      ? `${reto.sp_semanal_sem1}/${reto.sp_semanal_sem2}/${reto.sp_semanal_sem3}/${reto.sp_semanal_sem4}`
+      : String(reto.sp_base ?? 0);
+    return (
+      <motion.div
+        key={reto.id}
+        className={cn('bg-white border rounded-2xl p-5 transition-all border-l-4 shadow-smooth-sm', completed ? 'border-l-accent' : 'border-l-primary')}
+        variants={scoreboardSlide}
+        whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">{reto.tipo}</span>
+          {completed && <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>}
+        </div>
+        <div className="flex items-center gap-3 mb-2 mt-2">
+          <span className="text-3xl">{completed ? '✅' : '🎯'}</span>
+          <div className="flex-1">
+            <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
+            <p className="text-xs text-muted-foreground">KPI: {reto.kpi}</p>
+            <div className="flex gap-1 mt-1.5 flex-wrap">
+              {(reto.paises || []).map((p: string) => (
+                <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
+              ))}
+              {(reto.fecha_inicio || reto.fecha_fin) && (
+                <span className="text-[9px] font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">
+                  Vigente: {reto.fecha_inicio} → {reto.fecha_fin}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <span className={cn('text-xs font-bold font-scoreboard px-3 py-1.5 rounded-lg block', completed ? 'bg-siigo-red text-white' : 'bg-muted text-muted-foreground')}>🎁 {sp} SP</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderVnTab = (windowKey: 'DIARIO' | 'SEMANAL' | 'MENSUAL', periodo: string) => {
+    const items = vnRetos.filter((r) => String(r.tipo || '').toUpperCase() === windowKey);
+    return (
+      <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+        {items.map((r) => renderVnCard(r, periodo))}
+        {items.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay retos activos en este momento.</p>
+        )}
+      </motion.div>
+    );
+  };
+
+  const renderVnRachaCard = (racha: any) => (
+    <motion.div
+      key={racha.id}
+      className="bg-white border rounded-2xl p-5 border-l-4 border-l-siigo-yellow shadow-smooth-sm"
+      variants={scoreboardSlide}
+      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">🔥 RACHA · {racha.tipo}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-3xl">🔥</span>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-foreground">{racha.nombre}</p>
+          <p className="text-xs text-muted-foreground">{racha.dias_consecutivos_requeridos} días consecutivos · x{racha.multiplicador} SP</p>
+          <div className="flex gap-1 mt-1.5 flex-wrap">
+            {(racha.paises || []).map((p: string) => (
+              <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+
+
   return (
     <Layout title="🎯 Retos">
       <Tabs defaultValue="diarios" className="space-y-6">
@@ -467,15 +564,26 @@ const Retos = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : (
           <>
-            <TabsContent value="diarios">{renderTab('DIARIO', periodoHoy)}</TabsContent>
-            <TabsContent value="semanales">{renderTab('SEMANAL', periodoSemana)}</TabsContent>
-            <TabsContent value="mensuales">{renderTab('MENSUAL', periodoMes)}</TabsContent>
+            <TabsContent value="diarios">{isVN ? renderVnTab('DIARIO', periodoHoy) : renderTab('DIARIO', periodoHoy)}</TabsContent>
+            <TabsContent value="semanales">{isVN ? renderVnTab('SEMANAL', periodoSemana) : renderTab('SEMANAL', periodoSemana)}</TabsContent>
+            <TabsContent value="mensuales">{isVN ? renderVnTab('MENSUAL', periodoMes) : renderTab('MENSUAL', periodoMes)}</TabsContent>
             <TabsContent value="rachas">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {vcRachas.length === 0 && (
-                  <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                {isVN ? (
+                  <>
+                    {vnRachas.length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                    )}
+                    {vnRachas.map((r) => renderVnRachaCard(r))}
+                  </>
+                ) : (
+                  <>
+                    {vcRachas.length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                    )}
+                    {vcRachas.map((r) => renderRachaCard(r))}
+                  </>
                 )}
-                {vcRachas.map((r) => renderRachaCard(r))}
               </motion.div>
             </TabsContent>
           </>
