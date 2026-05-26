@@ -174,7 +174,7 @@ const Rankings = () => {
           posicion: r.posicion,
           canal: 'VC',
           pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
-          sp_canje: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
+          sp_canje: 0,
           nivel: getNivelData(spByComercial.get(normalizePersonName(r.nombre)) || 0, 'VC').nivel,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         }));
@@ -267,7 +267,7 @@ const Rankings = () => {
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, ventas_mm_sql, sc_creados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
           supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
           supabase.from('metas_asesores').select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).range(0, 20000),
-          supabase.from('ventas_diarias').select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).limit(10000),
+          supabase.from('ventas_diarias').select('fecha, asesor, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).range(0, 49999),
         ]);
         const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
         (asesoresRes.data || []).forEach((a: any) => {
@@ -412,7 +412,7 @@ const Rankings = () => {
             canal: profile.canal,
             pais: userPais,
             sp_totales: spForRanking,
-            sp_canje: asesorInfo?.sp_canje || calcCanje || 0,
+            sp_canje: 0,
             nivel: getNivelData(spForRanking, profile.canal).nivel,
           });
         });
@@ -440,7 +440,7 @@ const Rankings = () => {
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
             return q;
           })(),
-          supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).limit(10000),
+          supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).range(0, 49999),
           userPais === 'MEX'
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
@@ -947,11 +947,13 @@ const Rankings = () => {
                       </div>
                     </motion.div>
 
-                    <div className="mt-2 flex justify-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
-                        🎁 {(g.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
-                      </span>
-                    </div>
+                    {!isComercialTab && (
+                      <div className="mt-2 flex justify-center">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold font-scoreboard text-accent">
+                          🎁 {(g.sp_canje || 0).toLocaleString()} <span className="text-[10px] text-accent/70">SP Canje</span>
+                        </span>
+                      </div>
+                    )}
 
                     {/* Secondary metrics */}
                     <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
@@ -1057,7 +1059,7 @@ const Rankings = () => {
                       <th className="text-left px-4 py-3">{entityLabel}</th>
                       {isComercialTab && <th className="text-left px-4 py-3">Líder</th>}
                       <th className="text-right px-4 py-3">⚡ Siigo Points</th>
-                      <th className="text-right px-4 py-3">🎁 Canjeables</th>
+                      {!isComercialTab && <th className="text-right px-4 py-3">🎁 Canjeables</th>}
                       {(isComercialTab || isGerentesVCTab) && !isVN && (
                         <>
                           <th className="text-right px-4 py-3">% Cumpl.</th>
@@ -1122,9 +1124,11 @@ const Rankings = () => {
                           <span className="text-base font-black font-scoreboard text-primary">{(g.sp_totales || 0).toLocaleString()}</span>
                           <span className="text-[10px] text-primary/60 ml-1 font-scoreboard">PTS</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
-                        </td>
+                        {!isComercialTab && (
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-sm font-black font-scoreboard text-accent">{(g.sp_canje || 0).toLocaleString()}</span>
+                          </td>
+                        )}
                         {(isComercialTab || isGerentesVCTab) && !isVN && (
                           <>
                             <td className="px-4 py-3 text-sm font-bold font-scoreboard text-foreground text-right">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</td>
