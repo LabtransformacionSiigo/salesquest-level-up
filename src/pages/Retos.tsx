@@ -564,15 +564,26 @@ const Retos = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : (
           <>
-            <TabsContent value="diarios">{renderTab('DIARIO', periodoHoy)}</TabsContent>
-            <TabsContent value="semanales">{renderTab('SEMANAL', periodoSemana)}</TabsContent>
-            <TabsContent value="mensuales">{renderTab('MENSUAL', periodoMes)}</TabsContent>
+            <TabsContent value="diarios">{isVN ? renderVnTab('DIARIO', periodoHoy) : renderTab('DIARIO', periodoHoy)}</TabsContent>
+            <TabsContent value="semanales">{isVN ? renderVnTab('SEMANAL', periodoSemana) : renderTab('SEMANAL', periodoSemana)}</TabsContent>
+            <TabsContent value="mensuales">{isVN ? renderVnTab('MENSUAL', periodoMes) : renderTab('MENSUAL', periodoMes)}</TabsContent>
             <TabsContent value="rachas">
               <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {vcRachas.length === 0 && (
-                  <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                {isVN ? (
+                  <>
+                    {vnRachas.length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                    )}
+                    {vnRachas.map((r) => renderVnRachaCard(r))}
+                  </>
+                ) : (
+                  <>
+                    {vcRachas.length === 0 && (
+                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                    )}
+                    {vcRachas.map((r) => renderRachaCard(r))}
+                  </>
                 )}
-                {vcRachas.map((r) => renderRachaCard(r))}
               </motion.div>
             </TabsContent>
           </>
