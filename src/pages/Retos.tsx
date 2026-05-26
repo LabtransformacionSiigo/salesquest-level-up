@@ -493,8 +493,24 @@ const Retos = () => {
   };
 
   // === VN render: usa retos_vn_config / rachas_vn_config ===
-  const renderVnCard = (reto: any, periodo: string) => {
-    const completed = completados.has(`${reto.nombre}::${periodo}`);
+  const renderVnCard = (reto: any, _periodo: string) => {
+    const tipo = String(reto.tipo || '').toUpperCase();
+    // Para DIARIO: cualquier cumplimiento del mes actual aparece desbloqueado en la tarjeta.
+    // Para SEMANAL: matchea la semana actual del mes (YYYYMM-S{n}).
+    // Para MENSUAL: matchea YYYYMM.
+    let completed = false;
+    if (tipo === 'DIARIO') {
+      const prefijoMes = `${anio}-${String(mes + 1).padStart(2, '0')}-`;
+      for (const key of vnCompletados) {
+        const [nombre, periodo] = key.split('::');
+        if (nombre === reto.nombre && periodo?.startsWith(prefijoMes)) { completed = true; break; }
+      }
+    } else if (tipo === 'SEMANAL') {
+      completed = vnCompletados.has(`${reto.nombre}::${periodoSemanaVn}`);
+    } else {
+      completed = vnCompletados.has(`${reto.nombre}::${periodoMes}`);
+    }
+
     const sp = reto.tipo === 'SEMANAL'
       ? `${reto.sp_semanal_sem1}/${reto.sp_semanal_sem2}/${reto.sp_semanal_sem3}/${reto.sp_semanal_sem4}`
       : String(reto.sp_base ?? 0);
