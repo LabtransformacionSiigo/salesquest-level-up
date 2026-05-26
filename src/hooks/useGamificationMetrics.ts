@@ -1397,9 +1397,7 @@ export const useGamificationMetrics = (
             const mTotal = (hasCatalogSplit ? catalogUnd : asesorCtx.metaTotal) || (mFe + mNube) || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
-            const catalogMetaAcv = catalogRowForAcv?.meta_total_acv
-              ? normalizeVnMetaAcv(catalogRowForAcv.meta_total_acv, catalogRowForAcv.pais)
-              : 0;
+            const catalogMetaAcv = Math.round(Number(catalogRowForAcv?.meta_total_acv) || 0);
             const metaAcvFinal = catalogMetaAcv;
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
