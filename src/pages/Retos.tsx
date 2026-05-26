@@ -107,11 +107,13 @@ interface VcMetrics {
 const Retos = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
   const [completados, setCompletados] = useState<Set<string>>(new Set());
+  const [vnCompletados, setVnCompletados] = useState<Set<string>>(new Set());
   const [vcCatalog, setVcCatalog] = useState<VcCatalogReto[]>([]);
   const [vcRachas, setVcRachas] = useState<VcRacha[]>([]);
   const [vnRetos, setVnRetos] = useState<any[]>([]);
   const [vnRachas, setVnRachas] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+
   const [vcMetrics, setVcMetrics] = useState<VcMetrics>({
     dailyAcvNube: 0, dailyAcvLegacy: 0, dailyAcvTotal: 0,
     weeklyUpgradesNube: 0, weeklyUpgradesLegacy: 0, weeklyUpgradesTotal: 0,
@@ -130,6 +132,10 @@ const Retos = () => {
   const periodoHoy = todayStr;
   const periodoSemana = `${anio}-W${String(semanaISO).padStart(2, '0')}`;
   const periodoMes = `${anio}${String(mes + 1).padStart(2, '0')}`;
+  // Periodo semanal VN: YYYYMM-S{semana_del_mes}
+  const semanaDelMes = Math.ceil(today.getDate() / 7);
+  const periodoSemanaVn = `${anio}${String(mes + 1).padStart(2, '0')}-S${semanaDelMes}`;
+
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -160,6 +166,24 @@ const Retos = () => {
       setVnRetos((vnRetosData || []) as any[]);
       setVnRachas((vnRachasData || []) as any[]);
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
+
+      // Para VN, los retos cumplidos están en sp_acumulados (fuente RETO_DIARIO/SEMANAL/MENSUAL)
+      if (isVN) {
+        const { data: spRetos } = await supabase
+          .from('sp_acumulados')
+          .select('fuente, detalle, periodo')
+          .eq('gerente_id', profile.id)
+          .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL']);
+        if (!cancelled) {
+          const set = new Set<string>();
+          (spRetos || []).forEach((r: any) => {
+            const nombre = String(r.detalle || '').split(' —')[0].split(' -')[0].trim();
+            if (nombre && r.periodo) set.add(`${nombre}::${r.periodo}`);
+          });
+          setVnCompletados(set);
+        }
+      }
+
 
       if (profile.canal === 'VC' && profile.id && !snapshot?.vcMetrics) {
         // Gerente VC: réplica de la lógica del edge function (SUM- vs PROD-)
@@ -469,8 +493,24 @@ const Retos = () => {
   };
 
   // === VN render: usa retos_vn_config / rachas_vn_config ===
-  const renderVnCard = (reto: any, periodo: string) => {
-    const completed = completados.has(`${reto.nombre}::${periodo}`);
+  const renderVnCard = (reto: any, _periodo: string) => {
+    const tipo = String(reto.tipo || '').toUpperCase();
+    // Para DIARIO: cualquier cumplimiento del mes actual aparece desbloqueado en la tarjeta.
+    // Para SEMANAL: matchea la semana actual del mes (YYYYMM-S{n}).
+    // Para MENSUAL: matchea YYYYMM.
+    let completed = false;
+    if (tipo === 'DIARIO') {
+      const prefijoMes = `${anio}-${String(mes + 1).padStart(2, '0')}-`;
+      for (const key of vnCompletados) {
+        const [nombre, periodo] = key.split('::');
+        if (nombre === reto.nombre && periodo?.startsWith(prefijoMes)) { completed = true; break; }
+      }
+    } else if (tipo === 'SEMANAL') {
+      completed = vnCompletados.has(`${reto.nombre}::${periodoSemanaVn}`);
+    } else {
+      completed = vnCompletados.has(`${reto.nombre}::${periodoMes}`);
+    }
+
     const sp = reto.tipo === 'SEMANAL'
       ? `${reto.sp_semanal_sem1}/${reto.sp_semanal_sem2}/${reto.sp_semanal_sem3}/${reto.sp_semanal_sem4}`
       : String(reto.sp_base ?? 0);
