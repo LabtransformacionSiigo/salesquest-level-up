@@ -17,9 +17,8 @@ const menuItems = [
   { path: '/ranking', icon: 'leaderboard', label: 'Clasificación' },
   { path: '/mi-performance', icon: 'insights', label: 'Mi Progreso ' },
   { path: '/medallas', icon: 'workspace_premium', label: 'Medallas' },
-  { path: '/retos', icon: 'flag', label: 'Retos' },
+  { path: '/retos', icon: 'flag', label: 'Retos y Logros' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
-  { path: '/mis-logros', icon: 'emoji_events', label: 'Mis Logros' },
   { path: '/premios', icon: 'redeem', label: 'Beneficios ' },
   { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
 ];
@@ -115,7 +114,7 @@ const Sidebar = () => {
             </motion.div>
             <motion.button
               type="button"
-              onClick={() => navigate('/mis-logros')}
+              onClick={() => navigate('/retos')}
               className="mt-2 flex items-center gap-2 bg-sidebar-accent rounded-lg px-4 py-2 w-full hover:bg-sidebar-accent/80 transition-colors"
               whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
               title="Ver desglose de retos, medallas y reconocimientos"

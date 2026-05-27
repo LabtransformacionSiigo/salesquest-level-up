@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, scoreboardSlide } from '@/lib/animations';
 import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import MisLogrosPanel from '@/components/logros/MisLogrosPanel';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
@@ -640,46 +641,52 @@ const Retos = () => {
 
 
   return (
-    <Layout title="🎯 Retos">
-      <Tabs defaultValue="diarios" className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <TabsList className="w-full bg-white border border-border">
-            <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
-            <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
-            <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
-            <TabsTrigger value="rachas" className="flex-1">🔥 Rachas</TabsTrigger>
-          </TabsList>
-        </motion.div>
+    <Layout title="🎯 Retos y Logros">
+      <div className="space-y-8">
+        <Tabs defaultValue="diarios" className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <TabsList className="w-full bg-white border border-border">
+              <TabsTrigger value="diarios" className="flex-1">📋 Diarios</TabsTrigger>
+              <TabsTrigger value="semanales" className="flex-1">📅 Semanales</TabsTrigger>
+              <TabsTrigger value="mensuales" className="flex-1">🏆 Mensuales</TabsTrigger>
+              <TabsTrigger value="rachas" className="flex-1">🔥 Rachas</TabsTrigger>
+            </TabsList>
+          </motion.div>
 
-        {dataLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
-        ) : (
-          <>
-            <TabsContent value="diarios">{isVN ? renderVnTab('DIARIO', periodoHoy) : renderTab('DIARIO', periodoHoy)}</TabsContent>
-            <TabsContent value="semanales">{isVN ? renderVnTab('SEMANAL', periodoSemana) : renderTab('SEMANAL', periodoSemana)}</TabsContent>
-            <TabsContent value="mensuales">{isVN ? renderVnTab('MENSUAL', periodoMes) : renderTab('MENSUAL', periodoMes)}</TabsContent>
-            <TabsContent value="rachas">
-              <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
-                {isVN ? (
-                  <>
-                    {vnRachas.length === 0 && (
-                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
-                    )}
-                    {vnRachas.map((r) => renderVnRachaCard(r))}
-                  </>
-                ) : (
-                  <>
-                    {vcRachas.length === 0 && (
-                      <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
-                    )}
-                    {vcRachas.map((r) => renderRachaCard(r))}
-                  </>
-                )}
-              </motion.div>
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+          {dataLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40" />)}</div>
+          ) : (
+            <>
+              <TabsContent value="diarios">{isVN ? renderVnTab('DIARIO', periodoHoy) : renderTab('DIARIO', periodoHoy)}</TabsContent>
+              <TabsContent value="semanales">{isVN ? renderVnTab('SEMANAL', periodoSemana) : renderTab('SEMANAL', periodoSemana)}</TabsContent>
+              <TabsContent value="mensuales">{isVN ? renderVnTab('MENSUAL', periodoMes) : renderTab('MENSUAL', periodoMes)}</TabsContent>
+              <TabsContent value="rachas">
+                <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={staggerContainer} initial="hidden" animate="show">
+                  {isVN ? (
+                    <>
+                      {vnRachas.length === 0 && (
+                        <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                      )}
+                      {vnRachas.map((r) => renderVnRachaCard(r))}
+                    </>
+                  ) : (
+                    <>
+                      {vcRachas.length === 0 && (
+                        <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No hay rachas activas en este momento.</p>
+                      )}
+                      {vcRachas.map((r) => renderRachaCard(r))}
+                    </>
+                  )}
+                </motion.div>
+              </TabsContent>
+            </>
+          )}
+        </Tabs>
+
+        <div className="border-t border-border pt-2" id="mis-logros">
+          <MisLogrosPanel hideAssignedRetos />
+        </div>
+      </div>
     </Layout>
   );
 };
