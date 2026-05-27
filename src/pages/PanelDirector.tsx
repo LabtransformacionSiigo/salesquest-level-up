@@ -48,6 +48,7 @@ type Stats = {
   pctTotal: number;
   sp: number;
   racha: number;
+  daily: number[]; // últimos 7 días: unidades vendidas
 };
 
 // 4-tier classification
