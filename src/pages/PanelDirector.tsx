@@ -205,12 +205,12 @@ const PanelDirector = () => {
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
-        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null };
+        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null };
         const aggByLeader = new Map<string, Agg>();
         for (const m of metricas) {
           const key = normalize(m.gerente_normalizado || m.gerente || '');
           if (!key) continue;
-          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
+          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null, canal: m.canal_direccion || null };
           const v = Number(m.ventas) || 0;
           const tp = String(m.tipo_producto1 || '').toUpperCase();
           if (tp === 'FE') cur.fe += v;
@@ -218,24 +218,34 @@ const PanelDirector = () => {
           cur.total += v;
           cur.acv += Number(m.acv_total) || 0;
           cur.pais = cur.pais || m.pais;
+          cur.canal = cur.canal || m.canal_direccion;
           aggByLeader.set(key, cur);
         }
 
+        // Index de gerentes por nombre normalizado. Excluimos stubs (1 sola palabra y sin celula)
+        // para que un registro residual "Angel" no pise a "Angel Alfonso Arciniegas Guerrero".
         const gByName = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
           const k = normalize(g.nombre);
           if (!k) continue;
+          const isStub = k.split(/\s+/).length < 2 && !g.celula;
+          if (isStub) continue;
           gByName.set(k, [...(gByName.get(k) || []), g]);
         }
-        const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
+        const findGerente = (leaderKey: string, paisHint: string | null, canalHint: string | null): GerenteRow | null => {
+          const pick = (arr: GerenteRow[]) =>
+            arr.find((g) => (!paisHint || g.pais === paisHint) && (!canalHint || g.canal === canalHint)) ||
+            arr.find((g) => !paisHint || g.pais === paisHint) ||
+            arr[0];
           const exact = gByName.get(leaderKey);
-          if (exact && exact.length) {
-            return exact.find((g) => !paisHint || g.pais === paisHint) || exact[0];
-          }
+          if (exact && exact.length) return pick(exact);
+          // startsWith con mínimo de 2 palabras a cada lado
+          const leaderWords = leaderKey.split(/\s+/).length;
+          if (leaderWords < 2) return null;
           for (const [k, arr] of gByName) {
+            if (k.split(/\s+/).length < 2) continue;
             if (k.startsWith(leaderKey) || leaderKey.startsWith(k)) {
-              const pick = arr.find((g) => !paisHint || g.pais === paisHint) || arr[0];
-              if (pick) return pick;
+              return pick(arr);
             }
           }
           return null;
