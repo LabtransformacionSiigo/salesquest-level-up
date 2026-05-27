@@ -226,14 +226,34 @@ const PanelDirector = () => {
           if (!k) continue;
           gByName.set(k, [...(gByName.get(k) || []), g]);
         }
+        // Prefer gerentes WITH celula (líderes reales) y mismo país
+        const pickBest = (arr: GerenteRow[], paisHint: string | null): GerenteRow | null => {
+          if (!arr.length) return null;
+          const byPais = paisHint ? arr.filter((g) => g.pais === paisHint) : arr;
+          const pool = byPais.length ? byPais : arr;
+          return pool.find((g) => !!g.celula) || pool[0];
+        };
         const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
           const exact = gByName.get(leaderKey);
-          if (exact && exact.length) {
-            return exact.find((g) => !paisHint || g.pais === paisHint) || exact[0];
+          if (exact && exact.length) return pickBest(exact, paisHint);
+
+          const tokens = leaderKey.split(/\s+/).filter(Boolean);
+          if (tokens.length >= 2) {
+            // Coincidencia por primer + último token (ej. "diana naranjo" ↔ "Diana Maria Naranjo Mattheus")
+            const first = tokens[0];
+            const last = tokens[tokens.length - 1];
+            const matches: GerenteRow[] = [];
+            for (const [k, arr] of gByName) {
+              const kt = k.split(/\s+/);
+              if (kt.includes(first) && kt.includes(last)) matches.push(...arr);
+            }
+            if (matches.length) return pickBest(matches, paisHint);
           }
+
+          // Fallback prefix tradicional
           for (const [k, arr] of gByName) {
             if (k.startsWith(leaderKey) || leaderKey.startsWith(k)) {
-              const pick = arr.find((g) => !paisHint || g.pais === paisHint) || arr[0];
+              const pick = pickBest(arr, paisHint);
               if (pick) return pick;
             }
           }
