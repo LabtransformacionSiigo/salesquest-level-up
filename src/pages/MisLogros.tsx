@@ -357,16 +357,6 @@ const MisLogros = () => {
           </div>
         </div>
 
-        {/* Desglose por fuente */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          {Object.entries(FUENTE_META).map(([key, meta]) => (
-            <div key={key} className="border border-border rounded-lg p-3 bg-card text-center">
-              <div className="text-xl">{meta.icon}</div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground mt-1">{meta.label}</div>
-              <div className="text-lg font-bold text-foreground tabular-nums">{totales.porFuente[key] || 0} SP</div>
-            </div>
-          ))}
-        </div>
 
         {/* Tabs por categoría */}
         <Tabs defaultValue="todos" className="w-full">
