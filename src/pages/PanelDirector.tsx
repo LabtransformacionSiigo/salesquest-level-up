@@ -48,7 +48,6 @@ type Stats = {
   pctTotal: number;
   sp: number;
   racha: number;
-  daily: number[]; // últimos 7 días: unidades vendidas
 };
 
 // 4-tier classification
@@ -130,19 +129,18 @@ const PanelDirector = () => {
           });
         }
 
-        // 3) Métricas VN — restringidas por país Y canal del director (evita leak VN_ALIADOS↔VN_EMPRESARIOS)
+        // 3) Métricas VN
+        const vnCanales = (scopeCanales.length ? scopeCanales : ['VN_ALIADOS', 'VN_EMPRESARIOS', 'VC'])
+          .filter((c) => c.startsWith('VN'));
         let metricas: any[] = [];
-        {
+        if (vnCanales.length || isAdmin) {
           let mq = supabase
             .from('vn_metricas_optimizadas' as any)
             .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, ventas, acv_total')
             .eq('scope', 'gerente')
             .eq('anio', anio)
             .eq('mes_nro', periodoSel);
-          if (!isAdmin) {
-            if (scopePaises.length) mq = mq.in('pais', scopePaises);
-            if (scopeCanales.length) mq = mq.in('canal_direccion', scopeCanales);
-          }
+          if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
           const { data } = await mq;
           metricas = data || [];
         }
@@ -203,43 +201,15 @@ const PanelDirector = () => {
           });
         }
 
-        // 6b) Ventas diarias de los últimos 7 días por gerente
-        const dailyMap = new Map<string, number[]>();
-        const today = new Date();
-        const days: string[] = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(today);
-          d.setDate(today.getDate() - (6 - i));
-          return d.toISOString().slice(0, 10);
-        });
-        if (gerenteIds.length) {
-          const fromDate = days[0];
-          const { data: vts } = await supabase
-            .from('ventas')
-            .select('gerente_id, fecha_facturacion')
-            .in('gerente_id', gerenteIds)
-            .gte('fecha_facturacion', fromDate)
-            .lte('fecha_facturacion', days[6]);
-          const idx = new Map(days.map((d, i) => [d, i] as const));
-          (vts || []).forEach((v: any) => {
-            if (!v.gerente_id || !v.fecha_facturacion) return;
-            const dayKey = String(v.fecha_facturacion).slice(0, 10);
-            const i = idx.get(dayKey);
-            if (i === undefined) return;
-            const arr = dailyMap.get(v.gerente_id) || Array(7).fill(0);
-            arr[i] += 1;
-            dailyMap.set(v.gerente_id, arr);
-          });
-        }
-
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
-        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null };
+        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null };
         const aggByLeader = new Map<string, Agg>();
         for (const m of metricas) {
           const key = normalize(m.gerente_normalizado || m.gerente || '');
           if (!key) continue;
-          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null, canal: m.canal_direccion || null };
+          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
           const v = Number(m.ventas) || 0;
           const tp = String(m.tipo_producto1 || '').toUpperCase();
           if (tp === 'FE') cur.fe += v;
@@ -247,34 +217,24 @@ const PanelDirector = () => {
           cur.total += v;
           cur.acv += Number(m.acv_total) || 0;
           cur.pais = cur.pais || m.pais;
-          cur.canal = cur.canal || m.canal_direccion;
           aggByLeader.set(key, cur);
         }
 
-        // Index de gerentes por nombre normalizado. Excluimos stubs (1 sola palabra y sin celula)
-        // para que un registro residual "Angel" no pise a "Angel Alfonso Arciniegas Guerrero".
         const gByName = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
           const k = normalize(g.nombre);
           if (!k) continue;
-          const isStub = k.split(/\s+/).length < 2 && !g.celula;
-          if (isStub) continue;
           gByName.set(k, [...(gByName.get(k) || []), g]);
         }
-        const findGerente = (leaderKey: string, paisHint: string | null, canalHint: string | null): GerenteRow | null => {
-          const pick = (arr: GerenteRow[]) =>
-            arr.find((g) => (!paisHint || g.pais === paisHint) && (!canalHint || g.canal === canalHint)) ||
-            arr.find((g) => !paisHint || g.pais === paisHint) ||
-            arr[0];
+        const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
           const exact = gByName.get(leaderKey);
-          if (exact && exact.length) return pick(exact);
-          // startsWith con mínimo de 2 palabras a cada lado
-          const leaderWords = leaderKey.split(/\s+/).length;
-          if (leaderWords < 2) return null;
+          if (exact && exact.length) {
+            return exact.find((g) => !paisHint || g.pais === paisHint) || exact[0];
+          }
           for (const [k, arr] of gByName) {
-            if (k.split(/\s+/).length < 2) continue;
             if (k.startsWith(leaderKey) || leaderKey.startsWith(k)) {
-              return pick(arr);
+              const pick = arr.find((g) => !paisHint || g.pais === paisHint) || arr[0];
+              if (pick) return pick;
             }
           }
           return null;
@@ -283,12 +243,12 @@ const PanelDirector = () => {
         const out: Stats[] = [];
         const usedIds = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
-          const g = findGerente(leaderKey, agg.pais, agg.canal);
+          const g = findGerente(leaderKey, agg.pais);
           const gerente: GerenteRow = g || {
             id: `metric-${leaderKey}`,
             nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
             email: '',
-            canal: agg.canal,
+            canal: null,
             pais: agg.pais,
             celula: null,
           };
@@ -312,7 +272,6 @@ const PanelDirector = () => {
             pctTotal: Math.round(pctTotal),
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
-            daily: (g && dailyMap.get(g.id)) || Array(7).fill(0),
           });
         }
         // Sumar líderes con asesores asignados pero sin métrica este mes
@@ -332,7 +291,6 @@ const PanelDirector = () => {
             pctTotal: 0,
             sp: spMap.get(g.id) || 0,
             racha: rachaMap.get(g.id) || 0,
-            daily: dailyMap.get(g.id) || Array(7).fill(0),
           });
         }
 
@@ -737,24 +695,21 @@ const PanelDirector = () => {
                   <TableHead className="text-right">ACV</TableHead>
                   <TableHead className="text-right">⚡ SP</TableHead>
                   <TableHead className="text-right">🔥 Racha</TableHead>
-                  <TableHead className="text-center">Últ. 7 días</TableHead>
                   <TableHead className="text-right">% Cumpl.</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
-                  const dailyMax = Math.max(1, ...s.daily);
-                  const dailySum = s.daily.reduce((a, b) => a + b, 0);
                   return (
                     <TableRow key={s.gerente.id}>
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
-                      <TableCell>{s.gerente.canal ? <Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
                       <TableCell className="text-right">{s.asesores}</TableCell>
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
@@ -762,19 +717,6 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
                       <TableCell className="text-right font-scoreboard">{s.sp.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{s.racha > 0 ? `${s.racha}🔥` : '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-end justify-center gap-0.5 h-8" title={`Total 7d: ${dailySum} uds`}>
-                          {s.daily.map((v, i) => (
-                            <div
-                              key={i}
-                              className={`w-1.5 rounded-sm ${v > 0 ? t.solid : 'bg-muted'}`}
-                              style={{ height: `${Math.max(10, (v / dailyMax) * 100)}%` }}
-                              title={`Día -${6 - i}: ${v} uds`}
-                            />
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-center text-muted-foreground mt-0.5">{dailySum} uds</p>
-                      </TableCell>
                       <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
