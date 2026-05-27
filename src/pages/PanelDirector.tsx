@@ -78,8 +78,13 @@ const PanelDirector = () => {
   const anio = now.getFullYear();
   const [filtroPais, setFiltroPais] = useState<string>('TODOS');
   const [filtroCanal, setFiltroCanal] = useState<string>('TODOS');
+  const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats[]>([]);
+
   const [tendencia, setTendencia] = useState<{ mes: number; pct: number }[]>([]);
 
   const scopeCanales = useMemo(
