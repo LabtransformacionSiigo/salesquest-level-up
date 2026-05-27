@@ -50,11 +50,23 @@ type Stats = {
   racha: number;
 };
 
-const semaforo = (pct: number) => {
-  if (pct >= 90) return { emoji: '🟢', label: 'En meta', color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/30' };
-  if (pct >= 60) return { emoji: '🟡', label: 'En riesgo', color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
-  return { emoji: '🔴', label: 'Bajo meta', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' };
-};
+// 4-tier classification
+type TierKey = 'cumple' | 'en_meta' | 'en_riesgo' | 'por_debajo';
+const TIERS: { key: TierKey; label: string; range: string; min: number; max: number;
+  text: string; bg: string; border: string; solid: string; dot: string; }[] = [
+  { key: 'cumple',     label: 'Cumple',         range: 'Cumpl. ≥100%',   min: 100, max: Infinity,
+    text: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-900', solid: 'bg-emerald-500', dot: 'bg-emerald-500' },
+  { key: 'en_meta',    label: 'En meta',        range: 'Cumpl. 80-99%',  min: 80,  max: 100,
+    text: 'text-sky-700 dark:text-sky-300',         bg: 'bg-sky-50 dark:bg-sky-950/40',         border: 'border-sky-200 dark:border-sky-900',         solid: 'bg-sky-500',     dot: 'bg-sky-500' },
+  { key: 'en_riesgo',  label: 'En riesgo',      range: 'Cumpl. 50-79%',  min: 50,  max: 80,
+    text: 'text-amber-700 dark:text-amber-300',     bg: 'bg-amber-50 dark:bg-amber-950/40',     border: 'border-amber-200 dark:border-amber-900',     solid: 'bg-amber-500',   dot: 'bg-amber-500' },
+  { key: 'por_debajo', label: 'Por debajo de meta', range: 'Cumpl. <50%', min: 0,   max: 50,
+    text: 'text-rose-700 dark:text-rose-300',       bg: 'bg-rose-50 dark:bg-rose-950/40',       border: 'border-rose-200 dark:border-rose-900',       solid: 'bg-rose-500',     dot: 'bg-rose-500' },
+];
+const tierOf = (pct: number): TierKey =>
+  pct >= 100 ? 'cumple' : pct >= 80 ? 'en_meta' : pct >= 50 ? 'en_riesgo' : 'por_debajo';
+const tierDef = (k: TierKey) => TIERS.find((t) => t.key === k)!;
+
 
 const PanelDirector = () => {
   const { profile, loading: authLoading } = useSupabaseAuthContext();
