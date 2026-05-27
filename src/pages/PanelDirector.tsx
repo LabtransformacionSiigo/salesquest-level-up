@@ -579,20 +579,24 @@ const PanelDirector = () => {
                 <tbody>
                   {heatmap.canales.map((c) => (
                     <tr key={c}>
-                      <th className="text-left text-sm font-semibold pr-3">{c}</th>
+                      <th className="text-left text-sm font-semibold pr-4 py-1 text-foreground/90 whitespace-nowrap">{c}</th>
                       {heatmap.paises.map((p) => {
                         const val = heatmap.cell(c, p);
                         if (val === null) {
-                          return <td key={p} className="rounded-lg bg-muted/40 h-12 text-center text-xs text-muted-foreground">—</td>;
+                          return (
+                            <td key={p} className="px-1">
+                              <div className="h-11 rounded-full bg-muted/40 border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">—</div>
+                            </td>
+                          );
                         }
                         const t = tierDef(tierOf(val));
                         return (
-                          <td key={p}>
+                          <td key={p} className="px-1">
                             <button
                               type="button"
                               onClick={() => { setFiltroCanal(c); setFiltroPais(p); }}
-                              className={`${t.solid} w-full h-12 rounded-lg text-white font-bold text-sm hover:opacity-90 transition`}
-                              title={`${c} · ${p}: ${val}%`}
+                              className={`${t.solid} w-full h-11 rounded-full text-white font-bold text-base hover:opacity-90 hover:scale-[1.02] transition shadow-sm`}
+                              title={`${c} · ${p}: ${val}% — ${t.label}`}
                             >
                               {val}%
                             </button>
@@ -603,11 +607,11 @@ const PanelDirector = () => {
                   ))}
                 </tbody>
               </table>
-              <div className="flex flex-wrap gap-3 justify-center mt-4 text-xs">
+              <div className="flex flex-wrap gap-4 justify-center mt-5 text-xs">
                 {TIERS.map((t) => (
                   <span key={t.key} className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className={`inline-block w-3 h-3 rounded ${t.solid}`} />
-                    {t.label} · {t.range}
+                    <span className={`inline-block w-3 h-3 rounded-full ${t.solid}`} />
+                    <span className="font-medium text-foreground/80">{t.label}</span> · {t.range}
                   </span>
                 ))}
               </div>
