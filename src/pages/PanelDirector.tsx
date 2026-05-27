@@ -129,18 +129,19 @@ const PanelDirector = () => {
           });
         }
 
-        // 3) Métricas VN
-        const vnCanales = (scopeCanales.length ? scopeCanales : ['VN_ALIADOS', 'VN_EMPRESARIOS', 'VC'])
-          .filter((c) => c.startsWith('VN'));
+        // 3) Métricas VN — restringidas por país Y canal del director (evita leak VN_ALIADOS↔VN_EMPRESARIOS)
         let metricas: any[] = [];
-        if (vnCanales.length || isAdmin) {
+        {
           let mq = supabase
             .from('vn_metricas_optimizadas' as any)
             .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, ventas, acv_total')
             .eq('scope', 'gerente')
             .eq('anio', anio)
             .eq('mes_nro', periodoSel);
-          if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
+          if (!isAdmin) {
+            if (scopePaises.length) mq = mq.in('pais', scopePaises);
+            if (scopeCanales.length) mq = mq.in('canal_direccion', scopeCanales);
+          }
           const { data } = await mq;
           metricas = data || [];
         }
