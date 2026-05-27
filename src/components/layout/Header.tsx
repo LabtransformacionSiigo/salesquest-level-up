@@ -100,7 +100,7 @@ const Header = ({ title }: HeaderProps) => {
             </div>
             <button
               type="button"
-              onClick={() => navigate('/mis-logros')}
+              onClick={() => navigate('/retos')}
               className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5 hover:brightness-110 transition"
               title="Ver desglose: retos, medallas y reconocimientos"
             >
