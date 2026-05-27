@@ -737,21 +737,24 @@ const PanelDirector = () => {
                   <TableHead className="text-right">ACV</TableHead>
                   <TableHead className="text-right">⚡ SP</TableHead>
                   <TableHead className="text-right">🔥 Racha</TableHead>
+                  <TableHead className="text-center">Últ. 7 días</TableHead>
                   <TableHead className="text-right">% Cumpl.</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
+                  const dailyMax = Math.max(1, ...s.daily);
+                  const dailySum = s.daily.reduce((a, b) => a + b, 0);
                   return (
                     <TableRow key={s.gerente.id}>
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
+                      <TableCell>{s.gerente.canal ? <Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
                       <TableCell className="text-right">{s.asesores}</TableCell>
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
@@ -759,6 +762,19 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
                       <TableCell className="text-right font-scoreboard">{s.sp.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{s.racha > 0 ? `${s.racha}🔥` : '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-end justify-center gap-0.5 h-8" title={`Total 7d: ${dailySum} uds`}>
+                          {s.daily.map((v, i) => (
+                            <div
+                              key={i}
+                              className={`w-1.5 rounded-sm ${v > 0 ? t.solid : 'bg-muted'}`}
+                              style={{ height: `${Math.max(10, (v / dailyMax) * 100)}%` }}
+                              title={`Día -${6 - i}: ${v} uds`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-center text-muted-foreground mt-0.5">{dailySum} uds</p>
+                      </TableCell>
                       <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
