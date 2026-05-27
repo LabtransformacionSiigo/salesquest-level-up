@@ -6,12 +6,15 @@ import { Navigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, TrendingUp, DollarSign, Cloud, Flame, Trophy, AlertTriangle } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Cloud, Trophy, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
 
 const normalize = (s: string) =>
   String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -47,11 +50,23 @@ type Stats = {
   racha: number;
 };
 
-const semaforo = (pct: number) => {
-  if (pct >= 90) return { emoji: '🟢', label: 'En meta', color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/30' };
-  if (pct >= 60) return { emoji: '🟡', label: 'En riesgo', color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
-  return { emoji: '🔴', label: 'Bajo meta', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' };
-};
+// 4-tier classification
+type TierKey = 'cumple' | 'en_meta' | 'en_riesgo' | 'por_debajo';
+const TIERS: { key: TierKey; label: string; range: string; min: number; max: number;
+  text: string; bg: string; border: string; solid: string; dot: string; }[] = [
+  { key: 'cumple',     label: 'Cumple',         range: 'Cumpl. ≥100%',   min: 100, max: Infinity,
+    text: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-900', solid: 'bg-emerald-500', dot: 'bg-emerald-500' },
+  { key: 'en_meta',    label: 'En meta',        range: 'Cumpl. 80-99%',  min: 80,  max: 100,
+    text: 'text-sky-700 dark:text-sky-300',         bg: 'bg-sky-50 dark:bg-sky-950/40',         border: 'border-sky-200 dark:border-sky-900',         solid: 'bg-sky-500',     dot: 'bg-sky-500' },
+  { key: 'en_riesgo',  label: 'En riesgo',      range: 'Cumpl. 50-79%',  min: 50,  max: 80,
+    text: 'text-amber-700 dark:text-amber-300',     bg: 'bg-amber-50 dark:bg-amber-950/40',     border: 'border-amber-200 dark:border-amber-900',     solid: 'bg-amber-500',   dot: 'bg-amber-500' },
+  { key: 'por_debajo', label: 'Por debajo de meta', range: 'Cumpl. <50%', min: 0,   max: 50,
+    text: 'text-rose-700 dark:text-rose-300',       bg: 'bg-rose-50 dark:bg-rose-950/40',       border: 'border-rose-200 dark:border-rose-900',       solid: 'bg-rose-500',     dot: 'bg-rose-500' },
+];
+const tierOf = (pct: number): TierKey =>
+  pct >= 100 ? 'cumple' : pct >= 80 ? 'en_meta' : pct >= 50 ? 'en_riesgo' : 'por_debajo';
+const tierDef = (k: TierKey) => TIERS.find((t) => t.key === k)!;
+
 
 const PanelDirector = () => {
   const { profile, loading: authLoading } = useSupabaseAuthContext();
@@ -63,8 +78,13 @@ const PanelDirector = () => {
   const anio = now.getFullYear();
   const [filtroPais, setFiltroPais] = useState<string>('TODOS');
   const [filtroCanal, setFiltroCanal] = useState<string>('TODOS');
+  const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats[]>([]);
+
   const [tendencia, setTendencia] = useState<{ mes: number; pct: number }[]>([]);
 
   const scopeCanales = useMemo(
@@ -278,12 +298,40 @@ const PanelDirector = () => {
     return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds };
   }, [filteredStats]);
 
-  const distribucion = useMemo(() => {
-    const enMeta = filteredStats.filter((s) => s.pctTotal >= 90).length;
-    const enRiesgo = filteredStats.filter((s) => s.pctTotal >= 60 && s.pctTotal < 90).length;
-    const bajoMeta = filteredStats.filter((s) => s.pctTotal < 60).length;
-    return { enMeta, enRiesgo, bajoMeta };
+  // Conteo por tier
+  const tierCounts = useMemo(() => {
+    const c: Record<TierKey, number> = { cumple: 0, en_meta: 0, en_riesgo: 0, por_debajo: 0 };
+    for (const s of filteredStats) c[tierOf(s.pctTotal)]++;
+    return c;
   }, [filteredStats]);
+
+  // Heatmap canal × país (% promedio de cumplimiento)
+  const heatmap = useMemo(() => {
+    const canales = Array.from(new Set(filteredStats.map((s) => s.gerente.canal).filter(Boolean))) as string[];
+    const paises = Array.from(new Set(filteredStats.map((s) => s.gerente.pais).filter(Boolean))) as string[];
+    const cell = (canal: string, pais: string) => {
+      const arr = filteredStats.filter((s) => s.gerente.canal === canal && s.gerente.pais === pais);
+      if (!arr.length) return null;
+      return Math.round(arr.reduce((a, b) => a + b.pctTotal, 0) / arr.length);
+    };
+    return { canales: canales.sort(), paises: paises.sort(), cell };
+  }, [filteredStats]);
+
+  // Tabla: aplica tier + search + ordena por % desc + pagina
+  const tableRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = filteredStats
+      .filter((s) => filtroTier === 'TODOS' || tierOf(s.pctTotal) === filtroTier)
+      .filter((s) => !q || s.gerente.nombre.toLowerCase().includes(q) || (s.gerente.email || '').toLowerCase().includes(q))
+      .sort((a, b) => b.pctTotal - a.pctTotal);
+    return rows;
+  }, [filteredStats, filtroTier, search]);
+
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const pageRows = tableRows.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [filtroTier, search, filtroCanal, filtroPais, periodoSel]);
 
   const top3 = useMemo(
     () => [...filteredStats].sort((a, b) => b.pctTotal - a.pctTotal).slice(0, 3),
@@ -299,7 +347,10 @@ const PanelDirector = () => {
   }
   if (!isAdmin && !isDirector) return <Navigate to="/dashboard" replace />;
 
-  const sema = semaforo(kpis.pctUds);
+  const overallTier = tierDef(tierOf(kpis.pctUds));
+  const totalGer = filteredStats.length;
+
+
 
   return (
     <Layout title="📊 Panel Director">
@@ -364,7 +415,7 @@ const PanelDirector = () => {
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Users className="text-primary" />
-              <Badge className={`${sema.bg} ${sema.color} border-0`}>{sema.emoji}</Badge>
+              <Badge className={`${overallTier.bg} ${overallTier.text} ${overallTier.border}`}>{overallTier.label}</Badge>
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalGerentes}</p>
             <p className="text-xs text-muted-foreground mt-1">Gerentes activos</p>
@@ -379,7 +430,7 @@ const PanelDirector = () => {
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
-              <DollarSign className="text-green-500" />
+              <DollarSign className="text-emerald-500" />
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
             <p className="text-xs text-muted-foreground mt-1">ACV total</p>
@@ -393,12 +444,183 @@ const PanelDirector = () => {
           </Card>
         </div>
 
-        {/* Tabla semáforo gerentes */}
-        <Card className="rounded-2xl">
-          <div className="p-5 border-b border-border">
-            <h2 className="font-heading text-lg font-bold">Semáforo de Gerentes</h2>
-            <p className="text-xs text-muted-foreground">Cumplimiento del periodo seleccionado</p>
+        {/* Resumen ejecutivo: 4 niveles + barra de participación */}
+        <Card className="p-6 rounded-2xl">
+          <div className="mb-4">
+            <h2 className="font-heading text-lg font-bold">Resumen ejecutivo del equipo</h2>
+            <p className="text-xs text-muted-foreground">
+              Clasificación por desempeño · {totalGer} gerentes activos
+            </p>
           </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            {TIERS.map((t) => {
+              const active = filtroTier === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setFiltroTier(active ? 'TODOS' : t.key)}
+                  className={`text-left rounded-xl border ${t.border} ${t.bg} p-4 transition hover:scale-[1.01] ${active ? 'ring-2 ring-offset-2 ring-offset-background ring-current ' + t.text : ''}`}
+                >
+                  <div className={`text-xs font-semibold ${t.text}`}>
+                    {t.label} <span className="text-muted-foreground font-normal">· {t.range}</span>
+                  </div>
+                  <div className={`text-4xl font-scoreboard font-bold mt-2 ${t.text}`}>
+                    {tierCounts[t.key]}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">Participación de cada segmento</p>
+              <p className="text-xs text-muted-foreground">Total: {totalGer} gerentes</p>
+            </div>
+            <div className="flex h-10 w-full overflow-hidden rounded-lg">
+              {TIERS.map((t) => {
+                const pct = totalGer ? (tierCounts[t.key] / totalGer) * 100 : 0;
+                if (pct === 0) return null;
+                return (
+                  <motion.div
+                    key={t.key}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.7 }}
+                    className={`${t.solid} flex items-center justify-center text-xs font-bold text-white`}
+                    title={`${t.label}: ${tierCounts[t.key]} (${pct.toFixed(0)}%)`}
+                  >
+                    {pct >= 6 ? `${pct.toFixed(0)}%` : ''}
+                  </motion.div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-4 gap-2 mt-2 text-center text-xs text-muted-foreground">
+              {TIERS.map((t) => <span key={t.key}>{t.label}</span>)}
+            </div>
+          </div>
+        </Card>
+
+        {/* Heatmap canal × país */}
+        {heatmap.canales.length > 0 && heatmap.paises.length > 0 && (
+          <Card className="p-6 rounded-2xl">
+            <div className="mb-4">
+              <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
+              <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-separate border-spacing-2">
+                <thead>
+                  <tr>
+                    <th></th>
+                    {heatmap.paises.map((p) => (
+                      <th key={p} className="text-sm font-semibold text-muted-foreground px-2">{p}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatmap.canales.map((c) => (
+                    <tr key={c}>
+                      <th className="text-left text-sm font-semibold pr-3">{c}</th>
+                      {heatmap.paises.map((p) => {
+                        const val = heatmap.cell(c, p);
+                        if (val === null) {
+                          return <td key={p} className="rounded-lg bg-muted/40 h-12 text-center text-xs text-muted-foreground">—</td>;
+                        }
+                        const t = tierDef(tierOf(val));
+                        return (
+                          <td key={p}>
+                            <button
+                              type="button"
+                              onClick={() => { setFiltroCanal(c); setFiltroPais(p); }}
+                              className={`${t.solid} w-full h-12 rounded-lg text-white font-bold text-sm hover:opacity-90 transition`}
+                              title={`${c} · ${p}: ${val}%`}
+                            >
+                              {val}%
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex flex-wrap gap-3 justify-center mt-4 text-xs">
+                {TIERS.map((t) => (
+                  <span key={t.key} className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className={`inline-block w-3 h-3 rounded ${t.solid}`} />
+                    {t.label} · {t.range}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Tabla con filtros rápidos */}
+        <Card className="rounded-2xl">
+          <div className="p-5 border-b border-border space-y-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-heading text-lg font-bold">Gerentes</h2>
+                <p className="text-xs text-muted-foreground">
+                  {tableRows.length} resultados · ordenados por % cumplimiento
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {TIERS.map((t) => {
+                  const active = filtroTier === t.key;
+                  return (
+                    <Button
+                      key={t.key}
+                      type="button"
+                      variant={active ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFiltroTier(active ? 'TODOS' : t.key)}
+                      className="gap-1.5"
+                    >
+                      <span className={`inline-block w-2.5 h-2.5 rounded ${t.solid}`} />
+                      {t.label}
+                      <span className="text-xs opacity-70">({tierCounts[t.key]})</span>
+                    </Button>
+                  );
+                })}
+                {filtroTier !== 'TODOS' && (
+                  <Button variant="ghost" size="sm" onClick={() => setFiltroTier('TODOS')}>
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar gerente..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={filtroPais} onValueChange={setFiltroPais}>
+                <SelectTrigger><SelectValue placeholder="Todos los países" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos los países</SelectItem>
+                  {paisesDisponibles.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filtroCanal} onValueChange={setFiltroCanal}>
+                <SelectTrigger><SelectValue placeholder="Todos los canales" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos los canales</SelectItem>
+                  {canalesDisponibles.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -419,10 +641,10 @@ const PanelDirector = () => {
               <TableBody>
                 {loading ? (
                   <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
-                ) : filteredStats.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No hay gerentes en tu scope.</TableCell></TableRow>
-                ) : filteredStats.sort((a, b) => b.pctTotal - a.pctTotal).map((s) => {
-                  const sm = semaforo(s.pctTotal);
+                ) : pageRows.length === 0 ? (
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                ) : pageRows.map((s) => {
+                  const t = tierDef(tierOf(s.pctTotal));
                   return (
                     <TableRow key={s.gerente.id}>
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
@@ -434,97 +656,93 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
                       <TableCell className="text-right font-scoreboard">{s.sp.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{s.racha > 0 ? `${s.racha}🔥` : '—'}</TableCell>
-                      <TableCell className={`text-right font-bold ${sm.color}`}>{s.pctTotal}%</TableCell>
-                      <TableCell><Badge className={`${sm.bg} ${sm.color} ${sm.border}`}>{sm.emoji} {sm.label}</Badge></TableCell>
+                      <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
+                      <TableCell>
+                        <Badge className={`${t.bg} ${t.text} ${t.border}`}>
+                          <span className={`inline-block w-2 h-2 rounded-full ${t.solid} mr-1.5`} />
+                          {t.label}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
           </div>
+
+          {tableRows.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between p-4 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Página {pageSafe} de {totalPages} · {tableRows.length} gerentes
+              </p>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={pageSafe === 1}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={pageSafe === totalPages}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
 
-        {/* Grid Distribución + Top/Plan */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="p-5 rounded-2xl">
-            <h3 className="font-heading text-lg font-bold mb-4">Distribución del Equipo</h3>
-            <div className="space-y-3">
-              {[
-                { label: '🟢 En meta (≥90%)', count: distribucion.enMeta, color: 'bg-green-500', total: filteredStats.length },
-                { label: '🟡 En riesgo (60-89%)', count: distribucion.enRiesgo, color: 'bg-yellow-500', total: filteredStats.length },
-                { label: '🔴 Bajo meta (<60%)', count: distribucion.bajoMeta, color: 'bg-red-500', total: filteredStats.length },
-              ].map((b) => (
-                <div key={b.label}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>{b.label}</span>
-                    <span className="font-bold">{b.count}</span>
-                  </div>
-                  <div className="h-3 bg-muted rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${b.total ? (b.count / b.total) * 100 : 0}%` }}
-                      className={`h-full ${b.color}`}
-                      transition={{ duration: 0.6 }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5 rounded-2xl">
-            <h3 className="font-heading text-lg font-bold mb-4 flex items-center gap-2">
-              <Trophy className="text-yellow-500" /> Top 3 & Plan de choque
-            </h3>
-            <div className="space-y-2 mb-4">
+        {/* Top 3 + Plan de choque */}
+        <Card className="p-5 rounded-2xl">
+          <h3 className="font-heading text-lg font-bold mb-4 flex items-center gap-2">
+            <Trophy className="text-amber-500" /> Top 3 & Plan de choque
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
               {top3.map((s, i) => (
                 <div key={s.gerente.id} className="flex justify-between items-center p-2 rounded-lg bg-muted/40">
                   <span className="flex items-center gap-2">
                     <span className="text-lg">{['🥇','🥈','🥉'][i]}</span>
                     <span className="font-medium text-sm">{s.gerente.nombre}</span>
                   </span>
-                  <span className="font-bold text-green-500">{s.pctTotal}%</span>
+                  <span className="font-bold text-emerald-600">{s.pctTotal}%</span>
                 </div>
               ))}
             </div>
-            <div className="border-t border-border pt-3">
+            <div>
               <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-red-500" /> Requieren plan de choque
+                <AlertTriangle className="w-3 h-3 text-rose-500" /> Requieren plan de choque
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {planChoque.map((s) => (
-                  <Badge key={s.gerente.id} className="bg-red-500/10 text-red-500 border-red-500/30">
+                  <Badge key={s.gerente.id} className="bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900">
                     {s.gerente.nombre.split(' ')[0]} · {s.pctTotal}%
                   </Badge>
                 ))}
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
         {/* Tendencia */}
         <Card className="p-5 rounded-2xl">
           <h3 className="font-heading text-lg font-bold mb-4">Tendencia (últimos 6 meses)</h3>
           <div className="space-y-2">
-            {tendencia.map((t) => {
-              const sm = semaforo(t.pct);
+            {tendencia.map((tn) => {
+              const t = tierDef(tierOf(tn.pct));
               return (
-                <div key={t.mes} className="flex items-center gap-3">
-                  <span className="w-20 text-sm text-muted-foreground">{MESES[t.mes - 1]}</span>
+                <div key={tn.mes} className="flex items-center gap-3">
+                  <span className="w-20 text-sm text-muted-foreground">{MESES[tn.mes - 1]}</span>
                   <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(t.pct, 100)}%` }}
+                      animate={{ width: `${Math.min(tn.pct, 100)}%` }}
                       transition={{ duration: 0.6 }}
-                      className={`h-full ${t.pct >= 90 ? 'bg-green-500' : t.pct >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                      className={`h-full ${t.solid}`}
                     />
                   </div>
-                  <span className={`w-12 text-right text-sm font-bold ${sm.color}`}>{t.pct}%</span>
+                  <span className={`w-12 text-right text-sm font-bold ${t.text}`}>{tn.pct}%</span>
                 </div>
               );
             })}
           </div>
         </Card>
+
       </div>
     </Layout>
   );
