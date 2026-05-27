@@ -17,7 +17,7 @@ import Retos from '@/pages/Retos';
 import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
 import PanelDirector from '@/pages/PanelDirector';
-import MisLogros from '@/pages/MisLogros';
+// MisLogros eliminado: fusionado dentro de /retos
 
 // Admin Pages
 import AdminGerentes from '@/pages/admin/AdminGerentes';
