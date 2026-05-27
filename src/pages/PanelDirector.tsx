@@ -181,16 +181,18 @@ const PanelDirector = () => {
           });
         }
 
-        // 6) Metas reales desde metas_acv_gerentes (mes en español)
-        const mesNombre = MESES[periodoSel - 1];
+        // 6) Metas reales desde metas_acv_gerentes (usa abreviatura del mes: Ene, Feb...)
+        const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const mesAbr = MESES_ABR[periodoSel - 1];
         const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
-        if (gerentesList.length) {
+        {
           const { data: metas } = await supabase
             .from('metas_acv_gerentes')
             .select('celula, meta_fe, meta_nube, meta_total_acv')
-            .eq('mes', mesNombre);
+            .eq('mes', mesAbr);
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
+            if (!cel) return;
             metasMap.set(cel, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
@@ -199,43 +201,98 @@ const PanelDirector = () => {
           });
         }
 
-        // 7) Construir stats por gerente
-        const out: Stats[] = gerentesList.map((g) => {
-          const gNorm = normalize(g.nombre);
-          const firstName = gNorm.split(' ')[0];
-          const rows = metricas.filter((m) => {
-            const mNorm = normalize(m.gerente_normalizado || m.gerente || '');
-            return mNorm.includes(firstName) || gNorm.includes(mNorm.split(' ')[0]);
-          });
-          const fe = rows.filter((r) => String(r.tipo_producto1 || '').toUpperCase() === 'FE')
-            .reduce((s, r) => s + (Number(r.ventas) || 0), 0);
-          const nube = rows.filter((r) => String(r.tipo_producto1 || '').toUpperCase() === 'NUBE')
-            .reduce((s, r) => s + (Number(r.ventas) || 0), 0);
-          const total = rows.reduce((s, r) => s + (Number(r.ventas) || 0), 0);
-          const acv = rows.reduce((s, r) => s + (Number(r.acv_total) || 0), 0);
+        // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
+        // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
+        // registros de la tabla `gerentes`).
+        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null };
+        const aggByLeader = new Map<string, Agg>();
+        for (const m of metricas) {
+          const key = normalize(m.gerente_normalizado || m.gerente || '');
+          if (!key) continue;
+          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
+          const v = Number(m.ventas) || 0;
+          const tp = String(m.tipo_producto1 || '').toUpperCase();
+          if (tp === 'FE') cur.fe += v;
+          else if (tp === 'NUBE') cur.nube += v;
+          cur.total += v;
+          cur.acv += Number(m.acv_total) || 0;
+          cur.pais = cur.pais || m.pais;
+          aggByLeader.set(key, cur);
+        }
 
-          const meta = metasMap.get(normalize(g.celula || ''));
-          const asesoresCount = asesoresMap.get(g.id) || 0;
+        const gByName = new Map<string, GerenteRow[]>();
+        for (const g of gerentesList) {
+          const k = normalize(g.nombre);
+          if (!k) continue;
+          gByName.set(k, [...(gByName.get(k) || []), g]);
+        }
+        const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
+          const exact = gByName.get(leaderKey);
+          if (exact && exact.length) {
+            return exact.find((g) => !paisHint || g.pais === paisHint) || exact[0];
+          }
+          for (const [k, arr] of gByName) {
+            if (k.startsWith(leaderKey) || leaderKey.startsWith(k)) {
+              const pick = arr.find((g) => !paisHint || g.pais === paisHint) || arr[0];
+              if (pick) return pick;
+            }
+          }
+          return null;
+        };
+
+        const out: Stats[] = [];
+        const usedIds = new Set<string>();
+        for (const [leaderKey, agg] of aggByLeader) {
+          const g = findGerente(leaderKey, agg.pais);
+          const gerente: GerenteRow = g || {
+            id: `metric-${leaderKey}`,
+            nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
+            email: '',
+            canal: null,
+            pais: agg.pais,
+            celula: null,
+          };
+          if (g) usedIds.add(g.id);
+          const meta = metasMap.get(normalize(gerente.celula || ''));
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
           const metaTotal = metaFe + metaNube;
-          const pctTotal = metaTotal > 0 ? (total / metaTotal) * 100 : 0;
-
-          return {
-            gerente: g,
+          const pctTotal = metaTotal > 0 ? (agg.total / metaTotal) * 100 : 0;
+          out.push({
+            gerente,
             asesores: asesoresCount,
-            fe: Math.round(fe),
-            nube: Math.round(nube),
-            total: Math.round(total),
-            acv: Math.round(acv),
+            fe: Math.round(agg.fe),
+            nube: Math.round(agg.nube),
+            total: Math.round(agg.total),
+            acv: Math.round(agg.acv),
             metaFe,
             metaNube,
             metaAcv: meta?.acv || 0,
             pctTotal: Math.round(pctTotal),
+            sp: g ? (spMap.get(g.id) || 0) : 0,
+            racha: g ? (rachaMap.get(g.id) || 0) : 0,
+          });
+        }
+        // Sumar líderes con asesores asignados pero sin métrica este mes
+        for (const g of gerentesList) {
+          if (usedIds.has(g.id)) continue;
+          const asesoresCount = asesoresMap.get(g.id) || 0;
+          if (asesoresCount === 0) continue;
+          const meta = metasMap.get(normalize(g.celula || ''));
+          const metaFe = meta?.fe || asesoresCount * 2;
+          const metaNube = meta?.nube || asesoresCount * 1;
+          out.push({
+            gerente: g,
+            asesores: asesoresCount,
+            fe: 0, nube: 0, total: 0, acv: 0,
+            metaFe, metaNube,
+            metaAcv: meta?.acv || 0,
+            pctTotal: 0,
             sp: spMap.get(g.id) || 0,
             racha: rachaMap.get(g.id) || 0,
-          };
-        });
+          });
+        }
 
         // 8) Tendencia 6 meses (cumplimiento agregado)
         const mesesAtras = Array.from({ length: 6 }, (_, i) => periodoSel - 5 + i).filter((m) => m >= 1 && m <= 12);
