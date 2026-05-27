@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, scoreboardSlide } from '@/lib/animations';
 import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 import { getVcAdvisorSnapshot, isVcAdvisorProfile } from '@/lib/vc-advisor-data';
+import MisLogrosPanel from '@/components/logros/MisLogrosPanel';
 
 const getISOWeek = (d: Date) => {
   const date = new Date(d.getTime());
