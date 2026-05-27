@@ -259,7 +259,7 @@ const PanelDirector = () => {
             id: `metric-${leaderKey}`,
             nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
             email: '',
-            canal: null,
+            canal: agg.canal,
             pais: agg.pais,
             celula: null,
           };
