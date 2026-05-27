@@ -54,7 +54,7 @@ function App() {
             <Route path="/mi-equipo" element={<MiEquipo />} />
             <Route path="/retos" element={<Retos />} />
             <Route path="/premios" element={<Premios />} />
-            <Route path="/mis-logros" element={<MisLogros />} />
+            <Route path="/mis-logros" element={<Navigate to="/retos" replace />} />
             <Route path="/panel-director" element={<DirectorRoute><PanelDirector /></DirectorRoute>} />
             {/* Admin - Solo administradores */}
             <Route path="/admin/gerentes" element={<AdminRoute><AdminGerentes /></AdminRoute>} />
