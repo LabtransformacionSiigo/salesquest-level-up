@@ -161,7 +161,7 @@ const MisLogros = () => {
       const sp_total = r.tipo === 'SEMANAL'
         ? Number(r.sp_semanal_sem1 || 0) + Number(r.sp_semanal_sem2 || 0) + Number(r.sp_semanal_sem3 || 0) + Number(r.sp_semanal_sem4 || 0)
         : Number(r.sp_base || 0);
-      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      const g = matchReto(r.nombre);
       asignados.push({
         id: r.id,
         nombre: r.nombre,
