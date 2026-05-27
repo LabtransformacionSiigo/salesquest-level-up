@@ -298,12 +298,40 @@ const PanelDirector = () => {
     return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds };
   }, [filteredStats]);
 
-  const distribucion = useMemo(() => {
-    const enMeta = filteredStats.filter((s) => s.pctTotal >= 90).length;
-    const enRiesgo = filteredStats.filter((s) => s.pctTotal >= 60 && s.pctTotal < 90).length;
-    const bajoMeta = filteredStats.filter((s) => s.pctTotal < 60).length;
-    return { enMeta, enRiesgo, bajoMeta };
+  // Conteo por tier
+  const tierCounts = useMemo(() => {
+    const c: Record<TierKey, number> = { cumple: 0, en_meta: 0, en_riesgo: 0, por_debajo: 0 };
+    for (const s of filteredStats) c[tierOf(s.pctTotal)]++;
+    return c;
   }, [filteredStats]);
+
+  // Heatmap canal × país (% promedio de cumplimiento)
+  const heatmap = useMemo(() => {
+    const canales = Array.from(new Set(filteredStats.map((s) => s.gerente.canal).filter(Boolean))) as string[];
+    const paises = Array.from(new Set(filteredStats.map((s) => s.gerente.pais).filter(Boolean))) as string[];
+    const cell = (canal: string, pais: string) => {
+      const arr = filteredStats.filter((s) => s.gerente.canal === canal && s.gerente.pais === pais);
+      if (!arr.length) return null;
+      return Math.round(arr.reduce((a, b) => a + b.pctTotal, 0) / arr.length);
+    };
+    return { canales: canales.sort(), paises: paises.sort(), cell };
+  }, [filteredStats]);
+
+  // Tabla: aplica tier + search + ordena por % desc + pagina
+  const tableRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = filteredStats
+      .filter((s) => filtroTier === 'TODOS' || tierOf(s.pctTotal) === filtroTier)
+      .filter((s) => !q || s.gerente.nombre.toLowerCase().includes(q) || (s.gerente.email || '').toLowerCase().includes(q))
+      .sort((a, b) => b.pctTotal - a.pctTotal);
+    return rows;
+  }, [filteredStats, filtroTier, search]);
+
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const pageRows = tableRows.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [filtroTier, search, filtroCanal, filtroPais, periodoSel]);
 
   const top3 = useMemo(
     () => [...filteredStats].sort((a, b) => b.pctTotal - a.pctTotal).slice(0, 3),
@@ -319,7 +347,10 @@ const PanelDirector = () => {
   }
   if (!isAdmin && !isDirector) return <Navigate to="/dashboard" replace />;
 
-  const sema = semaforo(kpis.pctUds);
+  const overallTier = tierDef(tierOf(kpis.pctUds));
+  const totalGer = filteredStats.length;
+
+
 
   return (
     <Layout title="📊 Panel Director">
