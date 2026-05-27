@@ -203,6 +203,34 @@ const PanelDirector = () => {
           });
         }
 
+        // 6b) Ventas diarias de los últimos 7 días por gerente
+        const dailyMap = new Map<string, number[]>();
+        const today = new Date();
+        const days: string[] = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - (6 - i));
+          return d.toISOString().slice(0, 10);
+        });
+        if (gerenteIds.length) {
+          const fromDate = days[0];
+          const { data: vts } = await supabase
+            .from('ventas')
+            .select('gerente_id, fecha_facturacion')
+            .in('gerente_id', gerenteIds)
+            .gte('fecha_facturacion', fromDate)
+            .lte('fecha_facturacion', days[6]);
+          const idx = new Map(days.map((d, i) => [d, i] as const));
+          (vts || []).forEach((v: any) => {
+            if (!v.gerente_id || !v.fecha_facturacion) return;
+            const dayKey = String(v.fecha_facturacion).slice(0, 10);
+            const i = idx.get(dayKey);
+            if (i === undefined) return;
+            const arr = dailyMap.get(v.gerente_id) || Array(7).fill(0);
+            arr[i] += 1;
+            dailyMap.set(v.gerente_id, arr);
+          });
+        }
+
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
