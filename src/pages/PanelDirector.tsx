@@ -312,6 +312,7 @@ const PanelDirector = () => {
             pctTotal: Math.round(pctTotal),
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
+            daily: (g && dailyMap.get(g.id)) || Array(7).fill(0),
           });
         }
         // Sumar líderes con asesores asignados pero sin métrica este mes
