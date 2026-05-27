@@ -72,7 +72,7 @@ const MisLogros = () => {
     const pais = (profile as any).pais as string | null;
     const familia = (profile as any).familia_vc as string | null;
 
-    const [spRes, canjesRes, completadosRes, vcRes, vnRes] = await Promise.all([
+    const [spRes, canjesRes, vcRes, vnRes] = await Promise.all([
       supabase
         .from('sp_acumulados')
         .select('fuente, sp, periodo, detalle, created_at')
@@ -84,11 +84,6 @@ const MisLogros = () => {
         .select('id, puntos_gastados, fecha_canje, estado, premios(nombre)')
         .eq('gerente_id', profile.id)
         .order('fecha_canje', { ascending: false }),
-      supabase
-        .from('retos_completados')
-        .select('reto, sp, periodo, tipo')
-        .eq('gerente_id', profile.id)
-        .ilike('periodo', `${mes}%`),
       canal === 'VC'
         ? supabase
             .from('catalogo_retos')
@@ -103,7 +98,8 @@ const MisLogros = () => {
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
-    setRows((spRes.data || []) as SpRow[]);
+    const spRows = (spRes.data || []) as SpRow[];
+    setRows(spRows);
     setCanjes(((canjesRes.data || []) as any[]).map(c => ({
       id: c.id,
       puntos_gastados: c.puntos_gastados,
@@ -112,13 +108,27 @@ const MisLogros = () => {
       premio_nombre: c.premios?.nombre || null,
     })));
 
-    // Aggregate completados by reto name
-    const ganadosMap = new Map<string, { count: number; sp: number }>();
-    for (const c of (completadosRes.data || []) as any[]) {
-      const key = String(c.reto || '').trim();
-      const prev = ganadosMap.get(key) || { count: 0, sp: 0 };
-      ganadosMap.set(key, { count: prev.count + 1, sp: prev.sp + Number(c.sp || 0) });
-    }
+    // Ganados desde sp_acumulados (mes actual): matchear detalle que empiece con el nombre exacto del reto
+    const mesYYYYMM = mes.replace('-', '');
+    const norm = (s: string) => (s || '').normalize('NFKD').replace(/\s+/g, ' ').trim().toLowerCase();
+    const retoSpRows = spRows.filter(r =>
+      typeof r.fuente === 'string' &&
+      r.fuente.startsWith('RETO_') &&
+      (r.periodo?.startsWith(mes) || r.periodo?.startsWith(mesYYYYMM))
+    );
+    const matchReto = (nombre: string) => {
+      const n = norm(nombre);
+      let count = 0, sp = 0;
+      for (const r of retoSpRows) {
+        const d = norm(r.detalle || '');
+        if (d === n || d.startsWith(n + ' ') || d.startsWith(n + ' —') || d.startsWith(n + ' ·') || d.startsWith(n + ' -')) {
+          count++;
+          sp += Number(r.sp) || 0;
+        }
+      }
+      return { count, sp };
+    };
+
 
     const asignados: RetoAsignado[] = [];
 
