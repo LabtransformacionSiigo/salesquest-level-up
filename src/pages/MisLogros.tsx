@@ -137,7 +137,7 @@ const MisLogros = () => {
       if (pais && r.pais && r.pais !== pais) continue;
       if (r.canal && r.canal !== 'VC') continue;
       if (familia && r.familia_vc && r.familia_vc !== familia) continue;
-      const g = ganadosMap.get(String(r.nombre).trim()) || { count: 0, sp: 0 };
+      const g = matchReto(r.nombre);
       asignados.push({
         id: r.id,
         nombre: r.nombre,
