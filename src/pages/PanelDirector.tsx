@@ -254,7 +254,7 @@ const PanelDirector = () => {
         const out: Stats[] = [];
         const usedIds = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
-          const g = findGerente(leaderKey, agg.pais);
+          const g = findGerente(leaderKey, agg.pais, agg.canal);
           const gerente: GerenteRow = g || {
             id: `metric-${leaderKey}`,
             nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
