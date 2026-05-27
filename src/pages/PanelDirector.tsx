@@ -332,6 +332,7 @@ const PanelDirector = () => {
             pctTotal: 0,
             sp: spMap.get(g.id) || 0,
             racha: rachaMap.get(g.id) || 0,
+            daily: dailyMap.get(g.id) || Array(7).fill(0),
           });
         }
 
