@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
+import AuditoriaRetosVC from '@/components/admin/AuditoriaRetosVC';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
@@ -837,7 +838,11 @@ const AdminEspecialista = () => {
               </TabsContent>
             )}
 
-            <TabsContent value="logros" className="mt-4">
+            <TabsContent value="logros" className="mt-4 space-y-6">
+              {tieneVC && (
+                <AuditoriaRetosVC paisesScope={isAdmin ? [] : (permisos?.paises || [])} />
+              )}
+
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-lg">Logros ganados por gerentes</h3>
