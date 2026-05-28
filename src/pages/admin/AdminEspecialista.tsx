@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
+import AuditoriaRetosVC from '@/components/admin/AuditoriaRetosVC';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
