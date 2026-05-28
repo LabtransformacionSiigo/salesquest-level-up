@@ -837,7 +837,11 @@ const AdminEspecialista = () => {
               </TabsContent>
             )}
 
-            <TabsContent value="logros" className="mt-4">
+            <TabsContent value="logros" className="mt-4 space-y-6">
+              {tieneVC && (
+                <AuditoriaRetosVC paisesScope={isAdmin ? [] : (permisos?.paises || [])} />
+              )}
+
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-lg">Logros ganados por gerentes</h3>
