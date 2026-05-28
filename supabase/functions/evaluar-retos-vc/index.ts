@@ -72,13 +72,16 @@ const classifyFamiliaVc = (sale: any): "NUBE" | "LEGACY" | "OTROS" => {
 const isUpgrade = (sale: any): boolean => {
   const rec = (sale.recurrencia || "").toLowerCase();
   const blq = (sale.bloque_venta || "").toLowerCase();
-  return rec.includes("upgrade") || blq.includes("upgrade");
+  const prod = (sale.producto || "").toLowerCase();
+  return rec.includes("upgrade") || blq.includes("upgrade") || prod.includes("upgrade");
 };
 
 const isConversion = (sale: any): boolean => {
   const rec = (sale.recurrencia || "").toLowerCase();
   const blq = (sale.bloque_venta || "").toLowerCase();
-  return rec.includes("conversion") || blq.includes("conversion") || rec.includes("conversión") || blq.includes("conversión");
+  const prod = (sale.producto || "").toLowerCase();
+  return rec.includes("conversion") || blq.includes("conversion") || prod.includes("conversion")
+    || rec.includes("conversión") || blq.includes("conversión") || prod.includes("conversión");
 };
 
 Deno.serve(async (req) => {
@@ -93,7 +96,25 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { body = {}; }
     const dryRun = body.dry_run === true;
 
-    const now = new Date();
+    const calendarNow = new Date();
+    const currentMonth = getMonthRange(calendarNow);
+
+    // La data VC llega por sincronización y no siempre existe venta con fecha del día real.
+    // Para no dejar retos en 0 cuando el último corte disponible es anterior, evaluamos
+    // contra la última fecha de venta cargada del mes actual.
+    const { data: latestVenta } = await supabase
+      .from("ventas")
+      .select("fecha_facturacion")
+      .eq("canal", "VC")
+      .gte("fecha_facturacion", currentMonth.start)
+      .lt("fecha_facturacion", currentMonth.end)
+      .order("fecha_facturacion", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const now = latestVenta?.fecha_facturacion
+      ? new Date(`${latestVenta.fecha_facturacion}T12:00:00Z`)
+      : calendarNow;
     const today = now.toISOString().split("T")[0];
     const monthKey = getMonthKey(now);
     const weekKey = getISOWeekKey(now);
@@ -107,7 +128,7 @@ Deno.serve(async (req) => {
       supabase.from("gerentes").select("id, nombre, canal, pais").eq("canal", "VC").eq("activo", true),
     ]);
 
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = today;
     const isVigente = (item: { fecha_inicio?: string | null; fecha_fin?: string | null }) =>
       (!item.fecha_inicio || todayStr >= item.fecha_inicio) &&
       (!item.fecha_fin || todayStr <= item.fecha_fin);
@@ -147,6 +168,28 @@ Deno.serve(async (req) => {
       .select("gerente_id, reto, periodo")
       .in("gerente_id", gerenteIds);
     const completadosSet = new Set((completadosData || []).map((r) => `${r.gerente_id}::${r.reto}::${r.periodo}`));
+
+    const { data: spData } = await supabase
+      .from("sp_acumulados")
+      .select("id, gerente_id, fuente, periodo, detalle, sp")
+      .in("gerente_id", gerenteIds)
+      .in("fuente", ["RETO_DIARIO", "RETO_SEMANAL", "RETO_MENSUAL"])
+      .eq("tipo_sp", "canje");
+    const spExistingByPeriod = new Map(
+      (spData || []).map((r) => [`${r.gerente_id}::${r.fuente}::${r.periodo}`, r]),
+    );
+    const retoNamesForMatch = retos
+      .map((r: any) => String(r.nombre || ""))
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+    const spAwardedSet = new Set<string>();
+    for (const r of (spData || [])) {
+      for (const part of String(r.detalle || "").split(" | ")) {
+        const nombre = retoNamesForMatch.find((n) => part === n || part.startsWith(`${n} ·`))
+          || part.split("·")[0].trim();
+        if (nombre) spAwardedSet.add(`${r.gerente_id}::${r.fuente}::${r.periodo}::${nombre}`);
+      }
+    }
 
     const retosInsert: any[] = [];
     const spInsert: any[] = [];
@@ -196,12 +239,17 @@ Deno.serve(async (req) => {
 
       // ── Evaluar cada reto del catálogo ──
       for (const reto of retos) {
+        if (reto.pais && gerente.pais && String(reto.pais).toUpperCase() !== String(gerente.pais).toUpperCase()) continue;
+        if (reto.gerente_id && reto.gerente_id !== gerente.id) continue;
         const ventana = String(reto.ventana_tiempo || '').toLowerCase();
         const kpi = reto.kpi || reto.tipo_metrica;
         const familia = (reto.familia_vc as "NUBE" | "LEGACY" | "AMBAS" | null) || "AMBAS";
         const umbral = Number(reto.umbral) || 0;
         const sp = Number(reto.sp_otorgados) || 0;
         if (sp <= 0 || umbral <= 0) continue;
+        const fuenteReto = ventana === "diario" ? "RETO_DIARIO"
+          : ventana === "semanal" ? "RETO_SEMANAL"
+          : "RETO_MENSUAL";
 
         let cumplido = false;
         let periodo = "";
@@ -259,24 +307,24 @@ Deno.serve(async (req) => {
           cumplido,
           sp_otorgables: sp,
           periodo,
-          ya_completado: completadosSet.has(`${gerente.id}::${reto.nombre}::${periodo}`),
+          ya_completado: spAwardedSet.has(`${gerente.id}::${fuenteReto}::${periodo}::${reto.nombre}`),
         });
 
         if (!cumplido) continue;
         const key = `${gerente.id}::${reto.nombre}::${periodo}`;
-        if (completadosSet.has(key)) continue;
+        const spKey = `${gerente.id}::${fuenteReto}::${periodo}::${reto.nombre}`;
+        if (spAwardedSet.has(spKey)) continue;
 
-        retosInsert.push({
-          gerente_id: gerente.id,
-          reto: reto.nombre,
-          periodo,
-          sp,
-          tipo: ventana.toUpperCase(), // CHECK constraint exige DIARIO/SEMANAL/MENSUAL
-        });
-        // Mapear ventana → fuente válida en sp_acumulados_fuente_check
-        const fuenteReto = ventana === "diario" ? "RETO_DIARIO"
-          : ventana === "semanal" ? "RETO_SEMANAL"
-          : "RETO_MENSUAL";
+        if (!completadosSet.has(key)) {
+          retosInsert.push({
+            gerente_id: gerente.id,
+            reto: reto.nombre,
+            periodo,
+            sp,
+            tipo: ventana.toUpperCase(), // CHECK constraint exige DIARIO/SEMANAL/MENSUAL
+          });
+          completadosSet.add(key);
+        }
         spInsert.push({
           gerente_id: gerente.id,
           fuente: fuenteReto,
@@ -285,13 +333,15 @@ Deno.serve(async (req) => {
           detalle: `${reto.nombre} · ${kpi} · ${familia} · valor:${Math.round(valorAlcanzado)}`,
           tipo_sp: "canje",
         });
-        completadosSet.add(key);
+        spAwardedSet.add(spKey);
         totalRetos++;
         totalSp += sp;
       }
 
       // ── Evaluar rachas (multiplicador semanal) ──
       for (const racha of rachas) {
+        if (racha.pais && gerente.pais && String(racha.pais).toUpperCase() !== String(gerente.pais).toUpperCase()) continue;
+        if (racha.gerente_id && racha.gerente_id !== gerente.id) continue;
         if (!racha.dias_lun_mie) continue; // solo "El artillero" por ahora
         const umbralNube = Number(racha.umbral_verde) || 0;
         const umbralLegacy = Number(racha.umbral_legacy) || 0;
@@ -338,7 +388,7 @@ Deno.serve(async (req) => {
           ingresos_semana: 0,
           multiplicador,
           semanas_consecutivas: 1,
-          estado: "verde",
+          estado: "VERDE",
         });
         spInsert.push({
           gerente_id: gerente.id,
@@ -376,9 +426,27 @@ Deno.serve(async (req) => {
       const { error } = await supabase.from("retos_completados").insert(c);
       if (error) errores.push(`retos_completados: ${error.message}`);
     }
-    for (const c of chunk(spInsert)) {
-      const { error } = await supabase.from("sp_acumulados").insert(c);
-      if (error) errores.push(`sp_acumulados: ${error.message}`);
+    const spGrouped = new Map<string, any>();
+    for (const s of spInsert) {
+      const k = `${s.gerente_id}::${s.fuente}::${s.periodo}`;
+      const cur = spGrouped.get(k) || { ...s, detalle: "" };
+      cur.sp = (Number(cur.sp) || 0) + (Number(s.sp) || 0);
+      cur.detalle = cur.detalle ? `${cur.detalle} | ${s.detalle}` : s.detalle;
+      spGrouped.set(k, cur);
+    }
+    for (const s of spGrouped.values()) {
+      const k = `${s.gerente_id}::${s.fuente}::${s.periodo}`;
+      const existing: any = spExistingByPeriod.get(k);
+      if (existing?.id) {
+        const { error } = await supabase.from("sp_acumulados").update({
+          sp: (Number(existing.sp) || 0) + (Number(s.sp) || 0),
+          detalle: existing.detalle ? `${existing.detalle} | ${s.detalle}` : s.detalle,
+        }).eq("id", existing.id);
+        if (error) errores.push(`sp_acumulados: ${error.message}`);
+      } else {
+        const { error } = await supabase.from("sp_acumulados").insert(s);
+        if (error) errores.push(`sp_acumulados: ${error.message}`);
+      }
     }
     for (const r of rachasInsert) {
       const { error } = await supabase.from("rachas").upsert(r, { onConflict: "gerente_id,anio,semana_iso" });
