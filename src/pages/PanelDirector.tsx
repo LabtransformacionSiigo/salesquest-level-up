@@ -224,6 +224,10 @@ const PanelDirector = () => {
         for (const g of gerentesList) {
           const k = normalize(g.nombre);
           if (!k) continue;
+          // Excluir nombres de UN solo token (ej. "Angel", "Walter") como candidatos
+          // de matching: son demasiado ambiguos y arrastraban a varios líderes
+          // distintos al mismo registro (bug "Angel duplicado" en ECU/MEX).
+          if (k.split(/\s+/).length < 2) continue;
           gByName.set(k, [...(gByName.get(k) || []), g]);
         }
         // Prefer gerentes WITH celula (líderes reales) y mismo país
@@ -250,9 +254,10 @@ const PanelDirector = () => {
             if (matches.length) return pickBest(matches, paisHint);
           }
 
-          // Fallback prefix tradicional
+          // Fallback prefix — SOLO con límite de palabra (evita que "angel" matchee
+          // "angela ..." o que cualquier "angel ..." colapse a un gerente llamado solo "Angel").
           for (const [k, arr] of gByName) {
-            if (k.startsWith(leaderKey) || leaderKey.startsWith(k)) {
+            if (k === leaderKey || k.startsWith(leaderKey + ' ') || leaderKey.startsWith(k + ' ')) {
               const pick = pickBest(arr, paisHint);
               if (pick) return pick;
             }
@@ -260,19 +265,39 @@ const PanelDirector = () => {
           return null;
         };
 
+        // Mapeo canal_direccion → canal real para rellenar filas sin match en `gerentes`.
+        const canalFromMetric = (m: any): string | null => {
+          const cd = String(m.canal_direccion || '').toLowerCase();
+          if (cd.includes('aliado')) return 'VN_ALIADOS';
+          if (cd.includes('empresario')) return 'VN_EMPRESARIOS';
+          return null;
+        };
+        const canalByLeader = new Map<string, string | null>();
+        for (const m of metricas) {
+          const key = normalize(m.gerente_normalizado || m.gerente || '');
+          if (!key || canalByLeader.has(key)) continue;
+          canalByLeader.set(key, canalFromMetric(m));
+        }
+
         const out: Stats[] = [];
         const usedIds = new Set<string>();
+        const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
           const g = findGerente(leaderKey, agg.pais);
+          // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
+          if (g && usedIds.has(g.id)) continue;
+          const synthKey = `${leaderKey}|${agg.pais || ''}`;
+          if (!g && seenSynth.has(synthKey)) continue;
           const gerente: GerenteRow = g || {
-            id: `metric-${leaderKey}`,
+            id: `metric-${synthKey}`,
             nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
             email: '',
-            canal: null,
+            canal: canalByLeader.get(leaderKey) || null,
             pais: agg.pais,
             celula: null,
           };
           if (g) usedIds.add(g.id);
+          else seenSynth.add(synthKey);
           const meta = metasMap.get(normalize(gerente.celula || ''));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           const metaFe = meta?.fe || asesoresCount * 2;
