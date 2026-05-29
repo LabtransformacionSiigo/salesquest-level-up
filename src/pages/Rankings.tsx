@@ -625,6 +625,17 @@ const Rankings = () => {
             return;
           }
 
+          // 1b. Match líder por primer nombre presente en el nombre de la célula
+          // (p.ej. "Equipo México Lina" → miembro cuyo primer nombre es "Lina").
+          const byCelulaFirstName = members.find((m) => {
+            const first = normalizePersonName(m.nombre).split(' ')[0];
+            return first && first.length >= 3 && celulaKey.includes(first);
+          });
+          if (byCelulaFirstName) {
+            gerentesByCelula.set(celulaKey, byCelulaFirstName);
+            return;
+          }
+
           // 2. Fallback: miembro con role='gerente' o 'admin' en user_roles
           const roleMatch = members.find((m) => {
             if (!m.user_id) return false;
@@ -642,6 +653,7 @@ const Rankings = () => {
             gerentesByCelula.set(celulaKey, nonAsesor);
           }
         });
+
 
         const vnGerenteMetricByCelula = aggregateVnGerenteMetricRows(((vnMetricasMexGerRes as any)?.data as any[]) || [], currentMonth);
 
