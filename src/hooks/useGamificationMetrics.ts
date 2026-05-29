@@ -415,43 +415,20 @@ export const useGamificationMetrics = (
                 .lte('anio_mes', `${anioActual}12`)
                 .limit(5000)
             : Promise.resolve({ data: [] }),
-          /* 14 – productividad_asesores aggregated by celula for VN gerente.
-                  Accent-insensitive: gerentes.celula puede traer tildes
-                  (ej. "Equipo México Viviana") mientras productividad_asesores guarda
-                  la versión sin tilde ("Equipo Mexico Viviana"). Sin esto el bug del
-                  historial mensual en 0 reaparece para Viviana/Yeraldin/etc. */
+          /* 14 – productividad_asesores aggregated by celula for VN gerente */
           isVN && profile.role !== 'asesor' && profile.celula
-            ? (() => {
-                const cel = String(profile.celula);
-                const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                const variants = Array.from(new Set([cel, stripAccents(cel)].filter(Boolean)));
-                let q = supabase.from('productividad_asesores')
-                  .select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais, celula')
-                  .gte('anio_mes', `${anioActual}01`)
-                  .lte('anio_mes', `${anioActual}12`)
-                  .limit(1000);
-                if (variants.length === 1) {
-                  q = q.eq('celula', variants[0]);
-                } else {
-                  const safe = (v: string) => v.replace(/,/g, ' ');
-                  q = q.or(variants.map((v) => `celula.eq.${safe(v)}`).join(','));
-                }
-                return q;
-              })()
+            ? supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, acv_f, cant_recomendados, sc_creados, pais')
+                .eq('celula', profile.celula)
+                .gte('anio_mes', `${anioActual}01`)
+                .lte('anio_mes', `${anioActual}12`)
+                .limit(1000)
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas).
-                  Celula con tolerancia a tildes para evitar perder rows
-                  (ej. "Equipo México X" vs "Equipo Mexico X"). */
+          /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas) */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 const safeNombre = String(profile.nombre).replace(/[%,()]/g, ' ').trim();
-                const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const orParts: string[] = [];
-                if (profile.celula) {
-                  const cel = String(profile.celula);
-                  const variants = Array.from(new Set([cel, stripAccents(cel)].filter(Boolean)));
-                  variants.forEach((v) => orParts.push(`celula.eq.${v.replace(/,/g, ' ')}`));
-                }
+                if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
                   .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_cuota_lider')
@@ -507,14 +484,7 @@ export const useGamificationMetrics = (
                   .lte('periodo', `${anioActual}12`)
                   .limit(5000);
                 if (profile.celula) {
-                  const cel = String(profile.celula);
-                  const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                  const variants = Array.from(new Set([cel, stripAccents(cel)].filter(Boolean)));
-                  if (variants.length === 1) {
-                    q = q.eq('celula', variants[0]);
-                  } else {
-                    q = q.or(variants.map((v) => `celula.eq.${v.replace(/,/g, ' ')}`).join(','));
-                  }
+                  q = q.eq('celula', profile.celula);
                 } else {
                   const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
                                  : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
@@ -538,8 +508,8 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
-                  Se trae TODO el año: el Historial Mensual, el Header y el Ranking
-                  deben sumar exactamente los mismos meses, no solo el mes actual. */
+                  No filtramos por canal_direccion: Databricks puede traer la
+                  célula con el canal anterior después de una reasignación. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // No filtramos por celula server-side porque la grafía puede diferir
@@ -552,6 +522,7 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
+                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
@@ -1030,9 +1001,7 @@ export const useGamificationMetrics = (
             .filter((r: any) => Number(r.mes_nro) === mesNroActual);
           const vmaMap = new Map<string, { ventas: number; acv: number; familia: string }>();
           for (const r of vnMetAsesorRowsAll) {
-            const familiaRaw = String(r.familia || '').toUpperCase().trim();
-            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
-            const fam = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
+            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
             const asesor = String(r.asesor || '').trim().toLowerCase();
             if (!asesor || !fam) continue;
             const key = `${asesor}::${fam}`;
@@ -1102,9 +1071,7 @@ export const useGamificationMetrics = (
             if (!mesNro || mesNro < 1 || mesNro > 12) return;
             const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
             if (vgmPeriodsWithData.has(period)) return;
-            const familiaRaw = String(r.familia || '').toUpperCase().trim();
-            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
-            const fam = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
+            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
             if (!fam) return;
             const famNorm = fam === 'CAMPANA' ? 'NUBE'
                           : (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') ? fam
@@ -1120,37 +1087,6 @@ export const useGamificationMetrics = (
             const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             if (fam === 'FE') cur.fe += val.uds;
             else if (fam === 'NUBE') cur.nube += val.uds;
-            cur.total += val.uds;
-            cur.acv += val.acv;
-            vgmDeduped.set(period, cur);
-          });
-
-          // México VN no tiene ventas_gerente_mensual para todos los meses; la
-          // fuente mensual completa por equipo está en vn_metricas_optimizadas
-          // scope=asesor. Agregamos esos meses ANTES de construir el historial.
-          const coveredPeriods = new Set<string>(vgmDeduped.keys());
-          const vmaYearByPeriodFamily = new Map<string, { uds: number; acv: number }>();
-          (vnMetricasAsesorRes?.data || []).forEach((r: any) => {
-            const mesNro = Number(r.mes_nro);
-            if (!mesNro || mesNro < 1 || mesNro > 12) return;
-            const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
-            if (coveredPeriods.has(period)) return;
-            const familiaRaw = String(r.familia || '').toUpperCase().trim();
-            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
-            const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
-            const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
-            if (fam !== 'FE' && fam !== 'NUBE') return;
-            const k = `${period}::${fam}`;
-            const prev = vmaYearByPeriodFamily.get(k) || { uds: 0, acv: 0 };
-            prev.uds += Math.round(Number(r.ventas) || 0);
-            prev.acv += Math.round(Number(r.acv_total) || 0);
-            vmaYearByPeriodFamily.set(k, prev);
-          });
-          vmaYearByPeriodFamily.forEach((val, k) => {
-            const [period, fam] = k.split('::');
-            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            if (fam === 'FE') cur.fe += val.uds;
-            if (fam === 'NUBE') cur.nube += val.uds;
             cur.total += val.uds;
             cur.acv += val.acv;
             vgmDeduped.set(period, cur);

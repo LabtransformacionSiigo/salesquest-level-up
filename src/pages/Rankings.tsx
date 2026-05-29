@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
-import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor } from '@/lib/sp-convencion-anual';
+import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, normalizeSpText } from '@/lib/sp-convencion-anual';
 import { getNivelData } from '@/lib/niveles';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
@@ -141,88 +141,21 @@ const aggregateVnGerenteMetricRows = (rows: any[], currentMonth: string) => {
       acvMes: 0,
     };
     if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
-    const familiaRaw = String(r.familia ?? '').toUpperCase().trim();
-    const tipoRaw = String(r.tipo_producto1 ?? '').toUpperCase().trim();
-    const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
+    const tipo = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
     const ventas = Math.round(Number(r.ventas) || 0);
     const acv = Math.round(Number(r.acv_total) || 0);
-    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
-    if (fam === 'FE') { cur.fe += ventas; cur.acv += acv; }
-    if (fam === 'NUBE') { cur.nube += ventas; cur.acv += acv; }
-    if (Number(r.mes_nro) === currentMonthNumber) {
-      if (fam === 'FE') { cur.feMes += ventas; cur.acvMes += acv; }
-      if (fam === 'NUBE') { cur.nubeMes += ventas; cur.acvMes += acv; }
-    }
-    byCelula.set(key, cur);
-  });
-
-  return byCelula;
-};
-
-const aggregateVgmRowsByCelula = (rows: any[], currentMonth: string) => {
-  const byCelula = new Map<string, { celulaNombre: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
-  (rows || []).forEach((r: any) => {
-    const celulaRaw = String(r.celula ?? '').trim();
-    if (!celulaRaw) return;
-    const key = normalizeComparableText(celulaRaw);
-    const cur = byCelula.get(key) ?? { celulaNombre: celulaRaw, fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0 };
-    const fam = String(r.familia || '').toUpperCase().trim();
-    if (fam !== 'FE' && fam !== 'NUBE') {
-      byCelula.set(key, cur);
-      return;
-    }
-    const unidades = Math.round(Number(r.unidades) || 0);
-    const acv = Math.round(Number(r.acv) || 0);
-    if (fam === 'FE') cur.fe += unidades;
-    if (fam === 'NUBE') cur.nube += unidades;
+    if (tipo === 'FE') cur.fe += ventas;
+    if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += ventas;
     cur.acv += acv;
-    if (String(r.periodo) === currentMonth) {
-      if (fam === 'FE') cur.feMes += unidades;
-      if (fam === 'NUBE') cur.nubeMes += unidades;
+    if (Number(r.mes_nro) === currentMonthNumber) {
+      if (tipo === 'FE') cur.feMes += ventas;
+      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += ventas;
       cur.acvMes += acv;
     }
     byCelula.set(key, cur);
   });
-  return byCelula;
-};
 
-const computeSpFromVnMetricRows = (rows: any[], metaRows: any[], celulaValue: string, year: number) => {
-  const celulaKey = normalizeComparableText(celulaValue);
-  if (!celulaKey) return 0;
-  const mesToNum: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
-  const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
-  const metas = new Map<string, { fe: number; nube: number; acv: number; archivo: string }>();
-  metaRows.filter((r: any) => normalizeComparableText(r.celula) === celulaKey).forEach((r: any) => {
-    const mm = mesToNum[String(r.mes || '').trim().toLowerCase().slice(0, 3)];
-    if (!mm) return;
-    const periodo = `${year}${mm}`;
-    const archivo = String(r.archivo || '').toLowerCase();
-    const prev = metas.get(periodo);
-    if (!prev || (archivo.includes('cierre') && !prev.archivo.includes('cierre'))) {
-      metas.set(periodo, { fe: Number(r.meta_fe) || 0, nube: Number(r.meta_nube) || 0, acv: Number(r.meta_total_acv) || 0, archivo });
-    }
-  });
-  const ejec = new Map<string, { fe: number; nube: number; acv: number }>();
-  rows.filter((r: any) => normalizeComparableText(r.celula) === celulaKey).forEach((r: any) => {
-    const periodo = String(r.periodo || (r.mes_nro ? `${year}${String(r.mes_nro).padStart(2, '0')}` : ''));
-    if (!periodo.startsWith(String(year))) return;
-    const familiaRaw = String(r.familia || '').toUpperCase().trim();
-    const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
-    const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
-    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
-    if (fam !== 'FE' && fam !== 'NUBE') return;
-    const cur = ejec.get(periodo) || { fe: 0, nube: 0, acv: 0 };
-    if (fam === 'FE') cur.fe += Math.round(Number(r.ventas) || 0);
-    if (fam === 'NUBE') cur.nube += Math.round(Number(r.ventas) || 0);
-    cur.acv += Math.round(Number(r.acv_total) || 0);
-    ejec.set(periodo, cur);
-  });
-  let total = 0;
-  ejec.forEach((e, periodo) => {
-    const m = metas.get(periodo) || { fe: 0, nube: 0, acv: 0 };
-    total += capPct(m.fe > 0 ? (e.fe / m.fe) * 100 : 0) + capPct(m.nube > 0 ? (e.nube / m.nube) * 100 : 0) * 2 + capPct(m.acv > 0 ? (e.acv / m.acv) * 100 : 0);
-  });
-  return total;
+  return byCelula;
 };
 
 const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
@@ -583,16 +516,15 @@ const Rankings = () => {
           supabase.from('user_roles').select('user_id, role'),
           fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
-          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado, pais, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
-          supabase.from('metas_acv_gerentes').select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(5000),
+          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
+          supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
           (() => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
-              .select('periodo, mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, canal_direccion, asesor')
-              .eq('scope', 'asesor')
-              .eq('anio', currentConventionYear)
+              .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
+              .eq('scope', 'gerente')
               .gte('mes_nro', 1)
               .lte('mes_nro', 12)
-              .limit(10000);
+              .limit(5000);
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
             return q;
           })(),
@@ -601,27 +533,6 @@ const Rankings = () => {
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
         ]);
-        const canalData = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
-        const canalCatalog = profile.canal || '';
-        const scopedVgmRows = ((vgmGerRes.data || []) as any[]).filter((r: any) => {
-          const paisOk = !r.pais || String(r.pais).toUpperCase() === String(userPais).toUpperCase();
-          const canalRaw = normalizeComparableText(r.canal_direccion);
-          const canalOk = !canalRaw || canalRaw === normalizeComparableText(canalData) || canalRaw === normalizeComparableText(canalCatalog);
-          return paisOk && canalOk;
-        });
-        const scopedMetasAcvRows = ((metasAcvGerRes.data || []) as any[]).filter((r: any) => {
-          const paisRaw = String(r.pais || '').trim().toUpperCase();
-          const paisOk = !paisRaw || paisRaw === String(userPais).toUpperCase() || paisRaw.startsWith(PAIS_LABEL[userPais]?.toUpperCase() || userPais);
-          const canalRaw = normalizeComparableText(r.canal);
-          const canalOk = !canalRaw || canalRaw === normalizeComparableText(canalCatalog) || canalRaw === normalizeComparableText(canalData);
-          return paisOk && canalOk;
-        });
-        const scopedVnMetricasGerRows = (((vnMetricasMexGerRes as any)?.data as any[]) || []).filter((r: any) => {
-          const paisOk = !r.pais || String(r.pais).toUpperCase() === String(userPais).toUpperCase();
-          const canalRaw = normalizeComparableText(r.canal_direccion);
-          const canalOk = canalRaw === normalizeComparableText(canalData) || canalRaw === normalizeComparableText(canalCatalog);
-          return paisOk && canalOk;
-        });
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
         (metasAsesoresRes.data || []).forEach((r: any) => {
@@ -638,7 +549,7 @@ const Rankings = () => {
         };
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
         const metaAcvArchivoByCelula = new Map<string, Map<string, string>>();
-        scopedMetasAcvRows.forEach((row: any) => {
+        (metasAcvGerRes.data || []).forEach((row: any) => {
           const celula = normalizeComparableText(row.celula);
           const mes3 = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
           const mm = MES3_TO_NUM[mes3];
@@ -675,15 +586,6 @@ const Rankings = () => {
           if (!celulaKey || !gerenteName || gerenteName === '0') return;
           const existing = gerenteNombreByCelula.get(celulaKey);
           if (!existing || gerenteName.length > existing.length) {
-            gerenteNombreByCelula.set(celulaKey, gerenteName);
-          }
-        });
-        scopedVgmRows.forEach((row: any) => {
-          const celulaKey = normalizeComparableText(row.celula);
-          const gerenteName = row.gerente ? String(row.gerente).trim() : '';
-          if (!celulaKey || !gerenteName || gerenteName === '0') return;
-          const existing = gerenteNombreByCelula.get(celulaKey);
-          if (!existing) {
             gerenteNombreByCelula.set(celulaKey, gerenteName);
           }
         });
@@ -741,10 +643,7 @@ const Rankings = () => {
           }
         });
 
-        const vnGerenteMetricByCelula = aggregateVgmRowsByCelula(scopedVgmRows, currentMonth);
-        aggregateVnGerenteMetricRows(scopedVnMetricasGerRows, currentMonth).forEach((metricAgg, celula) => {
-          if (!vnGerenteMetricByCelula.has(celula)) vnGerenteMetricByCelula.set(celula, metricAgg);
-        });
+        const vnGerenteMetricByCelula = aggregateVnGerenteMetricRows(((vnMetricasMexGerRes as any)?.data as any[]) || [], currentMonth);
 
         // Aggregate by celula + month
         const celulaAgg = new Map<string, { celulaNombre: string; months: Map<string, { ventas: number; meta: number; acv: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
@@ -783,13 +682,39 @@ const Rankings = () => {
             currentAcv: metricAgg.acvMes,
           });
         });
-        const metasAcvGerEnriched = scopedMetasAcvRows;
+        // MEX: enriquecer meta_nube de metas_acv_gerentes con coi+noi de metas_gerentes
+        // (replica el fallback de useSpConvencionAnualSelf para que el SP del header
+        // y el de Clasificación coincidan).
+        const metasAcvGerEnriched = [...(metasAcvGerRes.data || [])] as any[];
+        if (userPais === 'MEX') {
+          const mexRows = (((metasGerentesMexRes as any)?.data as any[]) || [])
+            .slice()
+            .sort((a, b) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
+          if (mexRows.length > 0) {
+            const mes3to2: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+            // Index by celula+anio_mes
+            const byCelulaPeriod = new Map<string, any>();
+            const latestByCelula = new Map<string, any>();
+            mexRows.forEach((r) => {
+              const ck = normalizeSpText(r.celula);
+              byCelulaPeriod.set(`${ck}|${r.anio_mes}`, r);
+              if (!latestByCelula.has(ck)) latestByCelula.set(ck, r);
+            });
+            metasAcvGerEnriched.forEach((row) => {
+              const ck = normalizeSpText(row.celula);
+              const mm = mes3to2[String(row.mes || '').trim().toLowerCase().slice(0, 3)] || '';
+              const mg = byCelulaPeriod.get(`${ck}|${currentConventionYear}${mm}`) || latestByCelula.get(ck);
+              const nube = (Number(mg?.coi) || 0) + (Number(mg?.noi) || 0);
+              if ((Number(row.meta_nube) || 0) === 0 && nube > 0) row.meta_nube = nube;
+            });
+          }
+        }
         const spInputsGer = {
-          vgmRows: scopedVgmRows,
+          vgmRows: vgmGerRes.data || [],
           metaAsesorRows: metasAsesoresRes.data || [],
           metaAcvRows: metasAcvGerEnriched,
           year: String(currentConventionYear),
-          vnMetricasGerenteRows: scopedVnMetricasGerRows,
+          vnMetricasGerenteRows: ((vnMetricasMexGerRes as any)?.data as any[]) || [],
           ventasDiariasRows: ((ventasDiariasGerRes as any)?.data as any[]) || [],
         };
         const entries: any[] = [];
@@ -811,7 +736,7 @@ const Rankings = () => {
           const gerenteInfo = gerentesByCelula.get(celula);
 
           // Ventas FE/Nube del mes actual desde vn_metricas_optimizadas; fallback ventas_gerente_mensual.
-          const vgmMesActual = scopedVgmRows.filter((r: any) =>
+          const vgmMesActual = (vgmGerRes.data || []).filter((r: any) =>
             normalizeComparableText(r.celula) === celula &&
             String(r.periodo) === currentMonth
           );
@@ -829,14 +754,14 @@ const Rankings = () => {
             jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'
           };
           const metasAcvMesActual =
-            scopedMetasAcvRows.find((r: any) => {
+            (metasAcvGerRes.data || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
               return mm && currentMonth.endsWith(mm) &&
                 !String(r.archivo ?? '').toLowerCase().includes('inicio');
             }) ||
-            scopedMetasAcvRows.find((r: any) => {
+            (metasAcvGerRes.data || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
@@ -852,9 +777,7 @@ const Rankings = () => {
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = userPais === 'MEX'
-            ? computeSpFromVnMetricRows(scopedVnMetricasGerRows, scopedMetasAcvRows, agg.celulaNombre || celula, currentConventionYear)
-            : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
+          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
@@ -885,7 +808,7 @@ const Rankings = () => {
 
         // México: agregar células presentes en vn_metricas_optimizadas pero ausentes en productividad_asesores
         if (userPais === 'MEX') {
-          const vnMex = scopedVnMetricasGerRows;
+          const vnMex = ((vnMetricasMexGerRes?.data as any[]) || []);
           const mesActualNro = new Date().getMonth() + 1;
           const mexCelulaMap = new Map<string, { celulaNombre: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
           vnMex.forEach((r: any) => {
@@ -915,7 +838,7 @@ const Rankings = () => {
           mexCelulaMap.forEach((agg, celulaKey) => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
-            const spFinal = computeSpFromVnMetricRows(scopedVnMetricasGerRows, scopedMetasAcvRows, agg.celulaNombre, currentConventionYear);
+            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
               productivityRows: [],
@@ -923,13 +846,13 @@ const Rankings = () => {
               ejecRows: [],
             });
             const cmMex = monthlyRowsMex.find((row) => row.period === currentMonth);
-            const acvCatMex = scopedMetasAcvRows.find((r: any) => {
+            const acvCatMex = (metasAcvGerRes.data || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celulaKey) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
               const mm = MMAP[mes3];
               return mm && currentMonth.endsWith(mm) && !String(r.archivo ?? '').toLowerCase().includes('inicio');
-            }) || scopedMetasAcvRows.find((r: any) => {
+            }) || (metasAcvGerRes.data || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celulaKey) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
