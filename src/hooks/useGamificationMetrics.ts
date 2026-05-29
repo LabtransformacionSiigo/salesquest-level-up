@@ -439,12 +439,19 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas) */
+          /* 15 – metas_asesores for VN gerente: fetch by celula OR gerente name (server-side filter para no chocar con el cap de 1000 filas).
+                  Celula con tolerancia a tildes para evitar perder rows
+                  (ej. "Equipo México X" vs "Equipo Mexico X"). */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 const safeNombre = String(profile.nombre).replace(/[%,()]/g, ' ').trim();
+                const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const orParts: string[] = [];
-                if (profile.celula) orParts.push(`celula.eq.${String(profile.celula).replace(/,/g, ' ')}`);
+                if (profile.celula) {
+                  const cel = String(profile.celula);
+                  const variants = Array.from(new Set([cel, stripAccents(cel)].filter(Boolean)));
+                  variants.forEach((v) => orParts.push(`celula.eq.${v.replace(/,/g, ' ')}`));
+                }
                 if (safeNombre) orParts.push(`gerente.ilike.%${safeNombre}%`);
                 let q = supabase.from('metas_asesores' as any)
                   .select('anio_mes, documento_asesor, nombre_asesor, meta_fe, meta_nube, meta_total, novedad, celula, gerente, aplica_cuota_lider')
