@@ -547,13 +547,17 @@ export const useGamificationMetrics = (
                 // "México" vs "Mexico"). Filtramos por canal+pais y dejamos que el
                 // matchVnRow client-side (normalizado sin acentos) haga el match
                 // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
+                // Traemos TODO el año (no solo mes actual) para alimentar el
+                // historial mensual con split FE/Nube cuando vgm / scope=gerente
+                // no tengan datos (caso MEX VN meses Feb-Abr).
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .eq('mes_nro', mesIdx + 1)
-                  .limit(8000);
+                  .gte('mes_nro', 1)
+                  .lte('mes_nro', 12)
+                  .limit(20000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
