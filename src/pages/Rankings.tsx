@@ -526,7 +526,9 @@ const Rankings = () => {
               .lte('mes_nro', 12)
               .limit(5000);
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
-            if (profile.canal) q = q.eq('canal_direccion', profile.canal);
+            const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+              : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios' : null;
+            if (canalDir) q = q.eq('canal_direccion', canalDir);
             return q;
           })(),
           supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).range(0, 49999),
