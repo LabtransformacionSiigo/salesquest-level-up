@@ -1031,7 +1031,9 @@ export const useGamificationMetrics = (
             .filter((r: any) => Number(r.mes_nro) === mesNroActual);
           const vmaMap = new Map<string, { ventas: number; acv: number; familia: string }>();
           for (const r of vnMetAsesorRowsAll) {
-            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+            const familiaRaw = String(r.familia || '').toUpperCase().trim();
+            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
+            const fam = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
             const asesor = String(r.asesor || '').trim().toLowerCase();
             if (!asesor || !fam) continue;
             const key = `${asesor}::${fam}`;
@@ -1101,7 +1103,9 @@ export const useGamificationMetrics = (
             if (!mesNro || mesNro < 1 || mesNro > 12) return;
             const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
             if (vgmPeriodsWithData.has(period)) return;
-            const fam = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
+            const familiaRaw = String(r.familia || '').toUpperCase().trim();
+            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
+            const fam = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
             if (!fam) return;
             const famNorm = fam === 'CAMPANA' ? 'NUBE'
                           : (fam === 'FE' || fam === 'NUBE' || fam === 'CONTADOR') ? fam
