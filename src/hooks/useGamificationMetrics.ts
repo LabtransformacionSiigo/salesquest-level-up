@@ -1348,6 +1348,34 @@ export const useGamificationMetrics = (
             ejecByPeriod.set(period, cur);
           });
 
+          // Último fallback: productividad_asesores agregada por celula+periodo.
+          // Cubre meses donde Databricks aún no envió ventas a vn_metricas_optimizadas /
+          // ventas_gerente_mensual / ventas_diarias / ejecucion_asesores pero sí pobló
+          // productividad_asesores (caso MEX VN — equipos sin sync histórico completo).
+          // Solo aporta `total` y `acv` (productividad no trae split FE/Nube).
+          {
+            const prodByPeriod = new Map<string, { ventas: number; acv: number }>();
+            (vnCelulaRows || []).forEach((row: any) => {
+              const period = String(row.anio_mes || '');
+              if (!period) return;
+              const cur = prodByPeriod.get(period) || { ventas: 0, acv: 0 };
+              cur.ventas += Number(row.ventas) || 0;
+              cur.acv += normalizeStoredAcv(row.acv_f);
+              prodByPeriod.set(period, cur);
+            });
+            prodByPeriod.forEach((v, period) => {
+              const existing = ejecByPeriod.get(period);
+              const hasData = !!existing && (existing.fe + existing.nube + existing.total + existing.acv) > 0;
+              if (hasData) return;
+              ejecByPeriod.set(period, {
+                fe: existing?.fe || 0,
+                nube: existing?.nube || 0,
+                total: Math.round(v.ventas),
+                acv: Math.round(v.acv),
+              });
+            });
+          }
+
           const enrich = (period: string, base: MonthlyCumplimiento): MonthlyCumplimiento => {
             const ej = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             // FUENTE ÚNICA para meta_fe / meta_nube / meta_total_acv: metas_acv_gerentes.
