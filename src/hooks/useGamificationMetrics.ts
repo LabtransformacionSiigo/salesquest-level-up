@@ -522,7 +522,6 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
@@ -1316,10 +1315,39 @@ export const useGamificationMetrics = (
             ejecByPeriod.set(period, { fe: v.fe, nube: v.nube, total: v.total, acv: v.acv });
           });
 
-          // Periodos sin data en vgm: NO usar vma como fallback (causaba desajustes).
-          // Mantener fallback final a ventas_diarias / ejecucion_asesores solo si
-          // tampoco hay vgm para ese periodo.
-          const vmaPeriodsWithData = new Set<string>(); // legado: vacío para no contaminar.
+          // Periodos sin data en VGM: usar vn_metricas_optimizadas scope=asesor
+          // ya filtrado al equipo. En MEX VN los meses históricos no existen en
+          // ventas_gerente_mensual ni ventas_diarias, pero sí vienen en esta tabla.
+          const vmaPeriodsWithData = new Set<string>();
+          const vmaHistoryByPeriodFamily = new Map<string, { uds: number; acv: number }>();
+          ((vnMetricasAsesorRes?.data as any[]) || []).forEach((r: any) => {
+            const mesNro = Number(r.mes_nro);
+            if (!mesNro || mesNro < 1 || mesNro > 12) return;
+            const period = `${anioActual}${String(mesNro).padStart(2, '0')}`;
+            if (vgmPeriodsWithData.has(period)) return;
+            const rawFamily = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
+            const family = rawFamily === 'CAMPANA' ? 'NUBE'
+              : (rawFamily === 'FE' || rawFamily === 'NUBE' || rawFamily === 'CONTADOR') ? rawFamily
+              : String(r.tipo_producto1 || '').toUpperCase().trim() === 'CAMPANA' ? 'NUBE'
+              : rawFamily;
+            if (!family) return;
+            const asesor = normalizeComparableText(r.asesor);
+            const key = `${period}::${asesor}::${family}`;
+            const uds = Math.round(Number(r.ventas) || 0);
+            const acv = Math.round(Number(r.acv_total) || 0);
+            const prev = vmaHistoryByPeriodFamily.get(key);
+            if (!prev || uds > prev.uds) vmaHistoryByPeriodFamily.set(key, { uds, acv });
+          });
+          vmaHistoryByPeriodFamily.forEach((value, key) => {
+            const [period, , family] = key.split('::');
+            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (family === 'FE') cur.fe += value.uds;
+            else if (family === 'NUBE') cur.nube += value.uds;
+            cur.total += value.uds;
+            cur.acv += value.acv;
+            ejecByPeriod.set(period, cur);
+            vmaPeriodsWithData.add(period);
+          });
 
           // Para periodos SIN data en vgm, usar ventas_diarias o ejecucion_asesores
           const ventasBaseForHistory = vnVentasDiariasRows.length > 0
