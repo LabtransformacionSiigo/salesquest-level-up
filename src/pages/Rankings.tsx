@@ -548,11 +548,11 @@ const Rankings = () => {
           supabase.from('metas_acv_gerentes').select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(5000),
           (() => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
-              .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
-              .eq('scope', 'gerente')
+              .select('periodo, mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, canal_direccion, asesor')
+              .eq('scope', 'asesor')
               .gte('mes_nro', 1)
               .lte('mes_nro', 12)
-              .limit(5000);
+              .limit(10000);
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
             return q;
           })(),
