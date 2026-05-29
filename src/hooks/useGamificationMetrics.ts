@@ -538,8 +538,8 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
-                  No filtramos por canal_direccion: Databricks puede traer la
-                  célula con el canal anterior después de una reasignación. */
+                  Se trae TODO el año: el Historial Mensual, el Header y el Ranking
+                  deben sumar exactamente los mismos meses, no solo el mes actual. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // No filtramos por celula server-side porque la grafía puede diferir
@@ -552,7 +552,6 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
@@ -1121,6 +1120,37 @@ export const useGamificationMetrics = (
             const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
             if (fam === 'FE') cur.fe += val.uds;
             else if (fam === 'NUBE') cur.nube += val.uds;
+            cur.total += val.uds;
+            cur.acv += val.acv;
+            vgmDeduped.set(period, cur);
+          });
+
+          // México VN no tiene ventas_gerente_mensual para todos los meses; la
+          // fuente mensual completa por equipo está en vn_metricas_optimizadas
+          // scope=asesor. Agregamos esos meses ANTES de construir el historial.
+          const coveredPeriods = new Set<string>(vgmDeduped.keys());
+          const vmaYearByPeriodFamily = new Map<string, { uds: number; acv: number }>();
+          (vnMetricasAsesorRes?.data || []).forEach((r: any) => {
+            const mesNro = Number(r.mes_nro);
+            if (!mesNro || mesNro < 1 || mesNro > 12) return;
+            const period = `${_yearNumGer}${String(mesNro).padStart(2, '0')}`;
+            if (coveredPeriods.has(period)) return;
+            const familiaRaw = String(r.familia || '').toUpperCase().trim();
+            const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
+            const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
+            const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
+            if (fam !== 'FE' && fam !== 'NUBE') return;
+            const k = `${period}::${fam}`;
+            const prev = vmaYearByPeriodFamily.get(k) || { uds: 0, acv: 0 };
+            prev.uds += Math.round(Number(r.ventas) || 0);
+            prev.acv += Math.round(Number(r.acv_total) || 0);
+            vmaYearByPeriodFamily.set(k, prev);
+          });
+          vmaYearByPeriodFamily.forEach((val, k) => {
+            const [period, fam] = k.split('::');
+            const cur = vgmDeduped.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (fam === 'FE') cur.fe += val.uds;
+            if (fam === 'NUBE') cur.nube += val.uds;
             cur.total += val.uds;
             cur.acv += val.acv;
             vgmDeduped.set(period, cur);
