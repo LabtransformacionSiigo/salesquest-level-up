@@ -538,8 +538,8 @@ export const useGamificationMetrics = (
             : Promise.resolve({ data: [] }),
           /* 22 – vn_metricas_optimizadas (scope=asesor): FUENTE DE VERDAD para
                   ventas FE/NUBE por asesor del equipo de un gerente VN.
-                  No filtramos por canal_direccion: Databricks puede traer la
-                  célula con el canal anterior después de una reasignación. */
+                  Se trae TODO el año: el Historial Mensual, el Header y el Ranking
+                  deben sumar exactamente los mismos meses, no solo el mes actual. */
           isVN && profile.role !== 'asesor' && profile.nombre
             ? (() => {
                 // No filtramos por celula server-side porque la grafía puede diferir
@@ -552,7 +552,6 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
