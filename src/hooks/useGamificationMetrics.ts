@@ -1620,12 +1620,32 @@ export const useGamificationMetrics = (
             return (fam as any) || 'OTRO';
           };
 
-          // FUENTE PRIMARIA para VN MEX: ventas_diarias del mes en curso.
-          // vn_metricas_optimizadas viene con tipo_producto1='CAMPANA' y a veces
-          // queda desactualizada. ventas_diarias ya trae tipo_producto clasificado
-          // (FE/NUBE) por la edge function sync-vn-mexico.
+          // FUENTE PRIMARIA para VN MEX: ejecucion_asesores del mes en curso.
+          // Es la fuente exacta por asesor con split FE/Nube; evita mostrar FE/Nube
+          // en cero cuando ventas_diarias no tiene filas para México.
           let usedVentasDiarias = false;
-          if (isMex && vnVentasDiariasRows.length > 0) {
+          if (isMex && vnTeamEjecAll.length > 0) {
+            vnTeamEjecAll
+              .filter((row: any) => String(row.periodo || '') === mesActual)
+              .forEach((row: any) => {
+                const rawKey = normalizeComparableText(row.documento_asesor ?? '');
+                const key = resolveTeamAsesorKey(rawKey);
+                if (!rawKey || key === gerenteKey) return;
+                if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
+                const fe = Math.round(Number(row.ventas_fe) || 0);
+                const nube = Math.round(Number(row.ventas_nube) || 0);
+                const total = Math.round(Number(row.ventas_total) || 0);
+                const acv = Math.round(Number(row.acv_total) || 0);
+                const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+                cur.fe += fe;
+                cur.nube += nube;
+                cur.total += total;
+                cur.acv += acv;
+                ventasPorAsesor.set(key, cur);
+                usedVentasDiarias = true;
+              });
+          }
+          if (isMex && !usedVentasDiarias && vnVentasDiariasRows.length > 0) {
             vnVentasDiariasRows
               .filter((row: any) => {
                 const fecha = String(row.fecha || '');
