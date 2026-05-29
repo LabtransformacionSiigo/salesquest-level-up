@@ -576,6 +576,12 @@ const Rankings = () => {
           const canalOk = !canalRaw || canalRaw === normalizeComparableText(canalCatalog) || canalRaw === normalizeComparableText(canalData);
           return paisOk && canalOk;
         });
+        const scopedVnMetricasGerRows = (((vnMetricasMexGerRes as any)?.data as any[]) || []).filter((r: any) => {
+          const paisOk = !r.pais || String(r.pais).toUpperCase() === String(userPais).toUpperCase();
+          const canalRaw = normalizeComparableText(r.canal_direccion);
+          const canalOk = canalRaw === normalizeComparableText(canalData) || canalRaw === normalizeComparableText(canalCatalog);
+          return paisOk && canalOk;
+        });
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
         (metasAsesoresRes.data || []).forEach((r: any) => {
@@ -637,7 +643,7 @@ const Rankings = () => {
           const gerenteName = row.gerente ? String(row.gerente).trim() : '';
           if (!celulaKey || !gerenteName || gerenteName === '0') return;
           const existing = gerenteNombreByCelula.get(celulaKey);
-          if (!existing || gerenteName.length > existing.length) {
+          if (!existing) {
             gerenteNombreByCelula.set(celulaKey, gerenteName);
           }
         });
@@ -695,7 +701,10 @@ const Rankings = () => {
           }
         });
 
-        const vnGerenteMetricByCelula = aggregateVnGerenteMetricRows(((vnMetricasMexGerRes as any)?.data as any[]) || [], currentMonth);
+        const vnGerenteMetricByCelula = aggregateVgmRowsByCelula(scopedVgmRows, currentMonth);
+        aggregateVnGerenteMetricRows(scopedVnMetricasGerRows, currentMonth).forEach((metricAgg, celula) => {
+          if (!vnGerenteMetricByCelula.has(celula)) vnGerenteMetricByCelula.set(celula, metricAgg);
+        });
 
         // Aggregate by celula + month
         const celulaAgg = new Map<string, { celulaNombre: string; months: Map<string, { ventas: number; meta: number; acv: number }>; recomendados: number; unidades: number; acv: number; currentVentas: number; currentMeta: number; currentRecomendados: number; currentAcv: number }>();
@@ -740,7 +749,7 @@ const Rankings = () => {
           metaAsesorRows: metasAsesoresRes.data || [],
           metaAcvRows: metasAcvGerEnriched,
           year: String(currentConventionYear),
-          vnMetricasGerenteRows: ((vnMetricasMexGerRes as any)?.data as any[]) || [],
+          vnMetricasGerenteRows: scopedVnMetricasGerRows,
           ventasDiariasRows: ((ventasDiariasGerRes as any)?.data as any[]) || [],
         };
         const entries: any[] = [];
@@ -834,7 +843,7 @@ const Rankings = () => {
 
         // México: agregar células presentes en vn_metricas_optimizadas pero ausentes en productividad_asesores
         if (userPais === 'MEX') {
-          const vnMex = ((vnMetricasMexGerRes?.data as any[]) || []);
+          const vnMex = scopedVnMetricasGerRows;
           const mesActualNro = new Date().getMonth() + 1;
           const mexCelulaMap = new Map<string, { celulaNombre: string; gerente: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
           vnMex.forEach((r: any) => {
