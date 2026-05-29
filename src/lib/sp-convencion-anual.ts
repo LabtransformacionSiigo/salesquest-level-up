@@ -182,7 +182,12 @@ export function computeSpConvencionAnualForCelula(
     }
   });
   const ventasOficiales = vgmFiltrados.length > 0
-    ? vgmFiltrados
+    ? vgmFiltrados.map((row) => ({
+        periodo: row.periodo,
+        familia: row.familia,
+        unidades: row.unidades,
+        acv: row.acv,
+      }))
     : Array.from(metricRowsByPeriodFamily.values());
 
   // Períodos a calcular: solo ventas oficiales de gerente mensual + metas oficiales.
