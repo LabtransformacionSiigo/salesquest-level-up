@@ -1351,21 +1351,32 @@ export const useGamificationMetrics = (
           // tampoco hay vgm para ese periodo.
           const vmaPeriodsWithData = new Set<string>(); // legado: vacío para no contaminar.
 
-          // Para periodos SIN data en vgm, usar ventas_diarias o ejecucion_asesores
-          const ventasBaseForHistory = vnVentasDiariasRows.length > 0
-            ? vnVentasDiariasRows.map((row: any) => {
-                const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
-                  ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
-                const uds = Math.round(Number(row.unidades) || 0);
-                return {
-                  periodo: getPeriodFromDate(row.fecha),
-                  ventas_fe: fam === 'FE' ? uds : 0,
-                  ventas_nube: fam === 'NUBE' ? uds : 0,
-                  ventas_total: uds,
-                  acv: Math.round(Number(row.acv) || 0),
-                };
-              })
-            : vnTeamEjecAll;
+          // Para periodos SIN data en vgm, usar ventas_diarias por periodo y
+          // completar los meses faltantes con ejecucion_asesores. Antes, si
+          // existía cualquier venta_diaria del equipo, se descartaba TODO
+          // ejecucion_asesores y México VN quedaba con FE/Nube en 0 en meses
+          // donde solo había productividad_asesores (Feb-Abr para varios líderes).
+          const ventasDiariasForHistory = vnVentasDiariasRows.map((row: any) => {
+            const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
+              ?? (String(row.tipo_producto || '').toUpperCase() as 'FE' | 'NUBE' | 'CONTADOR' | 'OTRO');
+            const uds = Math.round(Number(row.unidades) || 0);
+            return {
+              periodo: getPeriodFromDate(row.fecha),
+              ventas_fe: fam === 'FE' ? uds : 0,
+              ventas_nube: fam === 'NUBE' ? uds : 0,
+              ventas_total: uds,
+              acv: Math.round(Number(row.acv) || 0),
+            };
+          });
+          const ventasDiariasPeriods = new Set(
+            ventasDiariasForHistory
+              .map((row: any) => String(row.periodo || ''))
+              .filter(Boolean)
+          );
+          const ejecFallbackForHistory = (vnTeamEjecAll || []).filter(
+            (row: any) => !ventasDiariasPeriods.has(String(row.periodo || ''))
+          );
+          const ventasBaseForHistory = [...ventasDiariasForHistory, ...ejecFallbackForHistory];
           ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
             if (vmaPeriodsWithData.has(period)) return; // ya cubierto por vma
@@ -1374,7 +1385,7 @@ export const useGamificationMetrics = (
             cur.fe += Math.round(Number(e.ventas_fe) || 0);
             cur.nube += Math.round(Number(e.ventas_nube) || 0);
             cur.total += Math.round(Number(e.ventas_total) || 0);
-            cur.acv += Math.round(Number(e.acv) || 0);
+            cur.acv += Math.round(Number(e.acv ?? e.acv_total) || 0);
             ejecByPeriod.set(period, cur);
           });
 
