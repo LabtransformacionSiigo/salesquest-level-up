@@ -170,6 +170,12 @@ export const normalizeStoredAcv = (value: number | null | undefined) => {
 };
 
 const isActiveMetaRow = (row: VnConventionMetaRow) => {
+  // Excluir filas sintéticas (CEL_* o sin nombre real de asesor) que duplican
+  // la meta total a nivel célula y se suman además de la fila por asesor.
+  const doc = String(row.documento_asesor ?? '').trim();
+  if (doc.startsWith('CEL_')) return false;
+  const nombre = String(row.nombre_asesor ?? '').trim();
+  if (!nombre) return false;
   const novedad = String(row.novedad ?? '').trim();
   return novedad === '' || novedad === 'Sin novedad';
 };
