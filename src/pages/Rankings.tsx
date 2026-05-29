@@ -577,26 +577,18 @@ const Rankings = () => {
           if (row.user_id && row.role) roleByUserId.set(row.user_id, row.role);
         });
 
-        // Nombre del gerente por célula — fuente: metas_asesores.gerente (Databricks RRHH).
-        // Para MEX también enriquecemos con vn_metricas_optimizadas y ventas_gerente_mensual,
-        // ya que metas_asesores se filtra por canal_direccion y deja fuera células del otro
-        // canal que pueden mezclarse en el ranking (ej. células de Aliados apareciendo en
-        // Empresarios), provocando que el ranking muestre el nombre de la célula en vez
-        // del nombre del gerente. Preferimos el nombre más largo (más completo).
+        // Nombre del gerente por célula — fuente: metas_asesores.gerente (Databricks RRHH)
+        // Preferimos el nombre más largo (más completo) cuando hay variantes.
         const gerenteNombreByCelula = new Map<string, string>();
-        const considerGerenteName = (celulaRaw: any, gerenteRaw: any) => {
-          const celulaKey = normalizeComparableText(celulaRaw);
-          const gerenteName = gerenteRaw ? String(gerenteRaw).trim() : '';
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          const celulaKey = normalizeComparableText(row.celula);
+          const gerenteName = row.gerente ? String(row.gerente).trim() : '';
           if (!celulaKey || !gerenteName || gerenteName === '0') return;
-          if (gerenteName.includes('@')) return; // descartar emails
           const existing = gerenteNombreByCelula.get(celulaKey);
           if (!existing || gerenteName.length > existing.length) {
             gerenteNombreByCelula.set(celulaKey, gerenteName);
           }
-        };
-        (metasAsesoresRes.data || []).forEach((row: any) => considerGerenteName(row.celula, row.gerente));
-        (((vnMetricasMexGerRes as any)?.data as any[]) || []).forEach((row: any) => considerGerenteName(row.celula, row.gerente));
-        (vgmGerRes.data || []).forEach((row: any) => considerGerenteName(row.celula, row.gerente));
+        });
 
         const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
         const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
