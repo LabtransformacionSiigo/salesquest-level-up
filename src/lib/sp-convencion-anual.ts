@@ -57,7 +57,9 @@ export interface SpAnualInputs {
   year: string; // e.g. "2026"
   /** Primary source: vn_metricas_optimizadas (scope='gerente') rows for this gerente/celula */
   vnMetricasGerenteRows?: Array<{
+    periodo?: string | null;
     mes_nro?: number | null;
+    asesor?: string | null;
     tipo_producto1?: string | null;
     familia?: string | null;
     ventas?: number | null;
@@ -125,14 +127,9 @@ export function computeSpConvencionAnualForCelula(
   const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
   metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
-  // Ventas reales desde ventas_gerente_mensual.
-  // Si tenemos gerente, esa es la fuente precisa (MiPerformance usa este mismo criterio).
-  // El match por célula queda solo como fallback porque Databricks puede traer aliases
-  // duplicados para la misma célula (ej. nombre corto + nombre completo), lo que inflaba
-  // Ranking/Header al sumar la misma ejecución dos veces.
-  // Si tenemos celula, EXIGIR filtro por celula. Solo si no hay celula se permite
-  // filtrar por gerente (caso de configuración sin celula asignada). Esto evita
-  // que un gerente que lidera más de una celula sume ventas de células ajenas.
+  // Ventas reales desde fuente mensual oficial. México no siempre replica filas en
+  // ventas_gerente_mensual; cuando no existen para la célula, usamos el consolidado
+  // Databricks vn_metricas_optimizadas recibido por el ranking/historial mensual.
   const vgmBase = celulaNorm
     ? vgmRows.filter((row) => normalizeSpText(row.celula) === celulaNorm)
     : (gerenteNorm
@@ -151,9 +148,45 @@ export function computeSpConvencionAnualForCelula(
     return true;
   });
 
+  const metricBase = (inputs.vnMetricasGerenteRows || []).filter((row) => {
+    if (celulaNorm && normalizeSpText(row.celula) === celulaNorm) return true;
+    if (!celulaNorm && gerenteNorm && normalizeSpText(row.gerente_normalizado || row.gerente) === gerenteNorm) return true;
+    return false;
+  });
+  const metricRowsByPeriodFamily = new Map<string, { periodo: string; familia: string; unidades: number; acv: number }>();
+  const metricHasAdvisorDetail = metricBase.some((row) => Boolean(String(row.asesor || '').trim()));
+  metricBase.forEach((row) => {
+    const periodo = String(row.periodo || (row.mes_nro ? `${year}${String(row.mes_nro).padStart(2, '0')}` : ''));
+    if (!/^\d{6}$/.test(periodo)) return;
+    const familiaRaw = String(row.familia || '').toUpperCase().trim();
+    const tipoRaw = String(row.tipo_producto1 || '').toUpperCase().trim();
+    const fam = (familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw) === 'CAMPANA' ||
+      (familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw) === 'CAMPAÑA'
+      ? 'NUBE'
+      : (familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw);
+    if (fam !== 'FE' && fam !== 'NUBE') return;
+    const key = `${periodo}|${fam}`;
+    const unidades = Math.round(Number(row.ventas) || 0);
+    const acv = Math.round(Number(row.acv_total) || 0);
+    const prev = metricRowsByPeriodFamily.get(key);
+    if (metricHasAdvisorDetail) {
+      metricRowsByPeriodFamily.set(key, {
+        periodo,
+        familia: fam,
+        unidades: (prev?.unidades || 0) + unidades,
+        acv: (prev?.acv || 0) + acv,
+      });
+    } else if (!prev || unidades > prev.unidades) {
+      metricRowsByPeriodFamily.set(key, { periodo, familia: fam, unidades, acv });
+    }
+  });
+  const ventasOficiales = vgmFiltrados.length > 0
+    ? vgmFiltrados
+    : Array.from(metricRowsByPeriodFamily.values());
+
   // Períodos a calcular: solo ventas oficiales de gerente mensual + metas oficiales.
   const periodSet = new Set<string>();
-  vgmFiltrados.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
+  ventasOficiales.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
   metasPorPeriodo.forEach((_, p) => periodSet.add(p));
 
   let totalSp = 0;
@@ -162,7 +195,7 @@ export function computeSpConvencionAnualForCelula(
     const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
-    const periodVgmRows = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
+    const periodVgmRows = ventasOficiales.filter((r) => String(r.periodo) === periodo);
     if (periodVgmRows.length > 0) {
       periodVgmRows.forEach((r) => {
         const u = Math.round(Number(r.unidades) || 0);
