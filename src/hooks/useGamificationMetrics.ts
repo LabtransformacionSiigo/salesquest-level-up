@@ -987,6 +987,9 @@ export const useGamificationMetrics = (
           // Aggregate ejecucion from ejecucion_asesores matched by team names (CURRENT MONTH only)
           const allEjecRows = ejecRes?.data || [];
           const teamEjecRowsAll = allEjecRows.filter((e: any) => {
+            const rowCanal = normalizeVnChannel(e.canal_direccion ?? '');
+            const expectedCanal = normalizeVnChannel(canalNorm || profile.canal || '');
+            if (paisProfile === 'MEX' && expectedCanal && rowCanal && rowCanal !== expectedCanal) return false;
             const nombre = normalizeComparableText(e.documento_asesor);
             const documento = String(e.documento_asesor || '').trim().toLowerCase();
             return matchesNormalizedPerson(nombre, teamAsesorNames) || teamAdvisorDocs.has(documento);
@@ -1318,9 +1321,26 @@ export const useGamificationMetrics = (
             ejecByPeriod.set(period, { fe: v.fe, nube: v.nube, total: v.total, acv: v.acv });
           });
 
-          // Periodos sin data en VGM: usar vn_metricas_optimizadas scope=asesor
-          // ya filtrado al equipo. En MEX VN los meses históricos no existen en
-          // ventas_gerente_mensual ni ventas_diarias, pero sí vienen en esta tabla.
+          // MEX VN: la fuente exacta por asesor/mes para FE y Nube es ejecucion_asesores.
+          // Debe ganar sobre vn_metricas_optimizadas, porque VMO marca CAMPANA como
+          // OTRO en algunos históricos y deja Abril subcontado.
+          const exactEjecPeriodsWithData = new Set<string>();
+          if (String(profile.pais || '').toUpperCase() === 'MEX' && profile.role !== 'asesor') {
+            (vnTeamEjecAll || []).forEach((e: any) => {
+              const period = String(e.periodo || '');
+              if (!period || vgmPeriodsWithData.has(period)) return;
+              const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+              cur.fe += Math.round(Number(e.ventas_fe) || 0);
+              cur.nube += Math.round(Number(e.ventas_nube) || 0);
+              cur.total += Math.round(Number(e.ventas_total) || 0);
+              cur.acv += Math.round(Number(e.acv_total) || 0);
+              ejecByPeriod.set(period, cur);
+              exactEjecPeriodsWithData.add(period);
+            });
+          }
+
+          // Periodos sin data en VGM ni ejecucion_asesores: usar vn_metricas_optimizadas scope=asesor
+          // ya filtrado al equipo.
           const vmaPeriodsWithData = new Set<string>();
           const vmaHistoryByPeriodFamily = new Map<string, { uds: number; acv: number }>();
           ((vnMetricasAsesorRes?.data as any[]) || []).forEach((r: any) => {
@@ -1328,6 +1348,7 @@ export const useGamificationMetrics = (
             if (!mesNro || mesNro < 1 || mesNro > 12) return;
             const period = `${anioActual}${String(mesNro).padStart(2, '0')}`;
             if (vgmPeriodsWithData.has(period)) return;
+            if (exactEjecPeriodsWithData.has(period)) return;
             const rawFamily = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
             const family = rawFamily === 'CAMPANA' ? 'NUBE'
               : (rawFamily === 'FE' || rawFamily === 'NUBE' || rawFamily === 'CONTADOR') ? rawFamily
@@ -1369,6 +1390,7 @@ export const useGamificationMetrics = (
             : vnTeamEjecAll;
           ventasBaseForHistory.forEach((e: any) => {
             const period = String(e.periodo || '');
+            if (exactEjecPeriodsWithData.has(period)) return; // ya cubierto por ejecucion_asesores exacta MEX
             if (vmaPeriodsWithData.has(period)) return; // ya cubierto por vma
             if (vgmPeriodsWithData.has(period)) return; // ya cubierto por vgm
             const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
