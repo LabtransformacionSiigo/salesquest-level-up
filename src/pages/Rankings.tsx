@@ -589,6 +589,7 @@ const Rankings = () => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
               .select('periodo, mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, canal_direccion, asesor')
               .eq('scope', 'asesor')
+              .eq('anio', currentConventionYear)
               .gte('mes_nro', 1)
               .lte('mes_nro', 12)
               .limit(10000);
