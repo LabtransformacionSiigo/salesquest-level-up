@@ -851,7 +851,9 @@ const Rankings = () => {
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
+          const spFinal = userPais === 'MEX'
+            ? computeSpFromVnMetricRows(scopedVnMetricasGerRows, scopedMetasAcvRows, agg.celulaNombre || celula, currentConventionYear)
+            : computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
           entries.push({
             id: celula,
             nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
@@ -912,7 +914,7 @@ const Rankings = () => {
           mexCelulaMap.forEach((agg, celulaKey) => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
-            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            const spFinal = computeSpFromVnMetricRows(scopedVnMetricasGerRows, scopedMetasAcvRows, agg.celulaNombre, currentConventionYear);
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
               productivityRows: [],
