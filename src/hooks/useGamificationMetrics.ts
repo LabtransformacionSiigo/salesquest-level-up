@@ -590,9 +590,12 @@ export const useGamificationMetrics = (
             const rowCanal = normalizeVnChannel(r.canal_direccion ?? r.equipo ?? '');
             const profileCanal = normalizeVnChannel(profile.canal ?? '');
             const hasTeamHint = !!(rowCelula || rowGerente);
+            if (hasTeamHint) {
+              if (targetCelula && rowCelula === targetCelula) return true;
+              if (matchesTargetManager(rowGerente)) return true;
+              return false;
+            }
             if (rowAsesor && matchesNormalizedPerson(rowAsesor, targetAdvisorNamesFromMetas)) return true;
-            if (targetCelula && rowCelula === targetCelula) return true;
-            if (matchesTargetManager(rowGerente)) return true;
             if (!hasTeamHint && profileCanal && rowCanal === profileCanal) return true;
             return false;
           });
