@@ -749,6 +749,7 @@ const Rankings = () => {
           const totalVentasValue = metricCurrent ? metricCurrent.fe + metricCurrent.nube : agg.unidades;
           const pct = currentMetaAcv > 0 && currentAcvValue > 0 ? Math.round((currentAcvValue / currentMetaAcv) * 100) : (currentMonthly?.pctAcv ?? 0);
           const gerenteInfo = gerentesByCelula.get(celula);
+          const gerenteDisplayName = gerenteInfo?.nombre || metricCurrent?.gerente || agg.celulaNombre || celula;
 
           // Ventas FE/Nube del mes actual desde vn_metricas_optimizadas; fallback ventas_gerente_mensual.
           const vgmMesActual = (vgmGerRes.data || []).filter((r: any) =>
@@ -792,10 +793,10 @@ const Rankings = () => {
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
           // SP Convención = MISMO cálculo que MiPerformance:
           // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteInfo?.nombre);
+          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
           entries.push({
             id: celula,
-            nombre: gerenteInfo?.nombre || agg.celulaNombre || celula,
+            nombre: gerenteDisplayName,
             celula_nombre: agg.celulaNombre || celula,
             canal: profile.canal,
             pais: userPais,
