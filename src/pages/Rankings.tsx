@@ -516,8 +516,8 @@ const Rankings = () => {
           supabase.from('user_roles').select('user_id, role'),
           fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
-          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
-          supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(2000),
+          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado, pais, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(10000),
+          supabase.from('metas_acv_gerentes').select('pais, canal, director, celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').limit(5000),
           (() => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
               .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
@@ -682,33 +682,7 @@ const Rankings = () => {
             currentAcv: metricAgg.acvMes,
           });
         });
-        // MEX: enriquecer meta_nube de metas_acv_gerentes con coi+noi de metas_gerentes
-        // (replica el fallback de useSpConvencionAnualSelf para que el SP del header
-        // y el de Clasificación coincidan).
         const metasAcvGerEnriched = [...(metasAcvGerRes.data || [])] as any[];
-        if (userPais === 'MEX') {
-          const mexRows = (((metasGerentesMexRes as any)?.data as any[]) || [])
-            .slice()
-            .sort((a, b) => String(b.anio_mes || '').localeCompare(String(a.anio_mes || '')));
-          if (mexRows.length > 0) {
-            const mes3to2: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
-            // Index by celula+anio_mes
-            const byCelulaPeriod = new Map<string, any>();
-            const latestByCelula = new Map<string, any>();
-            mexRows.forEach((r) => {
-              const ck = normalizeSpText(r.celula);
-              byCelulaPeriod.set(`${ck}|${r.anio_mes}`, r);
-              if (!latestByCelula.has(ck)) latestByCelula.set(ck, r);
-            });
-            metasAcvGerEnriched.forEach((row) => {
-              const ck = normalizeSpText(row.celula);
-              const mm = mes3to2[String(row.mes || '').trim().toLowerCase().slice(0, 3)] || '';
-              const mg = byCelulaPeriod.get(`${ck}|${currentConventionYear}${mm}`) || latestByCelula.get(ck);
-              const nube = (Number(mg?.coi) || 0) + (Number(mg?.noi) || 0);
-              if ((Number(row.meta_nube) || 0) === 0 && nube > 0) row.meta_nube = nube;
-            });
-          }
-        }
         const spInputsGer = {
           vgmRows: vgmGerRes.data || [],
           metaAsesorRows: metasAsesoresRes.data || [],
