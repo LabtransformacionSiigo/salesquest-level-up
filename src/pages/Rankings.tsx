@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import { staggerContainer, fadeUpItem, podiumBounce } from '@/lib/animations';
 import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
-import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, normalizeSpText } from '@/lib/sp-convencion-anual';
+import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor } from '@/lib/sp-convencion-anual';
 import { getNivelData } from '@/lib/niveles';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
@@ -533,6 +533,21 @@ const Rankings = () => {
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
         ]);
+        const canalData = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
+        const canalCatalog = profile.canal || '';
+        const scopedVgmRows = ((vgmGerRes.data || []) as any[]).filter((r: any) => {
+          const paisOk = !r.pais || String(r.pais).toUpperCase() === String(userPais).toUpperCase();
+          const canalRaw = normalizeComparableText(r.canal_direccion);
+          const canalOk = !canalRaw || canalRaw === normalizeComparableText(canalData) || canalRaw === normalizeComparableText(canalCatalog);
+          return paisOk && canalOk;
+        });
+        const scopedMetasAcvRows = ((metasAcvGerRes.data || []) as any[]).filter((r: any) => {
+          const paisRaw = String(r.pais || '').trim().toUpperCase();
+          const paisOk = !paisRaw || paisRaw === String(userPais).toUpperCase() || paisRaw.startsWith(PAIS_LABEL[userPais]?.toUpperCase() || userPais);
+          const canalRaw = normalizeComparableText(r.canal);
+          const canalOk = !canalRaw || canalRaw === normalizeComparableText(canalCatalog) || canalRaw === normalizeComparableText(canalData);
+          return paisOk && canalOk;
+        });
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
         (metasAsesoresRes.data || []).forEach((r: any) => {
