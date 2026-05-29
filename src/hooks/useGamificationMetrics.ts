@@ -507,7 +507,14 @@ export const useGamificationMetrics = (
                   .lte('periodo', `${anioActual}12`)
                   .limit(5000);
                 if (profile.celula) {
-                  q = q.eq('celula', profile.celula);
+                  const cel = String(profile.celula);
+                  const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                  const variants = Array.from(new Set([cel, stripAccents(cel)].filter(Boolean)));
+                  if (variants.length === 1) {
+                    q = q.eq('celula', variants[0]);
+                  } else {
+                    q = q.or(variants.map((v) => `celula.eq.${v.replace(/,/g, ' ')}`).join(','));
+                  }
                 } else {
                   const canalDir = profile.canal === 'VN_ALIADOS' ? 'Aliados'
                                  : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios'
