@@ -9,6 +9,7 @@ export interface VnConventionProductivityRow {
 export interface VnConventionMetaRow {
   anio_mes?: string | null;
   nombre_asesor?: string | null;
+  documento_asesor?: string | null;
   meta_fe?: number | null;
   meta_nube?: number | null;
   meta_total?: number | null;
