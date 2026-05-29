@@ -564,7 +564,7 @@ const Rankings = () => {
         };
         const metaAcvByCelulaTeam = new Map<string, Map<string, number>>();
         const metaAcvArchivoByCelula = new Map<string, Map<string, string>>();
-        (metasAcvGerRes.data || []).forEach((row: any) => {
+        scopedMetasAcvRows.forEach((row: any) => {
           const celula = normalizeComparableText(row.celula);
           const mes3 = String(row.mes ?? '').trim().toLowerCase().slice(0, 3);
           const mm = MES3_TO_NUM[mes3];
@@ -596,6 +596,15 @@ const Rankings = () => {
         // Preferimos el nombre más largo (más completo) cuando hay variantes.
         const gerenteNombreByCelula = new Map<string, string>();
         (metasAsesoresRes.data || []).forEach((row: any) => {
+          const celulaKey = normalizeComparableText(row.celula);
+          const gerenteName = row.gerente ? String(row.gerente).trim() : '';
+          if (!celulaKey || !gerenteName || gerenteName === '0') return;
+          const existing = gerenteNombreByCelula.get(celulaKey);
+          if (!existing || gerenteName.length > existing.length) {
+            gerenteNombreByCelula.set(celulaKey, gerenteName);
+          }
+        });
+        scopedVgmRows.forEach((row: any) => {
           const celulaKey = normalizeComparableText(row.celula);
           const gerenteName = row.gerente ? String(row.gerente).trim() : '';
           if (!celulaKey || !gerenteName || gerenteName === '0') return;
@@ -697,9 +706,9 @@ const Rankings = () => {
             currentAcv: metricAgg.acvMes,
           });
         });
-        const metasAcvGerEnriched = [...(metasAcvGerRes.data || [])] as any[];
+        const metasAcvGerEnriched = scopedMetasAcvRows;
         const spInputsGer = {
-          vgmRows: vgmGerRes.data || [],
+          vgmRows: scopedVgmRows,
           metaAsesorRows: metasAsesoresRes.data || [],
           metaAcvRows: metasAcvGerEnriched,
           year: String(currentConventionYear),
@@ -725,7 +734,7 @@ const Rankings = () => {
           const gerenteInfo = gerentesByCelula.get(celula);
 
           // Ventas FE/Nube del mes actual desde vn_metricas_optimizadas; fallback ventas_gerente_mensual.
-          const vgmMesActual = (vgmGerRes.data || []).filter((r: any) =>
+          const vgmMesActual = scopedVgmRows.filter((r: any) =>
             normalizeComparableText(r.celula) === celula &&
             String(r.periodo) === currentMonth
           );
@@ -743,14 +752,14 @@ const Rankings = () => {
             jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'
           };
           const metasAcvMesActual =
-            (metasAcvGerRes.data || []).find((r: any) => {
+            scopedMetasAcvRows.find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
               return mm && currentMonth.endsWith(mm) &&
                 !String(r.archivo ?? '').toLowerCase().includes('inicio');
             }) ||
-            (metasAcvGerRes.data || []).find((r: any) => {
+            scopedMetasAcvRows.find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
