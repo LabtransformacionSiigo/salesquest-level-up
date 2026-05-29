@@ -141,20 +141,48 @@ const aggregateVnGerenteMetricRows = (rows: any[], currentMonth: string) => {
       acvMes: 0,
     };
     if (!cur.gerente && r.gerente) cur.gerente = r.gerente;
-    const tipo = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+    const familiaRaw = String(r.familia ?? '').toUpperCase().trim();
+    const tipoRaw = String(r.tipo_producto1 ?? '').toUpperCase().trim();
+    const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
     const ventas = Math.round(Number(r.ventas) || 0);
     const acv = Math.round(Number(r.acv_total) || 0);
-    if (tipo === 'FE') cur.fe += ventas;
-    if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nube += ventas;
-    cur.acv += acv;
+    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
+    if (fam === 'FE') { cur.fe += ventas; cur.acv += acv; }
+    if (fam === 'NUBE') { cur.nube += ventas; cur.acv += acv; }
     if (Number(r.mes_nro) === currentMonthNumber) {
-      if (tipo === 'FE') cur.feMes += ventas;
-      if (tipo === 'CAMPANA' || tipo === 'CAMPAÑA' || tipo === 'NUBE') cur.nubeMes += ventas;
-      cur.acvMes += acv;
+      if (fam === 'FE') { cur.feMes += ventas; cur.acvMes += acv; }
+      if (fam === 'NUBE') { cur.nubeMes += ventas; cur.acvMes += acv; }
     }
     byCelula.set(key, cur);
   });
 
+  return byCelula;
+};
+
+const aggregateVgmRowsByCelula = (rows: any[], currentMonth: string) => {
+  const byCelula = new Map<string, { celulaNombre: string; fe: number; nube: number; acv: number; feMes: number; nubeMes: number; acvMes: number }>();
+  (rows || []).forEach((r: any) => {
+    const celulaRaw = String(r.celula ?? '').trim();
+    if (!celulaRaw) return;
+    const key = normalizeComparableText(celulaRaw);
+    const cur = byCelula.get(key) ?? { celulaNombre: celulaRaw, fe: 0, nube: 0, acv: 0, feMes: 0, nubeMes: 0, acvMes: 0 };
+    const fam = String(r.familia || '').toUpperCase().trim();
+    if (fam !== 'FE' && fam !== 'NUBE') {
+      byCelula.set(key, cur);
+      return;
+    }
+    const unidades = Math.round(Number(r.unidades) || 0);
+    const acv = Math.round(Number(r.acv) || 0);
+    if (fam === 'FE') cur.fe += unidades;
+    if (fam === 'NUBE') cur.nube += unidades;
+    cur.acv += acv;
+    if (String(r.periodo) === currentMonth) {
+      if (fam === 'FE') cur.feMes += unidades;
+      if (fam === 'NUBE') cur.nubeMes += unidades;
+      cur.acvMes += acv;
+    }
+    byCelula.set(key, cur);
+  });
   return byCelula;
 };
 
