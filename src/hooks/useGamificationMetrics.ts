@@ -522,7 +522,6 @@ export const useGamificationMetrics = (
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .eq('mes_nro', mesIdx + 1)
                   .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
@@ -591,9 +590,12 @@ export const useGamificationMetrics = (
             const rowCanal = normalizeVnChannel(r.canal_direccion ?? r.equipo ?? '');
             const profileCanal = normalizeVnChannel(profile.canal ?? '');
             const hasTeamHint = !!(rowCelula || rowGerente);
+            if (hasTeamHint) {
+              if (targetCelula && rowCelula === targetCelula) return true;
+              if (matchesTargetManager(rowGerente)) return true;
+              return false;
+            }
             if (rowAsesor && matchesNormalizedPerson(rowAsesor, targetAdvisorNamesFromMetas)) return true;
-            if (targetCelula && rowCelula === targetCelula) return true;
-            if (matchesTargetManager(rowGerente)) return true;
             if (!hasTeamHint && profileCanal && rowCanal === profileCanal) return true;
             return false;
           });
@@ -1316,10 +1318,39 @@ export const useGamificationMetrics = (
             ejecByPeriod.set(period, { fe: v.fe, nube: v.nube, total: v.total, acv: v.acv });
           });
 
-          // Periodos sin data en vgm: NO usar vma como fallback (causaba desajustes).
-          // Mantener fallback final a ventas_diarias / ejecucion_asesores solo si
-          // tampoco hay vgm para ese periodo.
-          const vmaPeriodsWithData = new Set<string>(); // legado: vacío para no contaminar.
+          // Periodos sin data en VGM: usar vn_metricas_optimizadas scope=asesor
+          // ya filtrado al equipo. En MEX VN los meses históricos no existen en
+          // ventas_gerente_mensual ni ventas_diarias, pero sí vienen en esta tabla.
+          const vmaPeriodsWithData = new Set<string>();
+          const vmaHistoryByPeriodFamily = new Map<string, { uds: number; acv: number }>();
+          ((vnMetricasAsesorRes?.data as any[]) || []).forEach((r: any) => {
+            const mesNro = Number(r.mes_nro);
+            if (!mesNro || mesNro < 1 || mesNro > 12) return;
+            const period = `${anioActual}${String(mesNro).padStart(2, '0')}`;
+            if (vgmPeriodsWithData.has(period)) return;
+            const rawFamily = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
+            const family = rawFamily === 'CAMPANA' ? 'NUBE'
+              : (rawFamily === 'FE' || rawFamily === 'NUBE' || rawFamily === 'CONTADOR') ? rawFamily
+              : String(r.tipo_producto1 || '').toUpperCase().trim() === 'CAMPANA' ? 'NUBE'
+              : rawFamily;
+            if (!family) return;
+            const asesor = normalizeComparableText(r.asesor);
+            const key = `${period}::${asesor}::${family}`;
+            const uds = Math.round(Number(r.ventas) || 0);
+            const acv = Math.round(Number(r.acv_total) || 0);
+            const prev = vmaHistoryByPeriodFamily.get(key);
+            if (!prev || uds > prev.uds) vmaHistoryByPeriodFamily.set(key, { uds, acv });
+          });
+          vmaHistoryByPeriodFamily.forEach((value, key) => {
+            const [period, , family] = key.split('::');
+            const cur = ejecByPeriod.get(period) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            if (family === 'FE') cur.fe += value.uds;
+            else if (family === 'NUBE') cur.nube += value.uds;
+            cur.total += value.uds;
+            cur.acv += value.acv;
+            ejecByPeriod.set(period, cur);
+            vmaPeriodsWithData.add(period);
+          });
 
           // Para periodos SIN data en vgm, usar ventas_diarias o ejecucion_asesores
           const ventasBaseForHistory = vnVentasDiariasRows.length > 0
@@ -1433,17 +1464,19 @@ export const useGamificationMetrics = (
             // SP del mes (cap por componente, sin %Uds)
             const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
             const spMes = cap(pctFeFinal) + cap(pctNubeFinal) * 2 + cap(pctAcvFinal);
-            // Si el gerente NO operó ese mes (sin metas en ninguna familia ni ACV),
-            // mostramos 0 en ventas para no traer datos heredados de la célula.
+            // Si no hay meta cargada pero sí existe ejecución histórica exacta del
+            // equipo, mostrar la venta real y dejar porcentajes/SP en cero.
             const sinMeta = mFe <= 0 && mNube <= 0 && mTotal <= 0 && metaAcvFinal <= 0;
+            const hasExecution = ej.fe > 0 || ej.nube > 0 || ej.total > 0 || acvFinal > 0;
+            const hideExecution = sinMeta && !hasExecution;
             return {
               ...base,
-              acv: sinMeta ? 0 : acvFinal,
+              acv: hideExecution ? 0 : acvFinal,
               meta: metaAcvFinal,
               pct: pctAcvFinal,
-              ventas_fe: sinMeta ? 0 : ej.fe,
-              ventas_nube: sinMeta ? 0 : ej.nube,
-              ventas_total: sinMeta ? 0 : ej.total,
+              ventas_fe: hideExecution ? 0 : ej.fe,
+              ventas_nube: hideExecution ? 0 : ej.nube,
+              ventas_total: hideExecution ? 0 : ej.total,
               meta_fe: mFe,
               meta_nube: mNube,
               meta_total: mTotal,
