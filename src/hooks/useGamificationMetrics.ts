@@ -1572,79 +1572,103 @@ export const useGamificationMetrics = (
           // mes_nro derivado del periodo seleccionado (mesActual = YYYYMM), no del reloj del navegador
           const mesActualNro = parseInt(mesActual.slice(4), 10);
           const ventasPorAsesor = new Map<string, {fe:number; nube:number; total:number; acv:number}>();
-          // FUENTE ÚNICA: vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
-          // NO usar ventas_diarias (tiene filas diarias → suma incorrecta)
-          const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
 
-          // DEDUP: la tabla puede tener filas duplicadas para el mismo asesor cuando
-          // el campo `gerente` viene con dos variantes ("Diana Naranjo" vs "Diana Maria
-          // Naranjo Mattheus"). Como `gerente_normalizado` también difiere, ambas filas
-          // pasan los filtros. Dedup por (asesor, tipo_producto1) tomando MAX(ventas/acv).
-          const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
+          // ¿El periodo seleccionado corresponde al mes calendario actual?
+          const nowReal = new Date();
+          const isCurrentRealMonth =
+            anioActual === nowReal.getFullYear() &&
+            mesActualNro === nowReal.getMonth() + 1;
+
           const metaKeys = [...metasPorAsesor.keys()];
           const resolveTeamAsesorKey = (rawKey: string) => {
             if (!rawKey || metasPorAsesor.size === 0 || metasPorAsesor.has(rawKey)) return rawKey;
             const matched = metaKeys.find((metaKey) => matchesNormalizedPerson(rawKey, new Set([metaKey])));
             return matched || rawKey;
           };
-          vnAsesorData
-            .filter((r: any) => Number(r.mes_nro) === mesActualNro)
-            .forEach((r: any) => {
-              const rawKey = normalizeComparableText(r.asesor ?? '');
-              const key = resolveTeamAsesorKey(rawKey);
-              if (!rawKey || key === gerenteKey) return;
-              if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
-              const resolvedFam =
-                resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
-                resolveProductFamily(r.familia, r.pais || profile.pais);
-              const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
-              // Fallback robusto: si resolveProductFamily falla, usa contains sobre el
-              // string crudo (ej. "FE ILI", "NUBE PYME", "CAMPAÑA POS").
-              let tipo: string = resolvedFam || '';
-              if (!tipo) {
-                if (famRaw === 'FE' || famRaw.startsWith('FE ') || famRaw.includes('FACTURA')) tipo = 'FE';
-                else if (famRaw === 'NUBE' || famRaw.startsWith('NUBE') || famRaw === 'CAMPANA' || famRaw.startsWith('CAMPAN')) tipo = 'NUBE';
-                else tipo = famRaw;
-              }
-              // Granularidad por tipo_producto1 para no colisionar dedupKey entre
-              // dos SKUs distintos del mismo asesor que mapean a la misma familia.
-              const granKey = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
-              const dedupKey = `${key}|${tipo}|${granKey}`;
-              const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
-              const acv = Math.round(Number(r.acv_total) || 0);
-              const prev = dedupAsesor.get(dedupKey);
-              if (!prev || uds > prev.uds) {
-                dedupAsesor.set(dedupKey, { uds, acv, tipo, key });
-              }
-            });
 
-          dedupAsesor.forEach(({ uds, acv, tipo, key }) => {
-            const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
-            if (tipo === 'FE')                          cur.fe   += uds;
-            if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
-            cur.total += uds;
-            cur.acv   += acv;
-            ventasPorAsesor.set(key, cur);
+          // FUENTE DE VERDAD PARA EL MES EN CURSO: ventas_diarias (las mismas que
+          // alimentan el Panel General). Para meses cerrados usamos
+          // vn_metricas_optimizadas (acumulados consolidados por Databricks).
+          const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
+          const mesStart = `${anioActual}-${String(mesActualNro).padStart(2,'0')}-01`;
+          const nextMesNro = mesActualNro === 12 ? 1 : mesActualNro + 1;
+          const nextMesAnio = mesActualNro === 12 ? anioActual + 1 : anioActual;
+          const mesEnd = `${nextMesAnio}-${String(nextMesNro).padStart(2,'0')}-01`;
+
+          const diariasDelMes = vnVentasDiariasRows.filter((row: any) => {
+            const fecha = String(row.fecha || '');
+            return fecha >= mesStart && fecha < mesEnd;
           });
 
-          // Fallback: si Databricks aún no publicó los datos del mes en
-          // vn_metricas_optimizadas, tomar ventas del día desde ventas_diarias
-          const vnAsesorHasCurrentMonth = vnAsesorData.some(
-            (r: any) => Number(r.mes_nro) === mesActualNro
-          );
-          if (!vnAsesorHasCurrentMonth && vnVentasDiariasRows.length > 0) {
-            const mesStart = `${anioActual}-${String(mesActualNro).padStart(2,'0')}-01`;
-            const nextMesNro = mesActualNro === 12 ? 1 : mesActualNro + 1;
-            const nextMesAnio = mesActualNro === 12 ? anioActual + 1 : anioActual;
-            const mesEnd = `${nextMesAnio}-${String(nextMesNro).padStart(2,'0')}-01`;
-            vnVentasDiariasRows
-              .filter((row: any) => {
-                const fecha = String(row.fecha || '');
-                return fecha >= mesStart && fecha < mesEnd;
-              })
-              .forEach((row: any) => {
-                const key = normalizeComparableText(row.asesor ?? '');
-                if (!key || key === gerenteKey) return;
+          const useDiarias = isCurrentRealMonth && diariasDelMes.length > 0;
+
+          if (useDiarias) {
+            diariasDelMes.forEach((row: any) => {
+              const rawKey = normalizeComparableText(row.asesor ?? '');
+              const key = resolveTeamAsesorKey(rawKey);
+              if (!rawKey || key === gerenteKey) return;
+              const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
+                          || String(row.tipo_producto || '').toUpperCase().trim();
+              const tipo = fam === 'CAMPANA' ? 'NUBE' : fam;
+              const uds = Math.round(Number(row.unidades) || 0);
+              const acv = Math.round(Number(row.acv) || 0);
+              const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+              if (tipo === 'FE') cur.fe += uds;
+              if (tipo === 'NUBE' || tipo === 'CAMPANA') cur.nube += uds;
+              cur.total += uds;
+              cur.acv += acv;
+              ventasPorAsesor.set(key, cur);
+            });
+          } else {
+            // Meses cerrados o sin ventas_diarias publicadas: usar vn_metricas_optimizadas.
+            // DEDUP por (asesor, familia, tipo_producto1) para evitar duplicados de Databricks.
+            const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
+            vnAsesorData
+              .filter((r: any) => Number(r.mes_nro) === mesActualNro)
+              .forEach((r: any) => {
+                const rawKey = normalizeComparableText(r.asesor ?? '');
+                const key = resolveTeamAsesorKey(rawKey);
+                if (!rawKey || key === gerenteKey) return;
+                if (metasPorAsesor.size > 0 && !metasPorAsesor.has(key)) return;
+                const resolvedFam =
+                  resolveProductFamily(r.tipo_producto1, r.pais || profile.pais) ||
+                  resolveProductFamily(r.familia, r.pais || profile.pais);
+                const famRaw = String(r.familia ?? r.tipo_producto1 ?? '').toUpperCase().trim();
+                let tipo: string = resolvedFam || '';
+                if (!tipo) {
+                  if (famRaw === 'FE' || famRaw.startsWith('FE ') || famRaw.includes('FACTURA')) tipo = 'FE';
+                  else if (famRaw === 'NUBE' || famRaw.startsWith('NUBE') || famRaw === 'CAMPANA' || famRaw.startsWith('CAMPAN')) tipo = 'NUBE';
+                  else tipo = famRaw;
+                }
+                const granKey = String(r.tipo_producto1 ?? r.familia ?? '').toUpperCase().trim();
+                const dedupKey = `${key}|${tipo}|${granKey}`;
+                const uds = Math.round(Number(r.total_productos ?? r.ventas) || 0);
+                const acv = Math.round(Number(r.acv_total) || 0);
+                const prev = dedupAsesor.get(dedupKey);
+                if (!prev || uds > prev.uds) {
+                  dedupAsesor.set(dedupKey, { uds, acv, tipo, key });
+                }
+              });
+
+            dedupAsesor.forEach(({ uds, acv, tipo, key }) => {
+              const cur = ventasPorAsesor.get(key) || {fe:0, nube:0, total:0, acv:0};
+              if (tipo === 'FE')                          cur.fe   += uds;
+              if (tipo === 'NUBE' || tipo === 'CAMPANA')  cur.nube += uds;
+              cur.total += uds;
+              cur.acv   += acv;
+              ventasPorAsesor.set(key, cur);
+            });
+
+            // Si vn_metricas_optimizadas no tiene el mes seleccionado pero
+            // ventas_diarias sí, usar ventas_diarias como respaldo.
+            const vnAsesorHasMonth = vnAsesorData.some(
+              (r: any) => Number(r.mes_nro) === mesActualNro
+            );
+            if (!vnAsesorHasMonth && diariasDelMes.length > 0) {
+              diariasDelMes.forEach((row: any) => {
+                const rawKey = normalizeComparableText(row.asesor ?? '');
+                const key = resolveTeamAsesorKey(rawKey);
+                if (!rawKey || key === gerenteKey) return;
                 const fam = resolveProductFamily(row.producto, row.pais || profile.pais)
                             || String(row.tipo_producto || '').toUpperCase().trim();
                 const tipo = fam === 'CAMPANA' ? 'NUBE' : fam;
@@ -1657,6 +1681,7 @@ export const useGamificationMetrics = (
                 cur.acv += acv;
                 ventasPorAsesor.set(key, cur);
               });
+            }
           }
 
           const currentMonthProd = vnCelulaRows.filter((r: any) => r.anio_mes === mesActual);
