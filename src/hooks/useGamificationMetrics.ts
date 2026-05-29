@@ -547,17 +547,13 @@ export const useGamificationMetrics = (
                 // "México" vs "Mexico"). Filtramos por canal+pais y dejamos que el
                 // matchVnRow client-side (normalizado sin acentos) haga el match
                 // exacto por celula o nombre. Esto generaliza para CUALQUIER gerente VN.
-                // Traemos TODO el año (no solo mes actual) para alimentar el
-                // historial mensual con split FE/Nube cuando vgm / scope=gerente
-                // no tengan datos (caso MEX VN meses Feb-Abr).
                 let q = supabase
                   .from('vn_metricas_optimizadas' as any)
                   .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_responsable:gerente, gerente_normalizado, asesor, tipo_producto1, familia, ventas, acv_total')
                   .eq('scope', 'asesor')
                   .eq('anio', anioActual)
-                  .gte('mes_nro', 1)
-                  .lte('mes_nro', 12)
-                  .limit(20000);
+                  .eq('mes_nro', mesIdx + 1)
+                  .limit(8000);
                 if (profile.pais) q = q.eq('pais', String(profile.pais).toUpperCase());
                 return q;
               })()
@@ -1381,52 +1377,6 @@ export const useGamificationMetrics = (
             cur.acv += Math.round(Number(e.acv) || 0);
             ejecByPeriod.set(period, cur);
           });
-
-          // Fallback intermedio: vn_metricas_optimizadas scope=asesor agregado por
-          // celula+periodo+familia. Aporta split FE/Nube en meses donde ni vgm ni
-          // scope=gerente tienen datos pero scope=asesor sí (caso MEX VN Feb-Abr).
-          // Deduplicamos por (asesor, periodo, familia) tomando el máximo para
-          // tolerar variantes del nombre del gerente.
-          {
-            const vmaAsesorAll: any[] = (vnMetricasAsesorRes?.data as any[]) || [];
-            const vmaDedup = new Map<string, { period: string; uds: number; acv: number; fam: string }>();
-            vmaAsesorAll.forEach((r: any) => {
-              const mesNro = Number(r.mes_nro);
-              if (!mesNro || mesNro < 1 || mesNro > 12) return;
-              const period = `${anioActual}${String(mesNro).padStart(2, '0')}`;
-              const famRaw = String(r.familia || r.tipo_producto1 || '').toUpperCase().trim();
-              if (!famRaw) return;
-              const fam = famRaw === 'CAMPANA' ? 'NUBE'
-                        : (famRaw === 'FE' || famRaw === 'NUBE' || famRaw === 'CONTADOR') ? famRaw
-                        : 'OTRO';
-              const asesor = String(r.asesor || '').trim().toLowerCase();
-              const key = `${asesor}::${period}::${fam}`;
-              const uds = Math.round(Number(r.ventas) || 0);
-              const acvV = Math.round(Number(r.acv_total) || 0);
-              const prev = vmaDedup.get(key);
-              if (!prev || uds > prev.uds) vmaDedup.set(key, { period, uds, acv: acvV, fam });
-            });
-            const vmaByPeriod = new Map<string, { fe: number; nube: number; total: number; acv: number }>();
-            vmaDedup.forEach((v) => {
-              const cur = vmaByPeriod.get(v.period) || { fe: 0, nube: 0, total: 0, acv: 0 };
-              if (v.fam === 'FE') cur.fe += v.uds;
-              else if (v.fam === 'NUBE') cur.nube += v.uds;
-              cur.total += v.uds;
-              cur.acv += v.acv;
-              vmaByPeriod.set(v.period, cur);
-            });
-            vmaByPeriod.forEach((v, period) => {
-              const existing = ejecByPeriod.get(period);
-              const hasSplit = !!existing && (existing.fe + existing.nube) > 0;
-              if (hasSplit) return; // ya cubierto por vgm o scope=gerente
-              ejecByPeriod.set(period, {
-                fe: v.fe,
-                nube: v.nube,
-                total: v.total || (existing?.total || 0),
-                acv: v.acv || (existing?.acv || 0),
-              });
-            });
-          }
 
           // Último fallback: productividad_asesores agregada por celula+periodo.
           // Cubre meses donde Databricks aún no envió ventas a vn_metricas_optimizadas /
