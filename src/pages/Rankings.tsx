@@ -186,6 +186,45 @@ const aggregateVgmRowsByCelula = (rows: any[], currentMonth: string) => {
   return byCelula;
 };
 
+const computeSpFromVnMetricRows = (rows: any[], metaRows: any[], celulaValue: string, year: number) => {
+  const celulaKey = normalizeComparableText(celulaValue);
+  if (!celulaKey) return 0;
+  const mesToNum: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
+  const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
+  const metas = new Map<string, { fe: number; nube: number; acv: number; archivo: string }>();
+  metaRows.filter((r: any) => normalizeComparableText(r.celula) === celulaKey).forEach((r: any) => {
+    const mm = mesToNum[String(r.mes || '').trim().toLowerCase().slice(0, 3)];
+    if (!mm) return;
+    const periodo = `${year}${mm}`;
+    const archivo = String(r.archivo || '').toLowerCase();
+    const prev = metas.get(periodo);
+    if (!prev || (archivo.includes('cierre') && !prev.archivo.includes('cierre'))) {
+      metas.set(periodo, { fe: Number(r.meta_fe) || 0, nube: Number(r.meta_nube) || 0, acv: Number(r.meta_total_acv) || 0, archivo });
+    }
+  });
+  const ejec = new Map<string, { fe: number; nube: number; acv: number }>();
+  rows.filter((r: any) => normalizeComparableText(r.celula) === celulaKey).forEach((r: any) => {
+    const periodo = String(r.periodo || (r.mes_nro ? `${year}${String(r.mes_nro).padStart(2, '0')}` : ''));
+    if (!periodo.startsWith(String(year))) return;
+    const familiaRaw = String(r.familia || '').toUpperCase().trim();
+    const tipoRaw = String(r.tipo_producto1 || '').toUpperCase().trim();
+    const tipo = familiaRaw && familiaRaw !== 'OTRO' ? familiaRaw : tipoRaw;
+    const fam = tipo === 'CAMPANA' || tipo === 'CAMPAÑA' ? 'NUBE' : tipo;
+    if (fam !== 'FE' && fam !== 'NUBE') return;
+    const cur = ejec.get(periodo) || { fe: 0, nube: 0, acv: 0 };
+    if (fam === 'FE') cur.fe += Math.round(Number(r.ventas) || 0);
+    if (fam === 'NUBE') cur.nube += Math.round(Number(r.ventas) || 0);
+    cur.acv += Math.round(Number(r.acv_total) || 0);
+    ejec.set(periodo, cur);
+  });
+  let total = 0;
+  ejec.forEach((e, periodo) => {
+    const m = metas.get(periodo) || { fe: 0, nube: 0, acv: 0 };
+    total += capPct(m.fe > 0 ? (e.fe / m.fe) * 100 : 0) + capPct(m.nube > 0 ? (e.nube / m.nube) * 100 : 0) * 2 + capPct(m.acv > 0 ? (e.acv / m.acv) * 100 : 0);
+  });
+  return total;
+};
+
 const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
   if (!gerenteIds.length) return [] as any[];
 
