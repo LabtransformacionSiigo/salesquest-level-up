@@ -156,6 +156,7 @@ export function computeSpConvencionAnualForCelula(
   const metricRowsByPeriodFamily = new Map<string, { periodo: string; familia: string; unidades: number; acv: number }>();
   const metricHasAdvisorDetail = metricBase.some((row) => Boolean(String(row.asesor || '').trim()));
   metricBase.forEach((row) => {
+    if (metricHasAdvisorDetail && !String(row.asesor || '').trim()) return;
     const periodo = String(row.periodo || (row.mes_nro ? `${year}${String(row.mes_nro).padStart(2, '0')}` : ''));
     if (!/^\d{6}$/.test(periodo)) return;
     const familiaRaw = String(row.familia || '').toUpperCase().trim();
