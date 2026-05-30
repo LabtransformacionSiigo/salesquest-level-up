@@ -403,10 +403,19 @@ export const useGamificationMetrics = (
             : supabase.from('gerentes').select('id, sp_canje'),
           /* 12 – ejecucion_asesores for VN (gerente OR asesor) - ALL months this year */
           isVN
-            ? supabase.from('ejecucion_asesores').select('*')
-                .gte('periodo', `${anioActual}01`)
-                .lte('periodo', `${anioActual}12`)
-                .limit(10000)
+            ? (() => {
+                let q = supabase.from('ejecucion_asesores').select('*')
+                  .gte('periodo', `${anioActual}01`)
+                  .lte('periodo', `${anioActual}12`);
+                // MEX tiene suficientes filas históricas para recortar el resultado
+                // genérico de 10k antes de llegar al mes actual. Filtramos solo MEX
+                // por país/canal para que Avance del Equipo reciba las ventas reales.
+                if (String(profile.pais || '').toUpperCase() === 'MEX') {
+                  q = q.eq('pais', 'MEX');
+                  if (canalNorm) q = q.eq('canal_direccion', canalNorm);
+                }
+                return q.limit(10000);
+              })()
             : Promise.resolve({ data: [] }),
           /* 13 – metas_asesores for VN asesor role */
           isVN && profile.role === 'asesor'
