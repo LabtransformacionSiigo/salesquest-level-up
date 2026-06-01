@@ -11,6 +11,8 @@ import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
 import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, normalizeSpText } from '@/lib/sp-convencion-anual';
 import { getNivelData } from '@/lib/niveles';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -193,6 +195,9 @@ const Rankings = () => {
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
+  const spAnualStore = useSpConvencionAnual();
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
 
   const fetchRanking = async () => {
     if (!profile?.canal) return;
