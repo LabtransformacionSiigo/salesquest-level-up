@@ -629,7 +629,7 @@ const Retos = () => {
           <p className="text-sm font-bold text-foreground">{racha.nombre}</p>
           <p className="text-xs text-muted-foreground">{racha.dias_consecutivos_requeridos} días consecutivos · x{racha.multiplicador} SP</p>
           <div className="flex gap-1 mt-1.5 flex-wrap">
-            {(racha.paises || []).map((p: string) => (
+            {(racha.paises || []).filter((p: string) => !profile?.pais || String(p).toUpperCase() === String(profile.pais).toUpperCase()).map((p: string) => (
               <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
             ))}
           </div>
