@@ -1,5 +1,5 @@
 // Sync VN México 2026 desde Databricks (tbl_gld_Ventas_MX)
-// Mapeo especial: CAMPANA → NUBE, FE → FE, CONTADOR → CONTADOR.
+// Mapeo especial: CAMPANA → NUBE, FE → FE, CONTADOR → NUBE (México no tiene familia CONTADOR).
 // Reemplaza ventas_diarias y ventas_gerente_mensual de VN MEX para todo el año en curso.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -101,13 +101,14 @@ async function runDatabricks(sql: string) {
 const norm = (s: any) =>
   String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
 
-// Mapeo MEX: CAMPANA → NUBE, FE → FE, CONTADOR → CONTADOR
+// Mapeo MEX: CAMPANA → NUBE, FE → FE, CONTADOR → NUBE.
+// No se permite familia CONTADOR para México: las metas oficiales solo tienen FE/NUBE.
 function classifyFamilyMX(tipo: any): string {
   const t = norm(tipo);
   if (!t) return "OTRO";
   if (t === "FE" || t.startsWith("FE") || t.includes("FACTURA")) return "FE";
   if (t === "CAMPANA" || t === "CAMPAÑA" || t.includes("CAMPAN") || t.includes("NUBE") || t.includes("CLOUD")) return "NUBE";
-  if (t === "CONTADOR" || t.includes("CONTADOR")) return "CONTADOR";
+  if (t === "CONTADOR" || t.includes("CONTADOR")) return "NUBE";
   return "OTRO";
 }
 
@@ -287,11 +288,13 @@ Deno.serve(async (req) => {
     const { data: metasMx } = await sb
       .from("metas_acv_gerentes")
       .select("celula, mes, meta_total_und, meta_total_acv")
-      .eq("pais", "Mexico");
+      .in("pais", ["MEX", "Mexico", "México"]);
 
     const MES_NUM: Record<string, string> = {
-      enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06",
-      julio: "07", agosto: "08", septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+      ene: "01", enero: "01", feb: "02", febrero: "02", mar: "03", marzo: "03",
+      abr: "04", abril: "04", may: "05", mayo: "05", jun: "06", junio: "06",
+      jul: "07", julio: "07", ago: "08", agosto: "08", sep: "09", septiembre: "09",
+      oct: "10", octubre: "10", nov: "11", noviembre: "11", dic: "12", diciembre: "12",
     };
     const metaByKey = new Map<string, { und: number; acv: number }>();
     for (const m of (metasMx || [])) {
