@@ -860,12 +860,8 @@ const Rankings = () => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
             const gerenteDisplayName = gerenteInfo?.nombre || agg.gerente || agg.celulaNombre;
-            const isCurrentProfileCelula = profile?.role !== 'asesor' && (
-              normalizeComparableText(profile?.celula) === celulaKey ||
-              normalizePersonName(profile?.nombre) === normalizePersonName(gerenteDisplayName)
-            );
-            const spFinalCalculated = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
-            const spFinal = isCurrentProfileCelula && currentUserAnnualSp != null ? currentUserAnnualSp : spFinalCalculated;
+            // Clasificación única para todos los usuarios: cálculo determinístico por célula.
+            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
               productivityRows: [],
