@@ -48,12 +48,31 @@ const Premios = () => {
         supabase.from('premios').select('*').eq('activo', true).gt('stock', 0).order('costo_puntos', { ascending: true }),
         supabase.from('canjes').select('id, puntos_gastados, fecha_canje, estado, premios(nombre, imagen_url)').eq('gerente_id', profile.id).order('fecha_canje', { ascending: false }),
       ]);
-      const norm = (v?: string | null) => String(v || '').trim().toUpperCase();
+      const norm = (v?: string | null) => String(v || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .trim().toUpperCase();
+      // Map free-text "operacion" (admin form) → canal code (profile.canal)
+      const operacionToCanal = (op?: string | null): string | null => {
+        const o = norm(op);
+        if (!o) return null;
+        if (o.includes('CRUZADA')) return 'VC';
+        if (o.includes('NUEVA')) {
+          if (o.includes('ALIADO')) return 'VN_ALIADOS';
+          if (o.includes('EMPRESARIO')) return 'VN_EMPRESARIOS';
+          return 'VN'; // genérico → ambos VN
+        }
+        // Si ya viene como código exacto
+        if (['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'].includes(o)) return o;
+        return o;
+      };
       const userPais = norm(profile?.pais);
       const userCanal = norm(profile?.canal);
       const scoped = ((premiosRes.data || []) as Premio[]).filter((p) => {
         const paisOk = !p.pais || norm(p.pais) === userPais;
-        const canalOk = !p.operacion || norm(p.operacion) === userCanal;
+        const canalCode = operacionToCanal(p.operacion);
+        const canalOk = !canalCode
+          || canalCode === userCanal
+          || (canalCode === 'VN' && userCanal.startsWith('VN_'));
         return paisOk && canalOk;
       });
       setPremios(scoped);
