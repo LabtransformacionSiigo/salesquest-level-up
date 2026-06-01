@@ -120,11 +120,7 @@ function normalizeCanalMX(equipo: any): string {
   return "Aliados";
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-
-  try {
+async function executeSync(sb: any) {
     console.log("→ Ejecutando query Databricks MX…");
     const rows = await runDatabricks(QUERY);
     console.log(`← ${rows.length} filas MX recibidas`);
@@ -354,17 +350,38 @@ Deno.serve(async (req) => {
     }
     console.log(`✓ kpis_mensuales MX upserted: ${kpisUpserted}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        pais: "MEX",
-        rows_dbx: rows.length,
-        ventas_diarias_insertadas: inserted,
-        ventas_gerente_mensual_insertadas: aggRows.length,
-        kpis_mensuales_upserted: kpisUpserted,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return {
+      success: true,
+      pais: "MEX",
+      rows_dbx: rows.length,
+      ventas_diarias_insertadas: inserted,
+      ventas_gerente_mensual_insertadas: aggRows.length,
+      kpis_mensuales_upserted: kpisUpserted,
+    };
+
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body?.async === true) {
+      EdgeRuntime.waitUntil(
+        executeSync(sb)
+          .then((result) => console.log("✓ sync-vn-mexico async terminado", JSON.stringify(result)))
+          .catch((error) => console.error("ERROR async sync-vn-mexico:", error?.message || String(error))),
+      );
+
+      return new Response(
+        JSON.stringify({ success: true, accepted: true, mode: "async", pais: "MEX" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const result = await executeSync(sb);
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e: any) {
     console.error("ERROR:", e);
