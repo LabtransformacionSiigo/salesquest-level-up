@@ -245,12 +245,16 @@ Deno.serve(async (req) => {
       gerentesByCelula.get(ck)!.push(g);
     }
 
-    // Para cada célula: el "líder" es quien NO aparezca como asesor; el resto recibe 0.
+    // Para cada célula: el líder oficial es quien da nombre a la célula
+    // (ej. "Equipo México Julio" → Julio Cesar). Fallback: quien NO aparezca como asesor.
     const lideresPorCelula = new Map<string, string>(); // celula -> gerente.id
     for (const [ck, lista] of gerentesByCelula.entries()) {
       const asesoresSet = asesorNamesByCelula.get(ck) || new Set<string>();
-      const lider =
-        lista.find((g) => !asesoresSet.has(norm(g.nombre))) || lista[0];
+      const liderPorNombreCelula = lista.find((g) => {
+        const firstName = norm(g.nombre).split(' ')[0];
+        return firstName && ck.includes(firstName);
+      });
+      const lider = liderPorNombreCelula || lista.find((g) => !asesoresSet.has(norm(g.nombre))) || lista[0];
       lideresPorCelula.set(ck, lider.id);
     }
 

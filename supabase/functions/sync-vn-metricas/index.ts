@@ -152,7 +152,8 @@ function classifyFamily(tipo: any): string {
   const t = norm(tipo);
   if (t.includes("FE") || t.includes("FACTURA")) return "FE";
   if (t.includes("NUBE") || t.includes("CLOUD") || t.includes("CAMPAN")) return "NUBE";
-  if (t.includes("CONTADOR") || t.includes("SCO")) return "CONTADOR";
+  // México no tiene familia CONTADOR en Convención VN; se mide contra meta NUBE.
+  if (t.includes("CONTADOR") || t.includes("SCO")) return "NUBE";
   return "OTRO";
 }
 
