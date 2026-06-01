@@ -11,6 +11,8 @@ import { normalizePersonName } from '@/lib/vc-advisor-metrics';
 import { buildVnConventionMonthlyRows, normalizeStoredAcv, normalizeVnMetaAcv } from '@/lib/vn-convention';
 import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, normalizeSpText } from '@/lib/sp-convencion-anual';
 import { getNivelData } from '@/lib/niveles';
+import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
+import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -193,6 +195,9 @@ const Rankings = () => {
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
+  const spAnualStore = useSpConvencionAnual();
+  const spAnualSelf = useSpConvencionAnualSelf(profile);
+  const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
 
   const fetchRanking = async () => {
     if (!profile?.canal) return;
@@ -791,9 +796,13 @@ const Rankings = () => {
           const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
           const pctFeMes = currentMetaFe > 0 ? capPct((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
-          // SP Convención = MISMO cálculo que MiPerformance:
-          // ventas_gerente_mensual + metas_asesores + metas_acv_gerentes (por celula).
-          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
+          // Para el usuario logueado, usar exactamente el total anual compartido por Mi Progreso/Header.
+          const isCurrentProfileCelula = profile?.role !== 'asesor' && (
+            normalizeComparableText(profile?.celula) === celula ||
+            normalizePersonName(profile?.nombre) === normalizePersonName(gerenteDisplayName)
+          );
+          const spFinalCalculated = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
+          const spFinal = isCurrentProfileCelula && currentUserAnnualSp != null ? currentUserAnnualSp : spFinalCalculated;
           entries.push({
             id: celula,
             nombre: gerenteDisplayName,
@@ -854,7 +863,13 @@ const Rankings = () => {
           mexCelulaMap.forEach((agg, celulaKey) => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
-            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteInfo?.nombre || agg.gerente);
+            const gerenteDisplayName = gerenteInfo?.nombre || agg.gerente || agg.celulaNombre;
+            const isCurrentProfileCelula = profile?.role !== 'asesor' && (
+              normalizeComparableText(profile?.celula) === celulaKey ||
+              normalizePersonName(profile?.nombre) === normalizePersonName(gerenteDisplayName)
+            );
+            const spFinalCalculated = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
+            const spFinal = isCurrentProfileCelula && currentUserAnnualSp != null ? currentUserAnnualSp : spFinalCalculated;
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
               productivityRows: [],
@@ -885,7 +900,7 @@ const Rankings = () => {
             const pctNubeMx = mxMetaNube > 0 && agg.nubeMes > 0 ? capPct((agg.nubeMes / mxMetaNube) * 100) : 0;
             entries.push({
               id: celulaKey,
-              nombre: gerenteInfo?.nombre || agg.gerente || agg.celulaNombre,
+              nombre: gerenteDisplayName,
               celula_nombre: agg.celulaNombre,
               canal: profile.canal,
               pais: 'MEX',
@@ -955,7 +970,7 @@ const Rankings = () => {
       supabase.removeChannel(channel);
       clearInterval(refreshInterval);
     };
-  }, [isAuthenticated, profile?.canal, tab, profile?.nombre, profile?.role, userPais]);
+  }, [isAuthenticated, profile?.canal, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
