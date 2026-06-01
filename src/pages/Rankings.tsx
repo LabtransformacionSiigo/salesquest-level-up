@@ -796,13 +796,9 @@ const Rankings = () => {
           const capPct = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
           const pctFeMes = currentMetaFe > 0 ? capPct((currentFe / currentMetaFe) * 100) : 0;
           const pctNubeMes = currentMetaNube > 0 ? capPct((currentNube / currentMetaNube) * 100) : 0;
-          // Para el usuario logueado, usar exactamente el total anual compartido por Mi Progreso/Header.
-          const isCurrentProfileCelula = profile?.role !== 'asesor' && (
-            normalizeComparableText(profile?.celula) === celula ||
-            normalizePersonName(profile?.nombre) === normalizePersonName(gerenteDisplayName)
-          );
-          const spFinalCalculated = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
-          const spFinal = isCurrentProfileCelula && currentUserAnnualSp != null ? currentUserAnnualSp : spFinalCalculated;
+          // Clasificación: SIEMPRE usar el cálculo determinístico por célula para que el
+          // ranking sea idéntico para todos los usuarios (no depende de quién inicia sesión).
+          const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
           entries.push({
             id: celula,
             nombre: gerenteDisplayName,
@@ -864,12 +860,8 @@ const Rankings = () => {
             if (existingCelulaKeys.has(celulaKey)) return;
             const gerenteInfo = gerentesByCelula.get(celulaKey);
             const gerenteDisplayName = gerenteInfo?.nombre || agg.gerente || agg.celulaNombre;
-            const isCurrentProfileCelula = profile?.role !== 'asesor' && (
-              normalizeComparableText(profile?.celula) === celulaKey ||
-              normalizePersonName(profile?.nombre) === normalizePersonName(gerenteDisplayName)
-            );
-            const spFinalCalculated = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
-            const spFinal = isCurrentProfileCelula && currentUserAnnualSp != null ? currentUserAnnualSp : spFinalCalculated;
+            // Clasificación única para todos los usuarios: cálculo determinístico por célula.
+            const spFinal = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
               productivityRows: [],
