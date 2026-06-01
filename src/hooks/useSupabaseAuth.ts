@@ -57,6 +57,31 @@ const getCurrentConventionYear = () => new Date().getFullYear();
 const sumConventionRows = (rows: Array<{ sp?: number | null }> | null | undefined) =>
   (rows || []).reduce((total, row) => total + (Number(row.sp) || 0), 0);
 
+const getRealSpCanje = async (personId?: string | null, fallback = 0) => {
+  if (!personId) return fallback;
+
+  const [spRes, canjesRes] = await Promise.all([
+    supabase
+      .from('sp_acumulados')
+      .select('sp')
+      .eq('gerente_id', personId)
+      .eq('tipo_sp', 'canje'),
+    supabase
+      .from('canjes')
+      .select('puntos_gastados, estado')
+      .eq('gerente_id', personId),
+  ]);
+
+  if (spRes.error || canjesRes.error) return fallback;
+
+  const ganado = ((spRes.data as any[]) || []).reduce((sum, row) => sum + (Number(row.sp) || 0), 0);
+  const gastado = ((canjesRes.data as any[]) || [])
+    .filter((row) => row.estado !== 'rechazado')
+    .reduce((sum, row) => sum + (Number(row.puntos_gastados) || 0), 0);
+
+  return Math.max(ganado - gastado, 0);
+};
+
 const getVcMonthlyConventionTotal = (rows: Array<{ anio?: number | null; mes?: string | null; acv_plus?: number | null; meta?: number | null }> | null | undefined) => {
   const monthly = new Map<string, { acv: number; meta: number }>();
 
@@ -398,7 +423,10 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales, asesor.canal);
+          const [nivelData, spCanjeReal] = await Promise.all([
+            Promise.resolve(getNivelData(spTotales, asesor.canal)),
+            getRealSpCanje(asesor.id, asesor.sp_canje ?? 0),
+          ]);
 
           setProfile({
             id: asesor.id,
@@ -418,7 +446,7 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: 'asesor',
-             sp_canje: asesor.sp_canje ?? 0,
+             sp_canje: spCanjeReal,
              sp_convencion: spTotales,
              sp_periodo_actual: spPeriodoActual,
             canal_direccion: (asesor as any).canal_direccion ?? null,
@@ -641,7 +669,10 @@ export const useSupabaseAuth = () => {
             }
           }
 
-          const nivelData = getNivelData(spTotales, gerenteCanal);
+          const [nivelData, spCanjeReal] = await Promise.all([
+            Promise.resolve(getNivelData(spTotales, gerenteCanal)),
+            getRealSpCanje(gerenteId, (gerenteRes.data as any)?.sp_canje ?? 0),
+          ]);
 
           setProfile({
             id: data.id,
@@ -661,7 +692,7 @@ export const useSupabaseAuth = () => {
             sp_nivel_actual: nivelData.sp_nivel_actual,
             sp_siguiente_nivel: nivelData.sp_siguiente_nivel,
             role: userRole,
-             sp_canje: (gerenteRes.data as any)?.sp_canje ?? 0,
+             sp_canje: spCanjeReal,
               sp_convencion: spTotales,
              sp_periodo_actual: spPeriodoActual,
           });
