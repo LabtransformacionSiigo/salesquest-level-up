@@ -542,7 +542,7 @@ const Retos = () => {
             <p className={cn('text-sm font-bold', completed ? 'text-accent' : 'text-foreground')}>{reto.nombre}</p>
             <p className="text-xs text-muted-foreground">KPI: {reto.kpi}</p>
             <div className="flex gap-1 mt-1.5 flex-wrap">
-              {(reto.paises || []).map((p: string) => (
+              {(reto.paises || []).filter((p: string) => !profile?.pais || String(p).toUpperCase() === String(profile.pais).toUpperCase()).map((p: string) => (
                 <span key={p} className="text-[9px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{p}</span>
               ))}
               {(reto.fecha_inicio || reto.fecha_fin) && (
