@@ -166,7 +166,9 @@ Deno.serve(async (req) => {
     }
 
     // ── Fallback ventas_diarias para países sin transacciones VN en `ventas`:
-    // MEX, COL y ECU. Mapeamos por (pais, célula) → líder oficial.
+    // MEX, COL y ECU. Las metas en metas_acv_gerentes son a NIVEL DE CÉLULA,
+    // así que TODOS los gerentes del equipo comparten meta y resultado.
+    // Replicamos las ventas agregadas del equipo a cada miembro del equipo.
     const norm = (s: any) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
     const PAISES_VD_FALLBACK = ["MEX", "COL", "ECU"];
     const fbGerentes = gerentesArr.filter((g) => {
@@ -176,24 +178,11 @@ Deno.serve(async (req) => {
         (c === "VN_ALIADOS" || c === "VN_EMPRESARIOS" || p === "MEX");
     });
     if (fbGerentes.length > 0) {
-      const candByKey = new Map<string, any[]>(); // key = `${pais}||${celula}`
+      const gerentesByKey = new Map<string, any[]>(); // key = `${pais}||${celula_norm}`
       for (const g of fbGerentes) {
         const k = `${(g.pais || "").toUpperCase()}||${norm(g.celula)}`;
-        if (!candByKey.has(k)) candByKey.set(k, []);
-        candByKey.get(k)!.push(g);
-      }
-      const leaderByKey = new Map<string, any>();
-      for (const [k, cands] of candByKey) {
-        let leader = cands[0];
-        if (cands.length > 1) {
-          const celNorm = k.split("||")[1] || "";
-          const m = cands.find((c) => {
-            const fn = norm(c.nombre).split(" ")[0];
-            return fn && celNorm.includes(fn);
-          });
-          if (m) leader = m;
-        }
-        leaderByKey.set(k, leader);
+        if (!gerentesByKey.has(k)) gerentesByKey.set(k, []);
+        gerentesByKey.get(k)!.push(g);
       }
 
       for (const pais of PAISES_VD_FALLBACK) {
@@ -214,25 +203,27 @@ Deno.serve(async (req) => {
 
         for (const r of vd || []) {
           if (!r.celula) continue;
-          const leader = leaderByKey.get(`${pais}||${norm(r.celula)}`);
-          if (!leader) continue;
+          const teamGerentes = gerentesByKey.get(`${pais}||${norm(r.celula)}`) || [];
+          if (teamGerentes.length === 0) continue;
           const unidades = Math.max(1, Number(r.unidades) || 0);
           const acvUnit = (Number(r.acv) || 0) / unidades;
-          const arr = ventasByGerente.get(leader.id) || [];
           const producto = String(r.tipo_producto || "").toUpperCase();
-          for (let i = 0; i < unidades; i++) {
-            arr.push({
-              gerente_id: leader.id,
-              fecha_facturacion: r.fecha,
-              acv_plus: acvUnit,
-              producto,
-              categoria_producto_venta: producto,
-              bloque_venta: producto,
-              documento_factura: `VD-${pais}-${r.fecha}-${i}`,
-              canal: leader.canal,
-            });
+          for (const member of teamGerentes) {
+            const arr = ventasByGerente.get(member.id) || [];
+            for (let i = 0; i < unidades; i++) {
+              arr.push({
+                gerente_id: member.id,
+                fecha_facturacion: r.fecha,
+                acv_plus: acvUnit,
+                producto,
+                categoria_producto_venta: producto,
+                bloque_venta: producto,
+                documento_factura: `VD-${pais}-${r.fecha}-${i}`,
+                canal: member.canal,
+              });
+            }
+            ventasByGerente.set(member.id, arr);
           }
-          ventasByGerente.set(leader.id, arr);
         }
       }
     }
