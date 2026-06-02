@@ -557,9 +557,13 @@ Deno.serve(async (req) => {
         .upsert(insertsMedalla, { onConflict: "medalla_id,gerente_id", ignoreDuplicates: true });
       if (error) errores.push(`medallas: ${error.message}`);
     }
+    let spPersistidos = 0;
+    let spDeltaNeto = 0;
     if (spInserts.length > 0) {
-      // Idempotencia alineada al UNIQUE INDEX (gerente_id, fuente, periodo).
-      // Si la fila ya existe, la actualizamos con el SP más reciente (mismo día/sem/mes).
+      // La tabla sp_acumulados tiene una sola fila permitida por
+      // (gerente_id, fuente, periodo). Por eso agregamos TODOS los retos
+      // cumplidos del mismo día/semana/mes en una fila, en vez de intentar
+      // insertar una fila por reto y chocar con el índice único.
       const periodos = Array.from(new Set(spInserts.map((s) => s.periodo)));
       const { data: yaExistentes } = await supabase
         .from("sp_acumulados")
@@ -570,32 +574,43 @@ Deno.serve(async (req) => {
       for (const r of yaExistentes || []) {
         seenMap.set(`${r.gerente_id}::${r.fuente}::${r.periodo}`, Number(r.sp) || 0);
       }
-      // Deduplicar inserts por (gerente_id, fuente, periodo) tomando el máximo SP
-      const bestByKey = new Map<string, any>();
+      // Agregar SP por (gerente_id, fuente, periodo), preservando detalle auditable.
+      const aggregatedByKey = new Map<string, any>();
       for (const s of spInserts) {
         const k = `${s.gerente_id}::${s.fuente}::${s.periodo}`;
-        const prev = bestByKey.get(k);
-        if (!prev || s.sp > prev.sp) bestByKey.set(k, s);
+        const prev = aggregatedByKey.get(k);
+        if (!prev) {
+          aggregatedByKey.set(k, { ...s, detalle: s.detalle });
+        } else {
+          prev.sp += Number(s.sp) || 0;
+          prev.detalle = `${prev.detalle} | ${s.detalle}`;
+        }
       }
-      const nuevosSp: any[] = [];
+      const spRowsToUpsert: any[] = [];
       const deltasByGid = new Map<string, number>();
-      for (const [k, s] of bestByKey) {
+      for (const [k, s] of aggregatedByKey) {
         const prevSp = seenMap.get(k) || 0;
-        if (s.sp > prevSp) {
-          nuevosSp.push(s);
-          deltasByGid.set(s.gerente_id, (deltasByGid.get(s.gerente_id) || 0) + (s.sp - prevSp));
+        const nextSp = Number(s.sp) || 0;
+        const delta = nextSp - prevSp;
+        if (delta !== 0) {
+          spRowsToUpsert.push(s);
+          deltasByGid.set(s.gerente_id, (deltasByGid.get(s.gerente_id) || 0) + delta);
         }
       }
 
-      for (const c of chunk(nuevosSp)) {
+      for (const c of chunk(spRowsToUpsert)) {
         const { error } = await supabase
           .from("sp_acumulados")
           .upsert(c, { onConflict: "gerente_id,fuente,periodo" });
         if (error) errores.push(`sp_acumulados: ${error.message}`);
+        else spPersistidos += c.length;
       }
-      // Incrementar gerentes.sp_canje por el delta neto
+      // Ajustar gerentes.sp_canje por el delta neto, positivo o negativo.
       for (const [gid, tot] of deltasByGid.entries()) {
-        if (tot > 0) await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: tot });
+        if (tot !== 0) {
+          await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: tot });
+          spDeltaNeto += tot;
+        }
       }
     }
 
@@ -609,6 +624,8 @@ Deno.serve(async (req) => {
       rachas: upsertsRacha.length,
       medallas: insertsMedalla.length,
       sp_total: spInserts.reduce((s, x) => s + x.sp, 0),
+      sp_persistidos: spPersistidos,
+      sp_delta_neto: spDeltaNeto,
       errores,
       resultados,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
