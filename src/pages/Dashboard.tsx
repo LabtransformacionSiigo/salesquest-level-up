@@ -11,7 +11,7 @@ import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
-import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
+
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
@@ -201,7 +201,7 @@ const Dashboard = () => {
         <KpiProgressBars kpis={kpis} acvMes={acvMes} ventasSemana={ventasSemana} isVcAdvisor={isVcAdvisor} loading={dataLoading} pctCumplimiento={pctCumplimiento} sp={sp} canal={profile?.canal} pais={profile?.pais} ejecucion={metrics.ejecucion} metaAsesor={metrics.metaAsesor} isVCGerente={isVCGerente} teamAsesorPerformance={teamAsesorPerformance} vcCumplimiento={metrics.vcCumplimiento} periodoSeleccionado={periodoActivo || currentPeriodo} lastUpdated={metrics.lastUpdated} />
 
         {/* Racha + Top Pointers */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={fadeUpItem}>
+        <motion.div className="grid grid-cols-1 gap-5" variants={fadeUpItem}>
           {/* Racha */}
           <motion.div
             className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm"
@@ -239,14 +239,12 @@ const Dashboard = () => {
             )}
           </motion.div>
 
-          {/* Top Siigo Pointers */}
-          <TopSiigoPointers canal={profile?.canal ?? null} loading={dataLoading} isVC={profile?.canal === 'VC'} topRanking={topRanking} />
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}
-        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-5" variants={fadeUpItem}>
+        <motion.div className="grid grid-cols-1 gap-5" variants={fadeUpItem}>
           {/* Retos de la Semana */}
-          <motion.div className="lg:col-span-2 bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
+          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold font-heading text-secondary flex items-center gap-2">
                 <span className="text-primary">🎯</span> Retos de la Semana
@@ -318,45 +316,6 @@ const Dashboard = () => {
 
           </motion.div>
 
-          {/* Medallas + Reconocimientos stacked */}
-          <div className="space-y-5">
-
-            {/* Reconocimientos */}
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm"
-              variants={fadeUpItem}
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-            >
-              <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
-                <span className="text-primary">🎖️</span> Reconocimientos
-              </h3>
-              {dataLoading ? <Skeleton className="h-20" /> : feed.length > 0 ? (
-                <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
-                  {feed.slice(0, 3).map((r) => (
-                    <motion.div
-                      key={r.id}
-                      className="flex items-start gap-3 p-3"
-                      variants={fadeUpItem}
-                      whileHover={{ x: 4, transition: { duration: 0.15 } }}
-                    >
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">🏆</div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-foreground">
-                          <span className="font-bold">{r.de_nombre}</span> — <span className="font-bold">{r.para_nombre}</span>
-                        </p>
-                        <p className="text-xs text-primary font-bold uppercase mt-0.5">{r.tipo?.replace(/_/g, ' ')}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <span className="text-4xl mb-2 block opacity-30">🤝</span>
-                  <p className="text-sm">Sin reconocimientos aún</p>
-                </div>
-              )}
-            </motion.div>
-          </div>
         </motion.div>
       </motion.div>
     </Layout>
