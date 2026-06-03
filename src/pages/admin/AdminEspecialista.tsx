@@ -268,6 +268,7 @@ const AdminEspecialista = () => {
   useEffect(() => {
     if (!isAuthenticated || (!isAdmin && !isEspecialista && !isAprobador)) return;
     loadAll();
+    fetchLogros();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
 
   // Map operación → canal de gerente para filtrar el selector
