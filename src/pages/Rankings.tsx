@@ -1231,24 +1231,6 @@ const Rankings = () => {
                           <th className="text-right px-4 py-3">Meta</th>
                         </>
                       )}
-                      {(isGerentesVNTab || (isVN && isComercialTab)) && (
-                        <>
-                          {/* % Cumpl ACV y ACV — sólo gerentes VN, NO asesores */}
-                          {!isAsesoresVNTab && (
-                            <th className="text-right px-4 py-3">{isVC ? '% Cumpl. ACV+' : '% Cumpl. ACV'}</th>
-                          )}
-                           <th className="text-right px-4 py-3">% FE</th>
-                           <th className="text-right px-4 py-3">{userPais === 'MEX' ? '% Campaña' : '% Nube'}</th>
-                          <th className="text-right px-4 py-3">Unidades</th>
-                          <th className="text-right px-4 py-3">Meta Uds</th>
-                          {!isAsesoresVNTab && (
-                            <>
-                              <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
-                              <th className="text-right px-4 py-3">{isVC ? 'Meta ACV+' : 'Meta ACV'}</th>
-                            </>
-                          )}
-                        </>
-                      )}
                       {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && (
                         <>
                           <th className="text-right px-4 py-3">{isVC ? 'ACV+' : 'ACV'}</th>
