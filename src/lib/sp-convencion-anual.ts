@@ -165,30 +165,36 @@ export function computeSpConvencionAnualForCelula(
   const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
   metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
 
-  // Ventas reales desde ventas_gerente_mensual.
-  // Si tenemos gerente, esa es la fuente precisa (MiPerformance usa este mismo criterio).
-  // El match por célula queda solo como fallback porque Databricks puede traer aliases
-  // duplicados para la misma célula (ej. nombre corto + nombre completo), lo que inflaba
-  // Ranking/Header al sumar la misma ejecución dos veces.
-  // Si tenemos celula, EXIGIR filtro por celula. Solo si no hay celula se permite
-  // filtrar por gerente (caso de configuración sin celula asignada). Esto evita
-  // que un gerente que lidera más de una celula sume ventas de células ajenas.
+  // Ventas reales desde ventas_gerente_mensual (FUENTE PRIMARIA — misma que usa
+  // useGamificationMetrics para `vcMonthlyCumplimiento` / Mi Progreso).
+  // CLAVE: deduplicar tomando el MÁXIMO por (periodo, familia) — NUNCA sumar.
+  // Databricks puede enviar varias filas (snapshots Inicio/Cierre, reprocesos) y
+  // sumarlas infla el Ranking respecto a Mi Progreso. Mi Progreso toma MAX y eso
+  // es la verdad oficial.
   const vgmBase = celulaNorm
     ? vgmRows.filter((row) => normalizeSpText(row.celula) === celulaNorm)
     : (gerenteNorm
         ? vgmRows.filter((row) => normalizeSpText(row.gerente_normalizado || row.gerente) === gerenteNorm)
         : []);
-  const seenVgm = new Set<string>();
-  const vgmFiltrados = vgmBase.filter((row) => {
-    const key = [
-      String(row.periodo || ''),
-      normalizeSpText(row.familia),
-      Math.round(Number(row.unidades) || 0),
-      Math.round(Number(row.acv) || 0),
-    ].join('|');
-    if (seenVgm.has(key)) return false;
-    seenVgm.add(key);
-    return true;
+  const vgmFamMaxRanking = new Map<string, { uds: number; acv: number }>();
+  vgmBase.forEach((row) => {
+    const period = String(row.periodo || '');
+    const fam = String(row.familia || '').toUpperCase();
+    if (!/^\d{6}$/.test(period) || !fam) return;
+    const k = `${period}::${fam}`;
+    const uds = Math.round(Number(row.unidades) || 0);
+    const acvV = Math.round(Number(row.acv) || 0);
+    const prev = vgmFamMaxRanking.get(k);
+    if (!prev || uds > prev.uds) vgmFamMaxRanking.set(k, { uds, acv: acvV });
+  });
+  const vgmByPeriod = new Map<string, { fe: number; nube: number; acv: number }>();
+  vgmFamMaxRanking.forEach((val, k) => {
+    const [period, fam] = k.split('::');
+    const cur = vgmByPeriod.get(period) || { fe: 0, nube: 0, acv: 0 };
+    if (fam === 'FE') cur.fe += val.uds;
+    else if (fam === 'NUBE') cur.nube += val.uds;
+    cur.acv += val.acv;
+    vgmByPeriod.set(period, cur);
   });
 
   // Períodos a calcular: ventas reales + períodos con meta.
@@ -215,8 +221,8 @@ export function computeSpConvencionAnualForCelula(
   });
 
   const periodSet = new Set<string>();
+  vgmByPeriod.forEach((_, p) => periodSet.add(p));
   vmgPrimary.forEach((_, p) => periodSet.add(p));
-  vgmFiltrados.forEach((r) => { if (/^\d{6}$/.test(String(r.periodo))) periodSet.add(String(r.periodo)); });
   ventasDiariasByPeriod.forEach((_, p) => periodSet.add(p));
   metasPorPeriodo.forEach((_, p) => periodSet.add(p));
 
@@ -226,16 +232,15 @@ export function computeSpConvencionAnualForCelula(
     const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
 
     let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
-    const periodVgmRows = vgmFiltrados.filter((r) => String(r.periodo) === periodo);
-    if (periodVgmRows.length > 0) {
-      periodVgmRows.forEach((r) => {
-        const u = Math.round(Number(r.unidades) || 0);
-        const acv = Number(r.acv) || 0;
-        const fam = String(r.familia || '').toUpperCase();
-        if (fam === 'FE') ventas_fe += u;
-        else if (fam === 'NUBE') ventas_nube += u;
-        acv_total += acv;
-      });
+    // Orden de prioridad IDÉNTICO a useGamificationMetrics:
+    //  1. ventas_gerente_mensual (vgmByPeriod) — fuente primaria de Mi Progreso
+    //  2. vn_metricas_optimizadas scope=gerente (vmgPrimary) — solo si VGM no tiene el periodo
+    //  3. ventas_diarias — último fallback
+    if (vgmByPeriod.has(periodo)) {
+      const v = vgmByPeriod.get(periodo)!;
+      ventas_fe = v.fe;
+      ventas_nube = v.nube;
+      acv_total = v.acv;
     } else if (vmgPrimary.has(periodo)) {
       const primaryData = vmgPrimary.get(periodo)!;
       ventas_fe = primaryData.fe;
