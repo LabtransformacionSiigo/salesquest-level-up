@@ -597,8 +597,7 @@ const AdminEspecialista = () => {
                   <MI icon="bolt" className="text-sm mr-1.5" /> Rachas/Medallas VN
                 </TabsTrigger>
               )}
-              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
-              <TabsTrigger value="sp-canje">💰 SP Canje</TabsTrigger>
+              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros &amp; SP Canje</TabsTrigger>
             </TabsList>
 
 
@@ -872,10 +871,21 @@ const AdminEspecialista = () => {
                 <AuditoriaRetosVC paisesScope={isAdmin ? [] : (permisos?.paises || [])} />
               )}
 
-              <div className="flex items-center justify-between mb-4">
+              {/* Resumen mensual SP Canje por gerente (scope del especialista) */}
+              <section className="space-y-3">
                 <div>
-                  <h3 className="font-semibold text-lg">Logros ganados por gerentes</h3>
-                  <p className="text-sm text-muted-foreground">Retos completados y medallas desbloqueadas</p>
+                  <h3 className="font-semibold text-lg">Resumen mensual · SP Canje por gerente</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Total de SP Canje ganados por cada gerente en tu alcance, desglosado por mes y fuente (retos, medallas, reconocimientos).
+                  </p>
+                </div>
+                <SpCanjeMensual gerentes={gerentes} isAdmin={isAdmin} />
+              </section>
+
+              <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
+                <div>
+                  <h3 className="font-semibold text-lg">Detalle de logros por gerente</h3>
+                  <p className="text-sm text-muted-foreground">Retos completados, rachas y medallas desbloqueadas — uno por línea</p>
                 </div>
                 <Button
                   onClick={handleEjecutarEvaluacion}
@@ -972,10 +982,6 @@ const AdminEspecialista = () => {
                   </table>
                 </div>
               )}
-            </TabsContent>
-
-            <TabsContent value="sp-canje" className="mt-4">
-              <SpCanjeMensual gerentes={gerentes} isAdmin={isAdmin} />
             </TabsContent>
           </Tabs>
         )}
