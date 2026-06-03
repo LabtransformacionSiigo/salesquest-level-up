@@ -69,6 +69,32 @@ const Sidebar = () => {
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
   const isDirector = profile?.role === 'director';
+
+  // Cargar operaciones del especialista para filtrar accesos (ej. Segmentos VC solo para VC)
+  const [especialistaOps, setEspecialistaOps] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isEspecialista || !profile?.user_id) { setEspecialistaOps(null); return; }
+    let cancel = false;
+    supabase
+      .from('especialista_permisos')
+      .select('operaciones')
+      .eq('user_id', profile.user_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancel) return;
+        setEspecialistaOps(((data as any)?.operaciones as string[]) || []);
+      });
+    return () => { cancel = true; };
+  }, [isEspecialista, profile?.user_id]);
+
+  const especialistaItemsFiltered = especialistaItems.filter((item) => {
+    if (item.path === '/admin/segmentos-vc') {
+      // Solo visible si el especialista tiene Venta Cruzada en su scope
+      return (especialistaOps || []).includes('Venta Cruzada');
+    }
+    return true;
+  });
+
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
