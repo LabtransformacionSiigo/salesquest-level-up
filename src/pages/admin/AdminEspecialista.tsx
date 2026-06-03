@@ -157,21 +157,40 @@ const AdminEspecialista = () => {
   });
   const fetchLogros = async () => {
     setLoadingLogros(true);
-    // Fuente única: sp_acumulados (incluye retos diarios/semanales/mensuales, rachas y medallas)
-    const { data: spRows } = await supabase
+    const esAdmin = profile?.role === 'admin';
+    // Cargar permisos en caliente si todavía no están en estado
+    let permisosLocal: Permisos | null = permisos;
+    if (!esAdmin && !permisosLocal && profile?.user_id) {
+      const { data } = await supabase
+        .from('especialista_permisos')
+        .select('paises, operaciones')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+      if (data) permisosLocal = { paises: (data as any).paises || [], operaciones: (data as any).operaciones || [] };
+    }
+    const canalesScope = (permisosLocal?.operaciones || [])
+      .map(opToCanalGlobal)
+      .filter(Boolean) as string[];
+
+    // INNER JOIN a gerentes para filtrar por canal/país server-side
+    let q = supabase
       .from('sp_acumulados')
-      .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes(nombre, canal, pais)')
+      .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes!inner(nombre, canal, pais)')
       .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL', 'MEDALLA'])
-      .gt('sp', 0) // excluir logros revocados (sp=0) para no inflar el conteo
-      .order('created_at', { ascending: false })
-      .limit(500);
+      .gt('sp', 0);
+
+    if (!esAdmin) {
+      if (canalesScope.length) q = q.in('gerentes.canal', canalesScope);
+      if (permisosLocal?.paises?.length) q = q.in('gerentes.pais', permisosLocal.paises);
+    }
+
+    const { data: spRows } = await q.order('created_at', { ascending: false }).limit(1000);
 
     const items = (spRows || []).map((r: any) => {
       const detalle = String(r.detalle || '');
       const esRacha = detalle.startsWith('RACHA');
       const esMedalla = r.fuente === 'MEDALLA';
       const tipoLogro = esMedalla ? 'medalla' : esRacha ? 'racha' : 'reto';
-      // Nombre antes del primer "·"
       const nombre = detalle.split('·')[0]?.trim() || detalle || r.fuente;
       const ventana = r.fuente === 'RETO_DIARIO' ? 'diario'
         : r.fuente === 'RETO_SEMANAL' ? 'semanal'
