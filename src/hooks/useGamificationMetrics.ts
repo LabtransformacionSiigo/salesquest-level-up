@@ -815,19 +815,19 @@ export const useGamificationMetrics = (
             const addPagedVentas = async (field: 'celula' | 'director', value?: string | null) => {
               if (!value) return;
               for (let from = 0; from < 10000; from += pageSize) {
-              let query = supabase
-                .from('ventas_diarias')
-                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                .gte('fecha', `${anioActual}-01-01`)
-                .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('pais', paisProfile)
+                const query = supabase
+                  .from('ventas_diarias')
+                  .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                  .gte('fecha', `${anioActual}-01-01`)
+                  .lt('fecha', `${anioActual + 1}-01-01`)
+                  .eq('pais', paisProfile)
                   .eq(field, value)
-                .range(from, from + pageSize - 1);
+                  .range(from, from + pageSize - 1);
 
-              const { data: pageRows } = await query;
-              if (!pageRows || pageRows.length === 0) break;
-              teamVentasPaged.push(...pageRows);
-              if (pageRows.length < pageSize) break;
+                const { data: pageRows } = await query;
+                if (!pageRows || pageRows.length === 0) break;
+                teamVentasPaged.push(...pageRows);
+                if (pageRows.length < pageSize) break;
               }
             };
             await addPagedVentas('celula', profile.celula);
