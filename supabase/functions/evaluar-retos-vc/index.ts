@@ -95,8 +95,12 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { body = {}; }
     const dryRun = body.dry_run === true;
+    // Permite forzar la fecha de evaluación (YYYY-MM-DD) para backfills mensuales.
+    const fechaOverride: string | undefined = typeof body.fecha === 'string' ? body.fecha : undefined;
 
-    const calendarNow = new Date();
+    const calendarNow = fechaOverride
+      ? new Date(`${fechaOverride}T12:00:00Z`)
+      : new Date();
     const currentMonth = getMonthRange(calendarNow);
 
     // La data VC llega por sincronización y no siempre existe venta con fecha del día real.
@@ -112,9 +116,12 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const now = latestVenta?.fecha_facturacion
-      ? new Date(`${latestVenta.fecha_facturacion}T12:00:00Z`)
-      : calendarNow;
+    const now = fechaOverride
+      ? calendarNow
+      : (latestVenta?.fecha_facturacion
+          ? new Date(`${latestVenta.fecha_facturacion}T12:00:00Z`)
+          : calendarNow);
+
     const today = now.toISOString().split("T")[0];
     const monthKey = getMonthKey(now);
     const weekKey = getISOWeekKey(now);

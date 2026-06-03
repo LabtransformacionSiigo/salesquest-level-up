@@ -1,0 +1,1 @@
+UPDATE public.catalogo_retos SET fecha_fin = '2026-12-31' WHERE canal='VC' AND activo=true AND fecha_fin='2026-05-31';

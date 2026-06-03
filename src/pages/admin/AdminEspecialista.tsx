@@ -109,15 +109,27 @@ const AdminEspecialista = () => {
         'Authorization': `Bearer ${session?.access_token}`,
       };
       const base = import.meta.env.VITE_SUPABASE_URL;
-      const [vcRes, vnRes] = await Promise.all([
-        fetch(`${base}/functions/v1/evaluar-retos-vc`, {
-          method: 'POST', headers, body: JSON.stringify({ dry_run: false }),
-        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
-        fetch(`${base}/functions/v1/evaluar-retos-vn`, {
-          method: 'POST', headers,
-          body: JSON.stringify({ fecha: new Date().toISOString().split('T')[0], dry_run: false }),
-        }).then(r => r.json()).catch(e => ({ ok: false, error: e.message })),
-      ]);
+      // VC: además del corte normal, backfill explícito de mayo (1, 8, 15, 22, 29)
+      // porque los retos VC se activaron tarde y la mayoría de ventas PROD- VC son de mayo.
+      const fechasBackfillVC = ['', '2026-05-01', '2026-05-08', '2026-05-15', '2026-05-22', '2026-05-29'];
+      const vcResults = await Promise.all(
+        fechasBackfillVC.map(f =>
+          fetch(`${base}/functions/v1/evaluar-retos-vc`, {
+            method: 'POST', headers,
+            body: JSON.stringify(f ? { dry_run: false, fecha: f } : { dry_run: false }),
+          }).then(r => r.json()).catch(e => ({ ok: false, error: e.message }))
+        )
+      );
+      const vcRes = {
+        ok: vcResults.every(r => r?.ok),
+        totalRetos: vcResults.reduce((s, r) => s + (r?.totalRetos || 0), 0),
+        totalSp: vcResults.reduce((s, r) => s + (r?.totalSp || 0), 0),
+      };
+      const vnRes = await fetch(`${base}/functions/v1/evaluar-retos-vn`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ fecha: new Date().toISOString().split('T')[0], dry_run: false }),
+      }).then(r => r.json()).catch(e => ({ ok: false, error: e.message }));
+
 
       const vcOk = vcRes?.ok;
       const vnOk = vnRes?.ok;
