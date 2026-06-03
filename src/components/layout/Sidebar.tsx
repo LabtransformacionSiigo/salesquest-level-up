@@ -22,7 +22,7 @@ const menuItems = [
   { path: '/retos', icon: 'flag', label: 'Retos y Logros' },
   { path: '/reconocimientos', icon: 'stars', label: 'Reconocimientos' },
   { path: '/premios', icon: 'redeem', label: 'Beneficios ' },
-  { path: '/mi-equipo', icon: 'groups', label: 'Mi Equipo' },
+  
 ];
 
 const adminItems = [
