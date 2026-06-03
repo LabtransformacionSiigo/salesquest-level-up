@@ -812,26 +812,35 @@ export const useGamificationMetrics = (
           if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
-            for (let from = 0; from < 10000; from += pageSize) {
-              const filters = [
-                profile.celula ? `celula.eq.${profile.celula}` : '',
-                profile.nombre ? `director.eq.${profile.nombre}` : '',
-              ].filter(Boolean).join(',');
+            const addPagedVentas = async (field: 'celula' | 'director', value?: string | null) => {
+              if (!value) return;
+              for (let from = 0; from < 10000; from += pageSize) {
+                const query = supabase
+                  .from('ventas_diarias')
+                  .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                  .gte('fecha', `${anioActual}-01-01`)
+                  .lt('fecha', `${anioActual + 1}-01-01`)
+                  .eq('pais', paisProfile)
+                  .eq(field, value)
+                  .range(from, from + pageSize - 1);
 
-              const query = supabase
-                .from('ventas_diarias')
-                .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
-                .gte('fecha', `${anioActual}-01-01`)
-                .lt('fecha', `${anioActual + 1}-01-01`)
-                .eq('pais', paisProfile)
-                .range(from, from + pageSize - 1);
-
-              const { data: pageRows } = filters ? await query.or(filters) : await query;
-              if (!pageRows || pageRows.length === 0) break;
-              teamVentasPaged.push(...pageRows);
-              if (pageRows.length < pageSize) break;
+                const { data: pageRows } = await query;
+                if (!pageRows || pageRows.length === 0) break;
+                teamVentasPaged.push(...pageRows);
+                if (pageRows.length < pageSize) break;
+              }
+            };
+            await addPagedVentas('celula', profile.celula);
+            await addPagedVentas('director', profile.nombre);
+            if (teamVentasPaged.length > 0) {
+              const seenVentas = new Set<string>();
+              allVentasDiarias = teamVentasPaged.filter((row: any) => {
+                const key = `${row.fecha}|${row.asesor}|${row.celula}|${row.director}|${row.tipo_producto}|${row.producto}|${row.unidades}|${row.acv}`;
+                if (seenVentas.has(key)) return false;
+                seenVentas.add(key);
+                return true;
+              });
             }
-            allVentasDiarias = teamVentasPaged;
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
@@ -1629,11 +1638,11 @@ export const useGamificationMetrics = (
             return (fam as any) || 'OTRO';
           };
 
-          // FUENTE PRIMARIA para VN MEX: ventas_diarias del mes en curso.
-          // Es la tabla que refresca sync-vn-mexico cada día — refleja las ventas
-          // reales del día. ejecucion_asesores queda como fallback (mes cerrado).
+          // FUENTE PRIMARIA para Venta Nueva: ventas_diarias del mes en curso.
+          // Es la misma fuente diaria que alimenta el agregado del gerente; así el
+          // detalle por asesor siempre cuadra con la parte superior del equipo.
           let usedVentasDiarias = false;
-          if (isMex && vnVentasDiariasRows.length > 0) {
+          if (vnVentasDiariasRows.length > 0) {
             vnVentasDiariasRows
               .filter((row: any) => {
                 const fecha = String(row.fecha || '');
@@ -1683,17 +1692,6 @@ export const useGamificationMetrics = (
           // FUENTE SECUNDARIA (no-MEX o si ventas_diarias estuvo vacío):
           // vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
           const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
-          // eslint-disable-next-line no-console
-          const byMes: Record<string, number> = {};
-          vnAsesorData.forEach((r:any)=>{ const k=String(r.mes_nro); byMes[k]=(byMes[k]||0)+1; });
-          console.log('[DEBUG team]', {
-            gerente: profile.nombre,
-            mesActual, mesActualNro, isMex, usedVentasDiarias,
-            vnAsesorDataLen: vnAsesorData.length,
-            byMesNroCount: byMes,
-            mes6Rows: vnAsesorData.filter((r:any) => Number(r.mes_nro)===mesActualNro).map((r:any)=>({asesor:r.asesor, cel:r.celula, ger:r.gerente_normalizado, fam:r.familia, ventas:r.ventas})),
-            profileCelula: profile.celula, profileNombre: profile.nombre,
-          });
           if (!usedVentasDiarias) {
             // DEDUP por (asesor, tipo_producto1) tomando MAX(ventas/acv)
             const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
