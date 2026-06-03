@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 import logoIncentivos from '@/assets/logo-incentivos.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, slideInLeft } from '@/lib/animations';
@@ -67,6 +69,32 @@ const Sidebar = () => {
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
   const isDirector = profile?.role === 'director';
+
+  // Cargar operaciones del especialista para filtrar accesos (ej. Segmentos VC solo para VC)
+  const [especialistaOps, setEspecialistaOps] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!isEspecialista || !profile?.user_id) { setEspecialistaOps(null); return; }
+    let cancel = false;
+    supabase
+      .from('especialista_permisos')
+      .select('operaciones')
+      .eq('user_id', profile.user_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancel) return;
+        setEspecialistaOps(((data as any)?.operaciones as string[]) || []);
+      });
+    return () => { cancel = true; };
+  }, [isEspecialista, profile?.user_id]);
+
+  const especialistaItemsFiltered = especialistaItems.filter((item) => {
+    if (item.path === '/admin/segmentos-vc') {
+      // Solo visible si el especialista tiene Venta Cruzada en su scope
+      return (especialistaOps || []).includes('Venta Cruzada');
+    }
+    return true;
+  });
+
   const spAnual = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const spDisplay = profile?.canal === 'VC'
@@ -159,7 +187,7 @@ const Sidebar = () => {
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
               <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isDirector ? '📊 Dirección' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
             </motion.div>
-            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItems).map((item) => (
+            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItemsFiltered).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}
