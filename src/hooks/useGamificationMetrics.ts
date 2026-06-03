@@ -1630,11 +1630,11 @@ export const useGamificationMetrics = (
             return (fam as any) || 'OTRO';
           };
 
-          // FUENTE PRIMARIA para VN MEX: ventas_diarias del mes en curso.
-          // Es la tabla que refresca sync-vn-mexico cada día — refleja las ventas
-          // reales del día. ejecucion_asesores queda como fallback (mes cerrado).
+          // FUENTE PRIMARIA para Venta Nueva: ventas_diarias del mes en curso.
+          // Es la misma fuente diaria que alimenta el agregado del gerente; así el
+          // detalle por asesor siempre cuadra con la parte superior del equipo.
           let usedVentasDiarias = false;
-          if (isMex && vnVentasDiariasRows.length > 0) {
+          if (vnVentasDiariasRows.length > 0) {
             vnVentasDiariasRows
               .filter((row: any) => {
                 const fecha = String(row.fecha || '');
@@ -1684,17 +1684,6 @@ export const useGamificationMetrics = (
           // FUENTE SECUNDARIA (no-MEX o si ventas_diarias estuvo vacío):
           // vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
           const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
-          // eslint-disable-next-line no-console
-          const byMes: Record<string, number> = {};
-          vnAsesorData.forEach((r:any)=>{ const k=String(r.mes_nro); byMes[k]=(byMes[k]||0)+1; });
-          console.log('[DEBUG team]', {
-            gerente: profile.nombre,
-            mesActual, mesActualNro, isMex, usedVentasDiarias,
-            vnAsesorDataLen: vnAsesorData.length,
-            byMesNroCount: byMes,
-            mes6Rows: vnAsesorData.filter((r:any) => Number(r.mes_nro)===mesActualNro).map((r:any)=>({asesor:r.asesor, cel:r.celula, ger:r.gerente_normalizado, fam:r.familia, ventas:r.ventas})),
-            profileCelula: profile.celula, profileNombre: profile.nombre,
-          });
           if (!usedVentasDiarias) {
             // DEDUP por (asesor, tipo_producto1) tomando MAX(ventas/acv)
             const dedupAsesor = new Map<string, { uds: number; acv: number; tipo: string; key: string }>();
