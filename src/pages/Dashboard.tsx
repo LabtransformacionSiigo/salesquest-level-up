@@ -255,6 +255,14 @@ const Dashboard = () => {
             </div>
             {dataLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-44" />)}</div>
+            ) : catalogRetosSemana.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <span className="text-4xl mb-3">🗓️</span>
+                <p className="text-sm font-medium text-foreground">No hay retos semanales activos</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  No tienes retos vigentes para tu frente y país esta semana.
+                </p>
+              </div>
             ) : (
               <motion.div
                 className="grid grid-cols-1 md:grid-cols-3 gap-5"
@@ -262,15 +270,12 @@ const Dashboard = () => {
                 initial="hidden"
                 animate="show"
               >
-                {(catalogRetosSemana.length > 0
-                  ? catalogRetosSemana.slice(0, 3).map((c: any) => ({
-                      id: c.id,
-                      nombre: `${c.emoji || '🎯'} ${c.nombre}`,
-                      sp: Number(c.sp_otorgados) || 0,
-                      umbral: Number(c.umbral) || 1,
-                    }))
-                  : RETOS_SEMANALES
-                ).map((reto, idx) => {
+                {catalogRetosSemana.slice(0, 3).map((c: any) => ({
+                  id: c.id,
+                  nombre: `${c.emoji || '🎯'} ${c.nombre}`,
+                  sp: Number(c.sp_otorgados) || 0,
+                  umbral: Number(c.umbral) || 1,
+                })).map((reto) => {
                   const pct = Math.min(100, (ventasSemana / reto.umbral) * 100);
                   const completed = pct >= 100;
                   return (
@@ -310,6 +315,7 @@ const Dashboard = () => {
                 })}
               </motion.div>
             )}
+
           </motion.div>
 
           {/* Medallas + Reconocimientos stacked */}
