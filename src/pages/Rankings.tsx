@@ -954,21 +954,33 @@ const Rankings = () => {
   useEffect(() => {
     if (!isAuthenticated || !profile?.canal) return;
     fetchRanking();
+    // Debounce para evitar ráfagas de refetch cuando Databricks inserta lotes grandes.
+    let refetchTimer: any = null;
+    const triggerRefetch = () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
+      refetchTimer = setTimeout(() => fetchRanking(), 800);
+    };
     const channel = supabase
       .channel(`ranking-live-${profile?.canal}-${userPais}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, () => fetchRanking())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, () => fetchRanking())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, () => fetchRanking())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => fetchRanking())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas_gerente_mensual' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vn_metricas_optimizadas' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas_diarias' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'metas_acv_gerentes' }, triggerRefetch)
       .subscribe();
-    // Refresco automático cada 5 minutos para mantener Clasificación sincronizada
-    // con el header / Historial Mensual (mismo cálculo, una sola fuente).
-    const refreshInterval = setInterval(() => fetchRanking(), 5 * 60 * 1000);
+    // Refresco automático cada 60s como red de seguridad si Realtime no cubre alguna
+    // tabla (p.ej. publicación deshabilitada). Mantiene Clasificación consistente.
+    const refreshInterval = setInterval(() => fetchRanking(), 60 * 1000);
     return () => {
       supabase.removeChannel(channel);
+      if (refetchTimer) clearTimeout(refetchTimer);
       clearInterval(refreshInterval);
     };
   }, [isAuthenticated, profile?.canal, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
+
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
