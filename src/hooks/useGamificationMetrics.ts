@@ -812,27 +812,35 @@ export const useGamificationMetrics = (
           if (isVN && profile.role !== 'asesor' && (profile.celula || profile.nombre)) {
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
-            for (let from = 0; from < 10000; from += pageSize) {
+            const addPagedVentas = async (field: 'celula' | 'director', value?: string | null) => {
+              if (!value) return;
+              for (let from = 0; from < 10000; from += pageSize) {
               let query = supabase
                 .from('ventas_diarias')
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
                 .lt('fecha', `${anioActual + 1}-01-01`)
                 .eq('pais', paisProfile)
+                  .eq(field, value)
                 .range(from, from + pageSize - 1);
-
-              if (profile.celula) {
-                query = query.eq('celula', profile.celula);
-              } else if (profile.nombre) {
-                query = query.eq('director', profile.nombre);
-              }
 
               const { data: pageRows } = await query;
               if (!pageRows || pageRows.length === 0) break;
               teamVentasPaged.push(...pageRows);
               if (pageRows.length < pageSize) break;
+              }
+            };
+            await addPagedVentas('celula', profile.celula);
+            await addPagedVentas('director', profile.nombre);
+            if (teamVentasPaged.length > 0) {
+              const seenVentas = new Set<string>();
+              allVentasDiarias = teamVentasPaged.filter((row: any) => {
+                const key = `${row.fecha}|${row.asesor}|${row.celula}|${row.director}|${row.tipo_producto}|${row.producto}|${row.unidades}|${row.acv}`;
+                if (seenVentas.has(key)) return false;
+                seenVentas.add(key);
+                return true;
+              });
             }
-            allVentasDiarias = teamVentasPaged;
           }
 
           const teamVentasDiariasAll = allVentasDiarias.filter((row: any) => {
