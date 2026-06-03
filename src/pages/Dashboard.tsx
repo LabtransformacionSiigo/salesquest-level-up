@@ -19,11 +19,6 @@ import { getNivelThresholds } from '@/lib/niveles';
 import { supabase } from '@/integrations/supabase/client';
 import { filterCatalogByScope, normalizeCatalogWindow } from '@/lib/catalog-scope';
 
-const RETOS_SEMANALES = [
-  { id: 'semana_ejecutada', nombre: '🎯 Reto Básico', sp: 100, umbral: 50_000_000 },
-  { id: 'semana_en_fuego', nombre: '🔥 Reto Intermedio', sp: 160, umbral: 80_000_000 },
-  { id: 'semana_elite', nombre: '💎 Reto Élite', sp: 250, umbral: 100_000_000 },
-];
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
