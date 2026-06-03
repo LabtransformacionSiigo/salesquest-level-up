@@ -187,7 +187,7 @@ const Sidebar = () => {
             <motion.div className="pb-2 px-4" variants={slideInLeft}>
               <p className="text-xs font-bold text-sidebar-muted uppercase tracking-widest">{isAdmin ? '⚙️ Administración' : isDirector ? '📊 Dirección' : isAprobador ? '✅ Aprobador' : '🛡️ Especialista'}</p>
             </motion.div>
-            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItems).map((item) => (
+            {(isAdmin ? adminItems : isDirector ? directorItems : especialistaItemsFiltered).map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => navigate(item.path)}
