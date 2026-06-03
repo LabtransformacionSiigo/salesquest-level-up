@@ -194,24 +194,6 @@ const AdminEspecialista = () => {
     setLogros(items);
     setLoadingLogros(false);
   };
-  const logrosFiltrados = logros.filter((l) => {
-    // Filtro por permisos del especialista (país + canal). Admin ve todo.
-    if (!isAdmin && permisos) {
-      const canalesScope = (permisos.operaciones || [])
-        .map(opToCanalGlobal)
-        .filter(Boolean) as string[];
-      if (permisos.paises?.length && l.pais && !permisos.paises.includes(l.pais)) return false;
-      if (canalesScope.length && l.canal && !canalesScope.includes(l.canal)) return false;
-      // Si no hay canal/país en el registro, ocultar por seguridad
-      if (!l.pais || !l.canal) return false;
-    }
-    if (logrosFiltro.tipo !== 'TODOS' && l.tipo !== logrosFiltro.tipo) return false;
-    if (logrosFiltro.q && !`${l.gerente} ${l.nombre}`.toLowerCase().includes(logrosFiltro.q.toLowerCase())) return false;
-    if (logrosFiltro.desde && l.fecha && l.fecha.slice(0, 10) < logrosFiltro.desde) return false;
-    if (logrosFiltro.hasta && l.fecha && l.fecha.slice(0, 10) > logrosFiltro.hasta) return false;
-    return true;
-  });
-  const totalSpFiltrado = logrosFiltrados.reduce((s, l) => s + (Number(l.sp) || 0), 0);
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
@@ -233,6 +215,24 @@ const AdminEspecialista = () => {
   const isAdmin = profile?.role === 'admin';
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
+
+  const logrosFiltrados = logros.filter((l) => {
+    // Filtro por permisos del especialista (país + canal). Admin ve todo.
+    if (!isAdmin && permisos) {
+      const canalesScope = (permisos.operaciones || [])
+        .map(opToCanalGlobal)
+        .filter(Boolean) as string[];
+      if (permisos.paises?.length && l.pais && !permisos.paises.includes(l.pais)) return false;
+      if (canalesScope.length && l.canal && !canalesScope.includes(l.canal)) return false;
+      if (!l.pais || !l.canal) return false;
+    }
+    if (logrosFiltro.tipo !== 'TODOS' && l.tipo !== logrosFiltro.tipo) return false;
+    if (logrosFiltro.q && !`${l.gerente} ${l.nombre}`.toLowerCase().includes(logrosFiltro.q.toLowerCase())) return false;
+    if (logrosFiltro.desde && l.fecha && l.fecha.slice(0, 10) < logrosFiltro.desde) return false;
+    if (logrosFiltro.hasta && l.fecha && l.fecha.slice(0, 10) > logrosFiltro.hasta) return false;
+    return true;
+  });
+  const totalSpFiltrado = logrosFiltrados.reduce((s, l) => s + (Number(l.sp) || 0), 0);
 
   useEffect(() => {
     if (!isAuthenticated || (!isAdmin && !isEspecialista && !isAprobador)) return;
