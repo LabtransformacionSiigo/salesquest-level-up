@@ -16,6 +16,7 @@ const FUENTES = [
 ];
 
 type Gerente = { id: string; nombre: string; canal: string | null; pais: string | null; celula?: string | null };
+type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
 
 interface Props {
   gerentes: Gerente[];
@@ -29,7 +30,7 @@ interface Props {
  */
 const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<Array<{ gerente_id: string; periodo: string; fuente: string; sp: number }>>([]);
+  const [rows, setRows] = useState<SpRow[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filterTxt, setFilterTxt] = useState('');
   const [filterCanal, setFilterCanal] = useState<string>('');
@@ -43,20 +44,51 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
     if (gerenteIds.length === 0) { setRows([]); setLoading(false); return; }
     setLoading(true);
     (async () => {
-      // Lote para evitar URL gigantes
+      // Lote para evitar URL gigantes. Se leen dos fuentes:
+      // 1) sp_acumulados: saldo oficial de SP Canje.
+      // 2) retos_completados: respaldo histórico de retos VC que ya están guardados,
+      //    aunque todavía no hayan sido sincronizados a sp_acumulados.
       const chunkSize = 200;
-      const all: any[] = [];
+      const all: SpRow[] = [];
       for (let i = 0; i < gerenteIds.length; i += chunkSize) {
         const chunk = gerenteIds.slice(i, i + chunkSize);
-        const { data, error } = await supabase
+        const { data: spData, error: spError } = await supabase
           .from('sp_acumulados')
-          .select('gerente_id, fuente, sp, periodo')
+          .select('gerente_id, fuente, sp, periodo, detalle')
           .eq('tipo_sp', 'canje')
           .in('gerente_id', chunk)
           .gte('periodo', '2026')
           .lt('periodo', '2027');
-        if (error) { console.error(error); break; }
-        all.push(...(data || []));
+        if (spError) { console.error(spError); break; }
+
+        const spRows = ((spData || []) as any[]).map((r) => ({ ...r, origen: 'sp_acumulados' as const }));
+        all.push(...spRows);
+
+        const { data: retosData, error: retosError } = await supabase
+          .from('retos_completados')
+          .select('gerente_id, reto, tipo, sp, periodo, fecha')
+          .in('gerente_id', chunk)
+          .gte('periodo', '2026')
+          .lt('periodo', '2027');
+        if (retosError) { console.error(retosError); break; }
+
+        const retosFallback = ((retosData || []) as any[])
+          .filter((r) => Number(r.sp) > 0)
+          .filter((reto) => !spRows.some((sp) =>
+            sp.gerente_id === reto.gerente_id &&
+            sp.periodo === reto.periodo &&
+            String(sp.fuente || '').startsWith('RETO_') &&
+            String(sp.detalle || '').toLowerCase().includes(String(reto.reto || '').toLowerCase())
+          ))
+          .map((r) => ({
+            gerente_id: r.gerente_id,
+            periodo: r.periodo,
+            fuente: r.tipo === 'DIARIO' ? 'RETO_DIARIO' : r.tipo === 'SEMANAL' ? 'RETO_SEMANAL' : 'RETO_MENSUAL',
+            sp: Number(r.sp) || 0,
+            detalle: r.reto,
+            origen: 'retos_completados' as const,
+          }));
+        all.push(...retosFallback);
       }
       if (cancel) return;
       setRows(all);
@@ -256,7 +288,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        SP Canje acumulado desde <code>sp_acumulados</code> (tipo_sp = canje). Incluye medallas, retos diarios/semanales/mensuales y reconocimientos. Click en una fila para ver el desglose por fuente.
+        SP Canje acumulado desde <code>sp_acumulados</code> y retos históricos ya completados. Incluye medallas, retos diarios/semanales/mensuales y reconocimientos. Click en una fila para ver el desglose por fuente.
       </p>
     </div>
   );

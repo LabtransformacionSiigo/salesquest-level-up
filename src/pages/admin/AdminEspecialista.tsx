@@ -198,6 +198,20 @@ const AdminEspecialista = () => {
 
     const { data: spRows } = await q.order('created_at', { ascending: false }).limit(1000);
 
+    let retosQuery = supabase
+      .from('retos_completados')
+      .select('gerente_id, reto, tipo, sp, periodo, fecha, gerentes!inner(nombre, canal, pais)')
+      .gt('sp', 0)
+      .gte('periodo', '2026')
+      .lt('periodo', '2027');
+
+    if (!esAdmin) {
+      if (canalesScope.length) retosQuery = retosQuery.in('gerentes.canal', canalesScope);
+      if (permisosLocal?.paises?.length) retosQuery = retosQuery.in('gerentes.pais', permisosLocal.paises);
+    }
+
+    const { data: retosRows } = await retosQuery.order('fecha', { ascending: false }).limit(1000);
+
     const items = (spRows || []).map((r: any) => {
       const detalle = String(r.detalle || '');
       const esRacha = detalle.startsWith('RACHA');
@@ -222,7 +236,29 @@ const AdminEspecialista = () => {
         fecha: r.created_at,
       };
     });
-    setLogros(items);
+    const spRetoKeys = new Set(
+      (spRows || [])
+        .filter((r: any) => String(r.fuente || '').startsWith('RETO_'))
+        .map((r: any) => `${r.gerente_id}::${r.periodo}::${String(r.detalle || '').split('·')[0]?.trim()}`)
+    );
+
+    const retosItems = (retosRows || [])
+      .filter((r: any) => !spRetoKeys.has(`${r.gerente_id}::${r.periodo}::${String(r.reto || '').trim()}`))
+      .map((r: any) => ({
+        id: `${r.gerente_id}-${r.periodo}-${r.reto}`,
+        tipo: 'reto',
+        gerente: r.gerentes?.nombre || r.gerente_id,
+        canal: r.gerentes?.canal || '',
+        pais: r.gerentes?.pais || '',
+        nombre: r.reto,
+        detalle: r.reto,
+        periodo: r.periodo,
+        sp: r.sp,
+        ventana: String(r.tipo || '').toLowerCase() || '—',
+        fecha: r.fecha || `${r.periodo.slice(0, 4)}-${r.periodo.slice(5, 7) || '01'}-01`,
+      }));
+
+    setLogros([...items, ...retosItems]);
     setLoadingLogros(false);
   };
   const [permisos, setPermisos] = useState<Permisos | null>(null);
