@@ -597,8 +597,7 @@ const AdminEspecialista = () => {
                   <MI icon="bolt" className="text-sm mr-1.5" /> Rachas/Medallas VN
                 </TabsTrigger>
               )}
-              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros</TabsTrigger>
-              <TabsTrigger value="sp-canje">💰 SP Canje</TabsTrigger>
+              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros &amp; SP Canje</TabsTrigger>
             </TabsList>
 
 
