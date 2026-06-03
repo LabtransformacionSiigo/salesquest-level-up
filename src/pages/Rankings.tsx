@@ -202,9 +202,13 @@ const Rankings = () => {
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
 
   const fetchRanking = async () => {
-    if (!profile?.canal) return;
+    if (!profile?.canal) {
+      setDataLoading(false);
+      return;
+    }
     setDataLoading(true);
-    const currentConventionYear = getCurrentConventionYear();
+    try {
+      const currentConventionYear = getCurrentConventionYear();
 
     if (isVC) {
       if (tab === 'comerciales') {
@@ -974,7 +978,12 @@ const Rankings = () => {
         sp_canje: canjeablesMap.get(r.id) || 0,
       })));
     }
-    setDataLoading(false);
+    } catch (error) {
+      console.error('[Rankings] Error cargando clasificación', error);
+      setRanking([]);
+    } finally {
+      setDataLoading(false);
+    }
   };
 
   useEffect(() => {
