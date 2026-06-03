@@ -1684,12 +1684,15 @@ export const useGamificationMetrics = (
           // vn_metricas_optimizadas scope=asesor — datos ACUMULADOS por mes
           const vnAsesorData: any[] = (typeof vnMetricasAsesorRes !== 'undefined' ? vnMetricasAsesorRes?.data : null) || [];
           // eslint-disable-next-line no-console
+          const byMes: Record<string, number> = {};
+          vnAsesorData.forEach((r:any)=>{ const k=String(r.mes_nro); byMes[k]=(byMes[k]||0)+1; });
           console.log('[DEBUG team]', {
             gerente: profile.nombre,
             mesActual, mesActualNro, isMex, usedVentasDiarias,
             vnAsesorDataLen: vnAsesorData.length,
-            sampleAsesorRows: vnAsesorData.filter((r:any) => Number(r.mes_nro)===mesActualNro).slice(0,5).map((r:any)=>({asesor:r.asesor, fam:r.familia, ventas:r.ventas, acv:r.acv_total})),
-            metasKeys: [...metasPorAsesor.keys()].slice(0,15),
+            byMesNroCount: byMes,
+            mes6Rows: vnAsesorData.filter((r:any) => Number(r.mes_nro)===mesActualNro).map((r:any)=>({asesor:r.asesor, cel:r.celula, ger:r.gerente_normalizado, fam:r.familia, ventas:r.ventas})),
+            profileCelula: profile.celula, profileNombre: profile.nombre,
           });
           if (!usedVentasDiarias) {
             // DEDUP por (asesor, tipo_producto1) tomando MAX(ventas/acv)
