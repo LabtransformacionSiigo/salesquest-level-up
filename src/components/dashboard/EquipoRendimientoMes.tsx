@@ -173,22 +173,6 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
               {formatLastUpdated(lastUpdated)} <RefreshCw className="w-3 h-3" />
             </p>
           </div>
-          <div className="flex items-center gap-1 flex-wrap">
-            {sortOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setSortBy(opt.key)}
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
-                  sortBy === opt.key
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card border-border text-muted-foreground hover:border-primary/40'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Resumen */}
