@@ -88,7 +88,7 @@ const Header = ({ title }: HeaderProps) => {
           </motion.div>
         )}
 
-        {profile?.role !== 'admin' && (
+        {profile?.role !== 'admin' && profile?.role !== 'especialista' && profile?.role !== 'aprobador' && profile?.role !== 'director' && (
           <motion.div
             className="hidden md:flex items-center gap-3"
             whileHover={{ scale: 1.05 }}
