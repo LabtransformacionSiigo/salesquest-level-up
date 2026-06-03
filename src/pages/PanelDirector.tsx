@@ -357,6 +357,7 @@ const PanelDirector = () => {
             .eq('anio', anio)
             .eq('mes_nro', mes);
           if (!isAdmin && scopePaises.length) tq = tq.in('pais', scopePaises);
+          if (!isAdmin && canalDirs.length) tq = tq.in('canal_direccion', canalDirs);
           const { data } = await tq;
           const totalMes = (data || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
           const metaMes = out.reduce((s, st) => s + st.metaFe + st.metaNube, 0);
