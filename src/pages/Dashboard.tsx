@@ -244,9 +244,9 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}
-        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-5" variants={fadeUpItem}>
+        <motion.div className="grid grid-cols-1 gap-5" variants={fadeUpItem}>
           {/* Retos de la Semana */}
-          <motion.div className="lg:col-span-2 bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
+          <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold font-heading text-secondary flex items-center gap-2">
                 <span className="text-primary">🎯</span> Retos de la Semana
