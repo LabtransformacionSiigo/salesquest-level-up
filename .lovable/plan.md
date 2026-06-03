@@ -1,58 +1,74 @@
-## Auditoría end-to-end: por qué nadie ha ganado SP Canje
+## Problema
 
-### Hallazgos (lo que encontré en la base de datos y código)
+El SP Convención de un mismo gerente muestra valores distintos según dónde se lea:
 
-**1. Catálogos de medallas están VACÍOS** (causa #1)
-- `catalogo_medallas` (VC): **0 filas**.
-- `medallas_vn_config` (VN): **0 filas**.
-- Aunque en la UI parezca que cargaste medallas, no hay ni una sola en BD. Por eso `medallas` y `medallas_vn_ganadas` también están en 0.
+- **Sidebar / Header / Mi Progreso** → usa `useGamificationMetrics` (pipeline complejo: `ventas_gerente_mensual` con dedup por familia + fallbacks a `vn_metricas_optimizadas` scope=gerente, `ejecucion_asesores`, `ventas_diarias`, `productividad_asesores`; metas estrictas desde `metas_acv_gerentes` con prioridad Cierre>Inicio).
+- **Ranking (tabla)** → usa `computeSpConvencionAnualForCelula` (pipeline simplificado, sin varios de esos fallbacks ni la misma precedencia).
 
-**2. La función `evaluate-medals` está declarada pero NO EXISTE**
-- `supabase/config.toml` la lista con `verify_jwt = false`, pero la carpeta `supabase/functions/evaluate-medals/` no existe.
-- Resultado: no hay ningún proceso que otorgue medallas VC, ni siquiera si el catálogo tuviera registros.
+Resultado: Carol ve **1.089** en su sidebar pero **1.137** en la tabla del ranking. Es un KPI crítico — debe haber una única fuente de verdad.
 
-**3. No hay cron que evalúe retos ni medallas**
-- `evaluar-retos-vc` y `evaluar-retos-vn` solo se disparan con el botón "▶ Ejecutar Evaluación Ahora".
-- No están en `pg_cron`. Hoy depende de que un humano pulse el botón.
+## Objetivo
 
-**4. La evaluación VC no encuentra cumplimientos hoy** (causa #2)
-- Hoy en el sistema es **2026-05-20**, pero la última `fecha_facturacion` en `ventas` VC es **2026-05-01**.
-- Retos DIARIO buscan `fecha = today` → 0 ventas hoy → 0 retos diarios.
-- Retos SEMANAL buscan ventas en la semana ISO actual → 0 → 0 retos semanales.
-- Retos MENSUAL para Mayo: existen 410 filas SUM- y 936 PROD- con ACV de mayo, pero los umbrales son altos (ej. "La bota de oro" exige 120% de cumplimiento; "Contraataque" 33 nubes). Eso explica el resultado "Retos otorgados: 0" que viste al pulsar el botón.
+1. **Fuente única**: el SP que ve cada gerente en "Mi Progreso" es la verdad. El Ranking debe mostrar exactamente ese mismo número para cada fila.
+2. **Tiempo real**: el ranking se actualiza cuando cambian las tablas fuente (sin polling agresivo cada segundo: usamos suscripciones realtime de Supabase + refetch en cambio detectado).
 
-**5. Solo VN_ALIADOS tiene retos VN — VN_EMPRESARIOS no tiene ninguno**
-- `catalogo_retos` para VN solo tiene 3 registros, todos con `canal='VN_ALIADOS'`. Empresarios nunca podrá ganar SP Canje por retos.
+## Plan técnico
 
-**6. SP Canje total = 0 en toda la plataforma**
-- `gerentes.sp_canje` y `asesores.sp_canje` ambos suman 0.
-- `sp_acumulados` tiene 258 filas pero TODAS con `fuente='CUMPLIMIENTO_META'` y `tipo_sp` distinto de `'canje'`. Cero filas tipo canje → cero canjeables.
+### Paso 1 — Extraer la lógica de Mi Progreso a una función pura compartida
 
----
+Crear `src/lib/sp-convencion-vn-mi-progreso.ts` con:
 
-### Plan de corrección
+```ts
+computeMonthlyCumplimientoForGerente({
+  celula, gerenteNombre, anio,
+  ventasGerenteMensualRows,   // ventas_gerente_mensual
+  vnMetricasGerenteRows,       // vn_metricas_optimizadas scope=gerente
+  vnMetricasAsesorRows,        // scope=asesor (fallback)
+  ventasDiariasRows,
+  ejecucionAsesoresRows,
+  productividadAsesoresRows,
+  metasAcvRows,                // metas_acv_gerentes (Cierre>Inicio)
+  metasAsesoresRows,           // metas_asesores (fallback meta_fe/nube)
+}) : MonthlyCumplimiento[]
+```
 
-**Paso 1 — Crear la función `evaluate-medals` (faltante)**
-- Carpeta `supabase/functions/evaluate-medals/index.ts` que recorra `catalogo_medallas` activas, valide condiciones (primera_venta, cantidad_producto, evento, etc.) contra `ventas` y registre en `medallas` + `sp_acumulados (tipo_sp='canje')` + `gerentes.sp_canje` vía `otorgar_medalla_si_aplica` (RPC ya existente).
-- Análogo para `medallas_vn_config` → `medallas_vn_ganadas`.
+Esta función reproduce **idénticamente** el bloque de `useGamificationMetrics.ts` (líneas ~1049-1577) que produce `vcMonthlyCumplimiento`. El total anual es la suma de la columna `sp`.
 
-**Paso 2 — Centralizar la evaluación en un único orquestador**
-- Crear `evaluar-gamificacion-todo` que invoque en orden: `evaluar-retos-vc`, `evaluar-retos-vn`, `evaluate-medals`. Una sola fuente de verdad para "evaluar ahora".
-- Reemplazar el botón de la UI por la llamada al orquestador.
+Luego reemplazar el cálculo inline dentro de `useGamificationMetrics` por una llamada a esta función para garantizar que siempre estén alineados.
 
-**Paso 3 — Cron cada 30 min**
-- `pg_cron` invocando `evaluar-gamificacion-todo` cada 30 minutos para que SP Canje y medallas se actualicen sin intervención manual.
+### Paso 2 — Usar la función única en el Ranking
 
-**Paso 4 — Habilitar VN_EMPRESARIOS en el catálogo**
-- Duplicar los retos VN_ALIADOS para `canal='VN_EMPRESARIOS'` (o permitir `canal IN ('VN_ALIADOS','VN_EMPRESARIOS')`) para que también puedan ganar SP Canje.
+En `src/pages/Rankings.tsx` (canal VN):
 
-**Paso 5 — Diagnóstico claro en la respuesta del botón**
-- Que el endpoint devuelva por cada reto: gerentes evaluados, valor_alcanzado vs umbral, cuántos cumplieron, cuántos se saltaron por idempotencia. Hoy solo dice "0 · 0" y no se entiende por qué.
+1. Cargar **una sola vez** las tablas base con los filtros amplios (por país + canal del usuario): `ventas_gerente_mensual`, `vn_metricas_optimizadas` (scope=gerente y scope=asesor), `ventas_diarias`, `ejecucion_asesores`, `productividad_asesores`, `metas_acv_gerentes`, `metas_asesores`.
+2. Por cada gerente del ranking, llamar `computeMonthlyCumplimientoForGerente(...)` filtrando las filas por su célula/nombre, y sumar `.sp`.
+3. Reemplazar `computeSpConvencionAnualForCelula` (que queda deprecado; mantener export pero redirigir a la nueva función para evitar romper otros consumidores).
 
-**Paso 6 — Sembrado de medallas mínimas (opcional, lo coordino contigo)**
-- Si confirmas que en Admin > Medallas no aparece ninguna fila, hay que volver a cargarlas (parece que el guardado quedó en frontend pero no llegó a BD).
+### Paso 3 — Tiempo real
 
----
+En `Rankings.tsx`, suscribirse vía `supabase.channel('rankings-vn')` a INSERT/UPDATE/DELETE de:
+- `ventas_gerente_mensual`
+- `vn_metricas_optimizadas`
+- `ventas_diarias`
+- `metas_acv_gerentes`
+- `sp_acumulados`
 
-### Pregunta antes de implementar
-- ¿Cuando entraste a **Admin > Medallas** veías filas listadas? Necesito confirmar si hubo un bug de guardado (UI muestra pero no persiste) o si nunca se guardaron. Si me confirmas eso, en la implementación incluyo también el fix del guardado de medallas.
+En cualquier cambio: re-disparar el `loadRanking()` (debounced 1.5s para no saturar al recibir lotes del sync de Databricks). Habilitar Realtime para esas tablas en una migración (`ALTER PUBLICATION supabase_realtime ADD TABLE …`).
+
+### Paso 4 — Verificación
+
+Después de implementar:
+- Iniciar sesión como Carol Florez → comparar SP del sidebar (Mi Progreso) con el valor de su fila en `/ranking`. Deben ser idénticos.
+- Repetir con otro gerente de otra célula.
+- Forzar una inserción en `ventas_gerente_mensual` y verificar que el ranking se refresca en ≤2s sin recargar la página.
+
+## Detalles importantes
+
+- **Costos de carga**: traer todas las tablas para todos los gerentes del país+canal puede ser pesado (cientos de miles de filas). Mitigación: filtros server-side por `pais`, `canal`, `anio=2026`, y limit por chunks de células.
+- **Asesores VN**: el ranking de asesores ya usa `computeSpConvencionAnualForAsesor` que coincide con Mi Progreso individual; no se toca esa parte.
+- **Canal VC**: el ranking VC se calcula desde `sp_acumulados` y no presenta este desajuste (no se modifica).
+
+## Riesgos
+
+- Refactor grande del hook `useGamificationMetrics` (1955 líneas). Extraer la función debe respetar **byte por byte** la lógica actual para no romper Mi Progreso.
+- Realtime requiere la migración de publicación y que las RLS permitan SELECT al usuario logueado (ya está OK para estas tablas).
