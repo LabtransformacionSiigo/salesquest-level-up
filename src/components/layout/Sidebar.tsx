@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import siigoLogoWhite from '@/assets/siigo-logo-white.png';
 import logoIncentivos from '@/assets/logo-incentivos.png';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { staggerContainer, slideInLeft } from '@/lib/animations';
