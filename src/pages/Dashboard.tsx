@@ -239,8 +239,6 @@ const Dashboard = () => {
             )}
           </motion.div>
 
-          {/* Top Siigo Pointers */}
-          <TopSiigoPointers canal={profile?.canal ?? null} loading={dataLoading} isVC={profile?.canal === 'VC'} topRanking={topRanking} />
         </motion.div>
 
         {/* Retos + Medallas/Reconocimientos */}
