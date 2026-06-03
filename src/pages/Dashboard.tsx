@@ -318,45 +318,6 @@ const Dashboard = () => {
 
           </motion.div>
 
-          {/* Medallas + Reconocimientos stacked */}
-          <div className="space-y-5">
-
-            {/* Reconocimientos */}
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm"
-              variants={fadeUpItem}
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-            >
-              <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
-                <span className="text-primary">🎖️</span> Reconocimientos
-              </h3>
-              {dataLoading ? <Skeleton className="h-20" /> : feed.length > 0 ? (
-                <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
-                  {feed.slice(0, 3).map((r) => (
-                    <motion.div
-                      key={r.id}
-                      className="flex items-start gap-3 p-3"
-                      variants={fadeUpItem}
-                      whileHover={{ x: 4, transition: { duration: 0.15 } }}
-                    >
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">🏆</div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-foreground">
-                          <span className="font-bold">{r.de_nombre}</span> — <span className="font-bold">{r.para_nombre}</span>
-                        </p>
-                        <p className="text-xs text-primary font-bold uppercase mt-0.5">{r.tipo?.replace(/_/g, ' ')}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <span className="text-4xl mb-2 block opacity-30">🤝</span>
-                  <p className="text-sm">Sin reconocimientos aún</p>
-                </div>
-              )}
-            </motion.div>
-          </div>
         </motion.div>
       </motion.div>
     </Layout>
