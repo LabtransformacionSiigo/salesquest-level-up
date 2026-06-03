@@ -11,7 +11,7 @@ import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 import DonutChart from '@/components/dashboard/DonutChart';
 import KpiProgressBars from '@/components/dashboard/KpiProgressBars';
-import TopSiigoPointers from '@/components/dashboard/TopSiigoPointers';
+
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import CelebrationOverlay from '@/components/ui/CelebrationOverlay';
 import bannerPrincipal from '@/assets/banner-principal.png';
