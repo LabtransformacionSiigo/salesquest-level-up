@@ -64,6 +64,8 @@ async function fetchAllMetasAsesores(year: number, paisCode?: string, canal?: st
       .select('anio_mes, nombre_asesor, documento_asesor, novedad, meta_total, meta_fe, meta_nube, celula, gerente, pais, canal_direccion')
       .gte('anio_mes', `${year}01`)
       .lte('anio_mes', `${year}12`)
+      .order('anio_mes', { ascending: true })
+      .order('documento_asesor', { ascending: true })
       .range(from, from + pageSize - 1);
     if (paisFull) q = q.eq('pais', paisFull);
     if (canalDir) q = q.eq('canal_direccion', canalDir);
