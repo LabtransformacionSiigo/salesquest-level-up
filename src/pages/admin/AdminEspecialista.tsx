@@ -922,13 +922,36 @@ const AdminEspecialista = () => {
 
               {/* Resumen mensual SP Canje por gerente (scope del especialista) */}
               <section className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-lg">Resumen mensual · SP Canje por gerente</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Total de SP Canje ganados por cada gerente en tu alcance, desglosado por mes y fuente (retos, medallas, reconocimientos).
-                  </p>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-lg">Resumen mensual · SP Canje por gerente</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Total de SP Canje ganados por cada gerente en tu alcance, desglosado por mes y fuente (retos, medallas, reconocimientos).
+                    </p>
+                  </div>
+                  {!isAdmin && permisos && (
+                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                      {permisos.paises.map((p) => (
+                        <span key={p} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">🌎 {p}</span>
+                      ))}
+                      {permisos.operaciones.map((o) => (
+                        <span key={o} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-semibold">{o}</span>
+                      ))}
+                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{gerentes.length} gerentes</span>
+                    </div>
+                  )}
                 </div>
-                <SpCanjeMensual gerentes={gerentes} isAdmin={isAdmin} />
+                {dataLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : gerentes.length === 0 ? (
+                  <div className="border border-dashed border-border rounded-xl p-8 text-center text-muted-foreground">
+                    <p className="text-3xl mb-2">🔒</p>
+                    <p className="font-medium">No hay gerentes en tu alcance asignado.</p>
+                    <p className="text-xs mt-1">Verifica con un admin que tus países y operaciones estén configurados.</p>
+                  </div>
+                ) : (
+                  <SpCanjeMensual key={gerentes.map(g => g.id).join(',')} gerentes={gerentes} isAdmin={isAdmin} />
+                )}
               </section>
 
               <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
