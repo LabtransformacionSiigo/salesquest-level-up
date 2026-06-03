@@ -588,24 +588,6 @@ const EquipoRendimientoSection = ({
         ))}
       </div>
 
-      {/* Selector ordenamiento */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground font-semibold">Ordenar por:</span>
-        {sortOptions.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => setSortBy(opt.key)}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
-              sortBy === opt.key
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-card border-border text-muted-foreground hover:border-primary/40'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       {/* Lista de asesores */}
       <div className="space-y-2">
