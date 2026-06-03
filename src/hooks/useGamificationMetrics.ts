@@ -813,12 +813,7 @@ export const useGamificationMetrics = (
             const teamVentasPaged: any[] = [];
             const pageSize = 1000;
             for (let from = 0; from < 10000; from += pageSize) {
-              const filters = [
-                profile.celula ? `celula.eq.${profile.celula}` : '',
-                profile.nombre ? `director.eq.${profile.nombre}` : '',
-              ].filter(Boolean).join(',');
-
-              const query = supabase
+              let query = supabase
                 .from('ventas_diarias')
                 .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
                 .gte('fecha', `${anioActual}-01-01`)
@@ -826,7 +821,13 @@ export const useGamificationMetrics = (
                 .eq('pais', paisProfile)
                 .range(from, from + pageSize - 1);
 
-              const { data: pageRows } = filters ? await query.or(filters) : await query;
+              if (profile.celula) {
+                query = query.eq('celula', profile.celula);
+              } else if (profile.nombre) {
+                query = query.eq('director', profile.nombre);
+              }
+
+              const { data: pageRows } = await query;
               if (!pageRows || pageRows.length === 0) break;
               teamVentasPaged.push(...pageRows);
               if (pageRows.length < pageSize) break;
