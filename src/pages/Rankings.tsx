@@ -525,7 +525,12 @@ const Rankings = () => {
           supabase.from('user_roles').select('user_id, role'),
           fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
-          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).eq('pais', userPais).eq('canal_direccion', vnCanalDireccion).limit(10000),
+          // NOTA: canal_direccion en estas tres tablas está mal etiquetado en COL
+          // (todo aparece como 'Aliados' aunque corresponda a Empresarios). El filtro
+          // por celula aguas abajo en computeSpConvencionAnualForCelula garantiza que
+          // solo se agregue lo que corresponde a cada gerente, así que omitimos el
+          // filtro de canal aquí para que todos los usuarios vean la misma verdad.
+          supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).eq('pais', userPais).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').eq('pais', userPais).eq('canal', profile.canal).limit(2000),
           (() => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
@@ -535,10 +540,9 @@ const Rankings = () => {
               .lte('mes_nro', 12)
               .limit(5000);
             if (userPais) q = q.eq('pais', String(userPais).toUpperCase());
-            q = q.eq('canal_direccion', vnCanalDireccion);
             return q;
           })(),
-          supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).eq('canal_direccion', vnCanalDireccion).range(0, 49999),
+          supabase.from('ventas_diarias').select('fecha, tipo_producto, producto, unidades, acv, celula, equipo, director, pais').gte('fecha', `${currentConventionYear}-01-01`).lt('fecha', `${currentConventionYear + 1}-01-01`).eq('pais', userPais).order('fecha', { ascending: true }).range(0, 49999),
           userPais === 'MEX'
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').eq('pais_gestion', 'MEX').eq('canal_direccion', metasGerentesCanal).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
