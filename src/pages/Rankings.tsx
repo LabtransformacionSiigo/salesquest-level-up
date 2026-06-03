@@ -695,18 +695,21 @@ const Rankings = () => {
           celulaAgg.set(celula, agg);
         });
         // Set de células válidas para el canal del usuario:
-        // sólo las que aparecen en productividad_asesores (filtrada por area+canal)
-        // o en metas_asesores (filtrada por canal_direccion). Esto evita que
-        // entren células de otros canales (B&M, Venta Cruzada, Base Instalada…)
-        // a través de vn_metricas_optimizadas que no tiene filtro de canal.
+        // FUENTE ÚNICA = metas_acv_gerentes (ya filtrada por pais+canal).
+        // productividad_asesores mezcla células de otros segmentos (B&M, Base
+        // Instalada Mexico, Venta Cruzada, etc.) bajo el mismo `area`, así
+        // que NO sirve como filtro de canal. metas_asesores tampoco trae el
+        // canal real por célula. Solo metas_acv_gerentes garantiza que la
+        // célula pertenezca al canal/pais del usuario.
         const allowedCelulas = new Set<string>();
-        (productividadRes.data || []).forEach((row: any) => {
+        (metasAcvGerRes.data || []).forEach((row: any) => {
           const k = normalizeComparableText(row.celula);
           if (k) allowedCelulas.add(k);
         });
-        (metasAsesoresRes.data || []).forEach((row: any) => {
-          const k = normalizeComparableText(row.celula);
-          if (k) allowedCelulas.add(k);
+        // Purgar de celulaAgg las células que NO pertenecen al canal real
+        // (entraron por productividad_asesores con `area` compartida).
+        Array.from(celulaAgg.keys()).forEach((celula) => {
+          if (!allowedCelulas.has(celula)) celulaAgg.delete(celula);
         });
         vnGerenteMetricByCelula.forEach((metricAgg, celula) => {
           if (celulaAgg.has(celula)) return;
