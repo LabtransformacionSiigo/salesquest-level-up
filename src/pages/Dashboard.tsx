@@ -320,43 +320,6 @@ const Dashboard = () => {
 
           {/* Medallas + Reconocimientos stacked */}
           <div className="space-y-5">
-            {/* Medallas Recientes */}
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm"
-              variants={fadeUpItem}
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-            >
-              <h3 className="text-base font-bold font-heading text-secondary mb-4 flex items-center gap-2">
-                <span className="text-primary">🏅</span> Medallas Recientes
-              </h3>
-              {dataLoading ? <Skeleton className="h-20" /> : medallas.length > 0 ? (
-                <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
-                  {medallas.slice(0, 3).map((m, i) => (
-                    <motion.div
-                      key={`${m.medalla}-${i}`}
-                      className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl"
-                      variants={fadeUpItem}
-                      whileHover={{ x: 4, transition: { duration: 0.15 } }}
-                    >
-                      <motion.span
-                        className="text-2xl"
-                        animate={{ rotate: [0, -10, 10, 0] }}
-                        transition={{ duration: 0.8, delay: i * 0.2 + 0.5 }}
-                      >🏅</motion.span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{m.medalla}</p>
-                        <p className="text-xs font-bold font-scoreboard text-accent">🎁 +{m.sp_otorgados} Canjeables</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <span className="text-4xl mb-2 block opacity-30">🏅</span>
-                  <p className="text-sm">Aún no tienes medallas</p>
-                </div>
-              )}
-            </motion.div>
 
             {/* Reconocimientos */}
             <motion.div
