@@ -26,7 +26,7 @@ const menuItems = [
 const adminItems = [
   { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
-  { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
+  { path: '/especialista/gamificacion-vc', icon: 'shield_person', label: 'Panel especialista' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
   { path: '/admin/medallas', icon: 'emoji_events', label: 'Medallas (legacy)' },
   { path: '/admin/rachas', icon: 'local_fire_department', label: 'Rachas (legacy)' },
@@ -40,7 +40,7 @@ const adminItems = [
 ];
 
 const especialistaItems = [
-  { path: '/especialista/gamificacion-vc', icon: 'sports_esports', label: 'Gamificación VC' },
+  { path: '/especialista/gamificacion-vc', icon: 'shield_person', label: 'Panel especialista' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];
