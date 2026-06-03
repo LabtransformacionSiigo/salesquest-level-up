@@ -694,8 +694,23 @@ const Rankings = () => {
           }
           celulaAgg.set(celula, agg);
         });
+        // Set de células válidas para el canal del usuario:
+        // sólo las que aparecen en productividad_asesores (filtrada por area+canal)
+        // o en metas_asesores (filtrada por canal_direccion). Esto evita que
+        // entren células de otros canales (B&M, Venta Cruzada, Base Instalada…)
+        // a través de vn_metricas_optimizadas que no tiene filtro de canal.
+        const allowedCelulas = new Set<string>();
+        (productividadRes.data || []).forEach((row: any) => {
+          const k = normalizeComparableText(row.celula);
+          if (k) allowedCelulas.add(k);
+        });
+        (metasAsesoresRes.data || []).forEach((row: any) => {
+          const k = normalizeComparableText(row.celula);
+          if (k) allowedCelulas.add(k);
+        });
         vnGerenteMetricByCelula.forEach((metricAgg, celula) => {
           if (celulaAgg.has(celula)) return;
+          if (!allowedCelulas.has(celula)) return;
           celulaAgg.set(celula, {
             celulaNombre: metricAgg.celulaNombre,
             months: new Map(),
@@ -925,7 +940,15 @@ const Rankings = () => {
           });
         }
 
-        setRanking(entries);
+        // Ocultar gerentes sin actividad alguna (antiguos/inactivos):
+        // sin SP, sin ventas, sin meta y sin ACV.
+        const activeEntries = entries.filter((e: any) =>
+          (Number(e.sp_totales) || 0) > 0 ||
+          (Number(e.unidades_total) || 0) > 0 ||
+          (Number(e.acv_total_year) || 0) > 0 ||
+          (Number(e.meta_acv) || 0) > 0
+        );
+        setRanking(activeEntries);
       }
     } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
