@@ -288,7 +288,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        SP Canje acumulado desde <code>sp_acumulados</code> (tipo_sp = canje). Incluye medallas, retos diarios/semanales/mensuales y reconocimientos. Click en una fila para ver el desglose por fuente.
+        SP Canje acumulado desde <code>sp_acumulados</code> y retos históricos ya completados. Incluye medallas, retos diarios/semanales/mensuales y reconocimientos. Click en una fila para ver el desglose por fuente.
       </p>
     </div>
   );
