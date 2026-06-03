@@ -129,9 +129,15 @@ const PanelDirector = () => {
           });
         }
 
-        // 3) Métricas VN
+        // 3) Métricas VN — respetar scope de canales del director
         const vnCanales = (scopeCanales.length ? scopeCanales : ['VN_ALIADOS', 'VN_EMPRESARIOS', 'VC'])
           .filter((c) => c.startsWith('VN'));
+        // Mapear canal interno → canal_direccion en vn_metricas_optimizadas
+        const canalDirMap: Record<string, string> = {
+          VN_ALIADOS: 'Aliados',
+          VN_EMPRESARIOS: 'Empresarios',
+        };
+        const canalDirs = vnCanales.map((c) => canalDirMap[c]).filter(Boolean);
         let metricas: any[] = [];
         if (vnCanales.length || isAdmin) {
           let mq = supabase
@@ -141,6 +147,7 @@ const PanelDirector = () => {
             .eq('anio', anio)
             .eq('mes_nro', periodoSel);
           if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
+          if (!isAdmin && canalDirs.length) mq = mq.in('canal_direccion', canalDirs);
           const { data } = await mq;
           metricas = data || [];
         }
@@ -350,6 +357,7 @@ const PanelDirector = () => {
             .eq('anio', anio)
             .eq('mes_nro', mes);
           if (!isAdmin && scopePaises.length) tq = tq.in('pais', scopePaises);
+          if (!isAdmin && canalDirs.length) tq = tq.in('canal_direccion', canalDirs);
           const { data } = await tq;
           const totalMes = (data || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
           const metaMes = out.reduce((s, st) => s + st.metaFe + st.metaNube, 0);
