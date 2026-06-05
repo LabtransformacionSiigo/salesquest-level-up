@@ -116,8 +116,11 @@ const PanelDirector = () => {
         const gerentesList = (gerentes || []) as GerenteRow[];
 
         // 2) Asesores count por gerente
+        // Modelo VN: los asesores están en la propia tabla `gerentes` compartiendo `celula`
+        // con su líder. Contamos miembros por célula y restamos 1 (el líder).
         const gerenteIds = gerentesList.map((g) => g.id);
         const asesoresMap = new Map<string, number>();
+        // a) Desde la tabla `asesores` (modelo legacy / VC)
         if (gerenteIds.length) {
           const { data: ases } = await supabase
             .from('asesores')
@@ -127,6 +130,29 @@ const PanelDirector = () => {
           (ases || []).forEach((a: any) => {
             asesoresMap.set(a.gerente_id, (asesoresMap.get(a.gerente_id) || 0) + 1);
           });
+        }
+        // b) Desde `gerentes` agrupado por celula (modelo VN actual). Trae TODOS los
+        //    miembros de la celula aunque no estén en el scope del director.
+        const celulasInScope = Array.from(
+          new Set(gerentesList.map((g) => g.celula).filter(Boolean) as string[]),
+        );
+        const celulaCountMap = new Map<string, number>();
+        if (celulasInScope.length) {
+          const { data: allCel } = await supabase
+            .from('gerentes')
+            .select('celula')
+            .in('celula', celulasInScope)
+            .eq('activo', true);
+          (allCel || []).forEach((r: any) => {
+            celulaCountMap.set(r.celula, (celulaCountMap.get(r.celula) || 0) + 1);
+          });
+        }
+        for (const g of gerentesList) {
+          if (asesoresMap.get(g.id)) continue; // ya contado vía asesores
+          if (!g.celula) continue;
+          const total = celulaCountMap.get(g.celula) || 0;
+          // restamos 1 = el propio líder (este gerente)
+          asesoresMap.set(g.id, Math.max(0, total - 1));
         }
 
         // 3) Métricas VN — respetar scope de canales del director
