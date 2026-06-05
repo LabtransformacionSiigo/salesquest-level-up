@@ -748,7 +748,7 @@ const PanelDirector = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_160px] gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -758,18 +758,10 @@ const PanelDirector = () => {
                   className="pl-9"
                 />
               </div>
-              <Select value={filtroPais} onValueChange={setFiltroPais}>
-                <SelectTrigger><SelectValue placeholder="Todos los países" /></SelectTrigger>
+              <Select value={String(periodoSel)} onValueChange={(v) => setPeriodoSel(Number(v))}>
+                <SelectTrigger><SelectValue placeholder="Mes" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TODOS">Todos los países</SelectItem>
-                  {paisesDisponibles.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filtroCanal} onValueChange={setFiltroCanal}>
-                <SelectTrigger><SelectValue placeholder="Todos los canales" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS">Todos los canales</SelectItem>
-                  {canalesDisponibles.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {MESES.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
