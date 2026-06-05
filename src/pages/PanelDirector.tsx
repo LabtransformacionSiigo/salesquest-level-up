@@ -551,7 +551,7 @@ const PanelDirector = () => {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Users className="text-primary" />
@@ -570,19 +570,29 @@ const PanelDirector = () => {
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
+              <span className="text-indigo-500 font-bold text-base">FE</span>
+              <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
+            </div>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot.toLocaleString()} FE</p>
+          </Card>
+          <Card className="p-5 rounded-2xl">
+            <div className="flex items-start justify-between">
+              <Cloud className="text-sky-500" />
+              <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
+            </div>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot.toLocaleString()} Nube · Mix {Math.round(kpis.mixNube)}%</p>
+          </Card>
+          <Card className="p-5 rounded-2xl">
+            <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
             <p className="text-xs text-muted-foreground mt-1">ACV total</p>
           </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <Cloud className="text-sky-500" />
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{Math.round(kpis.mixNube)}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Mix Nube</p>
-          </Card>
         </div>
+
 
         {/* Resumen ejecutivo: 4 niveles + barra de participación */}
         <Card className="p-6 rounded-2xl">
