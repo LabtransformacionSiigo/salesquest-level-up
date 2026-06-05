@@ -116,8 +116,11 @@ const PanelDirector = () => {
         const gerentesList = (gerentes || []) as GerenteRow[];
 
         // 2) Asesores count por gerente
+        // Modelo VN: los asesores están en la propia tabla `gerentes` compartiendo `celula`
+        // con su líder. Contamos miembros por célula y restamos 1 (el líder).
         const gerenteIds = gerentesList.map((g) => g.id);
         const asesoresMap = new Map<string, number>();
+        // a) Desde la tabla `asesores` (modelo legacy / VC)
         if (gerenteIds.length) {
           const { data: ases } = await supabase
             .from('asesores')
@@ -127,6 +130,29 @@ const PanelDirector = () => {
           (ases || []).forEach((a: any) => {
             asesoresMap.set(a.gerente_id, (asesoresMap.get(a.gerente_id) || 0) + 1);
           });
+        }
+        // b) Desde `gerentes` agrupado por celula (modelo VN actual). Trae TODOS los
+        //    miembros de la celula aunque no estén en el scope del director.
+        const celulasInScope = Array.from(
+          new Set(gerentesList.map((g) => g.celula).filter(Boolean) as string[]),
+        );
+        const celulaCountMap = new Map<string, number>();
+        if (celulasInScope.length) {
+          const { data: allCel } = await supabase
+            .from('gerentes')
+            .select('celula')
+            .in('celula', celulasInScope)
+            .eq('activo', true);
+          (allCel || []).forEach((r: any) => {
+            celulaCountMap.set(r.celula, (celulaCountMap.get(r.celula) || 0) + 1);
+          });
+        }
+        for (const g of gerentesList) {
+          if (asesoresMap.get(g.id)) continue; // ya contado vía asesores
+          if (!g.celula) continue;
+          const total = celulaCountMap.get(g.celula) || 0;
+          // restamos 1 = el propio líder (este gerente)
+          asesoresMap.set(g.id, Math.max(0, total - 1));
         }
 
         // 3) Métricas VN — respetar scope de canales del director
@@ -403,9 +429,13 @@ const PanelDirector = () => {
     const totalAcv = filteredStats.reduce((s, x) => s + x.acv, 0);
     const totalFe = filteredStats.reduce((s, x) => s + x.fe, 0);
     const totalNube = filteredStats.reduce((s, x) => s + x.nube, 0);
+    const metaFeTot = filteredStats.reduce((s, x) => s + x.metaFe, 0);
+    const metaNubeTot = filteredStats.reduce((s, x) => s + x.metaNube, 0);
     const mixNube = (totalFe + totalNube) > 0 ? (totalNube / (totalFe + totalNube)) * 100 : 0;
     const pctUds = metaUds > 0 ? (totalUds / metaUds) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds };
+    const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
+    const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
+    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube };
   }, [filteredStats]);
 
   // Conteo por tier
@@ -444,13 +474,34 @@ const PanelDirector = () => {
   useEffect(() => { setPage(1); }, [filtroTier, search, filtroCanal, filtroPais, periodoSel]);
 
   const top3 = useMemo(
-    () => [...filteredStats].sort((a, b) => b.pctTotal - a.pctTotal).slice(0, 3),
+    () => [...filteredStats]
+      .filter((s) => s.metaFe + s.metaNube > 0)
+      .sort((a, b) => b.pctTotal - a.pctTotal)
+      .slice(0, 3),
     [filteredStats],
   );
+  // Plan de choque: gerentes con meta asignada y cumplimiento <50%, ordenados por
+  // el % más bajo (los más críticos primero).
   const planChoque = useMemo(
-    () => [...filteredStats].sort((a, b) => a.pctTotal - b.pctTotal).slice(0, 3),
+    () => [...filteredStats]
+      .filter((s) => s.metaFe + s.metaNube > 0 && s.pctTotal < 50)
+      .sort((a, b) => a.pctTotal - b.pctTotal)
+      .slice(0, 5),
     [filteredStats],
   );
+
+  // Razón principal del bajo cumplimiento de un gerente
+  const motivoPlanChoque = (s: Stats): string => {
+    const gapFe = s.metaFe - s.fe;
+    const gapNube = s.metaNube - s.nube;
+    const pctFe = s.metaFe > 0 ? (s.fe / s.metaFe) * 100 : 100;
+    const pctNube = s.metaNube > 0 ? (s.nube / s.metaNube) * 100 : 100;
+    const motivos: string[] = [];
+    if (pctFe < 50 && gapFe > 0) motivos.push(`FE ${Math.round(pctFe)}% (faltan ${gapFe})`);
+    if (pctNube < 50 && gapNube > 0) motivos.push(`Nube ${Math.round(pctNube)}% (faltan ${gapNube})`);
+    if (!motivos.length) motivos.push(`Cumpl. ${s.pctTotal}%`);
+    return motivos.join(' · ');
+  };
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-32 w-64" /></div>;
@@ -521,7 +572,7 @@ const PanelDirector = () => {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Users className="text-primary" />
@@ -540,19 +591,29 @@ const PanelDirector = () => {
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
+              <span className="text-indigo-500 font-bold text-base">FE</span>
+              <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
+            </div>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot.toLocaleString()} FE</p>
+          </Card>
+          <Card className="p-5 rounded-2xl">
+            <div className="flex items-start justify-between">
+              <Cloud className="text-sky-500" />
+              <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
+            </div>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot.toLocaleString()} Nube · Mix {Math.round(kpis.mixNube)}%</p>
+          </Card>
+          <Card className="p-5 rounded-2xl">
+            <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
             <p className="text-xs text-muted-foreground mt-1">ACV total</p>
           </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <Cloud className="text-sky-500" />
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{Math.round(kpis.mixNube)}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Mix Nube</p>
-          </Card>
         </div>
+
 
         {/* Resumen ejecutivo: 4 niveles + barra de participación */}
         <Card className="p-6 rounded-2xl">
@@ -708,7 +769,7 @@ const PanelDirector = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_160px] gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -718,18 +779,10 @@ const PanelDirector = () => {
                   className="pl-9"
                 />
               </div>
-              <Select value={filtroPais} onValueChange={setFiltroPais}>
-                <SelectTrigger><SelectValue placeholder="Todos los países" /></SelectTrigger>
+              <Select value={String(periodoSel)} onValueChange={(v) => setPeriodoSel(Number(v))}>
+                <SelectTrigger><SelectValue placeholder="Mes" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TODOS">Todos los países</SelectItem>
-                  {paisesDisponibles.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filtroCanal} onValueChange={setFiltroCanal}>
-                <SelectTrigger><SelectValue placeholder="Todos los canales" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS">Todos los canales</SelectItem>
-                  {canalesDisponibles.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {MESES.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -746,17 +799,15 @@ const PanelDirector = () => {
                   <TableHead className="text-right">FE</TableHead>
                   <TableHead className="text-right">Nube</TableHead>
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">⚡ SP</TableHead>
-                  <TableHead className="text-right">🔥 Racha</TableHead>
                   <TableHead className="text-right">% Cumpl.</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
                   return (
@@ -764,12 +815,10 @@ const PanelDirector = () => {
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
-                      <TableCell className="text-right">{s.asesores}</TableCell>
+                      <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
                       <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube}</span></TableCell>
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
-                      <TableCell className="text-right font-scoreboard">{s.sp.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{s.racha > 0 ? `${s.racha}🔥` : '—'}</TableCell>
                       <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
@@ -802,36 +851,67 @@ const PanelDirector = () => {
         </Card>
 
         {/* Top 3 + Plan de choque */}
-        <Card className="p-5 rounded-2xl">
-          <h3 className="font-heading text-lg font-bold mb-4 flex items-center gap-2">
-            <Trophy className="text-amber-500" /> Top 3 & Plan de choque
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="p-5 rounded-2xl">
+            <h3 className="font-heading text-lg font-bold mb-1 flex items-center gap-2">
+              <Trophy className="text-amber-500" /> Top 3 del mes
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">Mayor % de cumplimiento ACV — FE + Nube</p>
             <div className="space-y-2">
-              {top3.map((s, i) => (
-                <div key={s.gerente.id} className="flex justify-between items-center p-2 rounded-lg bg-muted/40">
-                  <span className="flex items-center gap-2">
-                    <span className="text-lg">{['🥇','🥈','🥉'][i]}</span>
-                    <span className="font-medium text-sm">{s.gerente.nombre}</span>
-                  </span>
-                  <span className="font-bold text-emerald-600">{s.pctTotal}%</span>
-                </div>
-              ))}
+              {top3.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">Sin gerentes con meta asignada este mes.</p>
+              )}
+              {top3.map((s, i) => {
+                const t = tierDef(tierOf(s.pctTotal));
+                return (
+                  <div key={s.gerente.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-gradient-to-r from-amber-50/60 to-transparent dark:from-amber-950/20">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl">{['🥇','🥈','🥉'][i]}</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{s.gerente.nombre}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {s.gerente.canal} · {s.gerente.pais} · FE {s.fe}/{s.metaFe} · Nube {s.nube}/{s.metaNube}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xl font-scoreboard font-bold ${t.text}`}>{s.pctTotal}%</span>
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-rose-500" /> Requieren plan de choque
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {planChoque.map((s) => (
-                  <Badge key={s.gerente.id} className="bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900">
-                    {s.gerente.nombre.split(' ')[0]} · {s.pctTotal}%
-                  </Badge>
-                ))}
-              </div>
+          </Card>
+
+          <Card className="p-5 rounded-2xl">
+            <h3 className="font-heading text-lg font-bold mb-1 flex items-center gap-2">
+              <AlertTriangle className="text-rose-500" /> Plan de choque
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Gerentes con cumplimiento &lt;50%. Datos: <span className="font-semibold">metas_acv_gerentes</span> + <span className="font-semibold">vn_metricas_optimizadas</span> (ventas diarias).
+            </p>
+            <div className="space-y-2">
+              {planChoque.length === 0 && (
+                <p className="text-sm text-emerald-600 flex items-center gap-1">✅ Ningún gerente bajo el 50% este mes.</p>
+              )}
+              {planChoque.map((s) => {
+                const t = tierDef(tierOf(s.pctTotal));
+                return (
+                  <div key={s.gerente.id} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm truncate">{s.gerente.nombre}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {s.gerente.canal} · {s.gerente.pais} · {s.asesores} asesores
+                      </p>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-1 font-medium">
+                        ⚠ {motivoPlanChoque(s)}
+                      </p>
+                    </div>
+                    <span className={`text-xl font-scoreboard font-bold ${t.text}`}>{s.pctTotal}%</span>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Tendencia */}
         <Card className="p-5 rounded-2xl">
