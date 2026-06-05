@@ -474,13 +474,34 @@ const PanelDirector = () => {
   useEffect(() => { setPage(1); }, [filtroTier, search, filtroCanal, filtroPais, periodoSel]);
 
   const top3 = useMemo(
-    () => [...filteredStats].sort((a, b) => b.pctTotal - a.pctTotal).slice(0, 3),
+    () => [...filteredStats]
+      .filter((s) => s.metaFe + s.metaNube > 0)
+      .sort((a, b) => b.pctTotal - a.pctTotal)
+      .slice(0, 3),
     [filteredStats],
   );
+  // Plan de choque: gerentes con meta asignada y cumplimiento <50%, ordenados por
+  // el % más bajo (los más críticos primero).
   const planChoque = useMemo(
-    () => [...filteredStats].sort((a, b) => a.pctTotal - b.pctTotal).slice(0, 3),
+    () => [...filteredStats]
+      .filter((s) => s.metaFe + s.metaNube > 0 && s.pctTotal < 50)
+      .sort((a, b) => a.pctTotal - b.pctTotal)
+      .slice(0, 5),
     [filteredStats],
   );
+
+  // Razón principal del bajo cumplimiento de un gerente
+  const motivoPlanChoque = (s: Stats): string => {
+    const gapFe = s.metaFe - s.fe;
+    const gapNube = s.metaNube - s.nube;
+    const pctFe = s.metaFe > 0 ? (s.fe / s.metaFe) * 100 : 100;
+    const pctNube = s.metaNube > 0 ? (s.nube / s.metaNube) * 100 : 100;
+    const motivos: string[] = [];
+    if (pctFe < 50 && gapFe > 0) motivos.push(`FE ${Math.round(pctFe)}% (faltan ${gapFe})`);
+    if (pctNube < 50 && gapNube > 0) motivos.push(`Nube ${Math.round(pctNube)}% (faltan ${gapNube})`);
+    if (!motivos.length) motivos.push(`Cumpl. ${s.pctTotal}%`);
+    return motivos.join(' · ');
+  };
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-32 w-64" /></div>;
