@@ -429,9 +429,13 @@ const PanelDirector = () => {
     const totalAcv = filteredStats.reduce((s, x) => s + x.acv, 0);
     const totalFe = filteredStats.reduce((s, x) => s + x.fe, 0);
     const totalNube = filteredStats.reduce((s, x) => s + x.nube, 0);
+    const metaFeTot = filteredStats.reduce((s, x) => s + x.metaFe, 0);
+    const metaNubeTot = filteredStats.reduce((s, x) => s + x.metaNube, 0);
     const mixNube = (totalFe + totalNube) > 0 ? (totalNube / (totalFe + totalNube)) * 100 : 0;
     const pctUds = metaUds > 0 ? (totalUds / metaUds) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds };
+    const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
+    const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
+    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube };
   }, [filteredStats]);
 
   // Conteo por tier
