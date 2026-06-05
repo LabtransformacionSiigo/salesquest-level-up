@@ -778,17 +778,15 @@ const PanelDirector = () => {
                   <TableHead className="text-right">FE</TableHead>
                   <TableHead className="text-right">Nube</TableHead>
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">⚡ SP</TableHead>
-                  <TableHead className="text-right">🔥 Racha</TableHead>
                   <TableHead className="text-right">% Cumpl.</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
                   return (
@@ -796,12 +794,10 @@ const PanelDirector = () => {
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
-                      <TableCell className="text-right">{s.asesores}</TableCell>
+                      <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
                       <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube}</span></TableCell>
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
-                      <TableCell className="text-right font-scoreboard">{s.sp.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{s.racha > 0 ? `${s.racha}🔥` : '—'}</TableCell>
                       <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
