@@ -851,36 +851,67 @@ const PanelDirector = () => {
         </Card>
 
         {/* Top 3 + Plan de choque */}
-        <Card className="p-5 rounded-2xl">
-          <h3 className="font-heading text-lg font-bold mb-4 flex items-center gap-2">
-            <Trophy className="text-amber-500" /> Top 3 & Plan de choque
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="p-5 rounded-2xl">
+            <h3 className="font-heading text-lg font-bold mb-1 flex items-center gap-2">
+              <Trophy className="text-amber-500" /> Top 3 del mes
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">Mayor % de cumplimiento ACV — FE + Nube</p>
             <div className="space-y-2">
-              {top3.map((s, i) => (
-                <div key={s.gerente.id} className="flex justify-between items-center p-2 rounded-lg bg-muted/40">
-                  <span className="flex items-center gap-2">
-                    <span className="text-lg">{['🥇','🥈','🥉'][i]}</span>
-                    <span className="font-medium text-sm">{s.gerente.nombre}</span>
-                  </span>
-                  <span className="font-bold text-emerald-600">{s.pctTotal}%</span>
-                </div>
-              ))}
+              {top3.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">Sin gerentes con meta asignada este mes.</p>
+              )}
+              {top3.map((s, i) => {
+                const t = tierDef(tierOf(s.pctTotal));
+                return (
+                  <div key={s.gerente.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-gradient-to-r from-amber-50/60 to-transparent dark:from-amber-950/20">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl">{['🥇','🥈','🥉'][i]}</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{s.gerente.nombre}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {s.gerente.canal} · {s.gerente.pais} · FE {s.fe}/{s.metaFe} · Nube {s.nube}/{s.metaNube}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xl font-scoreboard font-bold ${t.text}`}>{s.pctTotal}%</span>
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-rose-500" /> Requieren plan de choque
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {planChoque.map((s) => (
-                  <Badge key={s.gerente.id} className="bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900">
-                    {s.gerente.nombre.split(' ')[0]} · {s.pctTotal}%
-                  </Badge>
-                ))}
-              </div>
+          </Card>
+
+          <Card className="p-5 rounded-2xl">
+            <h3 className="font-heading text-lg font-bold mb-1 flex items-center gap-2">
+              <AlertTriangle className="text-rose-500" /> Plan de choque
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Gerentes con cumplimiento &lt;50%. Datos: <span className="font-semibold">metas_acv_gerentes</span> + <span className="font-semibold">vn_metricas_optimizadas</span> (ventas diarias).
+            </p>
+            <div className="space-y-2">
+              {planChoque.length === 0 && (
+                <p className="text-sm text-emerald-600 flex items-center gap-1">✅ Ningún gerente bajo el 50% este mes.</p>
+              )}
+              {planChoque.map((s) => {
+                const t = tierDef(tierOf(s.pctTotal));
+                return (
+                  <div key={s.gerente.id} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm truncate">{s.gerente.nombre}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {s.gerente.canal} · {s.gerente.pais} · {s.asesores} asesores
+                      </p>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-1 font-medium">
+                        ⚠ {motivoPlanChoque(s)}
+                      </p>
+                    </div>
+                    <span className={`text-xl font-scoreboard font-bold ${t.text}`}>{s.pctTotal}%</span>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Tendencia */}
         <Card className="p-5 rounded-2xl">
