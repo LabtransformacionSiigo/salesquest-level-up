@@ -239,6 +239,7 @@ const PanelDirector = () => {
         const mesAbr = MESES_ABR[periodoSel - 1];
         const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
         const validCelulasMes = new Set<string>();
+        const metasRows: any[] = [];
         {
           let metasQuery = supabase
             .from('metas_acv_gerentes')
@@ -251,6 +252,7 @@ const PanelDirector = () => {
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
+            metasRows.push(m);
             const key = celulaScopeKey(m.celula, m.canal, m.pais);
             validCelulasMes.add(key);
             metasMap.set(key, {
@@ -341,6 +343,7 @@ const PanelDirector = () => {
 
         const out: Stats[] = [];
         const usedIds = new Set<string>();
+        const usedCelulaKeys = new Set<string>();
         const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
           const g = findGerente(leaderKey, agg.pais);
@@ -353,6 +356,8 @@ const PanelDirector = () => {
           if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
           const celKey = celulaScopeKey(g?.celula, g?.canal, g?.pais);
           if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
+          if (g?.celula && usedCelulaKeys.has(celKey)) continue;
+          if (g?.celula) usedCelulaKeys.add(celKey);
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
