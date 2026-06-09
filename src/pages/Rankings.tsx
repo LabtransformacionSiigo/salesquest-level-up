@@ -191,9 +191,11 @@ const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) =
 
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [ranking, setRanking] = useState<any[]>([]);
+  const [ranking, setRankingState] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [tab, setTab] = useState<PanelGeneralTab>('comerciales');
+  const tabRef = useRef<PanelGeneralTab>('comerciales');
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
@@ -201,7 +203,12 @@ const Rankings = () => {
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
 
-  const fetchRanking = async () => {
+  const fetchRanking = async (requestedTab: PanelGeneralTab = tabRef.current) => {
+    // Guarded setter: ignora resultados obsoletos cuando el usuario ya cambió de tab.
+    const setRanking = (val: any) => {
+      if (tabRef.current !== requestedTab) return;
+      setRankingState(val);
+    };
     if (!profile?.canal) {
       setDataLoading(false);
       return;
