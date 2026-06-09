@@ -60,6 +60,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
   const [rows, setRows] = useState<SpRow[]>([]);
   const [canjes, setCanjes] = useState<CanjeRow[]>([]);
   const [retosAsignados, setRetosAsignados] = useState<RetoAsignado[]>([]);
+  const [saldoConsolidado, setSaldoConsolidado] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const cargar = async () => {
@@ -69,7 +70,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const pais = (profile as any).pais as string | null;
     const familia = (profile as any).familia_vc as string | null;
 
-    const [spRes, canjesRes, vcRes, vnRes] = await Promise.all([
+    const [spRes, canjesRes, vcRes, vnRes, saldoRes] = await Promise.all([
       supabase
         .from('sp_acumulados')
         .select('fuente, sp, periodo, detalle, created_at')
@@ -93,10 +94,16 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
             .select('id, nombre, tipo, sp_base, sp_semanal_sem1, sp_semanal_sem2, sp_semanal_sem3, sp_semanal_sem4, kpi, paises, canal, activo, fecha_inicio, fecha_fin')
             .eq('activo', true)
         : Promise.resolve({ data: [] as any[] }),
+      supabase
+        .from('gerentes')
+        .select('sp_canje')
+        .eq('id', profile.id)
+        .maybeSingle(),
     ]);
 
     const spRows = (spRes.data || []) as SpRow[];
     setRows(spRows);
+    setSaldoConsolidado(Number((saldoRes.data as any)?.sp_canje ?? (profile as any)?.sp_canje ?? 0) || 0);
     setCanjes(((canjesRes.data || []) as any[]).map(c => ({
       id: c.id,
       puntos_gastados: c.puntos_gastados,
@@ -173,12 +180,40 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const gastado = canjes
       .filter(c => c.estado !== 'rechazado')
       .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
-    return { ganado, gastado, saldo: Math.max(ganado - gastado, 0) };
-  }, [rows, canjes]);
+    const saldoPerfil = Math.max(Number((profile as any)?.sp_canje) || 0, saldoConsolidado);
+    const saldoHistorial = Math.max(ganado - gastado, 0);
+
+    // El encabezado viene del saldo consolidado del perfil. Si el historial de
+    // sp_acumulados aún no trae detalle, Mis Logros debe reconciliarse con ese
+    // saldo para no mostrar 0 cuando el usuario sí tiene SP Canje disponible.
+    const saldo = Math.max(saldoHistorial, saldoPerfil);
+    return { ganado: Math.max(ganado, saldo + gastado), gastado, saldo, reconciliado: saldoPerfil > saldoHistorial };
+  }, [rows, canjes, profile, saldoConsolidado]);
 
   const renderTabla = (filtro: (r: SpRow) => boolean, emptyMsg: string) => {
     const list = rows.filter(filtro);
     if (list.length === 0) {
+      if (totales.reconciliado && filtro({ fuente: 'RETO_DIARIO', sp: totales.saldo, periodo: '', detalle: null })) {
+        return (
+          <div className="overflow-x-auto border border-border rounded-xl bg-card">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-t border-border hover:bg-muted/20">
+                  <td className="p-3 font-medium">Saldo SP Canje consolidado</td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300">
+                      🎁 SP Canje
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground tabular-nums">—</td>
+                  <td className="p-3 text-xs text-muted-foreground">—</td>
+                  <td className="p-3 text-right tabular-nums font-bold text-accent">+{totales.saldo}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        );
+      }
       return (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           {emptyMsg}
@@ -229,6 +264,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
   };
 
   if (loading) return <Skeleton className="h-96" />;
+  const logrosCount = rows.length || (totales.reconciliado ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -313,14 +349,14 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
         </div>
         <div className="border border-border rounded-xl bg-card p-4">
           <div className="text-xs text-muted-foreground uppercase font-bold">Logros desbloqueados</div>
-          <div className="text-3xl font-extrabold text-primary tabular-nums mt-1">{rows.length}</div>
+          <div className="text-3xl font-extrabold text-primary tabular-nums mt-1">{logrosCount}</div>
           <div className="text-[10px] text-muted-foreground mt-1">Total histórico</div>
         </div>
       </div>
 
       <Tabs defaultValue="todos" className="w-full">
         <TabsList className="grid grid-cols-5 w-full bg-card border border-border">
-          <TabsTrigger value="todos">Todos ({rows.length})</TabsTrigger>
+          <TabsTrigger value="todos">Todos ({logrosCount})</TabsTrigger>
           <TabsTrigger value="retos">🎯 Retos</TabsTrigger>
           <TabsTrigger value="medallas">🏅 Medallas</TabsTrigger>
           <TabsTrigger value="reconocimientos">💌 Reconocimientos</TabsTrigger>
