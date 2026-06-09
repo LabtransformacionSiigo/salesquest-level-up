@@ -543,7 +543,6 @@ export const useSupabaseAuth = () => {
             // porque productividad usa "Equipo México X" (con tilde) y metas usa
             // "Equipo Mexico X" (sin tilde). Filtramos en cliente con normalizeComparableText.
             const normalizedCelula = normalizeComparableText(gerenteCelula);
-            const canalDireccion = gerenteCanal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
             const [vnRes, metasVnRes, ventasDiariasRes, acvCatalogRes] = await Promise.all([
               supabase
                 .from('productividad_asesores')
@@ -562,7 +561,6 @@ export const useSupabaseAuth = () => {
                 .select('fecha, asesor, celula, producto, pais, tipo_producto, unidades, canal_direccion')
                 .gte('fecha', `${currentConventionYear}-01-01`)
                 .lt('fecha', `${currentConventionYear + 1}-01-01`)
-                .eq('canal_direccion', canalDireccion)
                 .limit(50000),
               // Catálogo oficial de metas ACV (Databricks → metas_acv_gerentes)
               supabase

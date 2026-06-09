@@ -168,16 +168,48 @@ const Retos = () => {
       setVnRachas((vnRachasData || []) as any[]);
       setCompletados(new Set((retosData || []).map((r) => `${r.reto}::${r.periodo}`)));
 
-      // Para VN, los retos cumplidos están en sp_acumulados (fuente RETO_DIARIO/SEMANAL/MENSUAL)
+      // Para VN, el estado cumplido debe venir de las tablas de progreso reales.
+      // sp_acumulados puede tener detalles de backfill sin nombre del reto, y eso
+      // hacía que el portal no marcara como ganado algo que sí estaba cumplido.
       if (isVN) {
-        const { data: spRetos } = await supabase
-          .from('sp_acumulados')
-          .select('fuente, detalle, periodo')
-          .eq('gerente_id', profile.id)
-          .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL']);
+        const retoNameById = new Map((vnRetosData || []).map((r: any) => [String(r.id), String(r.nombre || '')]));
+        const [diariosRes, semanalesRes, mensualesRes, spRetosRes] = await Promise.all([
+          supabase
+            .from('retos_vn_progreso_diario' as any)
+            .select('reto_id, fecha_evaluacion, cumple')
+            .eq('gerente_id', profile.id)
+            .eq('cumple', true),
+          supabase
+            .from('retos_vn_progreso_semanal' as any)
+            .select('reto_id, anio_mes, semana_numero, cumple')
+            .eq('gerente_id', profile.id)
+            .eq('cumple', true),
+          supabase
+            .from('retos_vn_progreso_mensual' as any)
+            .select('reto_id, anio_mes, cumple')
+            .eq('gerente_id', profile.id)
+            .eq('cumple', true),
+          supabase
+            .from('sp_acumulados')
+            .select('fuente, detalle, periodo')
+            .eq('gerente_id', profile.id)
+            .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL']),
+        ]);
         if (!cancelled) {
           const set = new Set<string>();
-          (spRetos || []).forEach((r: any) => {
+          (diariosRes.data || []).forEach((r: any) => {
+            const nombre = retoNameById.get(String(r.reto_id));
+            if (nombre && r.fecha_evaluacion) set.add(`${nombre}::${r.fecha_evaluacion}`);
+          });
+          (semanalesRes.data || []).forEach((r: any) => {
+            const nombre = retoNameById.get(String(r.reto_id));
+            if (nombre && r.anio_mes && r.semana_numero) set.add(`${nombre}::${r.anio_mes}-S${r.semana_numero}`);
+          });
+          (mensualesRes.data || []).forEach((r: any) => {
+            const nombre = retoNameById.get(String(r.reto_id));
+            if (nombre && r.anio_mes) set.add(`${nombre}::${r.anio_mes}`);
+          });
+          (spRetosRes.data || []).forEach((r: any) => {
             const nombre = String(r.detalle || '').split(' —')[0].split(' -')[0].trim();
             if (nombre && r.periodo) set.add(`${nombre}::${r.periodo}`);
           });

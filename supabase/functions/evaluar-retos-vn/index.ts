@@ -156,12 +156,14 @@ Deno.serve(async (req) => {
     // Normaliza acentos/case/espacios para que "Equipo México" y "Equipo Mexico" hagan match
     const normCelula = (s: string | null | undefined) =>
       (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+    const metaKey = (pais?: string | null, canal?: string | null, celula?: string | null) =>
+      `${String(pais || "").toUpperCase()}||${String(canal || "").toUpperCase()}||${normCelula(celula)}`;
     const metasByCelula = new Map<string, any>();
     for (const m of metasRes.data || []) {
       if (!m.celula) continue;
       const mesLower = (m.mes || "").toLowerCase();
       if (mesLower.startsWith(mesNombre.toLowerCase())) {
-        metasByCelula.set(normCelula(m.celula), m);
+        metasByCelula.set(metaKey(m.pais, m.canal, m.celula), m);
       }
     }
 
@@ -316,7 +318,7 @@ Deno.serve(async (req) => {
       const canal = g.canal as string;
       const pais = (g.pais || "COL").toUpperCase();
       const ventas = ventasByGerente.get(g.id) || [];
-      const meta = g.celula ? metasByCelula.get(normCelula(g.celula)) : null;
+      const meta = g.celula ? metasByCelula.get(metaKey(pais, canal, g.celula)) : null;
       const diasHabiles = diasHabilesByPais.get(pais) || 20;
 
       // Semana comercial del país (si hay calendario en config_calendario_vn)

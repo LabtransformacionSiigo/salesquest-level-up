@@ -70,7 +70,8 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const pais = (profile as any).pais as string | null;
     const familia = (profile as any).familia_vc as string | null;
 
-    const [spRes, canjesRes, vcRes, vnRes, saldoRes] = await Promise.all([
+    const isVn = canal && canal !== 'VC';
+    const [spRes, canjesRes, vcRes, vnRes, saldoRes, vnDiarioRes, vnSemanalRes, vnMensualRes, vnCatalogRes] = await Promise.all([
       supabase
         .from('sp_acumulados')
         .select('fuente, sp, periodo, detalle, created_at')
@@ -99,9 +100,48 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
         .select('sp_canje')
         .eq('id', profile.id)
         .maybeSingle(),
+      isVn
+        ? supabase.from('retos_vn_progreso_diario' as any).select('reto_id, fecha_evaluacion, sp_otorgados, sp_con_racha, cumple, evaluado_at').eq('gerente_id', profile.id).eq('cumple', true)
+        : Promise.resolve({ data: [] as any[] }),
+      isVn
+        ? supabase.from('retos_vn_progreso_semanal' as any).select('reto_id, anio_mes, semana_numero, sp_otorgados, sp_con_racha, cumple, evaluado_at').eq('gerente_id', profile.id).eq('cumple', true)
+        : Promise.resolve({ data: [] as any[] }),
+      isVn
+        ? supabase.from('retos_vn_progreso_mensual' as any).select('reto_id, anio_mes, sp_otorgados, cumple, evaluado_at').eq('gerente_id', profile.id).eq('cumple', true)
+        : Promise.resolve({ data: [] as any[] }),
+      isVn
+        ? supabase.from('retos_vn_config' as any).select('id, nombre, tipo')
+        : Promise.resolve({ data: [] as any[] }),
     ]);
 
-    const spRows = (spRes.data || []) as SpRow[];
+    const retoNameById = new Map(((vnCatalogRes.data || []) as any[]).map((r) => [String(r.id), String(r.nombre || '')]));
+    const vnProgressRows: SpRow[] = [
+      ...((vnDiarioRes.data || []) as any[]).map((r) => ({
+        fuente: 'RETO_DIARIO',
+        sp: Number(r.sp_con_racha ?? r.sp_otorgados) || 0,
+        periodo: String(r.fecha_evaluacion || ''),
+        detalle: `${retoNameById.get(String(r.reto_id)) || 'Reto diario'} — DIARIO`,
+        created_at: r.evaluado_at,
+      })),
+      ...((vnSemanalRes.data || []) as any[]).map((r) => ({
+        fuente: 'RETO_SEMANAL',
+        sp: Number(r.sp_con_racha ?? r.sp_otorgados) || 0,
+        periodo: `${r.anio_mes}-S${r.semana_numero}`,
+        detalle: `${retoNameById.get(String(r.reto_id)) || 'Reto semanal'} — SEMANAL`,
+        created_at: r.evaluado_at,
+      })),
+      ...((vnMensualRes.data || []) as any[]).map((r) => ({
+        fuente: 'RETO_MENSUAL',
+        sp: Number(r.sp_otorgados) || 0,
+        periodo: String(r.anio_mes || ''),
+        detalle: `${retoNameById.get(String(r.reto_id)) || 'Reto mensual'} — MENSUAL`,
+        created_at: r.evaluado_at,
+      })),
+    ].filter((r) => r.periodo);
+    const baseRows = (spRes.data || []) as SpRow[];
+    const spRows = vnProgressRows.length > 0
+      ? [...baseRows.filter((r) => !String(r.fuente || '').startsWith('RETO_')), ...vnProgressRows]
+      : baseRows;
     setRows(spRows);
     setSaldoConsolidado(Number((saldoRes.data as any)?.sp_canje ?? (profile as any)?.sp_canje ?? 0) || 0);
     setCanjes(((canjesRes.data || []) as any[]).map(c => ({
