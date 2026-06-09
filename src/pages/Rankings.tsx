@@ -210,6 +210,7 @@ const Rankings = () => {
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const isDirector = profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
+  useEffect(() => { if (isDirector && tab !== 'gerentes') setTab('gerentes'); }, [isDirector]);
   const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
   useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
   const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
@@ -1062,9 +1063,11 @@ const Rankings = () => {
           <div className="flex gap-2">
             {(isVC || isVN) && (
               <>
-                <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
-                  👤 {isVN ? 'Asesores' : 'Comerciales'}
-                </button>
+                {!isDirector && (
+                  <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
+                    👤 {isVN ? 'Asesores' : 'Comerciales'}
+                  </button>
+                )}
                 <button onClick={() => setTab('gerentes')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'gerentes' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
                   👥 Gerentes
                 </button>
