@@ -36,6 +36,65 @@ const REMOVE_IDS: string[] = [
   "8c0ccba7-45f8-45bd-92cf-d0c8efa95ad1", // Yaneth Alejandra Bohorquez Oli (VN_EMP sin celula)
 ];
 
+const norm = (v: unknown) => String(v ?? "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ").trim().toLowerCase();
+
+const moveSpCanjeHistory = async (sb: any, source: any, dryRun: boolean, log: any[]) => {
+  const { data: keepRows } = await sb
+    .from("gerentes")
+    .select("id, nombre")
+    .in("id", KEEP.map((k) => k.id));
+  const target = (keepRows || []).find((k: any) => k.id !== source.id && norm(k.nombre) === norm(source.nombre));
+  if (!target) {
+    log.push({ op: "preserve_sp", id: source.id, skip: "no_target_keep" });
+    return;
+  }
+
+  const { data: rows } = await sb
+    .from("sp_acumulados")
+    .select("id, fuente, sp, periodo, detalle, tipo_sp")
+    .eq("gerente_id", source.id);
+
+  for (const row of rows || []) {
+    const marker = `TRANSFERIDO_DESDE:${source.id}:${row.id}`;
+    if (dryRun) {
+      log.push({ op: "move_sp", from: source.id, to: target.id, fuente: row.fuente, periodo: row.periodo, sp: row.sp });
+      continue;
+    }
+
+    const { data: existing } = await sb
+      .from("sp_acumulados")
+      .select("id, sp, detalle")
+      .eq("gerente_id", target.id)
+      .eq("fuente", row.fuente)
+      .eq("periodo", row.periodo)
+      .maybeSingle();
+
+    if (existing) {
+      const detail = String(existing.detalle || "");
+      if (!detail.includes(marker)) {
+        await sb.from("sp_acumulados").update({
+          sp: (Number(existing.sp) || 0) + (Number(row.sp) || 0),
+          detalle: `${detail}${detail ? " | " : ""}${row.detalle || "SP transferido"} · ${marker}`,
+          tipo_sp: existing.tipo_sp || row.tipo_sp || "canje",
+        }).eq("id", existing.id);
+      }
+      await sb.from("sp_acumulados").delete().eq("id", row.id);
+    } else {
+      await sb.from("sp_acumulados").insert({
+        gerente_id: target.id,
+        fuente: row.fuente,
+        sp: row.sp,
+        periodo: row.periodo,
+        detalle: `${row.detalle || "SP transferido"} · ${marker}`,
+        tipo_sp: row.tipo_sp || "canje",
+      });
+      await sb.from("sp_acumulados").delete().eq("id", row.id);
+    }
+  }
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -85,9 +144,12 @@ Deno.serve(async (req) => {
     if (!g) { log.push({ op: "delete", id, skip: "not_found" }); continue; }
     if (dryRun) { log.push({ op: "delete", id, email: g.email, user_id: g.user_id }); continue; }
 
-    // Borrar dependencias en cascada manual: notificaciones, sp_acumulados, medallas, reconocimientos, canjes, rachas, retos_completados, kpis_mensuales, asesores
+    await moveSpCanjeHistory(sb, g, dryRun, log);
+
+    // Borrar dependencias en cascada manual. sp_acumulados NO se borra en bloque:
+    // primero se reasigna de forma idempotente al registro conservado o se preserva.
     const tables = [
-      "notificaciones", "sp_acumulados", "medallas", "canjes", "rachas",
+      "notificaciones", "medallas", "canjes", "rachas",
       "retos_completados", "kpis_mensuales",
     ];
     for (const t of tables) {
