@@ -13,6 +13,7 @@ import { computeSpConvencionAnualForCelula, computeSpConvencionAnualForAsesor, n
 import { getNivelData } from '@/lib/niveles';
 import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
+import { pickVnLeaderCandidate } from '@/lib/vn-leaders';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
@@ -545,7 +546,7 @@ const Rankings = () => {
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes, metasGerentesMexRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).order('anio_mes', { ascending: true }).order('celula', { ascending: true }).order('asesor', { ascending: true }).range(0, 5000),
-          supabase.from('gerentes').select('id, nombre, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais),
+          supabase.from('gerentes').select('id, nombre, email, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais).eq('activo', true),
           supabase.from('user_roles').select('user_id, role'),
           fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
@@ -629,12 +630,12 @@ const Rankings = () => {
         });
 
         const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
-        const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
+        const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; email?: string | null; celula?: string | null; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
           const celulaKey = normalizeComparableText(g.celula);
           if (!celulaKey) return;
           const list = gerentesByCell.get(celulaKey) || [];
-          list.push({ id: g.id, nombre: g.nombre, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
+          list.push({ id: g.id, nombre: g.nombre, email: g.email, celula: g.celula, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
           gerentesByCell.set(celulaKey, list);
         });
 
@@ -642,18 +643,12 @@ const Rankings = () => {
         const allCelulas = new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
         allCelulas.forEach((celulaKey) => {
           const members = gerentesByCell.get(celulaKey) || [];
+          const advisorNameSet = new Set([...asesorNames]);
 
           // 1. Prioridad: nombre del gerente desde Databricks (metas_asesores.gerente)
           const nombreDatabricks = gerenteNombreByCelula.get(celulaKey);
           if (nombreDatabricks) {
-            const normDatabricks = normalizePersonName(nombreDatabricks);
-            // Buscar en members el que coincida con el nombre de Databricks (match exacto o por inclusión)
-            const matchDB = members.find((m) => {
-              const normMember = normalizePersonName(m.nombre);
-              return normMember === normDatabricks
-                || normMember.includes(normDatabricks)
-                || normDatabricks.includes(normMember);
-            });
+            const matchDB = pickVnLeaderCandidate(members, { celula: members[0]?.celula || celulaKey, gerenteNombre: nombreDatabricks, advisorNames: advisorNameSet });
             if (matchDB) {
               gerentesByCelula.set(celulaKey, matchDB);
               return;
@@ -663,12 +658,8 @@ const Rankings = () => {
             return;
           }
 
-          // 1b. Match líder por primer nombre presente en el nombre de la célula
-          // (p.ej. "Equipo México Lina" → miembro cuyo primer nombre es "Lina").
-          const byCelulaFirstName = members.find((m) => {
-            const first = normalizePersonName(m.nombre).split(' ')[0];
-            return first && first.length >= 3 && celulaKey.includes(first);
-          });
+          // 1b. Match líder por token de célula + señales anti-asesor.
+          const byCelulaFirstName = pickVnLeaderCandidate(members, { celula: members[0]?.celula || celulaKey, advisorNames: advisorNameSet });
           if (byCelulaFirstName) {
             gerentesByCelula.set(celulaKey, byCelulaFirstName);
             return;
