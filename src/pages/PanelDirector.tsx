@@ -496,7 +496,7 @@ const PanelDirector = () => {
           if (!isAdmin && canalDirs.length) tq = tq.in('canal_direccion', canalDirs);
           const { data } = await tq;
           const totalMes = (data || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-          const metaMes = out.reduce((s, st) => s + st.metaFe + st.metaNube, 0);
+          const metaMes = out.reduce((s, st) => s + st.metaUds, 0);
           tendData.push({ mes, pct: metaMes > 0 ? Math.round((totalMes / metaMes) * 100) : 0 });
         }
 
@@ -535,7 +535,7 @@ const PanelDirector = () => {
   const kpis = useMemo(() => {
     const totalGerentes = filteredStats.length;
     const totalUds = filteredStats.reduce((s, x) => s + x.total, 0);
-    const metaUds = filteredStats.reduce((s, x) => s + x.metaFe + x.metaNube, 0);
+    const metaUds = filteredStats.reduce((s, x) => s + x.metaUds, 0);
     const totalAcv = filteredStats.reduce((s, x) => s + x.acv, 0);
     const totalFe = filteredStats.reduce((s, x) => s + x.fe, 0);
     const totalNube = filteredStats.reduce((s, x) => s + x.nube, 0);
@@ -585,7 +585,7 @@ const PanelDirector = () => {
 
   const top3 = useMemo(
     () => [...filteredStats]
-      .filter((s) => s.metaFe + s.metaNube > 0)
+      .filter((s) => s.metaUds > 0)
       .sort((a, b) => b.pctTotal - a.pctTotal)
       .slice(0, 3),
     [filteredStats],
@@ -594,7 +594,7 @@ const PanelDirector = () => {
   // el % más bajo (los más críticos primero).
   const planChoque = useMemo(
     () => [...filteredStats]
-      .filter((s) => s.metaFe + s.metaNube > 0 && s.pctTotal < 50)
+      .filter((s) => s.metaUds > 0 && s.pctTotal < 50)
       .sort((a, b) => a.pctTotal - b.pctTotal)
       .slice(0, 5),
     [filteredStats],
