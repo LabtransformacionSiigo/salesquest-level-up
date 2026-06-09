@@ -21,7 +21,16 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter';
 const FLAG_IMG: Record<string, string> = { COL: colombiaFlag, CO: colombiaFlag, MEX: mexicoFlag, MX: mexicoFlag, ECU: ecuadorFlag, EC: ecuadorFlag };
 const CANALES_LABEL: Record<string, string> = { VN_EMPRESARIOS: 'Empresarios', VN_ALIADOS: 'Aliados', VC: 'Venta Cruzada' };
 const REFERIDOS_LABEL: Record<string, string> = { VN_ALIADOS: 'Ref. Contador', VN_EMPRESARIOS: 'Referidos' };
-const PAIS_LABEL: Record<string, string> = { COL: 'Colombia', MEX: 'México', ECU: 'Ecuador' };
+const PAIS_LABEL: Record<string, string> = { COL: 'Colombia', MEX: 'México', ECU: 'Ecuador', URU: 'Uruguay', URY: 'Uruguay', ARG: 'Argentina', CHL: 'Chile' };
+// Normaliza códigos ISO a los códigos internos usados en las tablas (URY→URU, etc.)
+const normalizePaisCode = (p?: string | null): string => {
+  const v = String(p || '').trim().toUpperCase();
+  if (v === 'URY' || v === 'UY') return 'URU';
+  if (v === 'MX') return 'MEX';
+  if (v === 'CO') return 'COL';
+  if (v === 'EC') return 'ECU';
+  return v || 'COL';
+};
 const PODIUM_EMOJIS = ['🥇', '🥈', '🥉'];
 const PODIUM_COLORS = ['border-yellow bg-siigo-yellow/5', 'border-muted-foreground/30', 'border-orange/40'];
 type PanelGeneralTab = 'comerciales' | 'gerentes';
@@ -200,9 +209,9 @@ const Rankings = () => {
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const isDirector = profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
-  const [selectedPais, setSelectedPais] = useState<string>(profile?.pais || 'COL');
-  useEffect(() => { setSelectedPais(profile?.pais || 'COL'); }, [profile?.pais]);
-  const userPais = isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL');
+  const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
+  useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
+  const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
