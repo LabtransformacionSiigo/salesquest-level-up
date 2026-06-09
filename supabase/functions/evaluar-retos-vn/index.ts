@@ -75,6 +75,10 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* empty */ }
     const dryRun = body.dry_run === true;
+    const includeResultados = body.include_resultados === true;
+    const filtroPaises = Array.isArray(body.paises) ? body.paises.map((p: any) => String(p).toUpperCase()) : [];
+    const filtroCanales = Array.isArray(body.canales) ? body.canales.map((c: any) => String(c).toUpperCase()) : [];
+    const filtroGerenteIds = Array.isArray(body.gerente_ids) ? body.gerente_ids.map((id: any) => String(id)) : [];
     const fechaInput = typeof body.fecha === "string" ? body.fecha : null;
     const fechaBase = fechaInput ? new Date(`${fechaInput}T12:00:00Z`) : new Date();
     const today = fechaBase.toISOString().slice(0, 10);
@@ -99,13 +103,19 @@ Deno.serve(async (req) => {
       (!it.fecha_fin || todayStr <= it.fecha_fin);
 
     // ── Cargar gerentes VN (paginado) ──
-    const gerentesArr = await fetchAllRows<any>((from, to) =>
+    const gerentesArrAll = await fetchAllRows<any>((from, to) =>
       supabase.from("gerentes")
         .select("id, nombre, canal, pais, celula")
         .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
         .eq("activo", true)
         .range(from, to)
     );
+    const gerentesArr = gerentesArrAll.filter((g) => {
+      if (filtroGerenteIds.length > 0 && !filtroGerenteIds.includes(String(g.id))) return false;
+      if (filtroPaises.length > 0 && !filtroPaises.includes(String(g.pais || "").toUpperCase())) return false;
+      if (filtroCanales.length > 0 && !filtroCanales.includes(String(g.canal || "").toUpperCase())) return false;
+      return true;
+    });
     if (gerentesArr.length === 0) {
       return new Response(JSON.stringify({ ok: true, msg: "Sin gerentes VN activos" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
