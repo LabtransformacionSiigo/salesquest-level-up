@@ -371,11 +371,14 @@ Deno.serve(async (req) => {
       : new Map<string, MexicoLeader>();
     const rowsCAligned = alignMexicoRowsToOfficialLeader(rowsC as any[], mexicoLeadersByCelula);
 
+    // Mapa canal por célula (fuente única de verdad).
+    const canalByCelula = await getCanalByCelula(sb);
+
     const records = mergeByUniqueGrain([
-      ...rowsA.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsB.map((r: any) => buildRecord(r, "asesor")),
-      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor")),
+      ...rowsA.map((r: any) => buildRecord(r, "gerente", canalByCelula)),
+      ...rowsB.map((r: any) => buildRecord(r, "asesor", canalByCelula)),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente", canalByCelula)),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor", canalByCelula)),
     ]);
 
     // Filtrar SOLO al mes en curso para no tocar histórico
