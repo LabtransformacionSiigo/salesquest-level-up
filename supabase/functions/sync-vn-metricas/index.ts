@@ -257,6 +257,8 @@ function mergeByUniqueGrain(records: ReturnType<typeof buildRecord>[]) {
   const merged = new Map<string, ReturnType<typeof buildRecord>>();
 
   for (const record of records) {
+    // Debe coincidir con uq_vn_metricas_grano:
+    // (pais, periodo, canal_direccion, scope, COALESCE(gerente_normalizado,''), COALESCE(asesor,''), tipo_producto1)
     const key = [
       record.pais,
       record.anio,
