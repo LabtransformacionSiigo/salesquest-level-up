@@ -645,9 +645,6 @@ const PanelDirector = () => {
                 {(profile?.director_canales || []).map((c) => (
                   <Badge key={c} variant="secondary">{c}</Badge>
                 ))}
-                {(profile?.director_paises || []).filter((p) => ['COL', 'MEX', 'ECU', 'URU'].includes(p)).map((p) => (
-                  <Badge key={p} variant="outline">{p}</Badge>
-                ))}
               </div>
             </div>
             <div className="flex gap-2 items-end">
