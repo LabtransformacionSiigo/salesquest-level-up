@@ -268,11 +268,15 @@ function alignMexicoRowsToOfficialLeader(rows: any[], leadersByCelula: Map<strin
   });
 }
 
-function buildRecord(r: any, scope: "gerente" | "asesor") {
+function buildRecord(
+  r: any,
+  scope: "gerente" | "asesor",
+  canalByCelula: Map<string, string>,
+) {
   const pais = normalizePais(r.pais);
   const mes_nro = Number(r.mes_nro);
   const anio = Number(r.anio) || 2026;
-  const canal = normalizeCanal(r.equipo);
+  const canal = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
   const gerente = r.gerente ? String(r.gerente) : null;
   const tipo_producto1 = String(r.tipo_producto1 || "");
   return {
