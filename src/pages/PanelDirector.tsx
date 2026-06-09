@@ -122,6 +122,22 @@ const PanelDirector = () => {
     (async () => {
       setLoading(true);
       try {
+        // 0) Director scope por NOMBRE: leer celulas asignadas en metas_acv_gerentes.director
+        // Esto evita que aparezcan gerentes de otros directores con el mismo canal/país.
+        const allowedCelulaKeys = new Set<string>();
+        if (!isAdmin && isDirector && profile?.nombre) {
+          let dq = supabase
+            .from('metas_acv_gerentes')
+            .select('celula, canal, pais')
+            .ilike('director', profile.nombre.trim());
+          if (scopeCanales.length) dq = dq.in('canal', scopeCanales);
+          if (scopePaises.length) dq = dq.in('pais', scopePaises);
+          const { data: dirCelulas } = await dq;
+          (dirCelulas || []).forEach((r: any) => {
+            if (r.celula) allowedCelulaKeys.add(celulaScopeKey(r.celula, r.canal, r.pais));
+          });
+        }
+
         // 1) Gerentes en scope
         let gq = supabase.from('gerentes')
           .select('id, nombre, email, canal, pais, celula, user_id')
@@ -131,7 +147,13 @@ const PanelDirector = () => {
           if (scopePaises.length) gq = gq.in('pais', scopePaises);
         }
         const { data: gerentes = [] } = await gq;
-        const gerentesList = (gerentes || []) as GerenteRow[];
+        let gerentesList = (gerentes || []) as GerenteRow[];
+        if (!isAdmin && isDirector && allowedCelulaKeys.size > 0) {
+          gerentesList = gerentesList.filter((g) =>
+            g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais))
+          );
+        }
+
 
         // 2) Asesores count por gerente
         // Modelo VN: los asesores están en la propia tabla `gerentes` compartiendo `celula`
