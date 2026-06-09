@@ -74,9 +74,11 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const [spRes, canjesRes, vcRes, vnRes, saldoRes, vnDiarioRes, vnSemanalRes, vnMensualRes, vnCatalogRes] = await Promise.all([
       supabase
         .from('sp_acumulados')
-        .select('fuente, sp, periodo, detalle, created_at')
+        .select('fuente, sp, periodo, detalle, created_at, tipo_sp')
         .eq('gerente_id', profile.id)
-        .eq('tipo_sp', 'canje')
+        .or('tipo_sp.eq.canje,tipo_sp.is.null')
+        .in('fuente', ['RETO_DIARIO','RETO_SEMANAL','RETO_MENSUAL','MEDALLA','RECONOCIMIENTO_RECIBIDO','RECONOCIMIENTO_ENVIADO'])
+        .gt('sp', 0)
         .order('created_at', { ascending: false }),
       supabase
         .from('canjes')
