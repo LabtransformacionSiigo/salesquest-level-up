@@ -198,7 +198,11 @@ const Rankings = () => {
   useEffect(() => { tabRef.current = tab; }, [tab]);
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
-  const userPais = profile?.pais || 'COL';
+  const isDirector = profile?.role === 'director';
+  const directorPaises = (profile?.director_paises || []).filter(Boolean);
+  const [selectedPais, setSelectedPais] = useState<string>(profile?.pais || 'COL');
+  useEffect(() => { setSelectedPais(profile?.pais || 'COL'); }, [profile?.pais]);
+  const userPais = isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL');
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
@@ -1066,9 +1070,26 @@ const Rankings = () => {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted border border-border text-foreground">
-              <FlagIcon pais={userPais} /> {PAIS_LABEL[userPais] || userPais}
-            </span>
+            {isDirector && directorPaises.length > 1 ? (
+              <div className="flex items-center gap-1 p-1 rounded-full bg-muted border border-border">
+                {directorPaises.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setSelectedPais(p)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all",
+                      selectedPais === p ? "bg-primary text-white shadow" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <FlagIcon pais={p} /> {PAIS_LABEL[p] || p}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted border border-border text-foreground">
+                <FlagIcon pais={userPais} /> {PAIS_LABEL[userPais] || userPais}
+              </span>
+            )}
             <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> EN VIVO
             </span>
