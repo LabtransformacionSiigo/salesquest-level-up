@@ -280,8 +280,13 @@ const PanelDirector = () => {
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
           if (!isAdmin && scopePaises.length) metasQuery = metasQuery.in('pais', scopePaises);
           if (!isAdmin && isDirector && profile?.nombre) {
-            metasQuery = metasQuery.ilike('director', profile.nombre.trim());
+            const tokens = profile.nombre.trim().split(/\s+/).filter(Boolean);
+            const pattern = tokens.length >= 2
+              ? `%${tokens[0]}%${tokens[tokens.length - 1]}%`
+              : `%${tokens[0]}%`;
+            metasQuery = metasQuery.ilike('director', pattern);
           }
+
           const { data: metas } = await metasQuery;
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
