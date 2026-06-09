@@ -541,11 +541,13 @@ const PanelDirector = () => {
     const totalNube = filteredStats.reduce((s, x) => s + x.nube, 0);
     const metaFeTot = filteredStats.reduce((s, x) => s + x.metaFe, 0);
     const metaNubeTot = filteredStats.reduce((s, x) => s + x.metaNube, 0);
+    const metaAcvTot = filteredStats.reduce((s, x) => s + x.metaAcv, 0);
     const mixNube = (totalFe + totalNube) > 0 ? (totalNube / (totalFe + totalNube)) * 100 : 0;
     const pctUds = metaUds > 0 ? (totalUds / metaUds) * 100 : 0;
     const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
     const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube };
+    const pctAcv = metaAcvTot > 0 ? (totalAcv / metaAcvTot) * 100 : 0;
+    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv };
   }, [filteredStats]);
 
   // Conteo por tier
@@ -718,9 +720,10 @@ const PanelDirector = () => {
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
+              <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
-            <p className="text-xs text-muted-foreground mt-1">ACV total</p>
+            <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
           </Card>
         </div>
 
