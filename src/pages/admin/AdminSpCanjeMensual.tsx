@@ -5,6 +5,7 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
+import { isVnChannel, pickVnLeaderCandidate, normalizeVnLeaderText } from '@/lib/vn-leaders';
 
 const opToCanal = (op: string): string | null =>
   op === 'Venta Cruzada' ? 'VC'
@@ -45,7 +46,7 @@ const AdminSpCanjeMensual = () => {
 
       let q = supabase
         .from('gerentes')
-        .select('id, nombre, canal, pais, celula')
+        .select('id, nombre, email, canal, pais, celula, user_id, sp_canje, sp_convencion')
         .eq('activo', true)
         .order('nombre');
       if (!isAdmin) {
@@ -53,7 +54,17 @@ const AdminSpCanjeMensual = () => {
         if (canales.length) q = q.in('canal', canales);
       }
       const { data } = await q;
-      setGerentes(data || []);
+      const rows = data || [];
+      const nonVn = rows.filter((g: any) => !isVnChannel(g.canal));
+      const vnByCelula = new Map<string, any[]>();
+      rows.filter((g: any) => isVnChannel(g.canal) && g.celula).forEach((g: any) => {
+        const key = `${normalizeVnLeaderText(g.pais)}|${g.canal}|${normalizeVnLeaderText(g.celula)}`;
+        vnByCelula.set(key, [...(vnByCelula.get(key) || []), g]);
+      });
+      const vnLeaders = [...vnByCelula.values()]
+        .map((members) => pickVnLeaderCandidate(members, { celula: members[0]?.celula }))
+        .filter(Boolean);
+      setGerentes([...nonVn, ...vnLeaders]);
       setLoadingData(false);
     })();
   }, [isAuthenticated, profile?.id, isAdmin, isEspecialista]);
