@@ -482,7 +482,26 @@ export const useSupabaseAuth = () => {
         };
 
         const gerenteCandidates = ((gerenteListRes.data as any[]) || []).sort((a, b) => scoreGerente(b) - scoreGerente(a));
-        const gerenteRes = { data: gerenteCandidates[0] || null, error: gerenteListRes.error } as any;
+        let selectedGerente = gerenteCandidates[0] || null;
+
+        // Si el usuario quedó amarrado a un gerente duplicado/inactivo, resolver al líder activo
+        // de la misma célula para que SP Canje y logros lean el saldo real del equipo.
+        if (selectedGerente?.activo === false && selectedGerente?.celula && selectedGerente?.pais && selectedGerente?.canal) {
+          const { data: activeMatches } = await supabase
+            .from('gerentes')
+            .select(gerenteSelect)
+            .eq('activo', true)
+            .eq('pais', selectedGerente.pais)
+            .eq('canal', selectedGerente.canal)
+            .eq('celula', selectedGerente.celula)
+            .limit(5);
+
+          if (activeMatches?.length) {
+            selectedGerente = [...(activeMatches as any[])].sort((a, b) => scoreGerente(b) - scoreGerente(a))[0];
+          }
+        }
+
+        const gerenteRes = { data: selectedGerente, error: gerenteListRes.error } as any;
 
         // Si no hay fila en la vista sp_totales_gerente, usamos un fallback desde la tabla gerentes
         // para que el gerente pueda iniciar sesión aunque no tenga ventas/metas registradas todavía.
