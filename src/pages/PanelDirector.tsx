@@ -317,6 +317,14 @@ const PanelDirector = () => {
         const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
           const g = findGerente(leaderKey, agg.pais);
+
+          // 🔒 Directores (no-admin): nunca crear gerentes sintéticos. Si la métrica no
+          // tiene match con un gerente real dentro del scope, se descarta. Esto evita que
+          // aparezcan líderes de otros canales/países en el panel.
+          if (!isAdmin && !g) continue;
+          if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
+          if (!isAdmin && g && scopePaises.length && !scopePaises.includes(g.pais || '')) continue;
+
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
           const synthKey = `${leaderKey}|${agg.pais || ''}`;
@@ -352,6 +360,15 @@ const PanelDirector = () => {
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
         }
+
+        console.log('[PanelDirector] Diagnóstico:', {
+          gerentesEnScope: gerentesList.length,
+          metricasRecibidas: metricas.length,
+          filasGeneradas: out.length,
+          scopeCanales,
+          scopePaises,
+          isAdmin,
+        });
         // Sumar líderes con asesores asignados pero sin métrica este mes
         for (const g of gerentesList) {
           if (usedIds.has(g.id)) continue;
