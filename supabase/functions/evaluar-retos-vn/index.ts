@@ -44,6 +44,25 @@ const weekOfMonth = (d: Date) => {
   return Math.max(1, Math.min(4, w));
 };
 
+// Paginated SELECT helper — Supabase Data API truncates at 1000 rows.
+// Sin esto, ventas_diarias COL (>1000 filas/mes) se trunca y las células
+// más rezagadas nunca reciben sus ventas → retos siempre cumple=false.
+async function fetchAllRows<T = any>(
+  build: (from: number, to: number) => any,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < 1_000_000; from += pageSize) {
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    if (rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -79,13 +98,14 @@ Deno.serve(async (req) => {
       (!it.fecha_inicio || todayStr >= it.fecha_inicio) &&
       (!it.fecha_fin || todayStr <= it.fecha_fin);
 
-    // ── Cargar gerentes VN ──
-    const { data: gerentes } = await supabase
-      .from("gerentes")
-      .select("id, nombre, canal, pais, celula")
-      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
-      .eq("activo", true);
-    const gerentesArr = gerentes || [];
+    // ── Cargar gerentes VN (paginado) ──
+    const gerentesArr = await fetchAllRows<any>((from, to) =>
+      supabase.from("gerentes")
+        .select("id, nombre, canal, pais, celula")
+        .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+        .eq("activo", true)
+        .range(from, to)
+    );
     if (gerentesArr.length === 0) {
       return new Response(JSON.stringify({ ok: true, msg: "Sin gerentes VN activos" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -147,13 +167,15 @@ Deno.serve(async (req) => {
 
     // ── Cargar ventas VN del mes (incluye día y semana) ──
     // ventas VN- = transacciones reales (no SUM-)
-    const { data: ventasMes } = await supabase
-      .from("ventas")
-      .select("gerente_id, fecha_facturacion, acv_plus, producto, categoria_producto_venta, bloque_venta, documento_factura, canal")
-      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
-      .in("gerente_id", gerenteIds)
-      .gte("fecha_facturacion", monthStart)
-      .lt("fecha_facturacion", monthEnd);
+    // ── Cargar ventas VN del mes (paginado: la tabla puede tener miles de filas) ──
+    const ventasMes = await fetchAllRows<any>((from, to) =>
+      supabase.from("ventas")
+        .select("gerente_id, fecha_facturacion, acv_plus, producto, categoria_producto_venta, bloque_venta, documento_factura, canal")
+        .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+        .gte("fecha_facturacion", monthStart)
+        .lt("fecha_facturacion", monthEnd)
+        .range(from, to)
+    );
 
     const ventasByGerente = new Map<string, any[]>();
     for (const v of ventasMes || []) {
@@ -192,14 +214,17 @@ Deno.serve(async (req) => {
           .filter((c, i, a) => a.indexOf(c) === i);
         if (celulasPais.length === 0) continue;
 
-        const { data: vd } = await supabase
-          .from("ventas_diarias")
-          .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
-          .eq("pais", pais)
-          .in("canal_direccion", ["Aliados", "Empresarios"])
-          .in("celula", celulasPais)
-          .gte("fecha", monthStart)
-          .lt("fecha", monthEnd);
+        // Paginado: COL ~1400 filas/mes excede el límite default de 1000.
+        const vd = await fetchAllRows<any>((from, to) =>
+          supabase.from("ventas_diarias")
+            .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
+            .eq("pais", pais)
+            .in("canal_direccion", ["Aliados", "Empresarios"])
+            .in("celula", celulasPais)
+            .gte("fecha", monthStart)
+            .lt("fecha", monthEnd)
+            .range(from, to)
+        );
 
         for (const r of vd || []) {
           if (!r.celula) continue;
