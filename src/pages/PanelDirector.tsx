@@ -897,7 +897,28 @@ const PanelDirector = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_160px] gap-2">
+            {(filtroCanal !== 'TODOS' || filtroPais !== 'TODOS') && (
+              <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border">
+                <span className="text-xs text-muted-foreground">Filtros aplicados desde el heatmap:</span>
+                {filtroCanal !== 'TODOS' && (
+                  <Badge variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
+                    Canal: {filtroCanal}
+                    <button onClick={() => setFiltroCanal('TODOS')} className="hover:bg-muted rounded-full w-4 h-4 inline-flex items-center justify-center text-xs">×</button>
+                  </Badge>
+                )}
+                {filtroPais !== 'TODOS' && (
+                  <Badge variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
+                    País: {filtroPais}
+                    <button onClick={() => setFiltroPais('TODOS')} className="hover:bg-muted rounded-full w-4 h-4 inline-flex items-center justify-center text-xs">×</button>
+                  </Badge>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => { setFiltroCanal('TODOS'); setFiltroPais('TODOS'); }} className="h-7 text-xs ml-auto">
+                  Ver todos los países y canales
+                </Button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_160px_160px] gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -907,6 +928,15 @@ const PanelDirector = () => {
                   className="pl-9"
                 />
               </div>
+              {paisesDisponibles.length > 1 && (
+                <Select value={filtroPais} onValueChange={setFiltroPais}>
+                  <SelectTrigger><SelectValue placeholder="País" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todos los países</SelectItem>
+                    {paisesDisponibles.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={String(periodoSel)} onValueChange={(v) => setPeriodoSel(Number(v))}>
                 <SelectTrigger><SelectValue placeholder="Mes" /></SelectTrigger>
                 <SelectContent>
