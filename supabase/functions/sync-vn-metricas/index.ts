@@ -348,10 +348,7 @@ Deno.serve(async (req) => {
     let inserted = 0;
     for (let i = 0; i < recordsMesActual.length; i += BATCH) {
       const slice = recordsMesActual.slice(i, i + BATCH);
-      const { error } = await sb.from("vn_metricas_optimizadas").upsert(slice, {
-        onConflict: "pais,anio,mes_nro,scope,tipo_producto1,celula,asesor",
-        ignoreDuplicates: false,
-      });
+      const { error } = await sb.from("vn_metricas_optimizadas").insert(slice);
       if (error) throw new Error(`insert batch ${i}: ${error.message}`);
       inserted += slice.length;
     }
