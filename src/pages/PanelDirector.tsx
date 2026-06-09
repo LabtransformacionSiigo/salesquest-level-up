@@ -514,7 +514,7 @@ const PanelDirector = () => {
     const rows = filteredStats
       .filter((s) => filtroTier === 'TODOS' || tierOf(s.pctTotal) === filtroTier)
       .filter((s) => !q || s.gerente.nombre.toLowerCase().includes(q) || (s.gerente.email || '').toLowerCase().includes(q))
-      .sort((a, b) => b.pctTotal - a.pctTotal);
+      .sort((a, b) => b.scoreCompuesto - a.scoreCompuesto);
     return rows;
   }, [filteredStats, filtroTier, search]);
 
