@@ -163,14 +163,14 @@ const PanelDirector = () => {
           if (!isAdmin && scopePaises.length) allCelQuery = allCelQuery.in('pais', scopePaises);
           const { data: allCel } = await allCelQuery;
           (allCel || []).forEach((r: any) => {
-            const key = `${normalize(r.celula)}|${r.canal || ''}|${normalizePaisCode(r.pais)}`;
+            const key = celulaScopeKey(r.celula, r.canal, r.pais);
             celulaCountMap.set(key, (celulaCountMap.get(key) || 0) + 1);
           });
         }
         for (const g of gerentesList) {
           if (asesoresMap.get(g.id)) continue; // ya contado vía asesores
           if (!g.celula) continue;
-          const total = celulaCountMap.get(`${normalize(g.celula)}|${g.canal || ''}|${normalizePaisCode(g.pais)}`) || 0;
+          const total = celulaCountMap.get(celulaScopeKey(g.celula, g.canal, g.pais)) || 0;
           // restamos 1 = el propio líder (este gerente)
           asesoresMap.set(g.id, Math.max(0, total - 1));
         }
@@ -423,7 +423,7 @@ const PanelDirector = () => {
         const seenCelulas = new Set<string>();
         // Marcar como ya vistas las celulas de gerentes que ya entraron por métricas
         for (const s of out) {
-          if (s.gerente.celula) seenCelulas.add(normalize(s.gerente.celula));
+          if (s.gerente.celula) seenCelulas.add(celulaScopeKey(s.gerente.celula, s.gerente.canal, s.gerente.pais));
         }
         // Priorizar gerentes con user_id (cuentas reales) como líderes de celula
         const leaderCandidates = [...gerentesList].sort((a, b) => {
