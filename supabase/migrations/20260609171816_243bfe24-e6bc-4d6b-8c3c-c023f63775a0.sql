@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.vn_metricas_optimizadas_unique_grain;
