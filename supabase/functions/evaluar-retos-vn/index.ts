@@ -167,13 +167,15 @@ Deno.serve(async (req) => {
 
     // ── Cargar ventas VN del mes (incluye día y semana) ──
     // ventas VN- = transacciones reales (no SUM-)
-    const { data: ventasMes } = await supabase
-      .from("ventas")
-      .select("gerente_id, fecha_facturacion, acv_plus, producto, categoria_producto_venta, bloque_venta, documento_factura, canal")
-      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
-      .in("gerente_id", gerenteIds)
-      .gte("fecha_facturacion", monthStart)
-      .lt("fecha_facturacion", monthEnd);
+    // ── Cargar ventas VN del mes (paginado: la tabla puede tener miles de filas) ──
+    const ventasMes = await fetchAllRows<any>((from, to) =>
+      supabase.from("ventas")
+        .select("gerente_id, fecha_facturacion, acv_plus, producto, categoria_producto_venta, bloque_venta, documento_factura, canal")
+        .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+        .gte("fecha_facturacion", monthStart)
+        .lt("fecha_facturacion", monthEnd)
+        .range(from, to)
+    );
 
     const ventasByGerente = new Map<string, any[]>();
     for (const v of ventasMes || []) {
