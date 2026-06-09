@@ -272,12 +272,16 @@ const PanelDirector = () => {
             .eq('anio', anio);
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
           if (!isAdmin && scopePaises.length) metasQuery = metasQuery.in('pais', scopePaises);
+          if (!isAdmin && isDirector && profile?.nombre) {
+            metasQuery = metasQuery.ilike('director', profile.nombre.trim());
+          }
           const { data: metas } = await metasQuery;
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
-            metasRows.push(m);
             const key = celulaScopeKey(m.celula, m.canal, m.pais);
+            if (!isAdmin && isDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
+            metasRows.push(m);
             validCelulasMes.add(key);
             metasMap.set(key, {
               fe: m.meta_fe || 0,
@@ -286,6 +290,7 @@ const PanelDirector = () => {
               acv: Number(m.meta_total_acv) || 0,
             });
           });
+
         }
 
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
