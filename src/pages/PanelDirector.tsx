@@ -242,7 +242,7 @@ const PanelDirector = () => {
         {
           let metasQuery = supabase
             .from('metas_acv_gerentes')
-            .select('celula, meta_fe, meta_nube, meta_total_acv')
+            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_acv')
             .eq('mes', mesAbr)
             .eq('anio', anio);
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
@@ -251,8 +251,9 @@ const PanelDirector = () => {
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
-            validCelulasMes.add(cel);
-            metasMap.set(cel, {
+            const key = celulaScopeKey(m.celula, m.canal, m.pais);
+            validCelulasMes.add(key);
+            metasMap.set(key, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
               acv: Number(m.meta_total_acv) || 0,
