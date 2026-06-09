@@ -257,29 +257,25 @@ function mergeByUniqueGrain(records: ReturnType<typeof buildRecord>[]) {
   const merged = new Map<string, ReturnType<typeof buildRecord>>();
 
   for (const record of records) {
-    // Debe coincidir EXACTAMENTE con el unique index de la tabla:
-    // (pais, anio, mes_nro, scope, tipo_producto1, COALESCE(celula,''), COALESCE(asesor,''))
+    // Debe coincidir con uq_vn_metricas_grano:
+    // (pais, periodo, canal_direccion, scope, COALESCE(gerente_normalizado,''), COALESCE(asesor,''), tipo_producto1)
     const key = [
       record.pais,
       record.anio,
       record.mes_nro,
+      record.canal_direccion,
       record.scope,
-      record.tipo_producto1,
-      record.celula ?? "",
+      record.gerente_normalizado ?? "",
       record.asesor ?? "",
+      record.tipo_producto1,
     ].join("|");
 
     const existing = merged.get(key);
     if (existing) {
       existing.ventas += record.ventas;
       existing.acv_total += record.acv_total;
-      if (!existing.gerente && record.gerente) {
-        existing.gerente = record.gerente;
-        existing.gerente_normalizado = record.gerente_normalizado;
-      }
-      if (!existing.canal_direccion && record.canal_direccion) {
-        existing.canal_direccion = record.canal_direccion;
-      }
+      if (!existing.gerente && record.gerente) existing.gerente = record.gerente;
+      if (!existing.celula && record.celula) existing.celula = record.celula;
       if (!existing.familia && record.familia) existing.familia = record.familia;
       continue;
     }
