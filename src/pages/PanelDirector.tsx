@@ -438,7 +438,7 @@ const PanelDirector = () => {
           const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);
           if (seenCelulas.has(celKey)) continue;
           const g = pickGerenteByCelula(celKey);
-          const asesoresCount = asesoresMap.get(g.id) || 0;
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
