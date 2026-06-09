@@ -114,7 +114,7 @@ const PanelDirector = () => {
       try {
         // 1) Gerentes en scope
         let gq = supabase.from('gerentes')
-          .select('id, nombre, email, canal, pais, celula')
+          .select('id, nombre, email, canal, pais, celula, user_id')
           .eq('activo', true);
         if (!isAdmin) {
           if (scopeCanales.length) gq = gq.in('canal', scopeCanales);
