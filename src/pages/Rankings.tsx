@@ -995,15 +995,17 @@ const Rankings = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !profile?.canal) return;
-    fetchRanking();
+    const currentTab = tab;
+    fetchRanking(currentTab);
     // Debounce para evitar ráfagas de refetch cuando Databricks inserta lotes grandes.
     let refetchTimer: any = null;
     const triggerRefetch = () => {
       if (refetchTimer) clearTimeout(refetchTimer);
-      refetchTimer = setTimeout(() => fetchRanking(), 800);
+      // Pasamos tabRef.current para que el resultado se valide contra el tab vigente.
+      refetchTimer = setTimeout(() => fetchRanking(tabRef.current), 1500);
     };
     const channel = supabase
-      .channel(`ranking-live-${profile?.canal}-${userPais}`)
+      .channel(`ranking-live-${profile?.canal}-${userPais}-${currentTab}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, triggerRefetch)
@@ -1015,7 +1017,7 @@ const Rankings = () => {
       .subscribe();
     // Refresco automático cada 60s como red de seguridad si Realtime no cubre alguna
     // tabla (p.ej. publicación deshabilitada). Mantiene Clasificación consistente.
-    const refreshInterval = setInterval(() => fetchRanking(), 60 * 1000);
+    const refreshInterval = setInterval(() => fetchRanking(tabRef.current), 60 * 1000);
     return () => {
       supabase.removeChannel(channel);
       if (refetchTimer) clearTimeout(refetchTimer);
