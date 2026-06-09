@@ -432,6 +432,7 @@ const PanelDirector = () => {
           if (!g.celula) continue;
           const celKey = normalize(g.celula);
           if (seenCelulas.has(celKey)) continue;
+          if (!isAdmin && !validCelulasMes.has(celKey)) continue;
           // Solo líderes reales (con cuenta de auth)
           if (!g.user_id) continue;
           const asesoresCount = asesoresMap.get(g.id) || 0;
