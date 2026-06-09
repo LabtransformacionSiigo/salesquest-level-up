@@ -430,28 +430,30 @@ const PanelDirector = () => {
         for (const s of out) {
           if (s.gerente.celula) seenCelulas.add(celulaScopeKey(s.gerente.celula, s.gerente.canal, s.gerente.pais));
         }
-        // Priorizar gerentes con user_id (cuentas reales) como líderes de celula
-        const leaderCandidates = [...gerentesList].sort((a, b) => {
-          const ai = a.user_id ? 0 : 1;
-          const bi = b.user_id ? 0 : 1;
-          return ai - bi;
-        });
-        for (const g of leaderCandidates) {
-          if (usedIds.has(g.id)) continue;
-          if (!g.celula) continue;
-          const celKey = celulaScopeKey(g.celula, g.canal, g.pais);
+        const pickGerenteByCelula = (key: string) => {
+          const matches = gerentesList.filter((g) => celulaScopeKey(g.celula, g.canal, g.pais) === key);
+          return matches.find((g) => !usedIds.has(g.id) && !!g.user_id) || matches.find((g) => !usedIds.has(g.id)) || null;
+        };
+        for (const metaRow of metasRows) {
+          const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);
           if (seenCelulas.has(celKey)) continue;
-          if (!isAdmin && !validCelulasMes.has(celKey)) continue;
-          // Solo líderes reales (con cuenta de auth)
-          if (!g.user_id) continue;
+          const g = pickGerenteByCelula(celKey);
           const asesoresCount = asesoresMap.get(g.id) || 0;
-          if (asesoresCount === 0) continue;
           seenCelulas.add(celKey);
+          if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
+          const gerente: GerenteRow = g || {
+            id: `meta-${celKey}`,
+            nombre: metaRow.celula || 'Gerente sin asignar',
+            email: '',
+            canal: metaRow.canal || null,
+            pais: normalizePaisCode(metaRow.pais),
+            celula: metaRow.celula || null,
+          };
           out.push({
-            gerente: g,
+            gerente,
             asesores: asesoresCount,
             fe: 0, nube: 0, total: 0, acv: 0,
             metaFe, metaNube,
@@ -459,8 +461,8 @@ const PanelDirector = () => {
             pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
             pacing: 0, scoreCompuesto: 0,
             productividad: 0, ventasPorAsesor: 0,
-            sp: spMap.get(g.id) || 0,
-            racha: rachaMap.get(g.id) || 0,
+            sp: g ? (spMap.get(g.id) || 0) : 0,
+            racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
         }
 
