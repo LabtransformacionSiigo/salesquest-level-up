@@ -156,8 +156,9 @@ const PanelDirector = () => {
         const { data: gerentes = [] } = await gq;
         let gerentesList = (gerentes || []) as GerenteRow[];
         if (!isAdmin && isDirector && allowedCelulaKeys.size > 0) {
+          // VC no usa celula → no aplicar gate de celula a gerentes VC
           gerentesList = gerentesList.filter((g) =>
-            g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais))
+            g.canal === 'VC' || (g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais)))
           );
         }
 
@@ -512,6 +513,74 @@ const PanelDirector = () => {
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
         }
+
+        // === VC: agregar desde tabla `ventas` (PROD-*) por gerente. ===
+        // VC no usa celula ni vn_metricas_optimizadas, así que se calculan aquí.
+        const vcGerentes = gerentesList.filter((g) => g.canal === 'VC');
+        if (vcGerentes.length) {
+          const vcIds = vcGerentes.map((g) => g.id);
+          const mesIni = `${anio}-${String(periodoSel).padStart(2, '0')}-01`;
+          const mesFinDate = new Date(anio, periodoSel, 0);
+          const mesFin = `${anio}-${String(periodoSel).padStart(2, '0')}-${String(mesFinDate.getDate()).padStart(2, '0')}`;
+          const { data: vcVentas } = await supabase
+            .from('ventas')
+            .select('gerente_id, producto, acv_plus, valor_producto, documento_factura, categoria_producto_venta')
+            .eq('canal', 'VC')
+            .in('gerente_id', vcIds)
+            .gte('fecha_facturacion', mesIni)
+            .lte('fecha_facturacion', mesFin)
+            .like('documento_factura', 'PROD-%');
+
+          type VcAgg = { fe: number; nube: number; nomina: number; conversiones: number; otros: number; acv: number; total: number };
+          const vcAgg = new Map<string, VcAgg>();
+          const inferBucket = (p?: string | null): keyof VcAgg | 'total' => {
+            const s = String(p || '').toLowerCase();
+            if (!s) return 'otros';
+            if (s.includes('conversion')) return 'conversiones';
+            if (s.includes('nomina') || s.includes('nómina') || s.includes('rrhh')) return 'nomina';
+            if (s === 'fe' || s.startsWith('fe ') || s.includes(' fe ') || s.includes('factura electronica') || s.includes('factura electrónica') || s.includes('documentos electronicos') || s.includes('certificado digital')) return 'fe';
+            if (s.includes('nube') || s.includes('siigo nube') || s.includes('contabilidad') || s.includes('punto de venta') || s.includes('pos')) return 'nube';
+            return 'otros';
+          };
+          for (const v of vcVentas || []) {
+            if (!v.gerente_id) continue;
+            const cur = vcAgg.get(v.gerente_id) || { fe: 0, nube: 0, nomina: 0, conversiones: 0, otros: 0, acv: 0, total: 0 };
+            const b = inferBucket(v.producto);
+            cur[b as keyof VcAgg] = (cur[b as keyof VcAgg] as number) + 1;
+            cur.acv += Number(v.acv_plus) || 0;
+            cur.total += 1;
+            vcAgg.set(v.gerente_id, cur);
+          }
+
+          for (const g of vcGerentes) {
+            const agg = vcAgg.get(g.id);
+            if (!agg) continue;
+            const asesoresCount = asesoresMap.get(g.id) || 0;
+            out.push({
+              gerente: g,
+              asesores: asesoresCount,
+              fe: agg.fe,
+              nube: agg.nube,
+              total: agg.total,
+              acv: Math.round(agg.acv),
+              metaFe: 0,
+              metaNube: 0,
+              metaUds: 0,
+              metaAcv: 0,
+              pctFe: 0,
+              pctNube: 0,
+              pctAcv: 0,
+              pctTotal: 0,
+              pacing: 0,
+              scoreCompuesto: 0,
+              productividad: 0,
+              ventasPorAsesor: asesoresCount > 0 ? Math.round((agg.total / asesoresCount) * 10) / 10 : 0,
+              sp: spMap.get(g.id) || 0,
+              racha: rachaMap.get(g.id) || 0,
+            });
+          }
+        }
+
 
         console.log('[PanelDirector] Diagnóstico:', {
           gerentesEnScope: gerentesList.length,
