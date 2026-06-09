@@ -461,6 +461,7 @@ const PanelDirector = () => {
           filasDesdeMetricas,
           filasFallbackPorCelula: out.length - filasDesdeMetricas,
           filasTotales: out.length,
+          celulasConMetaDelMes: validCelulasMes.size,
           scopeCanales,
           scopePaises,
           isAdmin,
