@@ -482,7 +482,35 @@ export const useSupabaseAuth = () => {
         };
 
         const gerenteCandidates = ((gerenteListRes.data as any[]) || []).sort((a, b) => scoreGerente(b) - scoreGerente(a));
-        const gerenteRes = { data: gerenteCandidates[0] || null, error: gerenteListRes.error } as any;
+        let selectedGerente = gerenteCandidates[0] || null;
+
+        // Si el usuario quedó amarrado a un gerente duplicado/inactivo, resolver al líder activo
+        // de la misma célula para que SP Canje y logros lean el saldo real del equipo.
+        if (selectedGerente?.activo === false && selectedGerente?.celula && selectedGerente?.pais && selectedGerente?.canal) {
+          const { data: activeMatches } = await supabase
+            .from('gerentes')
+            .select(gerenteSelect)
+            .eq('activo', true)
+            .eq('pais', selectedGerente.pais)
+            .eq('canal', selectedGerente.canal)
+            .eq('celula', selectedGerente.celula)
+            .limit(5);
+
+          if (activeMatches?.length) {
+            const celulaParts = normalizeComparableText(selectedGerente.celula).split(' ').filter(Boolean);
+            const celulaLeaderToken = celulaParts[celulaParts.length - 1];
+            const scoreActiveMatch = (g: any) => {
+              const base = scoreGerente(g);
+              if (!celulaLeaderToken) return base;
+              const name = normalizeComparableText(g?.nombre);
+              const emailPrefix = normalizeComparableText(String(g?.email || '').split('@')[0] || '').replace(/[._-]/g, ' ');
+              return base + (name.includes(celulaLeaderToken) || emailPrefix.includes(celulaLeaderToken) ? 200 : 0);
+            };
+            selectedGerente = [...(activeMatches as any[])].sort((a, b) => scoreActiveMatch(b) - scoreActiveMatch(a))[0];
+          }
+        }
+
+        const gerenteRes = { data: selectedGerente, error: gerenteListRes.error } as any;
 
         // Si no hay fila en la vista sp_totales_gerente, usamos un fallback desde la tabla gerentes
         // para que el gerente pueda iniciar sesión aunque no tenga ventas/metas registradas todavía.
@@ -676,7 +704,7 @@ export const useSupabaseAuth = () => {
 
           setProfile({
             id: data.id,
-            user_id: data.user_id ?? userId,
+            user_id: userId,
             gerente_id: null,
             nombre: data.nombre,
             email: data.email ?? authEmail ?? '',
