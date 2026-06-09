@@ -415,7 +415,9 @@ const PanelDirector = () => {
             fe: 0, nube: 0, total: 0, acv: 0,
             metaFe, metaNube,
             metaAcv: meta?.acv || 0,
-            pctTotal: 0,
+            pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
+            pacing: 0, scoreCompuesto: 0,
+            productividad: 0, ventasPorAsesor: 0,
             sp: spMap.get(g.id) || 0,
             racha: rachaMap.get(g.id) || 0,
           });
