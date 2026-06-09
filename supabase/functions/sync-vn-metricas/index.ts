@@ -431,7 +431,7 @@ Deno.serve(async (req) => {
       const celula = String(r.celula || "").trim() || null;
       const familia = classifyFamily(r.tipo_producto1);
       const pais = normalizePais(r.pais);
-      const canal_direccion = normalizeCanal(r.equipo);
+      const canal_direccion = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
       if (!gnorm || !mes || !familia) continue;
       const periodo = `${anio}${MM(mes)}`;
       const key = [pais, canal_direccion, periodo, gnorm, familia].join("|");
