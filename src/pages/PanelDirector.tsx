@@ -45,7 +45,14 @@ type Stats = {
   metaFe: number;
   metaNube: number;
   metaAcv: number;
-  pctTotal: number;
+  pctFe: number;            // % cumplimiento FE
+  pctNube: number;          // % cumplimiento Nube
+  pctAcv: number;           // % cumplimiento ACV ($)
+  pctTotal: number;         // % unidades totales (FE+Nube vs meta)
+  pacing: number;           // ritmo vs días transcurridos (1.0 = en ritmo)
+  scoreCompuesto: number;   // 35% FE + 25% Nube + 40% ACV
+  productividad: number;    // % asesores con ventas (fase 2)
+  ventasPorAsesor: number;  // promedio unidades por asesor
   sp: number;
   racha: number;
 };
@@ -344,7 +351,25 @@ const PanelDirector = () => {
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
           const metaTotal = metaFe + metaNube;
+          const metaAcv = meta?.acv || 0;
+
+          const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
+          const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
           const pctTotal = metaTotal > 0 ? (agg.total / metaTotal) * 100 : 0;
+          const pctAcv = metaAcv > 0 ? (agg.acv / metaAcv) * 100 : 0;
+
+          // Pacing: qué tan en ritmo está el gerente vs el día del mes
+          const today = new Date();
+          const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
+          const currentDay = today.getMonth() + 1 === periodoSel ? today.getDate() : lastDay;
+          const pacing = currentDay > 0 ? pctTotal / ((currentDay / lastDay) * 100) : 0;
+
+          // Score compuesto ponderado (0-100+)
+          const scoreCompuesto = Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40);
+
+          const productividad = 0; // fase 2: contar asesores con ventas > 0
+          const ventasPorAsesor = asesoresCount > 0 ? agg.total / asesoresCount : 0;
+
           out.push({
             gerente,
             asesores: asesoresCount,
@@ -354,8 +379,15 @@ const PanelDirector = () => {
             acv: Math.round(agg.acv),
             metaFe,
             metaNube,
-            metaAcv: meta?.acv || 0,
+            metaAcv,
+            pctFe: Math.round(pctFe),
+            pctNube: Math.round(pctNube),
+            pctAcv: Math.round(pctAcv),
             pctTotal: Math.round(pctTotal),
+            pacing: Math.round(pacing * 100) / 100,
+            scoreCompuesto,
+            productividad,
+            ventasPorAsesor: Math.round(ventasPorAsesor * 10) / 10,
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
@@ -383,7 +415,9 @@ const PanelDirector = () => {
             fe: 0, nube: 0, total: 0, acv: 0,
             metaFe, metaNube,
             metaAcv: meta?.acv || 0,
-            pctTotal: 0,
+            pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
+            pacing: 0, scoreCompuesto: 0,
+            productividad: 0, ventasPorAsesor: 0,
             sp: spMap.get(g.id) || 0,
             racha: rachaMap.get(g.id) || 0,
           });
@@ -480,7 +514,7 @@ const PanelDirector = () => {
     const rows = filteredStats
       .filter((s) => filtroTier === 'TODOS' || tierOf(s.pctTotal) === filtroTier)
       .filter((s) => !q || s.gerente.nombre.toLowerCase().includes(q) || (s.gerente.email || '').toLowerCase().includes(q))
-      .sort((a, b) => b.pctTotal - a.pctTotal);
+      .sort((a, b) => b.scoreCompuesto - a.scoreCompuesto);
     return rows;
   }, [filteredStats, filtroTier, search]);
 
@@ -816,17 +850,26 @@ const PanelDirector = () => {
                   <TableHead className="text-right">FE</TableHead>
                   <TableHead className="text-right">Nube</TableHead>
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">% Cumpl.</TableHead>
+                  <TableHead className="text-right" title="Score = 35% FE + 25% Nube + 40% ACV">Score ⓘ</TableHead>
+                  <TableHead className="text-right">% FE</TableHead>
+                  <TableHead className="text-right">% Nube</TableHead>
+                  <TableHead className="text-right">% ACV</TableHead>
+                  <TableHead className="text-right" title="Pacing: 1.00 = en ritmo, <1 atrasado, >1 adelantado">Pacing</TableHead>
+                  <TableHead className="text-right">$/Asesor</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
+                  const pctColor = (p: number) =>
+                    p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : p >= 50 ? 'text-orange-600' : 'text-rose-600';
+                  const scoreVariant: 'default' | 'secondary' | 'destructive' =
+                    s.scoreCompuesto >= 100 ? 'default' : s.scoreCompuesto >= 80 ? 'secondary' : 'destructive';
                   return (
                     <TableRow key={s.gerente.id}>
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
@@ -836,7 +879,16 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
                       <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube}</span></TableCell>
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
-                      <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={scoreVariant}>{s.scoreCompuesto}</Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctFe)}`}>{s.pctFe}%</TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctNube)}`}>{s.pctNube}%</TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctAcv)}`}>{s.pctAcv}%</TableCell>
+                      <TableCell className="text-right" title="1.0 = en ritmo">
+                        {s.pacing.toFixed(2)} {s.pacing >= 1.0 ? '↑' : '↓'}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{s.ventasPorAsesor.toFixed(1)}</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
                           <span className={`inline-block w-2 h-2 rounded-full ${t.solid} mr-1.5`} />
