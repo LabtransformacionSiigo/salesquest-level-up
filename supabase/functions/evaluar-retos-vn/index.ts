@@ -44,6 +44,25 @@ const weekOfMonth = (d: Date) => {
   return Math.max(1, Math.min(4, w));
 };
 
+// Paginated SELECT helper — Supabase Data API truncates at 1000 rows.
+// Sin esto, ventas_diarias COL (>1000 filas/mes) se trunca y las células
+// más rezagadas nunca reciben sus ventas → retos siempre cumple=false.
+async function fetchAllRows<T = any>(
+  build: (from: number, to: number) => any,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < 1_000_000; from += pageSize) {
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    if (rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
