@@ -19,6 +19,11 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const normalize = (s: string) =>
   String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
+const normalizePaisCode = (pais?: string | null) => {
+  const code = String(pais || '').toUpperCase().trim();
+  return code === 'URY' ? 'URU' : code;
+};
+
 const fmtMoney = (n: number) => {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -100,7 +105,7 @@ const PanelDirector = () => {
     [isAdmin, profile?.director_canales],
   );
   const scopePaises = useMemo(
-    () => (isAdmin ? [] : (profile?.director_paises || [])),
+    () => (isAdmin ? [] : (profile?.director_paises || []).map(normalizePaisCode)),
     [isAdmin, profile?.director_paises],
   );
 
