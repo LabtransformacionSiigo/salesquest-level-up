@@ -1,7 +1,7 @@
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -191,9 +191,11 @@ const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) =
 
 const Rankings = () => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
-  const [ranking, setRanking] = useState<any[]>([]);
+  const [ranking, setRankingState] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [tab, setTab] = useState<PanelGeneralTab>('comerciales');
+  const tabRef = useRef<PanelGeneralTab>('comerciales');
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   const isVC = profile?.canal === 'VC';
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const userPais = profile?.pais || 'COL';
@@ -201,7 +203,12 @@ const Rankings = () => {
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
 
-  const fetchRanking = async () => {
+  const fetchRanking = async (requestedTab: PanelGeneralTab = tabRef.current) => {
+    // Guarded setter: ignora resultados obsoletos cuando el usuario ya cambió de tab.
+    const setRanking = (val: any) => {
+      if (tabRef.current !== requestedTab) return;
+      setRankingState(val);
+    };
     if (!profile?.canal) {
       setDataLoading(false);
       return;
@@ -988,15 +995,17 @@ const Rankings = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !profile?.canal) return;
-    fetchRanking();
+    const currentTab = tab;
+    fetchRanking(currentTab);
     // Debounce para evitar ráfagas de refetch cuando Databricks inserta lotes grandes.
     let refetchTimer: any = null;
     const triggerRefetch = () => {
       if (refetchTimer) clearTimeout(refetchTimer);
-      refetchTimer = setTimeout(() => fetchRanking(), 800);
+      // Pasamos tabRef.current para que el resultado se valide contra el tab vigente.
+      refetchTimer = setTimeout(() => fetchRanking(tabRef.current), 1500);
     };
     const channel = supabase
-      .channel(`ranking-live-${profile?.canal}-${userPais}`)
+      .channel(`ranking-live-${profile?.canal}-${userPais}-${currentTab}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, triggerRefetch)
@@ -1008,7 +1017,7 @@ const Rankings = () => {
       .subscribe();
     // Refresco automático cada 60s como red de seguridad si Realtime no cubre alguna
     // tabla (p.ej. publicación deshabilitada). Mantiene Clasificación consistente.
-    const refreshInterval = setInterval(() => fetchRanking(), 60 * 1000);
+    const refreshInterval = setInterval(() => fetchRanking(tabRef.current), 60 * 1000);
     return () => {
       supabase.removeChannel(channel);
       if (refetchTimer) clearTimeout(refetchTimer);
