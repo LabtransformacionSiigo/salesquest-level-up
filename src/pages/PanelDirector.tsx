@@ -231,14 +231,20 @@ const PanelDirector = () => {
         const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const mesAbr = MESES_ABR[periodoSel - 1];
         const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
+        const validCelulasMes = new Set<string>();
         {
-          const { data: metas } = await supabase
+          let metasQuery = supabase
             .from('metas_acv_gerentes')
             .select('celula, meta_fe, meta_nube, meta_total_acv')
-            .eq('mes', mesAbr);
+            .eq('mes', mesAbr)
+            .eq('anio', anio);
+          if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
+          if (!isAdmin && scopePaises.length) metasQuery = metasQuery.in('pais', scopePaises);
+          const { data: metas } = await metasQuery;
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
+            validCelulasMes.add(cel);
             metasMap.set(cel, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
@@ -336,7 +342,9 @@ const PanelDirector = () => {
           // aparezcan líderes de otros canales/países en el panel.
           if (!isAdmin && !g) continue;
           if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
-          if (!isAdmin && g && scopePaises.length && !scopePaises.includes(g.pais || '')) continue;
+          if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
+          const celKey = normalize(g?.celula || '');
+          if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
