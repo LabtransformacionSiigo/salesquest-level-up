@@ -98,13 +98,14 @@ Deno.serve(async (req) => {
       (!it.fecha_inicio || todayStr >= it.fecha_inicio) &&
       (!it.fecha_fin || todayStr <= it.fecha_fin);
 
-    // ── Cargar gerentes VN ──
-    const { data: gerentes } = await supabase
-      .from("gerentes")
-      .select("id, nombre, canal, pais, celula")
-      .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
-      .eq("activo", true);
-    const gerentesArr = gerentes || [];
+    // ── Cargar gerentes VN (paginado) ──
+    const gerentesArr = await fetchAllRows<any>((from, to) =>
+      supabase.from("gerentes")
+        .select("id, nombre, canal, pais, celula")
+        .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+        .eq("activo", true)
+        .range(from, to)
+    );
     if (gerentesArr.length === 0) {
       return new Response(JSON.stringify({ ok: true, msg: "Sin gerentes VN activos" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
