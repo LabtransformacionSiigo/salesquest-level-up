@@ -497,10 +497,8 @@ export const useSupabaseAuth = () => {
             .limit(5);
 
           if (activeMatches?.length) {
-            const celulaLeaderToken = normalizeComparableText(selectedGerente.celula)
-              .split(' ')
-              .filter(Boolean)
-              .at(-1);
+            const celulaParts = normalizeComparableText(selectedGerente.celula).split(' ').filter(Boolean);
+            const celulaLeaderToken = celulaParts[celulaParts.length - 1];
             const scoreActiveMatch = (g: any) => {
               const base = scoreGerente(g);
               if (!celulaLeaderToken) return base;
