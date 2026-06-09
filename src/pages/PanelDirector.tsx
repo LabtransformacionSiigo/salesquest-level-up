@@ -994,16 +994,9 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
                       <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube}</span></TableCell>
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={scoreVariant}>{s.scoreCompuesto}</Badge>
-                      </TableCell>
                       <TableCell className={`text-right font-semibold ${pctColor(s.pctFe)}`}>{s.pctFe}%</TableCell>
                       <TableCell className={`text-right font-semibold ${pctColor(s.pctNube)}`}>{s.pctNube}%</TableCell>
                       <TableCell className={`text-right font-semibold ${pctColor(s.pctAcv)}`}>{s.pctAcv}%</TableCell>
-                      <TableCell className="text-right" title="1.0 = en ritmo">
-                        {s.pacing.toFixed(2)} {s.pacing >= 1.0 ? '↑' : '↓'}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">{s.ventasPorAsesor.toFixed(1)}</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
                           <span className={`inline-block w-2 h-2 rounded-full ${t.solid} mr-1.5`} />
