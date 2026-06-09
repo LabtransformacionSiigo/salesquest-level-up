@@ -396,6 +396,73 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
         </div>
       </div>
 
+      {/* Resumen por fuente — mismo desglose que ve el Especialista en su tabla */}
+      {(() => {
+        const FUENTES = ['RETO_DIARIO','RETO_SEMANAL','RETO_MENSUAL','MEDALLA','RECONOCIMIENTO_RECIBIDO'] as const;
+        const mesYYYYMM = new Date().toISOString().slice(0,7);
+        const mesAlt = mesYYYYMM.replace('-','');
+        const resumen = FUENTES.map(f => {
+          const all = rows.filter(r => r.fuente === f);
+          const mes = all.filter(r => r.periodo?.startsWith(mesYYYYMM) || r.periodo?.startsWith(mesAlt));
+          return {
+            fuente: f,
+            meta: FUENTE_META[f],
+            mesCount: mes.length,
+            mesSp: mes.reduce((s,r)=>s+Number(r.sp||0),0),
+            totalCount: all.length,
+            totalSp: all.reduce((s,r)=>s+Number(r.sp||0),0),
+          };
+        }).filter(x => x.totalCount > 0);
+        if (resumen.length === 0) return null;
+        return (
+          <div className="border border-border rounded-2xl bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-secondary flex items-center gap-2">📊 Resumen SP Canje por fuente</h3>
+              <span className="text-xs text-muted-foreground">Mismo desglose que ve tu Especialista</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="text-left p-2 font-bold">Fuente</th>
+                    <th className="text-right p-2 font-bold">Este mes</th>
+                    <th className="text-right p-2 font-bold">SP este mes</th>
+                    <th className="text-right p-2 font-bold">Total 2026</th>
+                    <th className="text-right p-2 font-bold">SP total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumen.map(r => (
+                    <tr key={r.fuente} className="border-t border-border">
+                      <td className="p-2">
+                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold', r.meta?.color)}>
+                          {r.meta?.icon} {r.meta?.label}
+                        </span>
+                      </td>
+                      <td className="p-2 text-right tabular-nums">{r.mesCount}</td>
+                      <td className="p-2 text-right tabular-nums font-bold text-accent">+{r.mesSp}</td>
+                      <td className="p-2 text-right tabular-nums">{r.totalCount}</td>
+                      <td className="p-2 text-right tabular-nums font-bold text-accent">+{r.totalSp}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/40 font-bold">
+                    <td className="p-2">Total</td>
+                    <td className="p-2 text-right tabular-nums">{resumen.reduce((s,r)=>s+r.mesCount,0)}</td>
+                    <td className="p-2 text-right tabular-nums text-accent">+{resumen.reduce((s,r)=>s+r.mesSp,0)}</td>
+                    <td className="p-2 text-right tabular-nums">{resumen.reduce((s,r)=>s+r.totalCount,0)}</td>
+                    <td className="p-2 text-right tabular-nums text-accent">+{resumen.reduce((s,r)=>s+r.totalSp,0)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+
+
       <Tabs defaultValue="todos" className="w-full">
         <TabsList className="grid grid-cols-5 w-full bg-card border border-border">
           <TabsTrigger value="todos">Todos ({logrosCount})</TabsTrigger>
