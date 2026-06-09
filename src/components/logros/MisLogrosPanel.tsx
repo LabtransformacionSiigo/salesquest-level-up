@@ -257,6 +257,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
   };
 
   if (loading) return <Skeleton className="h-96" />;
+  const logrosCount = rows.length || (totales.reconciliado ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -341,14 +342,14 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
         </div>
         <div className="border border-border rounded-xl bg-card p-4">
           <div className="text-xs text-muted-foreground uppercase font-bold">Logros desbloqueados</div>
-          <div className="text-3xl font-extrabold text-primary tabular-nums mt-1">{rows.length}</div>
+          <div className="text-3xl font-extrabold text-primary tabular-nums mt-1">{logrosCount}</div>
           <div className="text-[10px] text-muted-foreground mt-1">Total histórico</div>
         </div>
       </div>
 
       <Tabs defaultValue="todos" className="w-full">
         <TabsList className="grid grid-cols-5 w-full bg-card border border-border">
-          <TabsTrigger value="todos">Todos ({rows.length})</TabsTrigger>
+          <TabsTrigger value="todos">Todos ({logrosCount})</TabsTrigger>
           <TabsTrigger value="retos">🎯 Retos</TabsTrigger>
           <TabsTrigger value="medallas">🏅 Medallas</TabsTrigger>
           <TabsTrigger value="reconocimientos">💌 Reconocimientos</TabsTrigger>
