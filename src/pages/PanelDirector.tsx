@@ -156,8 +156,9 @@ const PanelDirector = () => {
         const { data: gerentes = [] } = await gq;
         let gerentesList = (gerentes || []) as GerenteRow[];
         if (!isAdmin && isDirector && allowedCelulaKeys.size > 0) {
+          // VC no usa celula → no aplicar gate de celula a gerentes VC
           gerentesList = gerentesList.filter((g) =>
-            g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais))
+            g.canal === 'VC' || (g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais)))
           );
         }
 
