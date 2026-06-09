@@ -210,6 +210,7 @@ const Rankings = () => {
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const isDirector = profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
+  useEffect(() => { if (isDirector && tab !== 'gerentes') setTab('gerentes'); }, [isDirector]);
   const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
   useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
   const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
