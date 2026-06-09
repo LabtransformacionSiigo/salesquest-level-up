@@ -402,12 +402,32 @@ const PanelDirector = () => {
           scopePaises,
           isAdmin,
         });
-        // Sumar líderes con asesores asignados pero sin métrica este mes
-        for (const g of gerentesList) {
+        // Sumar líderes con asesores asignados pero sin métrica este mes.
+        // ⚠️ Debemos añadir UNA SOLA fila por celula y solo el líder real
+        // (gerente con user_id). De lo contrario se mezclaban los asesores
+        // de la celula como si fueran gerentes (bug 275 vs 28 esperados).
+        const seenCelulas = new Set<string>();
+        // Marcar como ya vistas las celulas de gerentes que ya entraron por métricas
+        for (const s of out) {
+          if (s.gerente.celula) seenCelulas.add(normalize(s.gerente.celula));
+        }
+        // Priorizar gerentes con user_id (cuentas reales) como líderes de celula
+        const leaderCandidates = [...gerentesList].sort((a, b) => {
+          const ai = a.user_id ? 0 : 1;
+          const bi = b.user_id ? 0 : 1;
+          return ai - bi;
+        });
+        for (const g of leaderCandidates) {
           if (usedIds.has(g.id)) continue;
+          if (!g.celula) continue;
+          const celKey = normalize(g.celula);
+          if (seenCelulas.has(celKey)) continue;
+          // Solo líderes reales (con cuenta de auth)
+          if (!g.user_id) continue;
           const asesoresCount = asesoresMap.get(g.id) || 0;
           if (asesoresCount === 0) continue;
-          const meta = metasMap.get(normalize(g.celula || ''));
+          seenCelulas.add(celKey);
+          const meta = metasMap.get(celKey);
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
           out.push({
