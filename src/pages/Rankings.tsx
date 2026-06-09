@@ -1151,89 +1151,36 @@ const Rankings = () => {
                       </div>
                     )}
 
-                    {/* Secondary metrics */}
-                    <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
-                      {(isComercialTab || isGerentesVCTab || isGerentesVNTab) && (
-                        <>
-                          {/* % Cumpl ACV — oculto para asesores VN (no tienen meta ACV) */}
-                          {!isAsesoresVNTab && (
+                    {/* Secondary metrics — ocultas en VN (Top 3 sólo muestra SP + SP Canje) */}
+                    {!isVN && (
+                      <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
+                        {(isComercialTab || isGerentesVCTab) && (
+                          <>
                             <div>
                               <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_cumplimiento != null ? `${Math.round(g.pct_cumplimiento)}%` : '—'}</p>
-                                  <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
+                              <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. ACV</p>
                             </div>
-                          )}
-                          {/* VN: FE% + Nube% + Unidades + Referidos */}
-                          {(isGerentesVNTab || (isVN && isComercialTab)) && (
-                            <>
-                              {g.pct_fe > 0 && (
-                                <>
-                                  <div className="w-px h-6 bg-border" />
-                                  <div>
-                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_fe}%</p>
-                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. FE</p>
-                                  </div>
-                                </>
-                              )}
-                              {g.pct_nube > 0 && (
-                                <>
-                                  <div className="w-px h-6 bg-border" />
-                                  <div>
-                                    <p className="text-sm font-bold font-scoreboard text-foreground">{g.pct_nube}%</p>
-                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">Cumpl. Nube</p>
-                                  </div>
-                                </>
-                              )}
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-foreground">{(g.unidades_logradas || g.unidades_total || 0).toLocaleString()}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Unidades</p>
-                              </div>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{(g.meta_unidades || 0).toLocaleString()}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta Uds</p>
-                              </div>
-                              {/* ACV y Meta ACV — sólo gerentes VN, NO asesores */}
-                              {!isAsesoresVNTab && (
-                                <>
-                                  <div className="w-px h-6 bg-border" />
-                                  <div>
-                                    <p className="text-sm font-bold font-scoreboard text-primary">{formatMoney(g.kpi_value)}</p>
-                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
-                                  </div>
-                                  <div className="w-px h-6 bg-border" />
-                                  <div>
-                                    <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_acv)}</p>
-                                    <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'Meta ACV+' : 'Meta ACV'}</p>
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          )}
-                          {/* VC: ACV + Meta */}
-                          {(isComercialTab || isGerentesVCTab) && !isVN && (
-                            <>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
-                              </div>
-                              <div className="w-px h-6 bg-border" />
-                              <div>
-                                <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_total)}</p>
-                                <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      )}
-                      {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && g.kpi_value > 0 && (
-                        <div>
-                          <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
-                          <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
-                        </div>
-                      )}
-                    </div>
+                            <div className="w-px h-6 bg-border" />
+                            <div>
+                              <p className="text-sm font-bold font-scoreboard text-foreground">{formatMoney(g.kpi_value)}</p>
+                              <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
+                            </div>
+                            <div className="w-px h-6 bg-border" />
+                            <div>
+                              <p className="text-sm font-bold font-scoreboard text-muted-foreground">{formatMoney(g.meta_total)}</p>
+                              <p className="text-[10px] text-muted-foreground font-heading uppercase">Meta</p>
+                            </div>
+                          </>
+                        )}
+                        {!isComercialTab && !isGerentesVCTab && !isGerentesVNTab && g.kpi_value > 0 && (
+                          <div>
+                            <p className="text-sm font-bold font-scoreboard text-accent">{formatMoney(g.kpi_value)}</p>
+                            <p className="text-[10px] text-muted-foreground font-heading uppercase">{isVC ? 'ACV+' : 'ACV'}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
 
                     {!isComercialTab && g.nivel && <span className="inline-block mt-2 text-[10px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">{g.nivel}</span>}
                     {isComercialTab && g.gerente_nombre && <p className="text-[10px] text-muted-foreground mt-2">Líder: {g.gerente_nombre}</p>}

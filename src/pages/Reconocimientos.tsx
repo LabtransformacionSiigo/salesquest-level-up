@@ -141,12 +141,13 @@ const Reconocimientos = () => {
   return (
     <Layout title="🎖️ Reconocimientos">
       <motion.div
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        className="max-w-2xl mx-auto"
+
         variants={staggerContainer}
         initial="hidden"
         animate="show"
       >
-        <motion.div className="lg:col-span-1 space-y-4" variants={fadeUpItem}>
+        <motion.div className="space-y-4" variants={fadeUpItem}>
           {!isGerente ? (
             <motion.div className="bg-card border border-border border-t-[3px] border-t-primary rounded-2xl p-6 text-center shadow-smooth-sm" variants={popIn}>
               <motion.span className="text-4xl mb-2 block" animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 2, repeat: Infinity }}>🔒</motion.span>
@@ -214,71 +215,8 @@ const Reconocimientos = () => {
           )}
         </motion.div>
 
-        <motion.div className="lg:col-span-2" variants={fadeUpItem}>
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-smooth-sm">
-            <h3 className="text-sm font-semibold font-heading text-secondary mb-4 flex items-center gap-2">
-              <span>📢</span> Feed en Vivo
-              <span className="text-[10px] text-white bg-primary px-2 py-0.5 rounded-full ml-auto flex items-center gap-1">
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-white"
-                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                /> EN VIVO
-              </span>
-            </h3>
+        {/* Feed en Vivo eliminado por solicitud */}
 
-            {dataLoading ? (
-              <div className="space-y-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16" />)}</div>
-            ) : feed.length > 0 ? (
-              <motion.div className="space-y-3" variants={staggerContainer} initial="hidden" animate="show">
-                {feed.map((r, idx) => {
-                  const tipo = TIPOS_RECONOCIMIENTO.find(t => t.id === r.tipo);
-                  return (
-                    <motion.div
-                      key={r.id}
-                      className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border"
-                      variants={fadeUpItem}
-                      whileHover={{ x: 4, backgroundColor: 'hsl(var(--muted) / 0.8)', transition: { duration: 0.15 } }}
-                    >
-                      <motion.span
-                        className="text-2xl mt-0.5"
-                        initial={{ scale: 0, rotate: -30 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: idx * 0.05 + 0.3 }}
-                      >{tipo?.emoji || '🎖️'}</motion.span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">
-                          <span className="font-semibold">{r.de_nombre}</span>
-                          <span className="text-muted-foreground"> reconoció a </span>
-                          <span className="font-semibold">{r.para_nombre}</span>
-                        </p>
-                        <p className="text-xs text-primary font-medium">{tipo?.nombre || r.tipo}</p>
-                        {r.mensaje && <p className="text-xs text-muted-foreground italic mt-1">"{r.mensaje}"</p>}
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[10px] text-accent font-semibold font-scoreboard">🎁 +{r.sp_para} SP Canje</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            ) : (
-              <motion.div className="text-center py-12 text-muted-foreground" variants={fadeUpItem}>
-                <motion.img
-                  src={reconocimientoImg}
-                  alt="Reconocimientos"
-                  className="w-20 h-20 mx-auto mb-3 opacity-40"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                <p>Sé el primero en reconocer a un colaborador</p>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
       </motion.div>
     </Layout>
   );
