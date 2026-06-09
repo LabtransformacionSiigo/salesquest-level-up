@@ -11,7 +11,12 @@ interface TopSiigoPointersProps {
 
 const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
 
-const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) => {
+const TopSiigoPointers = ({ canal, loading, topRanking = [] }: TopSiigoPointersProps) => {
+  const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
+  const visibleRanking = isVN
+    ? topRanking.filter((user) => (Number(user.sp_canje) || 0) > 0)
+    : topRanking;
+
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
       <h3 className="text-base font-bold font-heading text-secondary mb-1 flex items-center gap-2">
@@ -20,9 +25,9 @@ const TopSiigoPointers = ({ loading, topRanking = [] }: TopSiigoPointersProps) =
       <p className="text-xs text-muted-foreground mb-5">Clasificación por cumplimiento de meta con saldo canjeable visible</p>
       {loading ? (
         <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
-      ) : topRanking.length > 0 ? (
+      ) : visibleRanking.length > 0 ? (
         <div className="space-y-4">
-          {topRanking.map((user, i) => (
+          {visibleRanking.map((user, i) => (
             <div key={user.id || i} className="flex items-center gap-4">
               <span className={`w-10 h-10 rounded-lg ${BADGE_COLORS[i] || 'bg-muted'} text-primary-foreground flex items-center justify-center text-sm font-black font-heading`}>
                 #{i + 1}

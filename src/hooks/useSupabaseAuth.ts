@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
 import { getNivelData } from '@/lib/niveles';
+import { pickVnLeaderCandidate } from '@/lib/vn-leaders';
 
 export interface Gerente {
   id: string;
@@ -484,9 +485,9 @@ export const useSupabaseAuth = () => {
         const gerenteCandidates = ((gerenteListRes.data as any[]) || []).sort((a, b) => scoreGerente(b) - scoreGerente(a));
         let selectedGerente = gerenteCandidates[0] || null;
 
-        // Si el usuario quedó amarrado a un gerente duplicado/inactivo, resolver al líder activo
-        // de la misma célula para que SP Canje y logros lean el saldo real del equipo.
-        if (selectedGerente?.activo === false && selectedGerente?.celula && selectedGerente?.pais && selectedGerente?.canal) {
+        // VN: `gerentes` también contiene asesores espejo. Cualquier sesión amarrada
+        // a un miembro de la célula debe resolver al líder real de esa célula.
+        if ((selectedGerente?.canal === 'VN_ALIADOS' || selectedGerente?.canal === 'VN_EMPRESARIOS') && selectedGerente?.celula && selectedGerente?.pais) {
           const { data: activeMatches } = await supabase
             .from('gerentes')
             .select(gerenteSelect)
@@ -494,19 +495,10 @@ export const useSupabaseAuth = () => {
             .eq('pais', selectedGerente.pais)
             .eq('canal', selectedGerente.canal)
             .eq('celula', selectedGerente.celula)
-            .limit(5);
+            .limit(200);
 
           if (activeMatches?.length) {
-            const celulaParts = normalizeComparableText(selectedGerente.celula).split(' ').filter(Boolean);
-            const celulaLeaderToken = celulaParts[celulaParts.length - 1];
-            const scoreActiveMatch = (g: any) => {
-              const base = scoreGerente(g);
-              if (!celulaLeaderToken) return base;
-              const name = normalizeComparableText(g?.nombre);
-              const emailPrefix = normalizeComparableText(String(g?.email || '').split('@')[0] || '').replace(/[._-]/g, ' ');
-              return base + (name.includes(celulaLeaderToken) || emailPrefix.includes(celulaLeaderToken) ? 200 : 0);
-            };
-            selectedGerente = [...(activeMatches as any[])].sort((a, b) => scoreActiveMatch(b) - scoreActiveMatch(a))[0];
+            selectedGerente = pickVnLeaderCandidate(activeMatches as any[], { celula: selectedGerente.celula }) || selectedGerente;
           }
         }
 

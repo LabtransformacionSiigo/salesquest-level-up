@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, TrendingUp, DollarSign, Cloud, Trophy, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { pickVnLeaderCandidate } from '@/lib/vn-leaders';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -435,7 +436,10 @@ const PanelDirector = () => {
         }
         const pickGerenteByCelula = (key: string) => {
           const matches = gerentesList.filter((g) => celulaScopeKey(g.celula, g.canal, g.pais) === key);
-          return matches.find((g) => !usedIds.has(g.id) && !!g.user_id) || matches.find((g) => !usedIds.has(g.id)) || null;
+          return pickVnLeaderCandidate(matches, {
+            celula: matches[0]?.celula,
+            excludeIds: usedIds,
+          });
         };
         for (const metaRow of metasRows) {
           const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);

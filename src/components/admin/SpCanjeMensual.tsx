@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { isVnChannel } from '@/lib/vn-leaders';
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const FUENTES = [
@@ -138,6 +139,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
         const total = Object.values(data).reduce((s, m) => s + m.total, 0);
         return { ...g, total };
       })
+      .filter(g => !(isVnChannel(g.canal) && g.total === 0))
       .sort((a, b) => b.total - a.total);
   }, [gerentes, grouped, filterTxt, filterCanal, filterPais]);
 
