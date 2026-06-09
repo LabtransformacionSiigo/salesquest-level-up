@@ -53,6 +53,7 @@ type Stats = {
   acv: number;
   metaFe: number;
   metaNube: number;
+  metaUds: number;
   metaAcv: number;
   pctFe: number;            // % cumplimiento FE
   pctNube: number;          // % cumplimiento Nube
@@ -237,13 +238,13 @@ const PanelDirector = () => {
         // 6) Metas reales desde metas_acv_gerentes (usa abreviatura del mes: Ene, Feb...)
         const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const mesAbr = MESES_ABR[periodoSel - 1];
-        const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
+        const metasMap = new Map<string, { fe: number; nube: number; totalUds: number; acv: number }>();
         const validCelulasMes = new Set<string>();
         const metasRows: any[] = [];
         {
           let metasQuery = supabase
             .from('metas_acv_gerentes')
-            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_acv')
+            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_und, meta_total_acv')
             .eq('mes', mesAbr)
             .eq('anio', anio);
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
@@ -258,6 +259,7 @@ const PanelDirector = () => {
             metasMap.set(key, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
+              totalUds: m.meta_total_und || 0,
               acv: Number(m.meta_total_acv) || 0,
             });
           });
@@ -375,10 +377,10 @@ const PanelDirector = () => {
           else seenSynth.add(synthKey);
           const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
-          const metaFe = meta?.fe || asesoresCount * 2;
-          const metaNube = meta?.nube || asesoresCount * 1;
-          const metaTotal = metaFe + metaNube;
-          const metaAcv = meta?.acv || 0;
+          const metaFe = meta ? meta.fe : asesoresCount * 2;
+          const metaNube = meta ? meta.nube : asesoresCount * 1;
+          const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
+          const metaAcv = meta ? meta.acv : 0;
 
           const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
           const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
@@ -406,6 +408,7 @@ const PanelDirector = () => {
             acv: Math.round(agg.acv),
             metaFe,
             metaNube,
+            metaUds: metaTotal,
             metaAcv,
             pctFe: Math.round(pctFe),
             pctNube: Math.round(pctNube),
@@ -442,8 +445,9 @@ const PanelDirector = () => {
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
-          const metaFe = meta?.fe || asesoresCount * 2;
-          const metaNube = meta?.nube || asesoresCount * 1;
+          const metaFe = meta ? meta.fe : asesoresCount * 2;
+          const metaNube = meta ? meta.nube : asesoresCount * 1;
+          const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
           const gerente: GerenteRow = g || {
             id: `meta-${celKey}`,
             nombre: metaRow.celula || 'Gerente sin asignar',
@@ -456,8 +460,8 @@ const PanelDirector = () => {
             gerente,
             asesores: asesoresCount,
             fe: 0, nube: 0, total: 0, acv: 0,
-            metaFe, metaNube,
-            metaAcv: meta?.acv || 0,
+            metaFe, metaNube, metaUds: metaTotal,
+            metaAcv: meta ? meta.acv : 0,
             pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
             pacing: 0, scoreCompuesto: 0,
             productividad: 0, ventasPorAsesor: 0,
@@ -492,7 +496,7 @@ const PanelDirector = () => {
           if (!isAdmin && canalDirs.length) tq = tq.in('canal_direccion', canalDirs);
           const { data } = await tq;
           const totalMes = (data || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-          const metaMes = out.reduce((s, st) => s + st.metaFe + st.metaNube, 0);
+          const metaMes = out.reduce((s, st) => s + st.metaUds, 0);
           tendData.push({ mes, pct: metaMes > 0 ? Math.round((totalMes / metaMes) * 100) : 0 });
         }
 
@@ -531,17 +535,19 @@ const PanelDirector = () => {
   const kpis = useMemo(() => {
     const totalGerentes = filteredStats.length;
     const totalUds = filteredStats.reduce((s, x) => s + x.total, 0);
-    const metaUds = filteredStats.reduce((s, x) => s + x.metaFe + x.metaNube, 0);
+    const metaUds = filteredStats.reduce((s, x) => s + x.metaUds, 0);
     const totalAcv = filteredStats.reduce((s, x) => s + x.acv, 0);
     const totalFe = filteredStats.reduce((s, x) => s + x.fe, 0);
     const totalNube = filteredStats.reduce((s, x) => s + x.nube, 0);
     const metaFeTot = filteredStats.reduce((s, x) => s + x.metaFe, 0);
     const metaNubeTot = filteredStats.reduce((s, x) => s + x.metaNube, 0);
+    const metaAcvTot = filteredStats.reduce((s, x) => s + x.metaAcv, 0);
     const mixNube = (totalFe + totalNube) > 0 ? (totalNube / (totalFe + totalNube)) * 100 : 0;
     const pctUds = metaUds > 0 ? (totalUds / metaUds) * 100 : 0;
     const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
     const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube };
+    const pctAcv = metaAcvTot > 0 ? (totalAcv / metaAcvTot) * 100 : 0;
+    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv };
   }, [filteredStats]);
 
   // Conteo por tier
@@ -581,7 +587,7 @@ const PanelDirector = () => {
 
   const top3 = useMemo(
     () => [...filteredStats]
-      .filter((s) => s.metaFe + s.metaNube > 0)
+      .filter((s) => s.metaUds > 0)
       .sort((a, b) => b.pctTotal - a.pctTotal)
       .slice(0, 3),
     [filteredStats],
@@ -590,7 +596,7 @@ const PanelDirector = () => {
   // el % más bajo (los más críticos primero).
   const planChoque = useMemo(
     () => [...filteredStats]
-      .filter((s) => s.metaFe + s.metaNube > 0 && s.pctTotal < 50)
+      .filter((s) => s.metaUds > 0 && s.pctTotal < 50)
       .sort((a, b) => a.pctTotal - b.pctTotal)
       .slice(0, 5),
     [filteredStats],
@@ -714,9 +720,10 @@ const PanelDirector = () => {
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
+              <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>
             </div>
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
-            <p className="text-xs text-muted-foreground mt-1">ACV total</p>
+            <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
           </Card>
         </div>
 
