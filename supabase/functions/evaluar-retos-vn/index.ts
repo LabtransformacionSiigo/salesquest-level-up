@@ -214,14 +214,17 @@ Deno.serve(async (req) => {
           .filter((c, i, a) => a.indexOf(c) === i);
         if (celulasPais.length === 0) continue;
 
-        const { data: vd } = await supabase
-          .from("ventas_diarias")
-          .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
-          .eq("pais", pais)
-          .in("canal_direccion", ["Aliados", "Empresarios"])
-          .in("celula", celulasPais)
-          .gte("fecha", monthStart)
-          .lt("fecha", monthEnd);
+        // Paginado: COL ~1400 filas/mes excede el límite default de 1000.
+        const vd = await fetchAllRows<any>((from, to) =>
+          supabase.from("ventas_diarias")
+            .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
+            .eq("pais", pais)
+            .in("canal_direccion", ["Aliados", "Empresarios"])
+            .in("celula", celulasPais)
+            .gte("fecha", monthStart)
+            .lt("fecha", monthEnd)
+            .range(from, to)
+        );
 
         for (const r of vd || []) {
           if (!r.celula) continue;
