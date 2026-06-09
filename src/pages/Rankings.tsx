@@ -209,9 +209,9 @@ const Rankings = () => {
   const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
   const isDirector = profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
-  const [selectedPais, setSelectedPais] = useState<string>(profile?.pais || 'COL');
-  useEffect(() => { setSelectedPais(profile?.pais || 'COL'); }, [profile?.pais]);
-  const userPais = isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL');
+  const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
+  useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
+  const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
