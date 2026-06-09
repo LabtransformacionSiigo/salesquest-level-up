@@ -437,6 +437,17 @@ const PanelDirector = () => {
           });
         }
 
+        console.log('[PanelDirector] Diagnóstico:', {
+          gerentesEnScope: gerentesList.length,
+          metricasRecibidas: metricas.length,
+          filasDesdeMetricas,
+          filasFallbackPorCelula: out.length - filasDesdeMetricas,
+          filasTotales: out.length,
+          scopeCanales,
+          scopePaises,
+          isAdmin,
+        });
+
         // 8) Tendencia 6 meses (cumplimiento agregado)
         const mesesAtras = Array.from({ length: 6 }, (_, i) => periodoSel - 5 + i).filter((m) => m >= 1 && m <= 12);
         const tendData: { mes: number; pct: number }[] = [];
