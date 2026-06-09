@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import SpCanjeMensual from '@/components/admin/SpCanjeMensual';
 import AuditoriaRetosVC from '@/components/admin/AuditoriaRetosVC';
+import { isVnChannel, normalizeVnLeaderText, pickVnLeaderCandidate } from '@/lib/vn-leaders';
 
 const MI = ({ icon, className }: { icon: string; className?: string }) => (
   <span className={cn('material-icons-outlined', className)}>{icon}</span>
@@ -338,7 +339,7 @@ const AdminEspecialista = () => {
 
     // Gerentes en scope (filtrados por país y canal del especialista; admin ve todos)
     const canalesScope = perm.operaciones.map(operacionToCanal).filter(Boolean) as string[];
-    let gerentesQuery = supabase.from('gerentes').select('id, nombre, canal, pais, celula').eq('activo', true).order('nombre');
+    let gerentesQuery = supabase.from('gerentes').select('id, nombre, email, canal, pais, celula, user_id, sp_canje, sp_convencion').eq('activo', true).order('nombre');
     if (!isAdmin) {
       if (perm.paises.length > 0) gerentesQuery = gerentesQuery.in('pais', perm.paises);
       if (canalesScope.length > 0) gerentesQuery = gerentesQuery.in('canal', canalesScope);
@@ -379,7 +380,17 @@ const AdminEspecialista = () => {
     setRetos(r1.data || []);
     setRachas(r2.data || []);
     setMedallas(r3.data || []);
-    setGerentes(gQ.data || []);
+    const gerenteRows = gQ.data || [];
+    const nonVnGerentes = gerenteRows.filter((g: any) => !isVnChannel(g.canal));
+    const vnByCelula = new Map<string, any[]>();
+    gerenteRows.filter((g: any) => isVnChannel(g.canal) && g.celula).forEach((g: any) => {
+      const key = `${normalizeVnLeaderText(g.pais)}|${g.canal}|${normalizeVnLeaderText(g.celula)}`;
+      vnByCelula.set(key, [...(vnByCelula.get(key) || []), g]);
+    });
+    const vnLeaders = [...vnByCelula.values()]
+      .map((members) => pickVnLeaderCandidate(members, { celula: members[0]?.celula }))
+      .filter(Boolean);
+    setGerentes([...nonVnGerentes, ...vnLeaders]);
 
     // VN data (sólo si tiene operaciones VN en su scope)
     const tieneVN = isAdmin || perm.operaciones.some((op: string) =>
