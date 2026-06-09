@@ -351,7 +351,25 @@ const PanelDirector = () => {
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
           const metaTotal = metaFe + metaNube;
+          const metaAcv = meta?.acv || 0;
+
+          const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
+          const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
           const pctTotal = metaTotal > 0 ? (agg.total / metaTotal) * 100 : 0;
+          const pctAcv = metaAcv > 0 ? (agg.acv / metaAcv) * 100 : 0;
+
+          // Pacing: qué tan en ritmo está el gerente vs el día del mes
+          const today = new Date();
+          const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
+          const currentDay = today.getMonth() + 1 === periodoSel ? today.getDate() : lastDay;
+          const pacing = currentDay > 0 ? pctTotal / ((currentDay / lastDay) * 100) : 0;
+
+          // Score compuesto ponderado (0-100+)
+          const scoreCompuesto = Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40);
+
+          const productividad = 0; // fase 2: contar asesores con ventas > 0
+          const ventasPorAsesor = asesoresCount > 0 ? agg.total / asesoresCount : 0;
+
           out.push({
             gerente,
             asesores: asesoresCount,
@@ -361,8 +379,15 @@ const PanelDirector = () => {
             acv: Math.round(agg.acv),
             metaFe,
             metaNube,
-            metaAcv: meta?.acv || 0,
+            metaAcv,
+            pctFe: Math.round(pctFe),
+            pctNube: Math.round(pctNube),
+            pctAcv: Math.round(pctAcv),
             pctTotal: Math.round(pctTotal),
+            pacing: Math.round(pacing * 100) / 100,
+            scoreCompuesto,
+            productividad,
+            ventasPorAsesor: Math.round(ventasPorAsesor * 10) / 10,
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
