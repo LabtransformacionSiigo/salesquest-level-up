@@ -351,7 +351,7 @@ const PanelDirector = () => {
           if (!isAdmin && !g) continue;
           if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
           if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
-          const celKey = normalize(g?.celula || '');
+          const celKey = celulaScopeKey(g?.celula, g?.canal, g?.pais);
           if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
@@ -368,7 +368,7 @@ const PanelDirector = () => {
           };
           if (g) usedIds.add(g.id);
           else seenSynth.add(synthKey);
-          const meta = metasMap.get(normalize(gerente.celula || ''));
+          const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
@@ -434,7 +434,7 @@ const PanelDirector = () => {
         for (const g of leaderCandidates) {
           if (usedIds.has(g.id)) continue;
           if (!g.celula) continue;
-          const celKey = normalize(g.celula);
+          const celKey = celulaScopeKey(g.celula, g.canal, g.pais);
           if (seenCelulas.has(celKey)) continue;
           if (!isAdmin && !validCelulasMes.has(celKey)) continue;
           // Solo líderes reales (con cuenta de auth)
