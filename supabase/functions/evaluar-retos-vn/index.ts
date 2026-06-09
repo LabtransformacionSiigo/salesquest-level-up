@@ -551,13 +551,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         ok: true, dry_run: true,
         evaluados: resultados.length,
+        gerentes_evaluados: gerentesArr.length,
         retos_diarios: upsertsDiario.length,
         retos_semanales: upsertsSemanal.length,
         retos_mensuales: upsertsMensual.length,
         rachas: upsertsRacha.length,
         medallas: insertsMedalla.length,
         sp_total: spInserts.reduce((s, x) => s + x.sp, 0),
-        resultados,
+        resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -655,6 +656,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true,
       evaluados: resultados.length,
+      gerentes_evaluados: gerentesArr.length,
       retos_diarios: upsertsDiario.length,
       retos_semanales: upsertsSemanal.length,
       retos_mensuales: upsertsMensual.length,
@@ -664,7 +666,7 @@ Deno.serve(async (req) => {
       sp_persistidos: spPersistidos,
       sp_delta_neto: spDeltaNeto,
       errores,
-      resultados,
+      resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("evaluar-retos-vn error", err);
