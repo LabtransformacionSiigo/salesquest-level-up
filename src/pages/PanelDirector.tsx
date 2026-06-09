@@ -514,48 +514,92 @@ const PanelDirector = () => {
           });
         }
 
-        // === VC: agregar desde tabla `ventas` (PROD-*) por gerente. ===
-        // VC no usa celula ni vn_metricas_optimizadas, así que se calculan aquí.
+        // === VC: agregar desde tabla `ventas` (PROD-*) + metas/cumplimiento desde kpis_mes_actual ===
         const vcGerentes = gerentesList.filter((g) => g.canal === 'VC');
         if (vcGerentes.length) {
           const vcIds = vcGerentes.map((g) => g.id);
           const mesIni = `${anio}-${String(periodoSel).padStart(2, '0')}-01`;
           const mesFinDate = new Date(anio, periodoSel, 0);
           const mesFin = `${anio}-${String(periodoSel).padStart(2, '0')}-${String(mesFinDate.getDate()).padStart(2, '0')}`;
-          const { data: vcVentas } = await supabase
-            .from('ventas')
-            .select('gerente_id, producto, acv_plus, valor_producto, documento_factura, categoria_producto_venta')
-            .eq('canal', 'VC')
-            .in('gerente_id', vcIds)
-            .gte('fecha_facturacion', mesIni)
-            .lte('fecha_facturacion', mesFin)
-            .like('documento_factura', 'PROD-%');
+          const periodoAnioMes = `${anio}-${String(periodoSel).padStart(2, '0')}`;
 
-          type VcAgg = { fe: number; nube: number; nomina: number; conversiones: number; otros: number; acv: number; total: number };
+          const [vcVentasRes, vcKpisRes] = await Promise.all([
+            supabase
+              .from('ventas')
+              .select('gerente_id, producto, acv_plus, documento_factura')
+              .eq('canal', 'VC')
+              .in('gerente_id', vcIds)
+              .gte('fecha_facturacion', mesIni)
+              .lte('fecha_facturacion', mesFin)
+              .like('documento_factura', 'PROD-%'),
+            supabase
+              .from('kpis_mes_actual' as any)
+              .select('gerente_id, ventas, meta, pct_cumplimiento')
+              .in('gerente_id', vcIds)
+              .eq('anio_mes', periodoAnioMes),
+          ]);
+
+          type VcAgg = { fe: number; nube: number; total: number; acv: number };
           const vcAgg = new Map<string, VcAgg>();
-          const inferBucket = (p?: string | null): keyof VcAgg | 'total' => {
-            const s = String(p || '').toLowerCase();
-            if (!s) return 'otros';
-            if (s.includes('conversion')) return 'conversiones';
-            if (s.includes('nomina') || s.includes('nómina') || s.includes('rrhh')) return 'nomina';
-            if (s === 'fe' || s.startsWith('fe ') || s.includes(' fe ') || s.includes('factura electronica') || s.includes('factura electrónica') || s.includes('documentos electronicos') || s.includes('certificado digital')) return 'fe';
-            if (s.includes('nube') || s.includes('siigo nube') || s.includes('contabilidad') || s.includes('punto de venta') || s.includes('pos')) return 'nube';
-            return 'otros';
+          // Para VC clasificamos los productos en dos buckets visibles: FE (Factura
+          // Electrónica + Documentos y CD + Pyme FE) y Nube (resto: Pyme, Ilimitada,
+          // Adiciones, Upgrade, Conversiones, Nomina-e). 'Resumen Mensual VC' se ignora
+          // porque es un consolidado, no una venta.
+          const bucketVc = (p?: string | null): 'fe' | 'nube' | 'skip' => {
+            const s = String(p || '').toLowerCase().trim();
+            if (!s) return 'nube';
+            if (s.includes('resumen')) return 'skip';
+            if (s === 'fe' || s.includes('pyme fe') || s.includes('documentos')) return 'fe';
+            return 'nube';
           };
-          for (const v of vcVentas || []) {
+          for (const v of (vcVentasRes.data || []) as any[]) {
             if (!v.gerente_id) continue;
-            const cur = vcAgg.get(v.gerente_id) || { fe: 0, nube: 0, nomina: 0, conversiones: 0, otros: 0, acv: 0, total: 0 };
-            const b = inferBucket(v.producto);
-            cur[b as keyof VcAgg] = (cur[b as keyof VcAgg] as number) + 1;
-            cur.acv += Number(v.acv_plus) || 0;
+            const b = bucketVc(v.producto);
+            if (b === 'skip') continue;
+            const cur = vcAgg.get(v.gerente_id) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            cur[b] += 1;
             cur.total += 1;
+            cur.acv += Number(v.acv_plus) || 0;
             vcAgg.set(v.gerente_id, cur);
           }
 
+          const vcKpiMap = new Map<string, { meta: number; ventas: number; pct: number }>();
+          for (const k of (vcKpisRes.data || []) as any[]) {
+            if (!k.gerente_id) continue;
+            vcKpiMap.set(k.gerente_id, {
+              meta: Number(k.meta) || 0,
+              ventas: Number(k.ventas) || 0,
+              pct: Number(k.pct_cumplimiento) || 0,
+            });
+          }
+
           for (const g of vcGerentes) {
-            const agg = vcAgg.get(g.id);
-            if (!agg) continue;
+            const agg = vcAgg.get(g.id) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            const kpi = vcKpiMap.get(g.id) || { meta: 0, ventas: 0, pct: 0 };
             const asesoresCount = asesoresMap.get(g.id) || 0;
+            // Solo mostrar el gerente si tiene actividad o meta este mes
+            if (agg.total === 0 && kpi.meta === 0 && agg.acv === 0) continue;
+
+            const metaUds = kpi.meta;
+            // Repartir la meta total entre FE y Nube siguiendo el mix histórico observado
+            // en el mes (si no hay ventas todavía, repartimos 50/50).
+            const realTotal = agg.total > 0 ? agg.total : 1;
+            const mixFe = agg.total > 0 ? agg.fe / realTotal : 0.5;
+            const metaFe = Math.round(metaUds * mixFe);
+            const metaNube = Math.max(0, metaUds - metaFe);
+
+            const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
+            const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
+            const pctTotal = metaUds > 0 ? (agg.total / metaUds) * 100 : kpi.pct;
+            // VC no tiene meta ACV$ explícita; usamos el % global como proxy
+            const pctAcv = pctTotal;
+
+            const today = new Date();
+            const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
+            const currentDay = today.getMonth() + 1 === periodoSel ? today.getDate() : lastDay;
+            const pacing = currentDay > 0 ? pctTotal / ((currentDay / lastDay) * 100) : 0;
+            const scoreCompuesto = Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40);
+
             out.push({
               gerente: g,
               asesores: asesoresCount,
@@ -563,16 +607,16 @@ const PanelDirector = () => {
               nube: agg.nube,
               total: agg.total,
               acv: Math.round(agg.acv),
-              metaFe: 0,
-              metaNube: 0,
-              metaUds: 0,
+              metaFe,
+              metaNube,
+              metaUds,
               metaAcv: 0,
-              pctFe: 0,
-              pctNube: 0,
-              pctAcv: 0,
-              pctTotal: 0,
-              pacing: 0,
-              scoreCompuesto: 0,
+              pctFe: Math.round(pctFe),
+              pctNube: Math.round(pctNube),
+              pctAcv: Math.round(pctAcv),
+              pctTotal: Math.round(pctTotal),
+              pacing: Math.round(pacing * 100) / 100,
+              scoreCompuesto,
               productividad: 0,
               ventasPorAsesor: asesoresCount > 0 ? Math.round((agg.total / asesoresCount) * 10) / 10 : 0,
               sp: spMap.get(g.id) || 0,
@@ -580,6 +624,7 @@ const PanelDirector = () => {
             });
           }
         }
+
 
 
         console.log('[PanelDirector] Diagnóstico:', {
