@@ -704,7 +704,7 @@ export const useSupabaseAuth = () => {
 
           setProfile({
             id: data.id,
-            user_id: data.user_id ?? userId,
+            user_id: userId,
             gerente_id: null,
             nombre: data.nombre,
             email: data.email ?? authEmail ?? '',
