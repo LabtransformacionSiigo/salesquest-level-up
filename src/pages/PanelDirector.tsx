@@ -394,14 +394,7 @@ const PanelDirector = () => {
           });
         }
 
-        console.log('[PanelDirector] Diagnóstico:', {
-          gerentesEnScope: gerentesList.length,
-          metricasRecibidas: metricas.length,
-          filasGeneradas: out.length,
-          scopeCanales,
-          scopePaises,
-          isAdmin,
-        });
+        const filasDesdeMetricas = out.length;
         // Sumar líderes con asesores asignados pero sin métrica este mes.
         // ⚠️ Debemos añadir UNA SOLA fila por celula y solo el líder real
         // (gerente con user_id). De lo contrario se mezclaban los asesores
