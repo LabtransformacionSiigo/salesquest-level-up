@@ -497,7 +497,18 @@ export const useSupabaseAuth = () => {
             .limit(5);
 
           if (activeMatches?.length) {
-            selectedGerente = [...(activeMatches as any[])].sort((a, b) => scoreGerente(b) - scoreGerente(a))[0];
+            const celulaLeaderToken = normalizeComparableText(selectedGerente.celula)
+              .split(' ')
+              .filter(Boolean)
+              .at(-1);
+            const scoreActiveMatch = (g: any) => {
+              const base = scoreGerente(g);
+              if (!celulaLeaderToken) return base;
+              const name = normalizeComparableText(g?.nombre);
+              const emailPrefix = normalizeComparableText(String(g?.email || '').split('@')[0] || '').replace(/[._-]/g, ' ');
+              return base + (name.includes(celulaLeaderToken) || emailPrefix.includes(celulaLeaderToken) ? 200 : 0);
+            };
+            selectedGerente = [...(activeMatches as any[])].sort((a, b) => scoreActiveMatch(b) - scoreActiveMatch(a))[0];
           }
         }
 
