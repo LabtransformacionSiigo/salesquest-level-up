@@ -33,6 +33,7 @@ type GerenteRow = {
   canal: string | null;
   pais: string | null;
   celula: string | null;
+  user_id?: string | null;
 };
 
 type Stats = {
@@ -113,7 +114,7 @@ const PanelDirector = () => {
       try {
         // 1) Gerentes en scope
         let gq = supabase.from('gerentes')
-          .select('id, nombre, email, canal, pais, celula')
+          .select('id, nombre, email, canal, pais, celula, user_id')
           .eq('activo', true);
         if (!isAdmin) {
           if (scopeCanales.length) gq = gq.in('canal', scopeCanales);
@@ -393,20 +394,33 @@ const PanelDirector = () => {
           });
         }
 
-        console.log('[PanelDirector] Diagnóstico:', {
-          gerentesEnScope: gerentesList.length,
-          metricasRecibidas: metricas.length,
-          filasGeneradas: out.length,
-          scopeCanales,
-          scopePaises,
-          isAdmin,
+        const filasDesdeMetricas = out.length;
+        // Sumar líderes con asesores asignados pero sin métrica este mes.
+        // ⚠️ Debemos añadir UNA SOLA fila por celula y solo el líder real
+        // (gerente con user_id). De lo contrario se mezclaban los asesores
+        // de la celula como si fueran gerentes (bug 275 vs 28 esperados).
+        const seenCelulas = new Set<string>();
+        // Marcar como ya vistas las celulas de gerentes que ya entraron por métricas
+        for (const s of out) {
+          if (s.gerente.celula) seenCelulas.add(normalize(s.gerente.celula));
+        }
+        // Priorizar gerentes con user_id (cuentas reales) como líderes de celula
+        const leaderCandidates = [...gerentesList].sort((a, b) => {
+          const ai = a.user_id ? 0 : 1;
+          const bi = b.user_id ? 0 : 1;
+          return ai - bi;
         });
-        // Sumar líderes con asesores asignados pero sin métrica este mes
-        for (const g of gerentesList) {
+        for (const g of leaderCandidates) {
           if (usedIds.has(g.id)) continue;
+          if (!g.celula) continue;
+          const celKey = normalize(g.celula);
+          if (seenCelulas.has(celKey)) continue;
+          // Solo líderes reales (con cuenta de auth)
+          if (!g.user_id) continue;
           const asesoresCount = asesoresMap.get(g.id) || 0;
           if (asesoresCount === 0) continue;
-          const meta = metasMap.get(normalize(g.celula || ''));
+          seenCelulas.add(celKey);
+          const meta = metasMap.get(celKey);
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
           out.push({
@@ -422,6 +436,17 @@ const PanelDirector = () => {
             racha: rachaMap.get(g.id) || 0,
           });
         }
+
+        console.log('[PanelDirector] Diagnóstico:', {
+          gerentesEnScope: gerentesList.length,
+          metricasRecibidas: metricas.length,
+          filasDesdeMetricas,
+          filasFallbackPorCelula: out.length - filasDesdeMetricas,
+          filasTotales: out.length,
+          scopeCanales,
+          scopePaises,
+          isAdmin,
+        });
 
         // 8) Tendencia 6 meses (cumplimiento agregado)
         const mesesAtras = Array.from({ length: 6 }, (_, i) => periodoSel - 5 + i).filter((m) => m >= 1 && m <= 12);
