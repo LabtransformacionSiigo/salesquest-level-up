@@ -60,6 +60,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
   const [rows, setRows] = useState<SpRow[]>([]);
   const [canjes, setCanjes] = useState<CanjeRow[]>([]);
   const [retosAsignados, setRetosAsignados] = useState<RetoAsignado[]>([]);
+  const [saldoConsolidado, setSaldoConsolidado] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const cargar = async () => {
@@ -69,7 +70,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const pais = (profile as any).pais as string | null;
     const familia = (profile as any).familia_vc as string | null;
 
-    const [spRes, canjesRes, vcRes, vnRes] = await Promise.all([
+    const [spRes, canjesRes, vcRes, vnRes, saldoRes] = await Promise.all([
       supabase
         .from('sp_acumulados')
         .select('fuente, sp, periodo, detalle, created_at')
@@ -93,10 +94,16 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
             .select('id, nombre, tipo, sp_base, sp_semanal_sem1, sp_semanal_sem2, sp_semanal_sem3, sp_semanal_sem4, kpi, paises, canal, activo, fecha_inicio, fecha_fin')
             .eq('activo', true)
         : Promise.resolve({ data: [] as any[] }),
+      supabase
+        .from('gerentes')
+        .select('sp_canje')
+        .eq('id', profile.id)
+        .maybeSingle(),
     ]);
 
     const spRows = (spRes.data || []) as SpRow[];
     setRows(spRows);
+    setSaldoConsolidado(Number((saldoRes.data as any)?.sp_canje ?? (profile as any)?.sp_canje ?? 0) || 0);
     setCanjes(((canjesRes.data || []) as any[]).map(c => ({
       id: c.id,
       puntos_gastados: c.puntos_gastados,
@@ -173,7 +180,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const gastado = canjes
       .filter(c => c.estado !== 'rechazado')
       .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
-    const saldoPerfil = Number((profile as any)?.sp_canje) || 0;
+    const saldoPerfil = Math.max(Number((profile as any)?.sp_canje) || 0, saldoConsolidado);
     const saldoHistorial = Math.max(ganado - gastado, 0);
 
     // El encabezado viene del saldo consolidado del perfil. Si el historial de
@@ -181,7 +188,7 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     // saldo para no mostrar 0 cuando el usuario sí tiene SP Canje disponible.
     const saldo = Math.max(saldoHistorial, saldoPerfil);
     return { ganado: Math.max(ganado, saldo + gastado), gastado, saldo, reconciliado: saldoPerfil > saldoHistorial };
-  }, [rows, canjes, profile]);
+  }, [rows, canjes, profile, saldoConsolidado]);
 
   const renderTabla = (filtro: (r: SpRow) => boolean, emptyMsg: string) => {
     const list = rows.filter(filtro);
