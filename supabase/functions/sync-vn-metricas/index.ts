@@ -164,6 +164,45 @@ function normalizeCanal(equipo: any): string {
   return "Aliados";
 }
 
+// Fuente única de verdad para mapear canal por célula (pais|celula → canal_direccion).
+// Necesario porque en COL/ECU/URU el campo `equipo` de Databricks no diferencia
+// Aliados vs Empresarios, así que clasificábamos todo como Aliados.
+async function getCanalByCelula(sb: any): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const { data, error } = await sb
+    .from("gerentes")
+    .select("pais, celula, canal")
+    .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+    .eq("activo", true);
+  if (error) {
+    console.warn("[canal-by-celula] no se pudo cargar:", error.message);
+    return map;
+  }
+  for (const g of data || []) {
+    if (!g.celula) continue;
+    const pais = normalizePais(g.pais);
+    const key = `${pais}|${norm(g.celula)}`;
+    const canal = g.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados";
+    // Si ya existe con otro canal, dejamos el primero (consistencia por célula).
+    if (!map.has(key)) map.set(key, canal);
+  }
+  return map;
+}
+
+function resolveCanal(
+  canalByCelula: Map<string, string>,
+  pais: any,
+  celula: any,
+  equipo: any,
+): string {
+  if (celula) {
+    const key = `${normalizePais(pais)}|${norm(celula)}`;
+    const hit = canalByCelula.get(key);
+    if (hit) return hit;
+  }
+  return normalizeCanal(equipo);
+}
+
 function normalizePais(p: any): string {
   const n = norm(p);
   if (n.startsWith("MEX") || n === "MX") return "MEX";
@@ -229,11 +268,15 @@ function alignMexicoRowsToOfficialLeader(rows: any[], leadersByCelula: Map<strin
   });
 }
 
-function buildRecord(r: any, scope: "gerente" | "asesor") {
+function buildRecord(
+  r: any,
+  scope: "gerente" | "asesor",
+  canalByCelula: Map<string, string>,
+) {
   const pais = normalizePais(r.pais);
   const mes_nro = Number(r.mes_nro);
   const anio = Number(r.anio) || 2026;
-  const canal = normalizeCanal(r.equipo);
+  const canal = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
   const gerente = r.gerente ? String(r.gerente) : null;
   const tipo_producto1 = String(r.tipo_producto1 || "");
   return {
@@ -328,11 +371,14 @@ Deno.serve(async (req) => {
       : new Map<string, MexicoLeader>();
     const rowsCAligned = alignMexicoRowsToOfficialLeader(rowsC as any[], mexicoLeadersByCelula);
 
+    // Mapa canal por célula (fuente única de verdad).
+    const canalByCelula = await getCanalByCelula(sb);
+
     const records = mergeByUniqueGrain([
-      ...rowsA.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsB.map((r: any) => buildRecord(r, "asesor")),
-      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente")),
-      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor")),
+      ...rowsA.map((r: any) => buildRecord(r, "gerente", canalByCelula)),
+      ...rowsB.map((r: any) => buildRecord(r, "asesor", canalByCelula)),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "gerente", canalByCelula)),
+      ...rowsCAligned.map((r: any) => buildRecord(r, "asesor", canalByCelula)),
     ]);
 
     // Filtrar SOLO al mes en curso para no tocar histórico
@@ -385,7 +431,7 @@ Deno.serve(async (req) => {
       const celula = String(r.celula || "").trim() || null;
       const familia = classifyFamily(r.tipo_producto1);
       const pais = normalizePais(r.pais);
-      const canal_direccion = normalizeCanal(r.equipo);
+      const canal_direccion = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
       if (!gnorm || !mes || !familia) continue;
       const periodo = `${anio}${MM(mes)}`;
       const key = [pais, canal_direccion, periodo, gnorm, familia].join("|");
@@ -467,7 +513,7 @@ Deno.serve(async (req) => {
       if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const periodo = `${anio}${MM(mes)}`;
       const pais = normalizePais(r.pais);
-      const canal_direccion = normalizeCanal(r.equipo);
+      const canal_direccion = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
       const familia = classifyFamily(r.tipo_producto1);
       const unidades = Math.round(Number(r.ventas) || 0);
       const acv = Math.round(Number(r.acv_total) || 0);
