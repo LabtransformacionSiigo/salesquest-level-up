@@ -527,7 +527,8 @@ const PanelDirector = () => {
   }, [stats, filtroPais, filtroCanal]);
 
   const paisesDisponibles = useMemo(
-    () => Array.from(new Set(stats.map((s) => s.gerente.pais).filter(Boolean))) as string[],
+    () => (Array.from(new Set(stats.map((s) => s.gerente.pais).filter(Boolean))) as string[])
+      .filter((p) => ['COL', 'MEX', 'ECU', 'URU'].includes(p)),
     [stats],
   );
   const canalesDisponibles = useMemo(
@@ -644,7 +645,7 @@ const PanelDirector = () => {
                 {(profile?.director_canales || []).map((c) => (
                   <Badge key={c} variant="secondary">{c}</Badge>
                 ))}
-                {(profile?.director_paises || []).map((p) => (
+                {(profile?.director_paises || []).filter((p) => ['COL', 'MEX', 'ECU', 'URU'].includes(p)).map((p) => (
                   <Badge key={p} variant="outline">{p}</Badge>
                 ))}
               </div>
