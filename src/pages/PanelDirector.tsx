@@ -24,6 +24,9 @@ const normalizePaisCode = (pais?: string | null) => {
   return code === 'URY' ? 'URU' : code;
 };
 
+const celulaScopeKey = (celula?: string | null, canal?: string | null, pais?: string | null) =>
+  `${normalize(celula || '')}|${canal || ''}|${normalizePaisCode(pais)}`;
+
 const fmtMoney = (n: number) => {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
