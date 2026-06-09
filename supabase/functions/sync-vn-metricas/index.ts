@@ -513,7 +513,7 @@ Deno.serve(async (req) => {
       if (anio !== _now.getFullYear() || mes !== _mesActualNum) continue;
       const periodo = `${anio}${MM(mes)}`;
       const pais = normalizePais(r.pais);
-      const canal_direccion = normalizeCanal(r.equipo);
+      const canal_direccion = resolveCanal(canalByCelula, r.pais, r.celula, r.equipo);
       const familia = classifyFamily(r.tipo_producto1);
       const unidades = Math.round(Number(r.ventas) || 0);
       const acv = Math.round(Number(r.acv_total) || 0);
