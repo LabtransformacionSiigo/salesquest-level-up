@@ -968,12 +968,9 @@ const PanelDirector = () => {
                   <TableHead className="text-right">FE</TableHead>
                   <TableHead className="text-right">Nube</TableHead>
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right" title="Score = 35% FE + 25% Nube + 40% ACV">Score ⓘ</TableHead>
                   <TableHead className="text-right">% FE</TableHead>
                   <TableHead className="text-right">% Nube</TableHead>
                   <TableHead className="text-right">% ACV</TableHead>
-                  <TableHead className="text-right" title="Pacing: 1.00 = en ritmo, <1 atrasado, >1 adelantado">Pacing</TableHead>
-                  <TableHead className="text-right">$/Asesor</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
