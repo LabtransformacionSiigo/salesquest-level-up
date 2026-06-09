@@ -173,12 +173,40 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
     const gastado = canjes
       .filter(c => c.estado !== 'rechazado')
       .reduce((s, c) => s + Number(c.puntos_gastados || 0), 0);
-    return { ganado, gastado, saldo: Math.max(ganado - gastado, 0) };
-  }, [rows, canjes]);
+    const saldoPerfil = Number((profile as any)?.sp_canje) || 0;
+    const saldoHistorial = Math.max(ganado - gastado, 0);
+
+    // El encabezado viene del saldo consolidado del perfil. Si el historial de
+    // sp_acumulados aún no trae detalle, Mis Logros debe reconciliarse con ese
+    // saldo para no mostrar 0 cuando el usuario sí tiene SP Canje disponible.
+    const saldo = Math.max(saldoHistorial, saldoPerfil);
+    return { ganado: Math.max(ganado, saldo + gastado), gastado, saldo, reconciliado: saldoPerfil > saldoHistorial };
+  }, [rows, canjes, profile]);
 
   const renderTabla = (filtro: (r: SpRow) => boolean, emptyMsg: string) => {
     const list = rows.filter(filtro);
     if (list.length === 0) {
+      if (totales.reconciliado && filtro({ fuente: 'RETO_DIARIO', sp: totales.saldo, periodo: '', detalle: null })) {
+        return (
+          <div className="overflow-x-auto border border-border rounded-xl bg-card">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-t border-border hover:bg-muted/20">
+                  <td className="p-3 font-medium">Saldo SP Canje consolidado</td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300">
+                      🎁 SP Canje
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground tabular-nums">—</td>
+                  <td className="p-3 text-xs text-muted-foreground">—</td>
+                  <td className="p-3 text-right tabular-nums font-bold text-accent">+{totales.saldo}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        );
+      }
       return (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           {emptyMsg}
