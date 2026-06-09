@@ -45,7 +45,14 @@ type Stats = {
   metaFe: number;
   metaNube: number;
   metaAcv: number;
-  pctTotal: number;
+  pctFe: number;            // % cumplimiento FE
+  pctNube: number;          // % cumplimiento Nube
+  pctAcv: number;           // % cumplimiento ACV ($)
+  pctTotal: number;         // % unidades totales (FE+Nube vs meta)
+  pacing: number;           // ritmo vs días transcurridos (1.0 = en ritmo)
+  scoreCompuesto: number;   // 35% FE + 25% Nube + 40% ACV
+  productividad: number;    // % asesores con ventas (fase 2)
+  ventasPorAsesor: number;  // promedio unidades por asesor
   sp: number;
   racha: number;
 };
