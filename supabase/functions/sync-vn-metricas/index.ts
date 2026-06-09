@@ -164,6 +164,45 @@ function normalizeCanal(equipo: any): string {
   return "Aliados";
 }
 
+// Fuente única de verdad para mapear canal por célula (pais|celula → canal_direccion).
+// Necesario porque en COL/ECU/URU el campo `equipo` de Databricks no diferencia
+// Aliados vs Empresarios, así que clasificábamos todo como Aliados.
+async function getCanalByCelula(sb: any): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const { data, error } = await sb
+    .from("gerentes")
+    .select("pais, celula, canal")
+    .in("canal", ["VN_ALIADOS", "VN_EMPRESARIOS"])
+    .eq("activo", true);
+  if (error) {
+    console.warn("[canal-by-celula] no se pudo cargar:", error.message);
+    return map;
+  }
+  for (const g of data || []) {
+    if (!g.celula) continue;
+    const pais = normalizePais(g.pais);
+    const key = `${pais}|${norm(g.celula)}`;
+    const canal = g.canal === "VN_EMPRESARIOS" ? "Empresarios" : "Aliados";
+    // Si ya existe con otro canal, dejamos el primero (consistencia por célula).
+    if (!map.has(key)) map.set(key, canal);
+  }
+  return map;
+}
+
+function resolveCanal(
+  canalByCelula: Map<string, string>,
+  pais: any,
+  celula: any,
+  equipo: any,
+): string {
+  if (celula) {
+    const key = `${normalizePais(pais)}|${norm(celula)}`;
+    const hit = canalByCelula.get(key);
+    if (hit) return hit;
+  }
+  return normalizeCanal(equipo);
+}
+
 function normalizePais(p: any): string {
   const n = norm(p);
   if (n.startsWith("MEX") || n === "MX") return "MEX";
