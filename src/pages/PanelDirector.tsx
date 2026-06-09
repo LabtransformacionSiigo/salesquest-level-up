@@ -124,12 +124,18 @@ const PanelDirector = () => {
       try {
         // 0) Director scope por NOMBRE: leer celulas asignadas en metas_acv_gerentes.director
         // Esto evita que aparezcan gerentes de otros directores con el mismo canal/país.
+        // Usamos primer + último token con wildcards para tolerar segundos nombres
+        // (ej. perfil "Magda Lilian Leal" vs metas "Magda Leal").
         const allowedCelulaKeys = new Set<string>();
         if (!isAdmin && isDirector && profile?.nombre) {
+          const tokens = profile.nombre.trim().split(/\s+/).filter(Boolean);
+          const pattern = tokens.length >= 2
+            ? `%${tokens[0]}%${tokens[tokens.length - 1]}%`
+            : `%${tokens[0]}%`;
           let dq = supabase
             .from('metas_acv_gerentes')
             .select('celula, canal, pais')
-            .ilike('director', profile.nombre.trim());
+            .ilike('director', pattern);
           if (scopeCanales.length) dq = dq.in('canal', scopeCanales);
           if (scopePaises.length) dq = dq.in('pais', scopePaises);
           const { data: dirCelulas } = await dq;
@@ -137,6 +143,7 @@ const PanelDirector = () => {
             if (r.celula) allowedCelulaKeys.add(celulaScopeKey(r.celula, r.canal, r.pais));
           });
         }
+
 
         // 1) Gerentes en scope
         let gq = supabase.from('gerentes')
