@@ -527,7 +527,8 @@ const PanelDirector = () => {
   }, [stats, filtroPais, filtroCanal]);
 
   const paisesDisponibles = useMemo(
-    () => Array.from(new Set(stats.map((s) => s.gerente.pais).filter(Boolean))) as string[],
+    () => (Array.from(new Set(stats.map((s) => s.gerente.pais).filter(Boolean))) as string[])
+      .filter((p) => ['COL', 'MEX', 'ECU', 'URU'].includes(p)),
     [stats],
   );
   const canalesDisponibles = useMemo(
