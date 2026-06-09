@@ -377,10 +377,10 @@ const PanelDirector = () => {
           else seenSynth.add(synthKey);
           const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
-          const metaFe = meta?.fe || asesoresCount * 2;
-          const metaNube = meta?.nube || asesoresCount * 1;
-          const metaTotal = meta?.totalUds || metaFe + metaNube;
-          const metaAcv = meta?.acv || 0;
+          const metaFe = meta ? meta.fe : asesoresCount * 2;
+          const metaNube = meta ? meta.nube : asesoresCount * 1;
+          const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
+          const metaAcv = meta ? meta.acv : 0;
 
           const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
           const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
@@ -445,9 +445,9 @@ const PanelDirector = () => {
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
-          const metaFe = meta?.fe || asesoresCount * 2;
-          const metaNube = meta?.nube || asesoresCount * 1;
-          const metaTotal = meta?.totalUds || metaFe + metaNube;
+          const metaFe = meta ? meta.fe : asesoresCount * 2;
+          const metaNube = meta ? meta.nube : asesoresCount * 1;
+          const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
           const gerente: GerenteRow = g || {
             id: `meta-${celKey}`,
             nombre: metaRow.celula || 'Gerente sin asignar',
@@ -461,7 +461,7 @@ const PanelDirector = () => {
             asesores: asesoresCount,
             fe: 0, nube: 0, total: 0, acv: 0,
             metaFe, metaNube, metaUds: metaTotal,
-            metaAcv: meta?.acv || 0,
+            metaAcv: meta ? meta.acv : 0,
             pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
             pacing: 0, scoreCompuesto: 0,
             productividad: 0, ventasPorAsesor: 0,
