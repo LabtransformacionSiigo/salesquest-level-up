@@ -33,6 +33,7 @@ type GerenteRow = {
   canal: string | null;
   pais: string | null;
   celula: string | null;
+  user_id?: string | null;
 };
 
 type Stats = {
