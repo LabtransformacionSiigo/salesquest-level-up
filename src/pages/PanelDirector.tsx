@@ -19,6 +19,14 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const normalize = (s: string) =>
   String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
+const normalizePaisCode = (pais?: string | null) => {
+  const code = String(pais || '').toUpperCase().trim();
+  return code === 'URY' ? 'URU' : code;
+};
+
+const celulaScopeKey = (celula?: string | null, canal?: string | null, pais?: string | null) =>
+  `${normalize(celula || '')}|${canal || ''}|${normalizePaisCode(pais)}`;
+
 const fmtMoney = (n: number) => {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -100,7 +108,7 @@ const PanelDirector = () => {
     [isAdmin, profile?.director_canales],
   );
   const scopePaises = useMemo(
-    () => (isAdmin ? [] : (profile?.director_paises || [])),
+    () => (isAdmin ? [] : (profile?.director_paises || []).map(normalizePaisCode)),
     [isAdmin, profile?.director_paises],
   );
 
@@ -146,19 +154,23 @@ const PanelDirector = () => {
         );
         const celulaCountMap = new Map<string, number>();
         if (celulasInScope.length) {
-          const { data: allCel } = await supabase
+          let allCelQuery = supabase
             .from('gerentes')
-            .select('celula')
+            .select('celula, canal, pais')
             .in('celula', celulasInScope)
             .eq('activo', true);
+          if (!isAdmin && scopeCanales.length) allCelQuery = allCelQuery.in('canal', scopeCanales);
+          if (!isAdmin && scopePaises.length) allCelQuery = allCelQuery.in('pais', scopePaises);
+          const { data: allCel } = await allCelQuery;
           (allCel || []).forEach((r: any) => {
-            celulaCountMap.set(r.celula, (celulaCountMap.get(r.celula) || 0) + 1);
+            const key = celulaScopeKey(r.celula, r.canal, r.pais);
+            celulaCountMap.set(key, (celulaCountMap.get(key) || 0) + 1);
           });
         }
         for (const g of gerentesList) {
           if (asesoresMap.get(g.id)) continue; // ya contado vía asesores
           if (!g.celula) continue;
-          const total = celulaCountMap.get(g.celula) || 0;
+          const total = celulaCountMap.get(celulaScopeKey(g.celula, g.canal, g.pais)) || 0;
           // restamos 1 = el propio líder (este gerente)
           asesoresMap.set(g.id, Math.max(0, total - 1));
         }
@@ -226,15 +238,24 @@ const PanelDirector = () => {
         const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const mesAbr = MESES_ABR[periodoSel - 1];
         const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
+        const validCelulasMes = new Set<string>();
+        const metasRows: any[] = [];
         {
-          const { data: metas } = await supabase
+          let metasQuery = supabase
             .from('metas_acv_gerentes')
-            .select('celula, meta_fe, meta_nube, meta_total_acv')
-            .eq('mes', mesAbr);
+            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_acv')
+            .eq('mes', mesAbr)
+            .eq('anio', anio);
+          if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
+          if (!isAdmin && scopePaises.length) metasQuery = metasQuery.in('pais', scopePaises);
+          const { data: metas } = await metasQuery;
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
-            metasMap.set(cel, {
+            metasRows.push(m);
+            const key = celulaScopeKey(m.celula, m.canal, m.pais);
+            validCelulasMes.add(key);
+            metasMap.set(key, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
               acv: Number(m.meta_total_acv) || 0,
@@ -322,6 +343,7 @@ const PanelDirector = () => {
 
         const out: Stats[] = [];
         const usedIds = new Set<string>();
+        const usedCelulaKeys = new Set<string>();
         const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
           const g = findGerente(leaderKey, agg.pais);
@@ -331,7 +353,11 @@ const PanelDirector = () => {
           // aparezcan líderes de otros canales/países en el panel.
           if (!isAdmin && !g) continue;
           if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
-          if (!isAdmin && g && scopePaises.length && !scopePaises.includes(g.pais || '')) continue;
+          if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
+          const celKey = celulaScopeKey(g?.celula, g?.canal, g?.pais);
+          if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
+          if (g?.celula && usedCelulaKeys.has(celKey)) continue;
+          if (g?.celula) usedCelulaKeys.add(celKey);
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
@@ -347,7 +373,7 @@ const PanelDirector = () => {
           };
           if (g) usedIds.add(g.id);
           else seenSynth.add(synthKey);
-          const meta = metasMap.get(normalize(gerente.celula || ''));
+          const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
@@ -402,29 +428,32 @@ const PanelDirector = () => {
         const seenCelulas = new Set<string>();
         // Marcar como ya vistas las celulas de gerentes que ya entraron por métricas
         for (const s of out) {
-          if (s.gerente.celula) seenCelulas.add(normalize(s.gerente.celula));
+          if (s.gerente.celula) seenCelulas.add(celulaScopeKey(s.gerente.celula, s.gerente.canal, s.gerente.pais));
         }
-        // Priorizar gerentes con user_id (cuentas reales) como líderes de celula
-        const leaderCandidates = [...gerentesList].sort((a, b) => {
-          const ai = a.user_id ? 0 : 1;
-          const bi = b.user_id ? 0 : 1;
-          return ai - bi;
-        });
-        for (const g of leaderCandidates) {
-          if (usedIds.has(g.id)) continue;
-          if (!g.celula) continue;
-          const celKey = normalize(g.celula);
+        const pickGerenteByCelula = (key: string) => {
+          const matches = gerentesList.filter((g) => celulaScopeKey(g.celula, g.canal, g.pais) === key);
+          return matches.find((g) => !usedIds.has(g.id) && !!g.user_id) || matches.find((g) => !usedIds.has(g.id)) || null;
+        };
+        for (const metaRow of metasRows) {
+          const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);
           if (seenCelulas.has(celKey)) continue;
-          // Solo líderes reales (con cuenta de auth)
-          if (!g.user_id) continue;
-          const asesoresCount = asesoresMap.get(g.id) || 0;
-          if (asesoresCount === 0) continue;
+          const g = pickGerenteByCelula(celKey);
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           seenCelulas.add(celKey);
+          if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
+          const gerente: GerenteRow = g || {
+            id: `meta-${celKey}`,
+            nombre: metaRow.celula || 'Gerente sin asignar',
+            email: '',
+            canal: metaRow.canal || null,
+            pais: normalizePaisCode(metaRow.pais),
+            celula: metaRow.celula || null,
+          };
           out.push({
-            gerente: g,
+            gerente,
             asesores: asesoresCount,
             fe: 0, nube: 0, total: 0, acv: 0,
             metaFe, metaNube,
@@ -432,8 +461,8 @@ const PanelDirector = () => {
             pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
             pacing: 0, scoreCompuesto: 0,
             productividad: 0, ventasPorAsesor: 0,
-            sp: spMap.get(g.id) || 0,
-            racha: rachaMap.get(g.id) || 0,
+            sp: g ? (spMap.get(g.id) || 0) : 0,
+            racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
         }
 
@@ -443,6 +472,7 @@ const PanelDirector = () => {
           filasDesdeMetricas,
           filasFallbackPorCelula: out.length - filasDesdeMetricas,
           filasTotales: out.length,
+          celulasConMetaDelMes: validCelulasMes.size,
           scopeCanales,
           scopePaises,
           isAdmin,
