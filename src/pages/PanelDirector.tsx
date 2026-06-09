@@ -850,17 +850,26 @@ const PanelDirector = () => {
                   <TableHead className="text-right">FE</TableHead>
                   <TableHead className="text-right">Nube</TableHead>
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">% Cumpl.</TableHead>
+                  <TableHead className="text-right" title="Score = 35% FE + 25% Nube + 40% ACV">Score ⓘ</TableHead>
+                  <TableHead className="text-right">% FE</TableHead>
+                  <TableHead className="text-right">% Nube</TableHead>
+                  <TableHead className="text-right">% ACV</TableHead>
+                  <TableHead className="text-right" title="Pacing: 1.00 = en ritmo, <1 atrasado, >1 adelantado">Pacing</TableHead>
+                  <TableHead className="text-right">$/Asesor</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
                 ) : pageRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
+                  const pctColor = (p: number) =>
+                    p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : p >= 50 ? 'text-orange-600' : 'text-rose-600';
+                  const scoreVariant: 'default' | 'secondary' | 'destructive' =
+                    s.scoreCompuesto >= 100 ? 'default' : s.scoreCompuesto >= 80 ? 'secondary' : 'destructive';
                   return (
                     <TableRow key={s.gerente.id}>
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
@@ -870,7 +879,16 @@ const PanelDirector = () => {
                       <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe}</span></TableCell>
                       <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube}</span></TableCell>
                       <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
-                      <TableCell className={`text-right font-bold ${t.text}`}>{s.pctTotal}%</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={scoreVariant}>{s.scoreCompuesto}</Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctFe)}`}>{s.pctFe}%</TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctNube)}`}>{s.pctNube}%</TableCell>
+                      <TableCell className={`text-right font-semibold ${pctColor(s.pctAcv)}`}>{s.pctAcv}%</TableCell>
+                      <TableCell className="text-right" title="1.0 = en ritmo">
+                        {s.pacing.toFixed(2)} {s.pacing >= 1.0 ? '↑' : '↓'}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{s.ventasPorAsesor.toFixed(1)}</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
                           <span className={`inline-block w-2 h-2 rounded-full ${t.solid} mr-1.5`} />
