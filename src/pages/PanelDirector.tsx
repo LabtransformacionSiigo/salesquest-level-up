@@ -151,19 +151,23 @@ const PanelDirector = () => {
         );
         const celulaCountMap = new Map<string, number>();
         if (celulasInScope.length) {
-          const { data: allCel } = await supabase
+          let allCelQuery = supabase
             .from('gerentes')
-            .select('celula')
+            .select('celula, canal, pais')
             .in('celula', celulasInScope)
             .eq('activo', true);
+          if (!isAdmin && scopeCanales.length) allCelQuery = allCelQuery.in('canal', scopeCanales);
+          if (!isAdmin && scopePaises.length) allCelQuery = allCelQuery.in('pais', scopePaises);
+          const { data: allCel } = await allCelQuery;
           (allCel || []).forEach((r: any) => {
-            celulaCountMap.set(r.celula, (celulaCountMap.get(r.celula) || 0) + 1);
+            const key = `${normalize(r.celula)}|${r.canal || ''}|${normalizePaisCode(r.pais)}`;
+            celulaCountMap.set(key, (celulaCountMap.get(key) || 0) + 1);
           });
         }
         for (const g of gerentesList) {
           if (asesoresMap.get(g.id)) continue; // ya contado vía asesores
           if (!g.celula) continue;
-          const total = celulaCountMap.get(g.celula) || 0;
+          const total = celulaCountMap.get(`${normalize(g.celula)}|${g.canal || ''}|${normalizePaisCode(g.pais)}`) || 0;
           // restamos 1 = el propio líder (este gerente)
           asesoresMap.set(g.id, Math.max(0, total - 1));
         }
