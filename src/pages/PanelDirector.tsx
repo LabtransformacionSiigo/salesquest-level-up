@@ -53,6 +53,7 @@ type Stats = {
   acv: number;
   metaFe: number;
   metaNube: number;
+  metaUds: number;
   metaAcv: number;
   pctFe: number;            // % cumplimiento FE
   pctNube: number;          // % cumplimiento Nube
@@ -237,13 +238,13 @@ const PanelDirector = () => {
         // 6) Metas reales desde metas_acv_gerentes (usa abreviatura del mes: Ene, Feb...)
         const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const mesAbr = MESES_ABR[periodoSel - 1];
-        const metasMap = new Map<string, { fe: number; nube: number; acv: number }>();
+        const metasMap = new Map<string, { fe: number; nube: number; totalUds: number; acv: number }>();
         const validCelulasMes = new Set<string>();
         const metasRows: any[] = [];
         {
           let metasQuery = supabase
             .from('metas_acv_gerentes')
-            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_acv')
+            .select('pais, canal, celula, meta_fe, meta_nube, meta_total_und, meta_total_acv')
             .eq('mes', mesAbr)
             .eq('anio', anio);
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
@@ -258,6 +259,7 @@ const PanelDirector = () => {
             metasMap.set(key, {
               fe: m.meta_fe || 0,
               nube: m.meta_nube || 0,
+              totalUds: m.meta_total_und || 0,
               acv: Number(m.meta_total_acv) || 0,
             });
           });
@@ -377,7 +379,7 @@ const PanelDirector = () => {
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
-          const metaTotal = metaFe + metaNube;
+          const metaTotal = meta?.totalUds || metaFe + metaNube;
           const metaAcv = meta?.acv || 0;
 
           const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
@@ -406,6 +408,7 @@ const PanelDirector = () => {
             acv: Math.round(agg.acv),
             metaFe,
             metaNube,
+            metaUds: metaTotal,
             metaAcv,
             pctFe: Math.round(pctFe),
             pctNube: Math.round(pctNube),
@@ -444,6 +447,7 @@ const PanelDirector = () => {
           const meta = metasMap.get(celKey);
           const metaFe = meta?.fe || asesoresCount * 2;
           const metaNube = meta?.nube || asesoresCount * 1;
+          const metaTotal = meta?.totalUds || metaFe + metaNube;
           const gerente: GerenteRow = g || {
             id: `meta-${celKey}`,
             nombre: metaRow.celula || 'Gerente sin asignar',
@@ -456,7 +460,7 @@ const PanelDirector = () => {
             gerente,
             asesores: asesoresCount,
             fe: 0, nube: 0, total: 0, acv: 0,
-            metaFe, metaNube,
+            metaFe, metaNube, metaUds: metaTotal,
             metaAcv: meta?.acv || 0,
             pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
             pacing: 0, scoreCompuesto: 0,
