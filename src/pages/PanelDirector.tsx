@@ -521,7 +521,8 @@ const PanelDirector = () => {
           const mesIni = `${anio}-${String(periodoSel).padStart(2, '0')}-01`;
           const mesFinDate = new Date(anio, periodoSel, 0);
           const mesFin = `${anio}-${String(periodoSel).padStart(2, '0')}-${String(mesFinDate.getDate()).padStart(2, '0')}`;
-          const periodoAnioMes = `${anio}-${String(periodoSel).padStart(2, '0')}`;
+          // kpis_mes_actual.anio_mes está almacenado como 'YYYYMM' (sin guion)
+          const periodoAnioMes = `${anio}${String(periodoSel).padStart(2, '0')}`;
 
           const [vcVentasRes, vcKpisRes] = await Promise.all([
             supabase
