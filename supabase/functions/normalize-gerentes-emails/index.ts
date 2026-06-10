@@ -81,7 +81,6 @@ Deno.serve(async (req) => {
           await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
         }
         await sb.auth.admin.updateUserById(existingId, {
-          password: PASSWORD,
           email_confirm: true,
           user_metadata: { name: g.nombre },
         });
@@ -91,7 +90,6 @@ Deno.serve(async (req) => {
 
       const { data: user, error } = await sb.auth.admin.createUser({
         email,
-        password: PASSWORD,
         email_confirm: true,
         user_metadata: { name: g.nombre },
       });

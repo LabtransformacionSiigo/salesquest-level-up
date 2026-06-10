@@ -36,7 +36,6 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
       const { data: created, error: createErr } = await supabase.auth.admin.createUser({
         email: esp.email,
-        password: PASSWORD,
         email_confirm: true,
         user_metadata: { name: esp.nombre },
       });
@@ -84,7 +83,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ results, password: PASSWORD }, null, 2), {
+  return new Response(JSON.stringify({ results }, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

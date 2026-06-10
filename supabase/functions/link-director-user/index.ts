@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     if (updErr) throw updErr;
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, created, default_password: created ? "Siigo2026!" : null }),
+      JSON.stringify({ success: true, user_id: userId, created, }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

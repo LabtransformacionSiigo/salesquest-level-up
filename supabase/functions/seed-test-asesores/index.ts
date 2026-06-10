@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  return new Response(JSON.stringify({ total: results.length, password, results }, null, 2), {
+  return new Response(JSON.stringify({ total: results.length, results }, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

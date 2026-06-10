@@ -229,7 +229,6 @@ Deno.serve(async (req) => {
 
   return new Response(JSON.stringify({
     success: true,
-    password_used: password,
     count: results.length,
     ok: results.filter((r) => r.status === "ok").length,
     errors: results.filter((r) => r.status === "error").length,
