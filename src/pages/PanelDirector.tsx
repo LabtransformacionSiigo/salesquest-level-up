@@ -1148,11 +1148,11 @@ const PanelDirector = () => {
                   <TableHead>Canal</TableHead>
                   <TableHead>País</TableHead>
                   <TableHead className="text-right">Asesores</TableHead>
-                  <TableHead className="text-right">FE</TableHead>
-                  <TableHead className="text-right">Nube</TableHead>
+                  {!filteredOnlyVc && <TableHead className="text-right">FE</TableHead>}
+                  {!filteredOnlyVc && <TableHead className="text-right">Nube</TableHead>}
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">% FE</TableHead>
-                  <TableHead className="text-right">% Nube</TableHead>
+                  {!filteredOnlyVc && <TableHead className="text-right">% FE</TableHead>}
+                  {!filteredOnlyVc && <TableHead className="text-right">% Nube</TableHead>}
                   <TableHead className="text-right">% ACV</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
@@ -1178,11 +1178,11 @@ const PanelDirector = () => {
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
                       <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
-                      <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>
-                      <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>
+                      {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>}
+                      {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>}
                       <TableCell className="text-right">{fmtMoney(s.acv)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtMoney(s.metaAcv) : '—'}</span></TableCell>
-                      <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>
-                      <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>
+                      {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>}
+                      {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>}
                       <TableCell className={`text-right font-semibold ${s.metaUds > 0 ? pctColor(s.pctAcv) : 'text-muted-foreground'}`}>{s.metaUds > 0 ? `${s.pctAcv}%` : '—'}</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
@@ -1193,6 +1193,7 @@ const PanelDirector = () => {
                     </TableRow>
                   );
                 })}
+
               </TableBody>
             </Table>
           </div>
