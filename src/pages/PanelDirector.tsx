@@ -595,15 +595,13 @@ const PanelDirector = () => {
 
             const metaAcv = Math.round(agg.metaAcv);
             const acvReal = Math.round(agg.acv);
-            // FE/Nube en VC se expresan en ACV+; la meta total mensual se reparte por
-            // el mix real de ACV del mes para que los % no queden en blanco.
-            const familyAcv = agg.acvFe + agg.acvNube;
-            const mixFe = familyAcv > 0 ? agg.acvFe / familyAcv : 0.5;
-            const metaFe = metaAcv > 0 ? Math.round(metaAcv * mixFe) : 0;
-            const metaNube = metaAcv > 0 ? Math.max(0, metaAcv - metaFe) : 0;
+            // En VC, FE y Nube son CANTIDAD DE PRODUCTOS VENDIDOS (no monto).
+            // No existe meta por familia en unidades para VC: se muestra "—" en la meta y %.
+            const metaFe = 0;
+            const metaNube = 0;
 
-            const pctFe = metaFe > 0 ? (agg.acvFe / metaFe) * 100 : 0;
-            const pctNube = metaNube > 0 ? (agg.acvNube / metaNube) * 100 : 0;
+            const pctFe = 0;
+            const pctNube = 0;
             const pctAcv = metaAcv > 0 ? (acvReal / metaAcv) * 100 : 0;
             const pctTotal = pctAcv;
 
@@ -611,13 +609,13 @@ const PanelDirector = () => {
             const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
             const currentDay = today.getMonth() + 1 === periodoSel ? today.getDate() : lastDay;
             const pacing = currentDay > 0 ? pctTotal / ((currentDay / lastDay) * 100) : 0;
-            const scoreCompuesto = Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40);
+            const scoreCompuesto = Math.round(pctAcv);
 
             out.push({
               gerente: g,
               asesores: asesoresCount,
-              fe: Math.round(agg.acvFe),
-              nube: Math.round(agg.acvNube),
+              fe: agg.fe,
+              nube: agg.nube,
               total: acvReal,
               acv: acvReal,
               metaFe,
@@ -635,6 +633,7 @@ const PanelDirector = () => {
               sp: spMap.get(g.id) || 0,
               racha: rachaMap.get(g.id) || 0,
             });
+
           }
         }
 
@@ -877,16 +876,17 @@ const PanelDirector = () => {
               <span className="text-indigo-500 font-bold text-base">FE</span>
               <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalFe)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaFeTot, 'FE')}</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Cloud className="text-sky-500" />
               <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalNube)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaNubeTot, 'Nube')} · Mix {Math.round(kpis.mixNube)}%</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
+
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
@@ -1149,7 +1149,9 @@ const PanelDirector = () => {
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
                   const isVcRow = s.gerente.canal === 'VC';
-                  const metricValue = (value: number) => isVcRow ? fmtMoney(value) : value.toLocaleString();
+                  // VC: FE/Nube son CANTIDAD de productos (unidades). ACV sigue siendo monto.
+                  const metricValue = (value: number) => isVcRow ? value.toLocaleString() : value.toLocaleString();
+
                   const pctColor = (p: number) =>
                     p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : p >= 50 ? 'text-orange-600' : 'text-rose-600';
                   const scoreVariant: 'default' | 'secondary' | 'destructive' =
