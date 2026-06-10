@@ -1148,7 +1148,9 @@ const PanelDirector = () => {
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
                   const isVcRow = s.gerente.canal === 'VC';
-                  const metricValue = (value: number) => isVcRow ? fmtMoney(value) : value.toLocaleString();
+                  // VC: FE/Nube son CANTIDAD de productos (unidades). ACV sigue siendo monto.
+                  const metricValue = (value: number) => isVcRow ? value.toLocaleString() : value.toLocaleString();
+
                   const pctColor = (p: number) =>
                     p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : p >= 50 ? 'text-orange-600' : 'text-rose-600';
                   const scoreVariant: 'default' | 'secondary' | 'destructive' =
