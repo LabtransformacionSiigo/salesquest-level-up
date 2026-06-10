@@ -1148,6 +1148,8 @@ const PanelDirector = () => {
                   <TableRow><TableCell colSpan={15} className="text-center py-8 text-muted-foreground">Sin resultados con los filtros aplicados.</TableCell></TableRow>
                 ) : pageRows.map((s) => {
                   const t = tierDef(tierOf(s.pctTotal));
+                  const isVcRow = s.gerente.canal === 'VC';
+                  const metricValue = (value: number) => isVcRow ? fmtMoney(value) : value.toLocaleString();
                   const pctColor = (p: number) =>
                     p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : p >= 50 ? 'text-orange-600' : 'text-rose-600';
                   const scoreVariant: 'default' | 'secondary' | 'destructive' =
@@ -1158,9 +1160,9 @@ const PanelDirector = () => {
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
                       <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
-                      <TableCell className="text-right">{s.fe} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? s.metaFe : '—'}</span></TableCell>
-                      <TableCell className="text-right">{s.nube} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? s.metaNube : '—'}</span></TableCell>
-                      <TableCell className="text-right">{fmtMoney(s.acv)}</TableCell>
+                      <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>
+                      <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>
+                      <TableCell className="text-right">{fmtMoney(s.acv)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtMoney(s.metaAcv) : '—'}</span></TableCell>
                       <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>
                       <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>
                       <TableCell className={`text-right font-semibold ${s.metaUds > 0 ? pctColor(s.pctAcv) : 'text-muted-foreground'}`}>{s.metaUds > 0 ? `${s.pctAcv}%` : '—'}</TableCell>
