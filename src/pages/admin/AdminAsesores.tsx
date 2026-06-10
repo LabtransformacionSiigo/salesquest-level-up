@@ -52,7 +52,7 @@ const AdminAsesores = () => {
 
   const fetchData = async () => {
     const [aRes, gRes] = await Promise.all([
-      supabase.from('asesores').select('*, gerentes(nombre)').order('nombre'),
+      supabase.from('asesores').select('id, nombre, email, gerente_id, canal, pais, activo, avatar_url, sp_canje, sp_convencion, canal_direccion, gerentes(nombre)').order('nombre'),
       supabase.from('gerentes').select('id, nombre').eq('activo', true).order('nombre'),
     ]);
     setAsesores(aRes.data || []);
