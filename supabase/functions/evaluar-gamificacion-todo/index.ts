@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Orquestador único: ejecuta en orden retos VC, retos VN y medallas (VC + VN).
 // Es la fuente de verdad para "evaluar gamificación ahora" (botones UI + cron).
 const corsHeaders = {
@@ -8,6 +9,9 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin","especialista"], { allowCronSecret: true });
+  if (_guard.error) return _guard.error;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

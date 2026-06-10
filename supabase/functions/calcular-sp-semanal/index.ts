@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -64,6 +65,9 @@ const normalizeCanal = (value?: string | null) => {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
+
+  const _guard = await requireRole(req, ["admin","especialista"], { allowCronSecret: true });
+  if (_guard.error) return _guard.error;
     return new Response(null, { headers: corsHeaders });
   }
 

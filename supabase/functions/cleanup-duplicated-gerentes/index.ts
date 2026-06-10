@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Limpieza de gerentes duplicados/mal formados.
 // 1) Renombra emails 'emp-...' a nombre.apellido@siigo.com en los registros que se conservan.
 // 2) Borra los registros duplicados de gerentes y sus auth.users asociados.
@@ -97,6 +98,9 @@ const moveSpCanjeHistory = async (sb: any, source: any, dryRun: boolean, log: an
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
 
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,

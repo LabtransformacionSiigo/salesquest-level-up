@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Evalúa medallas VC (`catalogo_medallas`) y VN (`medallas_vn_config`),
 // otorga SP Canje y registra:
 // - VC: medallas + sp_acumulados (MEDALLA / canje) + gerentes.sp_canje (RPC otorgar_medalla_si_aplica)
@@ -27,6 +28,9 @@ const norm = (s: any) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin","especialista"], { allowCronSecret: true });
+  if (_guard.error) return _guard.error;
 
   try {
     const supabase = createClient(

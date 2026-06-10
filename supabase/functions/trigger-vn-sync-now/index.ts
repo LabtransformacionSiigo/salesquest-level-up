@@ -1,7 +1,11 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin","especialista"], { allowCronSecret: true });
+  if (_guard.error) return _guard.error;
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

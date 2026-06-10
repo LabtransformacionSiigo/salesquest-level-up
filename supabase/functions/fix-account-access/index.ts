@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Repara el acceso de un gerente o especialista:
 // - Busca el usuario en auth.users por email (paginando)
 // - Si no existe, lo crea (email_confirm=true)
@@ -16,6 +17,9 @@ const DEFAULT_PASSWORD = "SiigoArena2026!";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
 
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,

@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -39,6 +40,9 @@ const PASSWORD = "Siigo2026!";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

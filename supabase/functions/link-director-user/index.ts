@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // deno-lint-ignore-file
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -10,6 +11,9 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
   try {
     const { director_id, email } = await req.json();
     if (!director_id || !email) {
