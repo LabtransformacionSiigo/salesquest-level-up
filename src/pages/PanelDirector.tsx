@@ -793,6 +793,9 @@ const PanelDirector = () => {
 
   const overallTier = tierDef(tierOf(kpis.pctUds));
   const totalGer = filteredStats.length;
+  const filteredOnlyVc = filteredStats.length > 0 && filteredStats.every((s) => s.gerente.canal === 'VC');
+  const fmtKpiValue = (n: number) => filteredOnlyVc ? fmtMoney(n) : n.toLocaleString();
+  const fmtMetaLabel = (n: number, suffix: string) => filteredOnlyVc ? fmtMoney(n) : `${n.toLocaleString()} ${suffix}`;
 
 
 
@@ -866,24 +869,24 @@ const PanelDirector = () => {
               <TrendingUp className="text-accent" />
               <Badge variant="outline">{Math.round(kpis.pctUds)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalUds.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaUds.toLocaleString()} uds</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalUds)}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaUds, 'uds')}</p>
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <span className="text-indigo-500 font-bold text-base">FE</span>
               <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot.toLocaleString()} FE</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalFe)}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaFeTot, 'FE')}</p>
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Cloud className="text-sky-500" />
               <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot.toLocaleString()} Nube · Mix {Math.round(kpis.mixNube)}%</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalNube)}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaNubeTot, 'Nube')} · Mix {Math.round(kpis.mixNube)}%</p>
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
