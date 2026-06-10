@@ -591,7 +591,7 @@ const PanelDirector = () => {
             // Solo mostrar el gerente si tiene actividad este mes
             if (agg.total === 0 && agg.acv === 0 && agg.meta === 0) continue;
 
-            const metaUds = kpi.meta;
+            const metaUds = agg.meta;
             // Repartir la meta total entre FE y Nube siguiendo el mix histórico observado
             // en el mes (si no hay ventas todavía, repartimos 50/50).
             const realTotal = agg.total > 0 ? agg.total : 1;
@@ -601,7 +601,7 @@ const PanelDirector = () => {
 
             const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
             const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
-            const pctTotal = metaUds > 0 ? (agg.total / metaUds) * 100 : kpi.pct;
+            const pctTotal = metaUds > 0 ? (agg.total / metaUds) * 100 : 0;
             // VC no tiene meta ACV$ explícita; usamos el % global como proxy
             const pctAcv = pctTotal;
 
