@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Sincroniza auth.users con gerentes.email para gerentes activos.
 // Regla: no reescribir emails de cuentas existentes; solo vincular exacto o crear faltante.
 // Procesa en LOTES (offset/limit) para evitar IDLE_TIMEOUT (150s).
@@ -13,6 +14,9 @@ const PASSWORD = "SiigoArena2026!";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
 
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -77,7 +81,6 @@ Deno.serve(async (req) => {
           await sb.from("gerentes").update({ user_id: existingId }).eq("id", g.id);
         }
         await sb.auth.admin.updateUserById(existingId, {
-          password: PASSWORD,
           email_confirm: true,
           user_metadata: { name: g.nombre },
         });
@@ -87,7 +90,6 @@ Deno.serve(async (req) => {
 
       const { data: user, error } = await sb.auth.admin.createUser({
         email,
-        password: PASSWORD,
         email_confirm: true,
         user_metadata: { name: g.nombre },
       });

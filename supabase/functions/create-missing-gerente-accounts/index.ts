@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Crea cuentas en Auth para gerentes activos que NO tienen user_id.
 // Procesa por lotes (offset/limit). NO modifica usuarios existentes.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -11,6 +12,9 @@ const DEFAULT_PASSWORD = "SiigoArena2026!";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin"]);
+  if (_guard.error) return _guard.error;
 
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,

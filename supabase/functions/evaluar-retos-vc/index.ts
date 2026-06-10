@@ -1,3 +1,4 @@
+import { requireRole } from "../_shared/admin-auth.ts";
 // Evalúa retos VC parametrizados en `catalogo_retos` y otorga SP a los gerentes
 // que cumplan el umbral según el KPI (acv_plus, upgrades, conversiones, cumplimiento_pct).
 // También evalúa la racha "El artillero" (config_rachas con dias_lun_mie=true) y duplica SP semanales.
@@ -86,6 +87,9 @@ const isConversion = (sale: any): boolean => {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _guard = await requireRole(req, ["admin","especialista"], { allowCronSecret: true });
+  if (_guard.error) return _guard.error;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
