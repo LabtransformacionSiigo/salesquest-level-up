@@ -595,15 +595,13 @@ const PanelDirector = () => {
 
             const metaAcv = Math.round(agg.metaAcv);
             const acvReal = Math.round(agg.acv);
-            // FE/Nube en VC se expresan en ACV+; la meta total mensual se reparte por
-            // el mix real de ACV del mes para que los % no queden en blanco.
-            const familyAcv = agg.acvFe + agg.acvNube;
-            const mixFe = familyAcv > 0 ? agg.acvFe / familyAcv : 0.5;
-            const metaFe = metaAcv > 0 ? Math.round(metaAcv * mixFe) : 0;
-            const metaNube = metaAcv > 0 ? Math.max(0, metaAcv - metaFe) : 0;
+            // En VC, FE y Nube son CANTIDAD DE PRODUCTOS VENDIDOS (no monto).
+            // No existe meta por familia en unidades para VC: se muestra "—" en la meta y %.
+            const metaFe = 0;
+            const metaNube = 0;
 
-            const pctFe = metaFe > 0 ? (agg.acvFe / metaFe) * 100 : 0;
-            const pctNube = metaNube > 0 ? (agg.acvNube / metaNube) * 100 : 0;
+            const pctFe = 0;
+            const pctNube = 0;
             const pctAcv = metaAcv > 0 ? (acvReal / metaAcv) * 100 : 0;
             const pctTotal = pctAcv;
 
@@ -611,13 +609,13 @@ const PanelDirector = () => {
             const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
             const currentDay = today.getMonth() + 1 === periodoSel ? today.getDate() : lastDay;
             const pacing = currentDay > 0 ? pctTotal / ((currentDay / lastDay) * 100) : 0;
-            const scoreCompuesto = Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40);
+            const scoreCompuesto = Math.round(pctAcv);
 
             out.push({
               gerente: g,
               asesores: asesoresCount,
-              fe: Math.round(agg.acvFe),
-              nube: Math.round(agg.acvNube),
+              fe: agg.fe,
+              nube: agg.nube,
               total: acvReal,
               acv: acvReal,
               metaFe,
@@ -635,6 +633,7 @@ const PanelDirector = () => {
               sp: spMap.get(g.id) || 0,
               racha: rachaMap.get(g.id) || 0,
             });
+
           }
         }
 
