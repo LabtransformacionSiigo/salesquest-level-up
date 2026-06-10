@@ -514,96 +514,98 @@ const PanelDirector = () => {
           });
         }
 
-        // === VC: agregar desde tabla `ventas` (PROD-*) + metas/cumplimiento desde kpis_mes_actual ===
+        // === VC: `ventas` es la fuente oficial ===
+        // SUM-* = ACV+ y meta mensual por comercial (evita inflar métricas)
+        // PROD-* = desglose visual por familia FE / Nube
         const vcGerentes = gerentesList.filter((g) => g.canal === 'VC');
         if (vcGerentes.length) {
           const vcIds = vcGerentes.map((g) => g.id);
-          const mesIni = `${anio}-${String(periodoSel).padStart(2, '0')}-01`;
-          const mesFinDate = new Date(anio, periodoSel, 0);
-          const mesFin = `${anio}-${String(periodoSel).padStart(2, '0')}-${String(mesFinDate.getDate()).padStart(2, '0')}`;
-          // kpis_mes_actual.anio_mes está almacenado como 'YYYYMM' (sin guion)
-          const periodoAnioMes = `${anio}${String(periodoSel).padStart(2, '0')}`;
+          const mesNombre = MESES[periodoSel - 1];
 
-          const [vcVentasRes, vcKpisAllRes] = await Promise.all([
-            supabase
+          const vcVentasRows: any[] = [];
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase
               .from('ventas')
-              .select('gerente_id, comercial, producto, acv_plus, documento_factura')
+              .select('gerente_id, comercial, lider, producto, categoria_producto_venta, acv_plus, valor_producto, meta, documento_factura')
               .eq('canal', 'VC')
               .in('gerente_id', vcIds)
-              .gte('fecha_facturacion', mesIni)
-              .lte('fecha_facturacion', mesFin)
-              .like('documento_factura', 'PROD-%'),
-            // Traemos TODOS los kpis VC del mes y luego matcheamos por nombre
-            // (los comerciales VC del archivo Databricks no comparten gerente_id con
-            //  los líderes; sólo coinciden por nombre normalizado).
-            supabase
-              .from('kpis_mes_actual' as any)
-              .select('nombre, ventas, meta, pct_cumplimiento')
-              .eq('canal', 'VC')
-              .eq('anio_mes', periodoAnioMes),
-          ]);
+              .eq('anio', anio)
+              .eq('mes', mesNombre)
+              .range(from, from + 999);
+            if (error) throw error;
+            vcVentasRows.push(...(data || []));
+            if (!data || data.length < 1000) break;
+          }
 
           const norm = (s?: string | null) =>
             String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-          // Indexar kpis por nombre normalizado del comercial
-          const kpiByName = new Map<string, { meta: number; ventas: number; pct: number }>();
-          for (const k of (vcKpisAllRes.data || []) as any[]) {
-            kpiByName.set(norm(k.nombre), {
-              meta: Number(k.meta) || 0,
-              ventas: Number(k.ventas) || 0,
-              pct: Number(k.pct_cumplimiento) || 0,
-            });
-          }
-
-          type VcAgg = { fe: number; nube: number; total: number; acv: number; comerciales: Set<string>; meta: number; ventasKpi: number };
+          type VcAgg = {
+            fe: number;
+            nube: number;
+            total: number;
+            acv: number;
+            metaAcv: number;
+            acvFe: number;
+            acvNube: number;
+            comerciales: Set<string>;
+          };
           const vcAgg = new Map<string, VcAgg>();
-          const empty = (): VcAgg => ({ fe: 0, nube: 0, total: 0, acv: 0, comerciales: new Set(), meta: 0, ventasKpi: 0 });
+          const empty = (): VcAgg => ({ fe: 0, nube: 0, total: 0, acv: 0, metaAcv: 0, acvFe: 0, acvNube: 0, comerciales: new Set() });
           const bucketVc = (p?: string | null): 'fe' | 'nube' | 'skip' => {
-            const s = String(p || '').toLowerCase().trim();
+            const s = String(p || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             if (!s) return 'nube';
             if (s.includes('resumen')) return 'skip';
-            if (s === 'fe' || s.includes('pyme fe') || s.includes('documentos')) return 'fe';
+            if (s === 'fe' || s.includes(' pyme fe') || s.includes('pyme fe') || s.includes('documentos') || s.includes('factura electronica')) return 'fe';
             return 'nube';
           };
-          for (const v of (vcVentasRes.data || []) as any[]) {
+          for (const v of vcVentasRows) {
             if (!v.gerente_id) continue;
-            const b = bucketVc(v.producto);
-            if (b === 'skip') continue;
             const cur = vcAgg.get(v.gerente_id) || empty();
-            cur[b] += 1;
-            cur.total += 1;
-            cur.acv += Number(v.acv_plus) || 0;
             if (v.comercial) cur.comerciales.add(norm(v.comercial));
-            vcAgg.set(v.gerente_id, cur);
-          }
-          // Sumar metas y ventas oficiales de kpis para cada comercial del líder
-          for (const agg of vcAgg.values()) {
-            for (const comNorm of agg.comerciales) {
-              const k = kpiByName.get(comNorm);
-              if (k) { agg.meta += k.meta; agg.ventasKpi += k.ventas; }
+            const doc = String(v.documento_factura || '');
+            const acv = Number(v.acv_plus) || 0;
+            if (doc.startsWith('SUM-')) {
+              cur.acv += acv;
+              cur.metaAcv += Number(v.meta) || 0;
+              vcAgg.set(v.gerente_id, cur);
+              continue;
             }
+            if (!doc.startsWith('PROD-')) {
+              vcAgg.set(v.gerente_id, cur);
+              continue;
+            }
+            const b = bucketVc(`${v.producto || ''} ${v.categoria_producto_venta || ''} ${doc}`);
+            if (b === 'skip') {
+              vcAgg.set(v.gerente_id, cur);
+              continue;
+            }
+            cur.total += 1;
+            cur[b] += 1;
+            if (b === 'fe') cur.acvFe += acv;
+            if (b === 'nube') cur.acvNube += acv;
+            vcAgg.set(v.gerente_id, cur);
           }
 
           for (const g of vcGerentes) {
             const agg = vcAgg.get(g.id) || empty();
             const asesoresCount = agg.comerciales.size || asesoresMap.get(g.id) || 0;
-            // Solo mostrar el gerente si tiene actividad este mes
-            if (agg.total === 0 && agg.acv === 0 && agg.meta === 0) continue;
+            // Mostrar si tiene comerciales asignados, venta o meta este mes.
+            if (asesoresCount === 0 && agg.acv === 0 && agg.metaAcv === 0) continue;
 
-            const metaUds = agg.meta;
-            // Repartir la meta total entre FE y Nube siguiendo el mix histórico observado
-            // en el mes (si no hay ventas todavía, repartimos 50/50).
-            const realTotal = agg.total > 0 ? agg.total : 1;
-            const mixFe = agg.total > 0 ? agg.fe / realTotal : 0.5;
-            const metaFe = Math.round(metaUds * mixFe);
-            const metaNube = Math.max(0, metaUds - metaFe);
+            const metaAcv = Math.round(agg.metaAcv);
+            const acvReal = Math.round(agg.acv);
+            // FE/Nube en VC se expresan en ACV+; la meta total mensual se reparte por
+            // el mix real de ACV del mes para que los % no queden en blanco.
+            const familyAcv = agg.acvFe + agg.acvNube;
+            const mixFe = familyAcv > 0 ? agg.acvFe / familyAcv : 0.5;
+            const metaFe = metaAcv > 0 ? Math.round(metaAcv * mixFe) : 0;
+            const metaNube = metaAcv > 0 ? Math.max(0, metaAcv - metaFe) : 0;
 
-            const pctFe = metaFe > 0 ? (agg.fe / metaFe) * 100 : 0;
-            const pctNube = metaNube > 0 ? (agg.nube / metaNube) * 100 : 0;
-            const pctTotal = metaUds > 0 ? (agg.total / metaUds) * 100 : 0;
-            // VC no tiene meta ACV$ explícita; usamos el % global como proxy
-            const pctAcv = pctTotal;
+            const pctFe = metaFe > 0 ? (agg.acvFe / metaFe) * 100 : 0;
+            const pctNube = metaNube > 0 ? (agg.acvNube / metaNube) * 100 : 0;
+            const pctAcv = metaAcv > 0 ? (acvReal / metaAcv) * 100 : 0;
+            const pctTotal = pctAcv;
 
             const today = new Date();
             const lastDay = new Date(today.getFullYear(), periodoSel, 0).getDate();
@@ -614,14 +616,14 @@ const PanelDirector = () => {
             out.push({
               gerente: g,
               asesores: asesoresCount,
-              fe: agg.fe,
-              nube: agg.nube,
-              total: agg.total,
-              acv: Math.round(agg.acv),
+              fe: Math.round(agg.acvFe),
+              nube: Math.round(agg.acvNube),
+              total: acvReal,
+              acv: acvReal,
               metaFe,
               metaNube,
-              metaUds,
-              metaAcv: 0,
+              metaUds: metaAcv,
+              metaAcv,
               pctFe: Math.round(pctFe),
               pctNube: Math.round(pctNube),
               pctAcv: Math.round(pctAcv),
