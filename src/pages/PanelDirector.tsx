@@ -876,16 +876,17 @@ const PanelDirector = () => {
               <span className="text-indigo-500 font-bold text-base">FE</span>
               <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalFe)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaFeTot, 'FE')}</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Cloud className="text-sky-500" />
               <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalNube)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaNubeTot, 'Nube')} · Mix {Math.round(kpis.mixNube)}%</p>
+            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
+
           </Card>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
