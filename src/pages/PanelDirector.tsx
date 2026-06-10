@@ -854,7 +854,7 @@ const PanelDirector = () => {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${filteredOnlyVc ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-4`}>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Users className="text-primary" />
@@ -863,31 +863,36 @@ const PanelDirector = () => {
             <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalGerentes}</p>
             <p className="text-xs text-muted-foreground mt-1">Gerentes activos</p>
           </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <TrendingUp className="text-accent" />
-              <Badge variant="outline">{Math.round(kpis.pctUds)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalUds)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaUds, 'uds')}</p>
-          </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <span className="text-indigo-500 font-bold text-base">FE</span>
-              <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
-          </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <Cloud className="text-sky-500" />
-              <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
-
-          </Card>
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <TrendingUp className="text-accent" />
+                <Badge variant="outline">{Math.round(kpis.pctUds)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalUds)}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaUds, 'uds')}</p>
+            </Card>
+          )}
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <span className="text-indigo-500 font-bold text-base">FE</span>
+                <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
+            </Card>
+          )}
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <Cloud className="text-sky-500" />
+                <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
+            </Card>
+          )}
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
@@ -896,7 +901,18 @@ const PanelDirector = () => {
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
             <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
           </Card>
+          {filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <Users className="text-accent" />
+                <Badge variant="outline">VC</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{filteredStats.reduce((s, x) => s + x.asesores, 0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Asesores VC</p>
+            </Card>
+          )}
         </div>
+
 
 
         {/* Resumen ejecutivo: 4 niveles + barra de participación */}
