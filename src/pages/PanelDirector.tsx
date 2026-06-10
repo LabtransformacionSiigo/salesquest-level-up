@@ -524,28 +524,41 @@ const PanelDirector = () => {
           // kpis_mes_actual.anio_mes está almacenado como 'YYYYMM' (sin guion)
           const periodoAnioMes = `${anio}${String(periodoSel).padStart(2, '0')}`;
 
-          const [vcVentasRes, vcKpisRes] = await Promise.all([
+          const [vcVentasRes, vcKpisAllRes] = await Promise.all([
             supabase
               .from('ventas')
-              .select('gerente_id, producto, acv_plus, documento_factura')
+              .select('gerente_id, comercial, producto, acv_plus, documento_factura')
               .eq('canal', 'VC')
               .in('gerente_id', vcIds)
               .gte('fecha_facturacion', mesIni)
               .lte('fecha_facturacion', mesFin)
               .like('documento_factura', 'PROD-%'),
+            // Traemos TODOS los kpis VC del mes y luego matcheamos por nombre
+            // (los comerciales VC del archivo Databricks no comparten gerente_id con
+            //  los líderes; sólo coinciden por nombre normalizado).
             supabase
               .from('kpis_mes_actual' as any)
-              .select('gerente_id, ventas, meta, pct_cumplimiento')
-              .in('gerente_id', vcIds)
+              .select('nombre, ventas, meta, pct_cumplimiento')
+              .eq('canal', 'VC')
               .eq('anio_mes', periodoAnioMes),
           ]);
 
-          type VcAgg = { fe: number; nube: number; total: number; acv: number };
+          const norm = (s?: string | null) =>
+            String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+          // Indexar kpis por nombre normalizado del comercial
+          const kpiByName = new Map<string, { meta: number; ventas: number; pct: number }>();
+          for (const k of (vcKpisAllRes.data || []) as any[]) {
+            kpiByName.set(norm(k.nombre), {
+              meta: Number(k.meta) || 0,
+              ventas: Number(k.ventas) || 0,
+              pct: Number(k.pct_cumplimiento) || 0,
+            });
+          }
+
+          type VcAgg = { fe: number; nube: number; total: number; acv: number; comerciales: Set<string>; meta: number; ventasKpi: number };
           const vcAgg = new Map<string, VcAgg>();
-          // Para VC clasificamos los productos en dos buckets visibles: FE (Factura
-          // Electrónica + Documentos y CD + Pyme FE) y Nube (resto: Pyme, Ilimitada,
-          // Adiciones, Upgrade, Conversiones, Nomina-e). 'Resumen Mensual VC' se ignora
-          // porque es un consolidado, no una venta.
+          const empty = (): VcAgg => ({ fe: 0, nube: 0, total: 0, acv: 0, comerciales: new Set(), meta: 0, ventasKpi: 0 });
           const bucketVc = (p?: string | null): 'fe' | 'nube' | 'skip' => {
             const s = String(p || '').toLowerCase().trim();
             if (!s) return 'nube';
@@ -557,29 +570,26 @@ const PanelDirector = () => {
             if (!v.gerente_id) continue;
             const b = bucketVc(v.producto);
             if (b === 'skip') continue;
-            const cur = vcAgg.get(v.gerente_id) || { fe: 0, nube: 0, total: 0, acv: 0 };
+            const cur = vcAgg.get(v.gerente_id) || empty();
             cur[b] += 1;
             cur.total += 1;
             cur.acv += Number(v.acv_plus) || 0;
+            if (v.comercial) cur.comerciales.add(norm(v.comercial));
             vcAgg.set(v.gerente_id, cur);
           }
-
-          const vcKpiMap = new Map<string, { meta: number; ventas: number; pct: number }>();
-          for (const k of (vcKpisRes.data || []) as any[]) {
-            if (!k.gerente_id) continue;
-            vcKpiMap.set(k.gerente_id, {
-              meta: Number(k.meta) || 0,
-              ventas: Number(k.ventas) || 0,
-              pct: Number(k.pct_cumplimiento) || 0,
-            });
+          // Sumar metas y ventas oficiales de kpis para cada comercial del líder
+          for (const agg of vcAgg.values()) {
+            for (const comNorm of agg.comerciales) {
+              const k = kpiByName.get(comNorm);
+              if (k) { agg.meta += k.meta; agg.ventasKpi += k.ventas; }
+            }
           }
 
           for (const g of vcGerentes) {
-            const agg = vcAgg.get(g.id) || { fe: 0, nube: 0, total: 0, acv: 0 };
-            const kpi = vcKpiMap.get(g.id) || { meta: 0, ventas: 0, pct: 0 };
-            const asesoresCount = asesoresMap.get(g.id) || 0;
-            // Solo mostrar el gerente si tiene actividad o meta este mes
-            if (agg.total === 0 && kpi.meta === 0 && agg.acv === 0) continue;
+            const agg = vcAgg.get(g.id) || empty();
+            const asesoresCount = agg.comerciales.size || asesoresMap.get(g.id) || 0;
+            // Solo mostrar el gerente si tiene actividad este mes
+            if (agg.total === 0 && agg.acv === 0 && agg.meta === 0) continue;
 
             const metaUds = kpi.meta;
             // Repartir la meta total entre FE y Nube siguiendo el mix histórico observado
