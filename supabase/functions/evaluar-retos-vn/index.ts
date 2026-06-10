@@ -140,9 +140,12 @@ Deno.serve(async (req) => {
     // weekByPais: para fechaBase, da {start, endExcl, num} segun calendario comercial.
     // null = no hay calendario configurado → se usa fallback ISO (weekStart/weekEnd/semNumMes).
     const weekByPais = new Map<string, { start: string; end: string; num: number } | null>();
+    // Cantidad de semanas comerciales del mes por país (para prorrateo meta semanal)
+    const semanasCountByPais = new Map<string, number>();
     for (const c of calRes.data || []) {
       diasHabilesByPais.set(c.pais, Number(c.dias_habiles) || 20);
       const semanas: any[] = Array.isArray(c.semanas) ? c.semanas : [];
+      semanasCountByPais.set(c.pais, semanas.length || 4);
       const hit = semanas.find((s) => {
         const ini = String(s.fecha_inicio || "");
         const fin = String(s.fecha_fin || "");
@@ -160,6 +163,7 @@ Deno.serve(async (req) => {
         weekByPais.set(c.pais, null);
       }
     }
+
 
     // Metas por (celula, mes-num). Mes en metas viene como "Ene","Feb",... o "Mayo"
     const mesNombre = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][fechaBase.getUTCMonth()];
@@ -351,8 +355,10 @@ Deno.serve(async (req) => {
         .reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const acvMes = ventas.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const pctMes = metaAcvMes > 0 ? (acvMes / metaAcvMes) * 100 : 0;
-      const metaSemanalAcv = metaAcvMes > 0 ? metaAcvMes / 4 : 0;
+      const numSemanasMes = semanasCountByPais.get(pais) || 4;
+      const metaSemanalAcv = metaAcvMes > 0 ? metaAcvMes / numSemanasMes : 0;
       const pctSemana = metaSemanalAcv > 0 ? (acvSemana / metaSemanalAcv) * 100 : 0;
+
 
       for (const reto of retos) {
         // Filtrar por canal/país
