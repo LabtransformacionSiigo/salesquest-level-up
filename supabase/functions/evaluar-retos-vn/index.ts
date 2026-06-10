@@ -355,8 +355,10 @@ Deno.serve(async (req) => {
         .reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const acvMes = ventas.reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
       const pctMes = metaAcvMes > 0 ? (acvMes / metaAcvMes) * 100 : 0;
-      const metaSemanalAcv = metaAcvMes > 0 ? metaAcvMes / 4 : 0;
+      const numSemanasMes = semanasCountByPais.get(pais) || 4;
+      const metaSemanalAcv = metaAcvMes > 0 ? metaAcvMes / numSemanasMes : 0;
       const pctSemana = metaSemanalAcv > 0 ? (acvSemana / metaSemanalAcv) * 100 : 0;
+
 
       for (const reto of retos) {
         // Filtrar por canal/país
