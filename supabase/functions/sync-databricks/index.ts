@@ -438,7 +438,20 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || "preview";
     const table = body.table || "productividad";
-    const mesFilter = body.mes || undefined;
+    // Whitelist mes against Spanish month names to prevent SQL injection
+    // (mesFilter is interpolated into Databricks SQL strings).
+    const ALLOWED_MESES = new Set([
+      "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+      "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+      "Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic",
+    ]);
+    const rawMes = body.mes != null ? String(body.mes) : undefined;
+    if (rawMes !== undefined && !ALLOWED_MESES.has(rawMes)) {
+      return new Response(JSON.stringify({ error: "Parámetro 'mes' inválido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const mesFilter = rawMes;
     const jobId = body.jobId || undefined;
 
     // ── clean_stuck: mark old running/pending jobs as failed ──
