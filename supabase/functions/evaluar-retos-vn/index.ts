@@ -140,9 +140,12 @@ Deno.serve(async (req) => {
     // weekByPais: para fechaBase, da {start, endExcl, num} segun calendario comercial.
     // null = no hay calendario configurado → se usa fallback ISO (weekStart/weekEnd/semNumMes).
     const weekByPais = new Map<string, { start: string; end: string; num: number } | null>();
+    // Cantidad de semanas comerciales del mes por país (para prorrateo meta semanal)
+    const semanasCountByPais = new Map<string, number>();
     for (const c of calRes.data || []) {
       diasHabilesByPais.set(c.pais, Number(c.dias_habiles) || 20);
       const semanas: any[] = Array.isArray(c.semanas) ? c.semanas : [];
+      semanasCountByPais.set(c.pais, semanas.length || 4);
       const hit = semanas.find((s) => {
         const ini = String(s.fecha_inicio || "");
         const fin = String(s.fecha_fin || "");
@@ -160,6 +163,7 @@ Deno.serve(async (req) => {
         weekByPais.set(c.pais, null);
       }
     }
+
 
     // Metas por (celula, mes-num). Mes en metas viene como "Ene","Feb",... o "Mayo"
     const mesNombre = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][fechaBase.getUTCMonth()];
