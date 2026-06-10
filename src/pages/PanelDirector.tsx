@@ -854,7 +854,7 @@ const PanelDirector = () => {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${filteredOnlyVc ? 'lg:grid-cols-3' : 'lg:grid-cols-5'} gap-4`}>
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <Users className="text-primary" />
@@ -863,31 +863,36 @@ const PanelDirector = () => {
             <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalGerentes}</p>
             <p className="text-xs text-muted-foreground mt-1">Gerentes activos</p>
           </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <TrendingUp className="text-accent" />
-              <Badge variant="outline">{Math.round(kpis.pctUds)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalUds)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaUds, 'uds')}</p>
-          </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <span className="text-indigo-500 font-bold text-base">FE</span>
-              <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
-          </Card>
-          <Card className="p-5 rounded-2xl">
-            <div className="flex items-start justify-between">
-              <Cloud className="text-sky-500" />
-              <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
-            </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
-
-          </Card>
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <TrendingUp className="text-accent" />
+                <Badge variant="outline">{Math.round(kpis.pctUds)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{fmtKpiValue(kpis.totalUds)}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {fmtMetaLabel(kpis.metaUds, 'uds')}</p>
+            </Card>
+          )}
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <span className="text-indigo-500 font-bold text-base">FE</span>
+                <Badge variant="outline">{Math.round(kpis.pctFe)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalFe.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {kpis.metaFeTot > 0 ? `${kpis.metaFeTot.toLocaleString()} FE` : '—'}</p>
+            </Card>
+          )}
+          {!filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <Cloud className="text-sky-500" />
+                <Badge variant="outline">{Math.round(kpis.pctNube)}%</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{kpis.totalNube.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {kpis.metaNubeTot > 0 ? `${kpis.metaNubeTot.toLocaleString()} Nube` : '—'} · Mix {Math.round(kpis.mixNube)}%</p>
+            </Card>
+          )}
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
@@ -896,7 +901,18 @@ const PanelDirector = () => {
             <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
             <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
           </Card>
+          {filteredOnlyVc && (
+            <Card className="p-5 rounded-2xl">
+              <div className="flex items-start justify-between">
+                <Users className="text-accent" />
+                <Badge variant="outline">VC</Badge>
+              </div>
+              <p className="text-3xl font-scoreboard font-bold mt-3">{filteredStats.reduce((s, x) => s + x.asesores, 0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Asesores VC</p>
+            </Card>
+          )}
         </div>
+
 
 
         {/* Resumen ejecutivo: 4 niveles + barra de participación */}
@@ -1132,11 +1148,11 @@ const PanelDirector = () => {
                   <TableHead>Canal</TableHead>
                   <TableHead>País</TableHead>
                   <TableHead className="text-right">Asesores</TableHead>
-                  <TableHead className="text-right">FE</TableHead>
-                  <TableHead className="text-right">Nube</TableHead>
+                  {!filteredOnlyVc && <TableHead className="text-right">FE</TableHead>}
+                  {!filteredOnlyVc && <TableHead className="text-right">Nube</TableHead>}
                   <TableHead className="text-right">ACV</TableHead>
-                  <TableHead className="text-right">% FE</TableHead>
-                  <TableHead className="text-right">% Nube</TableHead>
+                  {!filteredOnlyVc && <TableHead className="text-right">% FE</TableHead>}
+                  {!filteredOnlyVc && <TableHead className="text-right">% Nube</TableHead>}
                   <TableHead className="text-right">% ACV</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
@@ -1162,11 +1178,11 @@ const PanelDirector = () => {
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
                       <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
-                      <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>
-                      <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>
+                      {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>}
+                      {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>}
                       <TableCell className="text-right">{fmtMoney(s.acv)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtMoney(s.metaAcv) : '—'}</span></TableCell>
-                      <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>
-                      <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>
+                      {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>}
+                      {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>}
                       <TableCell className={`text-right font-semibold ${s.metaUds > 0 ? pctColor(s.pctAcv) : 'text-muted-foreground'}`}>{s.metaUds > 0 ? `${s.pctAcv}%` : '—'}</TableCell>
                       <TableCell>
                         <Badge className={`${t.bg} ${t.text} ${t.border}`}>
@@ -1177,6 +1193,7 @@ const PanelDirector = () => {
                     </TableRow>
                   );
                 })}
+
               </TableBody>
             </Table>
           </div>
