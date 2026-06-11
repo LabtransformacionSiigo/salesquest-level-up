@@ -53,16 +53,27 @@ const AdminGerentes = () => {
   const [repairingId, setRepairingId] = useState<string | null>(null);
   const [repairingEspecialistas, setRepairingEspecialistas] = useState(false);
 
+  const askPassword = (label: string): string | null => {
+    const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
+    if (!p || p.trim().length < 8) {
+      toast({ title: 'Contraseña requerida', description: 'Debe tener al menos 8 caracteres', variant: 'destructive' });
+      return null;
+    }
+    return p.trim();
+  };
+
   const repararAcceso = async (g: any) => {
     if (!g?.email) {
       toast({ title: 'Sin email', description: 'Este gerente no tiene email configurado', variant: 'destructive' });
       return;
     }
-    if (!confirm(`Reparar acceso de ${g.nombre}?\n\nEmail: ${g.email}\nContraseña nueva: SiigoArena2026!\n\nEsto crea/sincroniza la cuenta auth, resetea la contraseña y vincula el gerente correcto.`)) return;
+    const pwd = askPassword(g.nombre);
+    if (!pwd) return;
+    if (!confirm(`Reparar acceso de ${g.nombre}?\n\nEmail: ${g.email}\n\nEsto crea/sincroniza la cuenta auth, resetea la contraseña y vincula el gerente correcto.`)) return;
     setRepairingId(g.id);
     try {
       const { data, error } = await supabase.functions.invoke('fix-account-access', {
-        body: { email: g.email, password: 'SiigoArena2026!' },
+        body: { email: g.email, password: pwd },
       });
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -70,7 +81,7 @@ const AdminGerentes = () => {
       }
       const r = data?.results?.[0];
       if (r?.status === 'ok') {
-        toast({ title: '✅ Acceso reparado', description: `${g.nombre} puede iniciar sesión con SiigoArena2026!` });
+        toast({ title: '✅ Acceso reparado', description: `${g.nombre} puede iniciar sesión con la nueva contraseña.` });
         fetchGerentes();
       } else {
         toast({ title: 'Error', description: r?.error || 'No se pudo reparar', variant: 'destructive' });
@@ -82,11 +93,13 @@ const AdminGerentes = () => {
 
   const repararEspecialistas = async () => {
     if (repairingEspecialistas) return;
-    if (!confirm('Reparar el acceso de TODOS los especialistas?\n\nSe resetea la contraseña a SiigoArena2026! para todas las cuentas con rol especialista.')) return;
+    const pwd = askPassword('TODOS los especialistas');
+    if (!pwd) return;
+    if (!confirm('Reparar el acceso de TODOS los especialistas?\n\nSe aplicará la contraseña que acabas de escribir.')) return;
     setRepairingEspecialistas(true);
     try {
       const { data, error } = await supabase.functions.invoke('fix-account-access', {
-        body: { mode: 'especialistas', password: 'SiigoArena2026!' },
+        body: { mode: 'especialistas', password: pwd },
       });
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -94,7 +107,7 @@ const AdminGerentes = () => {
       }
       toast({
         title: '✅ Especialistas reparados',
-        description: `${data?.ok ?? 0} ok · ${data?.errors ?? 0} errores · contraseña: SiigoArena2026!`,
+        description: `${data?.ok ?? 0} ok · ${data?.errors ?? 0} errores`,
       });
     } finally {
       setRepairingEspecialistas(false);
