@@ -989,9 +989,22 @@ const PanelDirector = () => {
         {heatmap.canales.length > 0 && heatmap.paises.length > 0 && (
           <Card className="p-6 rounded-2xl">
             <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
-                <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
+              <div className="flex items-start gap-3 flex-wrap">
+                <div>
+                  <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
+                  <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
+                </div>
+                <Select value={heatmapMetric} onValueChange={(v) => setHeatmapMetric(v as typeof heatmapMetric)}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Métrica" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TOTAL">Total unidades</SelectItem>
+                    <SelectItem value="FE">FE</SelectItem>
+                    <SelectItem value="NUBE">Nube</SelectItem>
+                    <SelectItem value="ACV">ACV</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {(filtroCanal !== 'TODOS' || filtroPais !== 'TODOS') && (
                 <div className="flex flex-wrap items-center gap-2">
