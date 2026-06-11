@@ -305,15 +305,22 @@ const AdminGerentes = () => {
     // garantizar que la cuenta auth quede sincronizada y el gerente pueda entrar.
     const emailChanged = !editing || (previousEmail && previousEmail !== email);
     if (emailChanged) {
+      const pwd = askPassword(`acceso de ${nombre}`);
+      if (!pwd) {
+        setEditing(null);
+        setShowAdd(false);
+        fetchGerentes();
+        return;
+      }
       try {
         const { data, error } = await supabase.functions.invoke('fix-account-access', {
-          body: { email, password: 'SiigoArena2026!' },
+          body: { email, password: pwd },
         });
         const r = data?.results?.[0];
         if (!error && r?.status === 'ok') {
           toast({
             title: '🔐 Acceso sincronizado',
-            description: `${nombre} puede iniciar sesión con ${email} y la contraseña SiigoArena2026!`,
+            description: `${nombre} puede iniciar sesión con ${email} y la contraseña que escribiste.`,
           });
         } else if (error || r?.status === 'error') {
           toast({
