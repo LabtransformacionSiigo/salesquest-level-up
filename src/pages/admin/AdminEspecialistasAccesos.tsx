@@ -194,22 +194,22 @@ const AdminEspecialistasAccesos = () => {
   };
 
   const verifyLogin = async (e: Esp) => {
+    const pwd = askPassword(`probar login de ${e.email}`);
+    if (!pwd) return;
     setVerifying(e.id);
     try {
-      // Try login with default password using a separate ephemeral client by signing out current admin? NO — that would log the admin out.
-      // Instead: call signInWithPassword via fetch using a fresh anon flow against /auth/v1/token.
       const url = (import.meta as any).env.VITE_SUPABASE_URL;
       const key = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': key },
-        body: JSON.stringify({ email: e.email, password: DEFAULT_PASSWORD }),
+        body: JSON.stringify({ email: e.email, password: pwd }),
       });
       const ok = res.ok;
       setVerifyResult(prev => ({ ...prev, [e.id]: ok ? 'ok' : 'fail' }));
       toast({
         title: ok ? '✅ Login válido' : '❌ Login falló',
-        description: ok ? `${e.email} puede entrar con la contraseña por defecto.` : `La contraseña por defecto NO funciona para ${e.email}. Restablécela.`,
+        description: ok ? `${e.email} puede entrar con la contraseña que escribiste.` : `La contraseña NO funciona para ${e.email}. Restablécela.`,
         variant: ok ? 'default' : 'destructive',
       });
     } catch (err: any) {
