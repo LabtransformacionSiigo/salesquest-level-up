@@ -114,13 +114,12 @@ const PanelDirector = () => {
     [isAdmin, profile?.director_paises],
   );
 
-  // Directores "Sr" (senior) supervisan TODO su canal+país, sin filtro fino por
-  // celula. Para directores normales sí limitamos por la columna `director` en
-  // metas_acv_gerentes (que distingue celulas dentro del mismo canal+país).
-  const isSeniorDirector = useMemo(
-    () => /\bsr\b|senior/i.test(profile?.director_cargo || ''),
-    [profile?.director_cargo],
-  );
+  // Todos los directores supervisan TODO su canal+país. El filtro fino por
+  // `metas_acv_gerentes.director` es poco confiable (columna sparse / nombres
+  // inconsistentes mes a mes), por lo que se desactiva para todos.
+  // El scope efectivo se aplica vía `director_canales` + `director_paises`.
+  const isSeniorDirector = useMemo(() => true, []);
+
 
   useEffect(() => {
     if (authLoading || !profile) return;
