@@ -14,73 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      advisor_badges: {
-        Row: {
-          badge_id: string
-          comercial: string
-          earned_at: string
-          id: string
-        }
-        Insert: {
-          badge_id: string
-          comercial: string
-          earned_at?: string
-          id?: string
-        }
-        Update: {
-          badge_id?: string
-          comercial?: string
-          earned_at?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "advisor_badges_badge_id_fkey"
-            columns: ["badge_id"]
-            isOneToOne: false
-            referencedRelation: "gamification_badges"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      advisor_challenge_completions: {
-        Row: {
-          acv_achieved: number | null
-          challenge_id: string
-          comercial: string
-          completion_date: string
-          created_at: string
-          id: string
-          sp_awarded: number
-        }
-        Insert: {
-          acv_achieved?: number | null
-          challenge_id: string
-          comercial: string
-          completion_date: string
-          created_at?: string
-          id?: string
-          sp_awarded: number
-        }
-        Update: {
-          acv_achieved?: number | null
-          challenge_id?: string
-          comercial?: string
-          completion_date?: string
-          created_at?: string
-          id?: string
-          sp_awarded?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "advisor_challenge_completions_challenge_id_fkey"
-            columns: ["challenge_id"]
-            isOneToOne: false
-            referencedRelation: "gamification_challenges"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       aprobador_permisos: {
         Row: {
           created_at: string
@@ -488,38 +421,6 @@ export type Database = {
           },
         ]
       }
-      challenge_thresholds: {
-        Row: {
-          challenge_id: string
-          id: string
-          segment: string
-          sp_canje_reward: number
-          threshold_value: number | null
-        }
-        Insert: {
-          challenge_id: string
-          id?: string
-          segment: string
-          sp_canje_reward: number
-          threshold_value?: number | null
-        }
-        Update: {
-          challenge_id?: string
-          id?: string
-          segment?: string
-          sp_canje_reward?: number
-          threshold_value?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "challenge_thresholds_challenge_id_fkey"
-            columns: ["challenge_id"]
-            isOneToOne: false
-            referencedRelation: "gamification_challenges"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       config_calendario_vn: {
         Row: {
           anio_mes: string
@@ -789,117 +690,6 @@ export type Database = {
           operaciones?: string[]
           paises?: string[]
           user_id?: string
-        }
-        Relationships: []
-      }
-      gamification_badges: {
-        Row: {
-          condition_target: number
-          condition_type: string
-          created_at: string
-          description: string | null
-          id: string
-          lucide_icon_name: string | null
-          name: string
-          sp_canje_reward: number
-        }
-        Insert: {
-          condition_target: number
-          condition_type: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          lucide_icon_name?: string | null
-          name: string
-          sp_canje_reward: number
-        }
-        Update: {
-          condition_target?: number
-          condition_type?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          lucide_icon_name?: string | null
-          name?: string
-          sp_canje_reward?: number
-        }
-        Relationships: []
-      }
-      gamification_challenges: {
-        Row: {
-          created_at: string
-          description: string | null
-          end_date: string
-          evaluation_scope: string
-          frequency: string
-          id: string
-          kpi_type: string
-          name: string
-          start_date: string
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          end_date: string
-          evaluation_scope: string
-          frequency: string
-          id?: string
-          kpi_type: string
-          name: string
-          start_date: string
-          status?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          end_date?: string
-          evaluation_scope?: string
-          frequency?: string
-          id?: string
-          kpi_type?: string
-          name?: string
-          start_date?: string
-          status?: string
-        }
-        Relationships: []
-      }
-      gamification_streaks: {
-        Row: {
-          active_weekdays: number[]
-          created_at: string
-          description: string | null
-          end_date: string
-          evaluation_weekday: number
-          id: string
-          multiplier_reward: number
-          name: string
-          start_date: string
-          status: string
-        }
-        Insert: {
-          active_weekdays: number[]
-          created_at?: string
-          description?: string | null
-          end_date: string
-          evaluation_weekday: number
-          id?: string
-          multiplier_reward?: number
-          name: string
-          start_date: string
-          status?: string
-        }
-        Update: {
-          active_weekdays?: number[]
-          created_at?: string
-          description?: string | null
-          end_date?: string
-          evaluation_weekday?: number
-          id?: string
-          multiplier_reward?: number
-          name?: string
-          start_date?: string
-          status?: string
         }
         Relationships: []
       }
@@ -2681,80 +2471,6 @@ export type Database = {
           },
         ]
       }
-      reward_redemptions: {
-        Row: {
-          comercial: string
-          delivered_at: string | null
-          id: string
-          notes: string | null
-          redeemed_at: string
-          reward_id: string
-          sp_spent: number
-          status: string
-        }
-        Insert: {
-          comercial: string
-          delivered_at?: string | null
-          id?: string
-          notes?: string | null
-          redeemed_at?: string
-          reward_id: string
-          sp_spent: number
-          status?: string
-        }
-        Update: {
-          comercial?: string
-          delivered_at?: string | null
-          id?: string
-          notes?: string | null
-          redeemed_at?: string
-          reward_id?: string
-          sp_spent?: number
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reward_redemptions_reward_id_fkey"
-            columns: ["reward_id"]
-            isOneToOne: false
-            referencedRelation: "rewards_catalog"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      rewards_catalog: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          is_active: boolean
-          name: string
-          sp_cost: number
-          stock: number
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_active?: boolean
-          name: string
-          sp_cost: number
-          stock?: number
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_active?: boolean
-          name?: string
-          sp_cost?: number
-          stock?: number
-        }
-        Relationships: []
-      }
       sp_acumulados: {
         Row: {
           created_at: string | null
@@ -2838,39 +2554,6 @@ export type Database = {
           },
         ]
       }
-      sp_transactions: {
-        Row: {
-          amount: number
-          comercial: string
-          created_at: string
-          description: string
-          id: string
-          source_id: string | null
-          source_type: string
-          transaction_type: string
-        }
-        Insert: {
-          amount: number
-          comercial: string
-          created_at?: string
-          description: string
-          id?: string
-          source_id?: string | null
-          source_type: string
-          transaction_type: string
-        }
-        Update: {
-          amount?: number
-          comercial?: string
-          created_at?: string
-          description?: string
-          id?: string
-          source_id?: string | null
-          source_type?: string
-          transaction_type?: string
-        }
-        Relationships: []
-      }
       streak_daily_progress: {
         Row: {
           acv_achieved: number
@@ -2902,44 +2585,7 @@ export type Database = {
           threshold_required?: number
           weekday?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "streak_daily_progress_streak_id_fkey"
-            columns: ["streak_id"]
-            isOneToOne: false
-            referencedRelation: "gamification_streaks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      streak_thresholds: {
-        Row: {
-          daily_threshold_cop: number
-          id: string
-          segment: string
-          streak_id: string
-        }
-        Insert: {
-          daily_threshold_cop: number
-          id?: string
-          segment: string
-          streak_id: string
-        }
-        Update: {
-          daily_threshold_cop?: number
-          id?: string
-          segment?: string
-          streak_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "streak_thresholds_streak_id_fkey"
-            columns: ["streak_id"]
-            isOneToOne: false
-            referencedRelation: "gamification_streaks"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sync_jobs: {
         Row: {
@@ -3282,30 +2928,6 @@ export type Database = {
           tipo_producto1?: string
           updated_at?: string
           ventas?: number
-        }
-        Relationships: []
-      }
-      wallet_sp_canje: {
-        Row: {
-          comercial: string
-          current_balance: number
-          id: string
-          total_earned_historically: number
-          updated_at: string
-        }
-        Insert: {
-          comercial: string
-          current_balance?: number
-          id?: string
-          total_earned_historically?: number
-          updated_at?: string
-        }
-        Update: {
-          comercial?: string
-          current_balance?: number
-          id?: string
-          total_earned_historically?: number
-          updated_at?: string
         }
         Relationships: []
       }
