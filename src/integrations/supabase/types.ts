@@ -3679,6 +3679,7 @@ export type Database = {
         Returns: number
       }
       calcular_sp_cop: { Args: { ingresos_cop: number }; Returns: number }
+      canal_to_operacion: { Args: { _canal: string }; Returns: string }
       canjear_premio: {
         Args: { p_gerente_id: string; p_premio_id: string }
         Returns: Json
