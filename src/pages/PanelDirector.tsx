@@ -1097,26 +1097,6 @@ const PanelDirector = () => {
                 <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
                 <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
               </div>
-              {(filtroCanal !== 'TODOS' || filtroPais !== 'TODOS') && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Filtro activo:</span>
-                  {filtroCanal !== 'TODOS' && (
-                    <Badge variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
-                      {filtroCanal}
-                      <button onClick={() => setFiltroCanal('TODOS')} className="hover:bg-muted rounded-full w-4 h-4 inline-flex items-center justify-center text-xs">×</button>
-                    </Badge>
-                  )}
-                  {filtroPais !== 'TODOS' && (
-                    <Badge variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
-                      {filtroPais}
-                      <button onClick={() => setFiltroPais('TODOS')} className="hover:bg-muted rounded-full w-4 h-4 inline-flex items-center justify-center text-xs">×</button>
-                    </Badge>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => { setFiltroCanal('TODOS'); setFiltroPais('TODOS'); }} className="h-7 text-xs">
-                    Ver todos
-                  </Button>
-                </div>
-              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-separate border-spacing-2">
