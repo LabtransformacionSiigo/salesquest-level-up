@@ -1081,7 +1081,18 @@ const PanelDirector = () => {
                   {tableRows.length} resultados · ordenados por % cumplimiento
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={heatmapMetric} onValueChange={(v) => setHeatmapMetric(v as typeof heatmapMetric)}>
+                  <SelectTrigger className="h-9 w-[170px]">
+                    <SelectValue placeholder="Métrica" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TOTAL">Total unidades</SelectItem>
+                    <SelectItem value="FE">FE</SelectItem>
+                    <SelectItem value="NUBE">Nube</SelectItem>
+                    <SelectItem value="ACV">ACV</SelectItem>
+                  </SelectContent>
+                </Select>
                 {TIERS.map((t) => {
                   const active = filtroTier === t.key;
                   return (
