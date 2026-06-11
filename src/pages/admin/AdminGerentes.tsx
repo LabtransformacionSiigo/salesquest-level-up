@@ -544,7 +544,7 @@ const AdminGerentes = () => {
                         <button
                           onClick={() => repararAcceso(g)}
                           disabled={repairingId === g.id}
-                          title="Reparar acceso (resetea contraseña a SiigoArena2026! y vincula la cuenta)"
+                          title="Reparar acceso (pide una contraseña nueva y vincula la cuenta)"
                           className="w-7 h-7 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 inline-flex items-center justify-center transition-colors disabled:opacity-50"
                         >
                           <MI icon={repairingId === g.id ? 'hourglass_empty' : 'lock_reset'} className="text-base" />
