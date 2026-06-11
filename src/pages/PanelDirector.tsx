@@ -98,6 +98,7 @@ const PanelDirector = () => {
   const [filtroCanal, setFiltroCanal] = useState<string>('TODOS');
   const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
   const [heatmapMetric, setHeatmapMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('TOTAL');
+  const [chartMetric, setChartMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('FE');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
@@ -960,34 +961,133 @@ const PanelDirector = () => {
             })}
           </div>
 
-          <div className="rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold">Participación de cada segmento</p>
-              <p className="text-xs text-muted-foreground">Total: {totalGer} gerentes</p>
-            </div>
-            <div className="flex h-10 w-full overflow-hidden rounded-lg">
-              {TIERS.map((t) => {
-                const pct = totalGer ? (tierCounts[t.key] / totalGer) * 100 : 0;
-                if (pct === 0) return null;
-                return (
-                  <motion.div
-                    key={t.key}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.7 }}
-                    className={`${t.solid} flex items-center justify-center text-xs font-bold text-white`}
-                    title={`${t.label}: ${tierCounts[t.key]} (${pct.toFixed(0)}%)`}
-                  >
-                    {pct >= 6 ? `${pct.toFixed(0)}%` : ''}
-                  </motion.div>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-2 text-center text-xs text-muted-foreground">
-              {TIERS.map((t) => <span key={t.key}>{t.label}</span>)}
-            </div>
-          </div>
+          {(() => {
+            const METRIC_OPTS: { key: typeof chartMetric; label: string }[] = [
+              { key: 'FE', label: 'FE' },
+              { key: 'NUBE', label: 'Nube' },
+              { key: 'TOTAL', label: 'Total uds' },
+              { key: 'ACV', label: 'ACV' },
+            ];
+            const pctOf = (s: Stats) => chartMetric === 'FE' ? s.pctFe
+              : chartMetric === 'NUBE' ? s.pctNube
+              : chartMetric === 'ACV' ? s.pctAcv
+              : s.pctTotal;
+            const valOf = (s: Stats) => chartMetric === 'FE' ? s.fe
+              : chartMetric === 'NUBE' ? s.nube
+              : chartMetric === 'ACV' ? s.acv
+              : s.total;
+            const metaOf = (s: Stats) => chartMetric === 'FE' ? s.metaFe
+              : chartMetric === 'NUBE' ? s.metaNube
+              : chartMetric === 'ACV' ? s.metaAcv
+              : s.metaUds;
+            const fmtVal = (n: number) =>
+              chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
+            const ranked = filteredStats
+              .filter((s) => metaOf(s) > 0)
+              .map((s) => ({ s, pct: pctOf(s) }))
+              .sort((a, b) => a.pct - b.pct)
+              .slice(0, 10);
+            const maxPctSeen = Math.max(100, ...ranked.map((r) => r.pct));
+            const scale = Math.max(100, Math.ceil(maxPctSeen / 10) * 10);
+            const metaLinePct = (100 / scale) * 100;
+            return (
+              <div className="rounded-xl border border-border overflow-hidden">
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Gerentes bajo meta</h3>
+                    <p className="text-xs text-muted-foreground">Top 10 con mayor brecha de cumplimiento</p>
+                  </div>
+                  <div className="flex p-1 bg-muted rounded-xl">
+                    {METRIC_OPTS.map((m) => {
+                      const active = chartMetric === m.key;
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => setChartMetric(m.key)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                            active
+                              ? 'bg-[#00AAFF] text-white shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="p-5 relative">
+                  {ranked.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                      <p className="text-sm font-semibold text-foreground">Sin gerentes bajo meta</p>
+                      <p className="text-xs">Ningún gerente con meta asignada para esta métrica.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className="absolute top-5 bottom-5 border-l-2 border-dashed border-border z-10 pointer-events-none"
+                        style={{ left: `calc(25% + (75% * ${metaLinePct / 100}))` }}
+                      >
+                        <span className="absolute -top-3 -translate-x-1/2 bg-card px-2 text-[10px] font-bold text-muted-foreground tracking-wider whitespace-nowrap">
+                          META 100%
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {ranked.map(({ s, pct }) => {
+                          const t = tierDef(tierOf(pct));
+                          const barPct = Math.min(100, (pct / scale) * 100);
+                          return (
+                            <div key={s.gerente.id} className="grid grid-cols-12 gap-3 items-center">
+                              <div className="col-span-3 flex flex-col min-w-0">
+                                <span className="text-sm font-bold text-foreground truncate" title={s.gerente.nombre}>
+                                  {s.gerente.nombre}
+                                </span>
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight truncate">
+                                  {s.gerente.canal || '—'} · {s.gerente.pais || '—'}
+                                </span>
+                              </div>
+                              <div className="col-span-7 relative h-7 bg-muted rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${barPct}%` }}
+                                  transition={{ duration: 0.7, ease: 'easeOut' }}
+                                  className={`absolute top-0 left-0 h-full ${t.solid} rounded-full flex items-center justify-end px-3`}
+                                >
+                                  <span className="text-[10px] font-bold text-white">{pct}%</span>
+                                </motion.div>
+                              </div>
+                              <div className="col-span-2 text-right">
+                                <span className="text-xs font-bold text-foreground block">{fmtVal(valOf(s))}</span>
+                                <span className="text-[10px] font-medium text-muted-foreground">/ {fmtVal(metaOf(s))}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="bg-muted/40 px-5 py-2.5 border-t border-border flex flex-wrap items-center justify-center gap-x-6 gap-y-1">
+                  {TIERS.map((tt) => (
+                    <div key={tt.key} className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${tt.solid}`} />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                        {tt.label} · {tt.range}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </Card>
+
 
         {/* Heatmap canal × país */}
         {heatmap.canales.length > 0 && heatmap.paises.length > 0 && (
