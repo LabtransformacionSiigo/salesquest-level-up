@@ -82,16 +82,21 @@ const AdminEspecialistasAccesos = () => {
   };
 
   const vincularDirector = async (d: Director) => {
+    const pwd = askPassword(d.nombre || d.email);
+    if (!pwd) {
+      toast({ title: 'Contraseña requerida', description: 'Mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
     setLinkingDir(d.id);
     try {
       const { data, error } = await supabase.functions.invoke('link-director-user', {
-        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: DEFAULT_PASSWORD },
+        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: pwd },
       });
       if (error || (data as any)?.error) {
         toast({ title: 'Error vinculando', description: error?.message || (data as any)?.error, variant: 'destructive' });
         return;
       }
-      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con ${DEFAULT_PASSWORD}` });
+      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con la contraseña que escribiste.` });
       fetchItems();
     } finally {
       setLinkingDir(null);
