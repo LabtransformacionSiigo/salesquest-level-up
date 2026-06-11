@@ -1089,67 +1089,6 @@ const PanelDirector = () => {
         </Card>
 
 
-        {/* Heatmap canal × país */}
-        {heatmap.canales.length > 0 && heatmap.paises.length > 0 && (
-          <Card className="p-6 rounded-2xl">
-            <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
-                <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-2">
-                <thead>
-                  <tr>
-                    <th></th>
-                    {heatmap.paises.map((p) => (
-                      <th key={p} className="text-sm font-semibold text-muted-foreground px-2">{p}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmap.canales.map((c) => (
-                    <tr key={c}>
-                      <th className="text-left text-sm font-semibold pr-4 py-1 text-foreground/90 whitespace-nowrap">{c}</th>
-                      {heatmap.paises.map((p) => {
-                        const val = heatmap.cell(c, p);
-                        if (val === null) {
-                          return (
-                            <td key={p} className="px-1">
-                              <div className="h-11 rounded-full bg-muted/40 border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">—</div>
-                            </td>
-                          );
-                        }
-                        const t = tierDef(tierOf(val));
-                        return (
-                          <td key={p} className="px-1">
-                            <button
-                              type="button"
-                              onClick={() => { setFiltroCanal(c); setFiltroPais(p); }}
-                              className={`${t.solid} w-full h-11 rounded-full text-white font-bold text-base hover:opacity-90 hover:scale-[1.02] transition shadow-sm`}
-                              title={`${c} · ${p}: ${val}% — ${t.label}`}
-                            >
-                              {val}%
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex flex-wrap gap-4 justify-center mt-5 text-xs">
-                {TIERS.map((t) => (
-                  <span key={t.key} className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className={`inline-block w-3 h-3 rounded-full ${t.solid}`} />
-                    <span className="font-medium text-foreground/80">{t.label}</span> · {t.range}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Tabla con filtros rápidos */}
         <Card className="rounded-2xl">
