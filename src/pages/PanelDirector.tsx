@@ -296,7 +296,7 @@ const PanelDirector = () => {
             const cel = normalize(m.celula);
             if (!cel) return;
             const key = celulaScopeKey(m.celula, m.canal, m.pais);
-            if (!isAdmin && isDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
+            if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
             metasRows.push(m);
             validCelulasMes.add(key);
             metasMap.set(key, {
