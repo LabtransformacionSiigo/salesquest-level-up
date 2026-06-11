@@ -203,6 +203,8 @@ const AdminGerentes = () => {
 
   const crearCuentasFaltantes = async () => {
     if (bulkRunning) return;
+    const pwd = askPassword('cuentas faltantes (todas)');
+    if (!pwd) return;
     setBulkRunning(true);
     let total = 0;
     let totalLinked = 0;
@@ -214,7 +216,7 @@ const AdminGerentes = () => {
         setBulkStatus(`Procesando lote desde ${offset}…`);
         const { data, error } = await supabase.functions.invoke(
           'create-missing-gerente-accounts',
-          { body: { offset, limit: batchSize, password: 'SiigoArena2026!' } },
+          { body: { offset, limit: batchSize, password: pwd } },
         );
         if (error) {
           setBulkStatus(`❌ Error en lote ${offset}: ${error.message}`);
