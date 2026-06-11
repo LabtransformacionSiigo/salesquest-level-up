@@ -10,7 +10,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { useToast } from '@/hooks/use-toast';
 import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2 } from 'lucide-react';
 
-const DEFAULT_PASSWORD = 'Siigo2026!';
+const askPassword = (label: string): string | null => {
+  const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
+  if (!p || p.trim().length < 8) return null;
+  return p.trim();
+};
 
 type Esp = {
   id: string;
