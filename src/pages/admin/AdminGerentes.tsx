@@ -119,7 +119,7 @@ const AdminGerentes = () => {
 
   const sincronizarTodasLasCuentas = async () => {
     if (syncRunning) return;
-    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Procesará en lotes y puede tardar varios minutos. Resetea la contraseña a SiigoArena2026!')) return;
+    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Procesará en lotes y puede tardar varios minutos.')) return;
     setSyncRunning(true);
     setSyncResult(null);
     try {
