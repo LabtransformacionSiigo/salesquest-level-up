@@ -314,12 +314,7 @@ const AdminEspecialistasAccesos = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                          {revealed[e.id] ? DEFAULT_PASSWORD : '•'.repeat(DEFAULT_PASSWORD.length)}
-                        </code>
-                        <Button size="sm" variant="ghost" onClick={() => setRevealed(r => ({ ...r, [e.id]: !r[e.id] }))}>
-                          {revealed[e.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
+                        <span className="text-xs text-muted-foreground">No almacenada en cliente</span>
                         {status === 'ok' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                         {status === 'fail' && <XCircle className="w-4 h-4 text-destructive" />}
                       </div>
