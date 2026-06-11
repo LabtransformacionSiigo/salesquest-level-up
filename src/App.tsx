@@ -29,6 +29,7 @@ import AdminDatabricks from '@/pages/admin/AdminDatabricks';
 import AdminPremios from '@/pages/admin/AdminPremios';
 import AdminEspecialista from '@/pages/admin/AdminEspecialista';
 import AdminEspecialistaPremios from '@/pages/admin/AdminEspecialistaPremios';
+import AdminCanjesEspecialista from '@/pages/admin/AdminCanjesEspecialista';
 import AdminSimulacion from '@/pages/admin/AdminSimulacion';
 import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
