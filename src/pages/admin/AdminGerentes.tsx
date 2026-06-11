@@ -53,16 +53,27 @@ const AdminGerentes = () => {
   const [repairingId, setRepairingId] = useState<string | null>(null);
   const [repairingEspecialistas, setRepairingEspecialistas] = useState(false);
 
+  const askPassword = (label: string): string | null => {
+    const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
+    if (!p || p.trim().length < 8) {
+      toast({ title: 'Contraseña requerida', description: 'Debe tener al menos 8 caracteres', variant: 'destructive' });
+      return null;
+    }
+    return p.trim();
+  };
+
   const repararAcceso = async (g: any) => {
     if (!g?.email) {
       toast({ title: 'Sin email', description: 'Este gerente no tiene email configurado', variant: 'destructive' });
       return;
     }
-    if (!confirm(`Reparar acceso de ${g.nombre}?\n\nEmail: ${g.email}\nContraseña nueva: SiigoArena2026!\n\nEsto crea/sincroniza la cuenta auth, resetea la contraseña y vincula el gerente correcto.`)) return;
+    const pwd = askPassword(g.nombre);
+    if (!pwd) return;
+    if (!confirm(`Reparar acceso de ${g.nombre}?\n\nEmail: ${g.email}\n\nEsto crea/sincroniza la cuenta auth, resetea la contraseña y vincula el gerente correcto.`)) return;
     setRepairingId(g.id);
     try {
       const { data, error } = await supabase.functions.invoke('fix-account-access', {
-        body: { email: g.email, password: 'SiigoArena2026!' },
+        body: { email: g.email, password: pwd },
       });
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -70,7 +81,7 @@ const AdminGerentes = () => {
       }
       const r = data?.results?.[0];
       if (r?.status === 'ok') {
-        toast({ title: '✅ Acceso reparado', description: `${g.nombre} puede iniciar sesión con SiigoArena2026!` });
+        toast({ title: '✅ Acceso reparado', description: `${g.nombre} puede iniciar sesión con la nueva contraseña.` });
         fetchGerentes();
       } else {
         toast({ title: 'Error', description: r?.error || 'No se pudo reparar', variant: 'destructive' });
@@ -82,11 +93,13 @@ const AdminGerentes = () => {
 
   const repararEspecialistas = async () => {
     if (repairingEspecialistas) return;
-    if (!confirm('Reparar el acceso de TODOS los especialistas?\n\nSe resetea la contraseña a SiigoArena2026! para todas las cuentas con rol especialista.')) return;
+    const pwd = askPassword('TODOS los especialistas');
+    if (!pwd) return;
+    if (!confirm('Reparar el acceso de TODOS los especialistas?\n\nSe aplicará la contraseña que acabas de escribir.')) return;
     setRepairingEspecialistas(true);
     try {
       const { data, error } = await supabase.functions.invoke('fix-account-access', {
-        body: { mode: 'especialistas', password: 'SiigoArena2026!' },
+        body: { mode: 'especialistas', password: pwd },
       });
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -94,7 +107,7 @@ const AdminGerentes = () => {
       }
       toast({
         title: '✅ Especialistas reparados',
-        description: `${data?.ok ?? 0} ok · ${data?.errors ?? 0} errores · contraseña: SiigoArena2026!`,
+        description: `${data?.ok ?? 0} ok · ${data?.errors ?? 0} errores`,
       });
     } finally {
       setRepairingEspecialistas(false);
@@ -106,7 +119,7 @@ const AdminGerentes = () => {
 
   const sincronizarTodasLasCuentas = async () => {
     if (syncRunning) return;
-    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Procesará en lotes y puede tardar varios minutos. Resetea la contraseña a SiigoArena2026!')) return;
+    if (!confirm('¿Sincronizar TODAS las cuentas auth con la tabla de gerentes? Procesará en lotes y puede tardar varios minutos.')) return;
     setSyncRunning(true);
     setSyncResult(null);
     try {
@@ -190,6 +203,8 @@ const AdminGerentes = () => {
 
   const crearCuentasFaltantes = async () => {
     if (bulkRunning) return;
+    const pwd = askPassword('cuentas faltantes (todas)');
+    if (!pwd) return;
     setBulkRunning(true);
     let total = 0;
     let totalLinked = 0;
@@ -201,7 +216,7 @@ const AdminGerentes = () => {
         setBulkStatus(`Procesando lote desde ${offset}…`);
         const { data, error } = await supabase.functions.invoke(
           'create-missing-gerente-accounts',
-          { body: { offset, limit: batchSize, password: 'SiigoArena2026!' } },
+          { body: { offset, limit: batchSize, password: pwd } },
         );
         if (error) {
           setBulkStatus(`❌ Error en lote ${offset}: ${error.message}`);
@@ -290,15 +305,22 @@ const AdminGerentes = () => {
     // garantizar que la cuenta auth quede sincronizada y el gerente pueda entrar.
     const emailChanged = !editing || (previousEmail && previousEmail !== email);
     if (emailChanged) {
+      const pwd = askPassword(`acceso de ${nombre}`);
+      if (!pwd) {
+        setEditing(null);
+        setShowAdd(false);
+        fetchGerentes();
+        return;
+      }
       try {
         const { data, error } = await supabase.functions.invoke('fix-account-access', {
-          body: { email, password: 'SiigoArena2026!' },
+          body: { email, password: pwd },
         });
         const r = data?.results?.[0];
         if (!error && r?.status === 'ok') {
           toast({
             title: '🔐 Acceso sincronizado',
-            description: `${nombre} puede iniciar sesión con ${email} y la contraseña SiigoArena2026!`,
+            description: `${nombre} puede iniciar sesión con ${email} y la contraseña que escribiste.`,
           });
         } else if (error || r?.status === 'error') {
           toast({
@@ -522,7 +544,7 @@ const AdminGerentes = () => {
                         <button
                           onClick={() => repararAcceso(g)}
                           disabled={repairingId === g.id}
-                          title="Reparar acceso (resetea contraseña a SiigoArena2026! y vincula la cuenta)"
+                          title="Reparar acceso (pide una contraseña nueva y vincula la cuenta)"
                           className="w-7 h-7 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 inline-flex items-center justify-center transition-colors disabled:opacity-50"
                         >
                           <MI icon={repairingId === g.id ? 'hourglass_empty' : 'lock_reset'} className="text-base" />

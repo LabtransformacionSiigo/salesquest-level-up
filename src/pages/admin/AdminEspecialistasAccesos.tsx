@@ -10,7 +10,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { useToast } from '@/hooks/use-toast';
 import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2 } from 'lucide-react';
 
-const DEFAULT_PASSWORD = 'Siigo2026!';
+const askPassword = (label: string): string | null => {
+  const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
+  if (!p || p.trim().length < 8) return null;
+  return p.trim();
+};
 
 type Esp = {
   id: string;
@@ -78,16 +82,21 @@ const AdminEspecialistasAccesos = () => {
   };
 
   const vincularDirector = async (d: Director) => {
+    const pwd = askPassword(d.nombre || d.email);
+    if (!pwd) {
+      toast({ title: 'Contraseña requerida', description: 'Mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
     setLinkingDir(d.id);
     try {
       const { data, error } = await supabase.functions.invoke('link-director-user', {
-        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: DEFAULT_PASSWORD },
+        body: { director_id: d.id, email: d.email, nombre: d.nombre, default_password: pwd },
       });
       if (error || (data as any)?.error) {
         toast({ title: 'Error vinculando', description: error?.message || (data as any)?.error, variant: 'destructive' });
         return;
       }
-      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con ${DEFAULT_PASSWORD}` });
+      toast({ title: '✅ Director vinculado', description: `${d.email} ahora puede iniciar sesión con la contraseña que escribiste.` });
       fetchItems();
     } finally {
       setLinkingDir(null);
@@ -185,22 +194,22 @@ const AdminEspecialistasAccesos = () => {
   };
 
   const verifyLogin = async (e: Esp) => {
+    const pwd = askPassword(`probar login de ${e.email}`);
+    if (!pwd) return;
     setVerifying(e.id);
     try {
-      // Try login with default password using a separate ephemeral client by signing out current admin? NO — that would log the admin out.
-      // Instead: call signInWithPassword via fetch using a fresh anon flow against /auth/v1/token.
       const url = (import.meta as any).env.VITE_SUPABASE_URL;
       const key = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': key },
-        body: JSON.stringify({ email: e.email, password: DEFAULT_PASSWORD }),
+        body: JSON.stringify({ email: e.email, password: pwd }),
       });
       const ok = res.ok;
       setVerifyResult(prev => ({ ...prev, [e.id]: ok ? 'ok' : 'fail' }));
       toast({
         title: ok ? '✅ Login válido' : '❌ Login falló',
-        description: ok ? `${e.email} puede entrar con la contraseña por defecto.` : `La contraseña por defecto NO funciona para ${e.email}. Restablécela.`,
+        description: ok ? `${e.email} puede entrar con la contraseña que escribiste.` : `La contraseña NO funciona para ${e.email}. Restablécela.`,
         variant: ok ? 'default' : 'destructive',
       });
     } catch (err: any) {
@@ -236,9 +245,8 @@ const AdminEspecialistasAccesos = () => {
             <div className="text-sm">
               <p className="font-semibold text-amber-800 dark:text-amber-200">Sobre las contraseñas</p>
               <p className="text-amber-800/90 dark:text-amber-200/90">
-                Por seguridad, las contraseñas se almacenan cifradas y <b>no se pueden recuperar</b>. La contraseña por defecto
-                (al ser creados con el seed) es <code className="font-mono bg-background px-1.5 py-0.5 rounded">{DEFAULT_PASSWORD}</code>.
-                Usa <b>Verificar</b> para comprobar si funciona y <b>Restablecer</b> si necesitas asignar una nueva.
+                Por seguridad, las contraseñas se almacenan cifradas y <b>no se pueden recuperar</b>.
+                Cada acción (vincular, verificar, restablecer) te pedirá una contraseña nueva en el momento — no se conservan valores por defecto en el código.
               </p>
             </div>
           </div>
@@ -306,12 +314,7 @@ const AdminEspecialistasAccesos = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                          {revealed[e.id] ? DEFAULT_PASSWORD : '•'.repeat(DEFAULT_PASSWORD.length)}
-                        </code>
-                        <Button size="sm" variant="ghost" onClick={() => setRevealed(r => ({ ...r, [e.id]: !r[e.id] }))}>
-                          {revealed[e.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
+                        <span className="text-xs text-muted-foreground">No almacenada en cliente</span>
                         {status === 'ok' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                         {status === 'fail' && <XCircle className="w-4 h-4 text-destructive" />}
                       </div>
