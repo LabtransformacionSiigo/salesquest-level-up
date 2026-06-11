@@ -280,13 +280,9 @@ const PanelDirector = () => {
             .eq('anio', anio);
           if (!isAdmin && scopeCanales.length) metasQuery = metasQuery.in('canal', scopeCanales);
           if (!isAdmin && scopePaises.length) metasQuery = metasQuery.in('pais', scopePaises);
-          if (!isAdmin && isDirector && profile?.nombre) {
-            const tokens = profile.nombre.trim().split(/\s+/).filter(Boolean);
-            const pattern = tokens.length >= 2
-              ? `%${tokens[0]}%${tokens[tokens.length - 1]}%`
-              : `%${tokens[0]}%`;
-            metasQuery = metasQuery.ilike('director', pattern);
-          }
+          // Nota: no filtramos por `director` aquí porque esa columna puede estar
+          // vacía en algunos meses (ej. Jun 2026). El scope por director ya se
+          // aplica vía `allowedCelulaKeys` (construido a partir de TODOS los meses).
 
           const { data: metas } = await metasQuery;
           (metas || []).forEach((m: any) => {
