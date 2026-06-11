@@ -97,6 +97,7 @@ const PanelDirector = () => {
   const [filtroPais, setFiltroPais] = useState<string>('TODOS');
   const [filtroCanal, setFiltroCanal] = useState<string>('TODOS');
   const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
+  const [heatmapMetric, setHeatmapMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('TOTAL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
@@ -733,13 +734,22 @@ const PanelDirector = () => {
   const heatmap = useMemo(() => {
     const canales = Array.from(new Set(filteredStats.map((s) => s.gerente.canal).filter(Boolean))) as string[];
     const paises = Array.from(new Set(filteredStats.map((s) => s.gerente.pais).filter(Boolean))) as string[];
+    const pctOf = (s: Stats) => {
+      switch (heatmapMetric) {
+        case 'FE': return s.pctFe;
+        case 'NUBE': return s.pctNube;
+        case 'ACV': return s.pctAcv;
+        default: return s.pctTotal;
+      }
+    };
     const cell = (canal: string, pais: string) => {
       const arr = filteredStats.filter((s) => s.gerente.canal === canal && s.gerente.pais === pais);
       if (!arr.length) return null;
-      return Math.round(arr.reduce((a, b) => a + b.pctTotal, 0) / arr.length);
+      return Math.round(arr.reduce((a, b) => a + pctOf(b), 0) / arr.length);
     };
     return { canales: canales.sort(), paises: paises.sort(), cell };
-  }, [filteredStats]);
+  }, [filteredStats, heatmapMetric]);
+
 
   // Tabla: aplica tier + search + ordena por % desc + pagina
   const tableRows = useMemo(() => {
@@ -979,9 +989,22 @@ const PanelDirector = () => {
         {heatmap.canales.length > 0 && heatmap.paises.length > 0 && (
           <Card className="p-6 rounded-2xl">
             <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
-                <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
+              <div className="flex items-start gap-3 flex-wrap">
+                <div>
+                  <h2 className="font-heading text-lg font-bold">Cumplimiento por canal y país</h2>
+                  <p className="text-xs text-muted-foreground">Cada celda: % promedio · click para filtrar</p>
+                </div>
+                <Select value={heatmapMetric} onValueChange={(v) => setHeatmapMetric(v as typeof heatmapMetric)}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Métrica" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TOTAL">Total unidades</SelectItem>
+                    <SelectItem value="FE">FE</SelectItem>
+                    <SelectItem value="NUBE">Nube</SelectItem>
+                    <SelectItem value="ACV">ACV</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {(filtroCanal !== 'TODOS' || filtroPais !== 'TODOS') && (
                 <div className="flex flex-wrap items-center gap-2">
