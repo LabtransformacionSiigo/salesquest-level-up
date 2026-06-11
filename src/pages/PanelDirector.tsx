@@ -114,6 +114,14 @@ const PanelDirector = () => {
     [isAdmin, profile?.director_paises],
   );
 
+  // Directores "Sr" (senior) supervisan TODO su canal+país, sin filtro fino por
+  // celula. Para directores normales sí limitamos por la columna `director` en
+  // metas_acv_gerentes (que distingue celulas dentro del mismo canal+país).
+  const isSeniorDirector = useMemo(
+    () => /\bsr\b|senior/i.test(profile?.director_cargo || ''),
+    [profile?.director_cargo],
+  );
+
   useEffect(() => {
     if (authLoading || !profile) return;
     if (!isAdmin && !isDirector) return;
@@ -124,10 +132,9 @@ const PanelDirector = () => {
       try {
         // 0) Director scope por NOMBRE: leer celulas asignadas en metas_acv_gerentes.director
         // Esto evita que aparezcan gerentes de otros directores con el mismo canal/país.
-        // Usamos primer + último token con wildcards para tolerar segundos nombres
-        // (ej. perfil "Magda Lilian Leal" vs metas "Magda Leal").
+        // ⚠️ Los directores Sr supervisan TODO el canal+país: no construimos gate.
         const allowedCelulaKeys = new Set<string>();
-        if (!isAdmin && isDirector && profile?.nombre) {
+        if (!isAdmin && isDirector && !isSeniorDirector && profile?.nombre) {
           const tokens = profile.nombre.trim().split(/\s+/).filter(Boolean);
           const pattern = tokens.length >= 2
             ? `%${tokens[0]}%${tokens[tokens.length - 1]}%`
@@ -155,7 +162,7 @@ const PanelDirector = () => {
         }
         const { data: gerentes = [] } = await gq;
         let gerentesList = (gerentes || []) as GerenteRow[];
-        if (!isAdmin && isDirector && allowedCelulaKeys.size > 0) {
+        if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0) {
           // VC no usa celula → no aplicar gate de celula a gerentes VC
           gerentesList = gerentesList.filter((g) =>
             g.canal === 'VC' || (g.celula && allowedCelulaKeys.has(celulaScopeKey(g.celula, g.canal, g.pais)))
@@ -289,7 +296,7 @@ const PanelDirector = () => {
             const cel = normalize(m.celula);
             if (!cel) return;
             const key = celulaScopeKey(m.celula, m.canal, m.pais);
-            if (!isAdmin && isDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
+            if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
             metasRows.push(m);
             validCelulasMes.add(key);
             metasMap.set(key, {
