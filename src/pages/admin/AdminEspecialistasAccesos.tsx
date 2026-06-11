@@ -245,9 +245,8 @@ const AdminEspecialistasAccesos = () => {
             <div className="text-sm">
               <p className="font-semibold text-amber-800 dark:text-amber-200">Sobre las contraseñas</p>
               <p className="text-amber-800/90 dark:text-amber-200/90">
-                Por seguridad, las contraseñas se almacenan cifradas y <b>no se pueden recuperar</b>. La contraseña por defecto
-                (al ser creados con el seed) es <code className="font-mono bg-background px-1.5 py-0.5 rounded">{DEFAULT_PASSWORD}</code>.
-                Usa <b>Verificar</b> para comprobar si funciona y <b>Restablecer</b> si necesitas asignar una nueva.
+                Por seguridad, las contraseñas se almacenan cifradas y <b>no se pueden recuperar</b>.
+                Cada acción (vincular, verificar, restablecer) te pedirá una contraseña nueva en el momento — no se conservan valores por defecto en el código.
               </p>
             </div>
           </div>
