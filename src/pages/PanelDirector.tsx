@@ -723,43 +723,47 @@ const PanelDirector = () => {
     return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv };
   }, [filteredStats]);
 
-  // Conteo por tier
+  // Selector de métrica usado por la tabla de Gerentes (tier counts, filtros y badges)
+  const pctByMetric = (s: Stats) => {
+    switch (heatmapMetric) {
+      case 'FE': return s.pctFe;
+      case 'NUBE': return s.pctNube;
+      case 'ACV': return s.pctAcv;
+      default: return s.pctTotal;
+    }
+  };
+
   const tierCounts = useMemo(() => {
     const c: Record<TierKey, number> = { cumple: 0, en_meta: 0, en_riesgo: 0, por_debajo: 0 };
-    for (const s of filteredStats) c[tierOf(s.pctTotal)]++;
+    for (const s of filteredStats) c[tierOf(pctByMetric(s))]++;
     return c;
-  }, [filteredStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredStats, heatmapMetric]);
 
-  // Heatmap canal × país (% promedio de cumplimiento)
+  // Heatmap canal × país (% promedio de cumplimiento global - unidades)
   const heatmap = useMemo(() => {
     const canales = Array.from(new Set(filteredStats.map((s) => s.gerente.canal).filter(Boolean))) as string[];
     const paises = Array.from(new Set(filteredStats.map((s) => s.gerente.pais).filter(Boolean))) as string[];
-    const pctOf = (s: Stats) => {
-      switch (heatmapMetric) {
-        case 'FE': return s.pctFe;
-        case 'NUBE': return s.pctNube;
-        case 'ACV': return s.pctAcv;
-        default: return s.pctTotal;
-      }
-    };
     const cell = (canal: string, pais: string) => {
       const arr = filteredStats.filter((s) => s.gerente.canal === canal && s.gerente.pais === pais);
       if (!arr.length) return null;
-      return Math.round(arr.reduce((a, b) => a + pctOf(b), 0) / arr.length);
+      return Math.round(arr.reduce((a, b) => a + b.pctTotal, 0) / arr.length);
     };
     return { canales: canales.sort(), paises: paises.sort(), cell };
-  }, [filteredStats, heatmapMetric]);
+  }, [filteredStats]);
 
 
-  // Tabla: aplica tier + search + ordena por % desc + pagina
+  // Tabla: aplica tier (sobre métrica seleccionada) + search + ordena por % desc + pagina
   const tableRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const rows = filteredStats
-      .filter((s) => filtroTier === 'TODOS' || tierOf(s.pctTotal) === filtroTier)
+      .filter((s) => filtroTier === 'TODOS' || tierOf(pctByMetric(s)) === filtroTier)
       .filter((s) => !q || s.gerente.nombre.toLowerCase().includes(q) || (s.gerente.email || '').toLowerCase().includes(q))
       .sort((a, b) => b.scoreCompuesto - a.scoreCompuesto);
     return rows;
-  }, [filteredStats, filtroTier, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredStats, filtroTier, search, heatmapMetric]);
+
 
   const totalPages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
