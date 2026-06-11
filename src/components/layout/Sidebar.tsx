@@ -35,6 +35,7 @@ const adminItems = [
   { path: '/admin/calculos', icon: 'calculate', label: 'Motor SP' },
   { path: '/admin/simulacion', icon: 'science', label: 'Simulación VC' },
   { path: '/admin/premios', icon: 'storefront', label: 'Beneficios ' },
+  { path: '/admin/especialista/canjes', icon: 'receipt_long', label: 'Canjes gerentes' },
   { path: '/admin/databricks', icon: 'cloud_sync', label: 'Databricks' },
   { path: '/admin/especialistas-accesos', icon: 'vpn_key', label: 'Accesos & Directores' },
   { path: '/admin/metas-acv', icon: 'flag', label: 'Metas ACV VN' },
@@ -44,6 +45,7 @@ const adminItems = [
 const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'shield_person', label: 'Panel especialista' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
+  { path: '/admin/especialista/canjes', icon: 'receipt_long', label: 'Canjes gerentes' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
 ];
 
