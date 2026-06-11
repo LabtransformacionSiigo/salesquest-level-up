@@ -98,6 +98,7 @@ const PanelDirector = () => {
   const [filtroCanal, setFiltroCanal] = useState<string>('TODOS');
   const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
   const [heatmapMetric, setHeatmapMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('TOTAL');
+  const [chartMetric, setChartMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('FE');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
