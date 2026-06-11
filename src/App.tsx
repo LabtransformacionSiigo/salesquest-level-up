@@ -75,6 +75,7 @@ function App() {
             <Route path="/admin/especialista" element={<Navigate to="/especialista/gamificacion-vc" replace />} />
             <Route path="/admin/gamification" element={<Navigate to="/especialista/gamificacion-vc" replace />} />
             <Route path="/admin/especialista/premios" element={<EspecialistaRoute><AdminEspecialistaPremios /></EspecialistaRoute>} />
+            <Route path="/admin/especialista/canjes" element={<EspecialistaRoute><AdminCanjesEspecialista /></EspecialistaRoute>} />
             <Route path="/admin/segmentos-vc" element={<EspecialistaRoute><AdminAdvisorSegments /></EspecialistaRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
