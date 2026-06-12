@@ -17,7 +17,7 @@ const FUENTES = [
 ];
 
 type Gerente = { id: string; nombre: string; canal: string | null; pais: string | null; celula?: string | null };
-type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
+type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; fecha?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
 
 interface Props {
   gerentes: Gerente[];
@@ -33,6 +33,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SpRow[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandedFuente, setExpandedFuente] = useState<Record<string, boolean>>({});
   const [filterTxt, setFilterTxt] = useState('');
   const [filterCanal, setFilterCanal] = useState<string>('');
   const [filterPais, setFilterPais] = useState<string>('');
@@ -55,14 +56,22 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
         const chunk = gerenteIds.slice(i, i + chunkSize);
         const { data: spData, error: spError } = await supabase
           .from('sp_acumulados')
-          .select('gerente_id, fuente, sp, periodo, detalle')
+          .select('gerente_id, fuente, sp, periodo, detalle, created_at')
           .eq('tipo_sp', 'canje')
           .in('gerente_id', chunk)
           .gte('periodo', '2026')
           .lt('periodo', '2027');
         if (spError) { console.error(spError); break; }
 
-        const spRows = ((spData || []) as any[]).map((r) => ({ ...r, origen: 'sp_acumulados' as const }));
+        const spRows = ((spData || []) as any[]).map((r) => ({
+          gerente_id: r.gerente_id,
+          fuente: r.fuente,
+          sp: r.sp,
+          periodo: r.periodo,
+          detalle: r.detalle,
+          fecha: r.created_at,
+          origen: 'sp_acumulados' as const,
+        }));
         all.push(...spRows);
 
         const { data: retosData, error: retosError } = await supabase
@@ -87,6 +96,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
             fuente: r.tipo === 'DIARIO' ? 'RETO_DIARIO' : r.tipo === 'SEMANAL' ? 'RETO_SEMANAL' : 'RETO_MENSUAL',
             sp: Number(r.sp) || 0,
             detalle: r.reto,
+            fecha: r.fecha,
             origen: 'retos_completados' as const,
           }));
         all.push(...retosFallback);
@@ -259,16 +269,46 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
                   {open && FUENTES.map(f => {
                     const totalFuente = MESES.reduce((s, _, i) => s + (data[i + 1]?.porFuente[f.key] || 0), 0);
                     if (totalFuente === 0) return null;
+                    const fuenteKey = g.id + '|' + f.key;
+                    const openF = !!expandedFuente[fuenteKey];
+                    const items = rows
+                      .filter(r => r.gerente_id === g.id && r.fuente === f.key)
+                      .sort((a, b) => String(a.fecha || a.periodo).localeCompare(String(b.fecha || b.periodo)));
                     return (
-                      <tr key={g.id + f.key} className="bg-muted/10 border-t border-border/50 text-xs">
-                        <td className="p-2 pl-10 sticky left-0 bg-muted/10 text-muted-foreground">{f.icon} {f.label}</td>
-                        <td colSpan={2}></td>
-                        {MESES.map((_, i) => {
-                          const v = data[i + 1]?.porFuente[f.key] || 0;
-                          return <td key={i} className={cn('p-2 text-right tabular-nums', v > 0 ? 'text-foreground' : 'text-muted-foreground/30')}>{v || '·'}</td>;
+                      <Fragment key={fuenteKey}>
+                        <tr
+                          className="bg-muted/10 border-t border-border/50 text-xs cursor-pointer hover:bg-muted/20"
+                          onClick={(e) => { e.stopPropagation(); setExpandedFuente(s => ({ ...s, [fuenteKey]: !openF })); }}
+                        >
+                          <td className="p-2 pl-10 sticky left-0 bg-muted/10 text-muted-foreground">
+                            <span className="inline-block w-3">{openF ? '▾' : '▸'}</span> {f.icon} {f.label}
+                            <span className="ml-2 text-muted-foreground/60">({items.length})</span>
+                          </td>
+                          <td colSpan={2}></td>
+                          {MESES.map((_, i) => {
+                            const v = data[i + 1]?.porFuente[f.key] || 0;
+                            return <td key={i} className={cn('p-2 text-right tabular-nums', v > 0 ? 'text-foreground' : 'text-muted-foreground/30')}>{v || '·'}</td>;
+                          })}
+                          <td className="p-2 text-right tabular-nums font-semibold bg-primary/5">{totalFuente}</td>
+                        </tr>
+                        {openF && items.map((it, idx) => {
+                          const fechaStr = it.fecha
+                            ? new Date(it.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })
+                            : (it.periodo || '—');
+                          return (
+                            <tr key={fuenteKey + idx} className="bg-background border-t border-border/30 text-xs">
+                              <td className="p-2 pl-16 sticky left-0 bg-background text-foreground/80">
+                                <div className="font-medium truncate max-w-[320px]" title={it.detalle || ''}>{it.detalle || '—'}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {fechaStr} · {it.origen === 'retos_completados' ? 'histórico' : 'sp_acumulados'}
+                                </div>
+                              </td>
+                              <td colSpan={13}></td>
+                              <td className="p-2 text-right tabular-nums font-semibold text-primary">+{it.sp}</td>
+                            </tr>
+                          );
                         })}
-                        <td className="p-2 text-right tabular-nums font-semibold bg-primary/5">{totalFuente}</td>
-                      </tr>
+                      </Fragment>
                     );
                   })}
                 </Fragment>
