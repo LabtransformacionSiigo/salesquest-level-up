@@ -56,14 +56,22 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
         const chunk = gerenteIds.slice(i, i + chunkSize);
         const { data: spData, error: spError } = await supabase
           .from('sp_acumulados')
-          .select('gerente_id, fuente, sp, periodo, detalle')
+          .select('gerente_id, fuente, sp, periodo, detalle, created_at')
           .eq('tipo_sp', 'canje')
           .in('gerente_id', chunk)
           .gte('periodo', '2026')
           .lt('periodo', '2027');
         if (spError) { console.error(spError); break; }
 
-        const spRows = ((spData || []) as any[]).map((r) => ({ ...r, origen: 'sp_acumulados' as const }));
+        const spRows = ((spData || []) as any[]).map((r) => ({
+          gerente_id: r.gerente_id,
+          fuente: r.fuente,
+          sp: r.sp,
+          periodo: r.periodo,
+          detalle: r.detalle,
+          fecha: r.created_at,
+          origen: 'sp_acumulados' as const,
+        }));
         all.push(...spRows);
 
         const { data: retosData, error: retosError } = await supabase
@@ -88,6 +96,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
             fuente: r.tipo === 'DIARIO' ? 'RETO_DIARIO' : r.tipo === 'SEMANAL' ? 'RETO_SEMANAL' : 'RETO_MENSUAL',
             sp: Number(r.sp) || 0,
             detalle: r.reto,
+            fecha: r.fecha,
             origen: 'retos_completados' as const,
           }));
         all.push(...retosFallback);
