@@ -108,13 +108,32 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
     return () => { cancel = true; };
   }, [gerenteIds.join(',')]);
 
-  // Normaliza periodo a número de mes 1-12
-  const periodoToMonth = (p: string): number | null => {
+  // Convierte una semana ISO (YYYY-Www) al mes (1-12) en que cae el jueves de esa semana
+  const isoWeekToMonth = (year: number, week: number): number => {
+    // Jueves de la semana ISO determina el año/mes oficial
+    const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+    const dow = simple.getUTCDay();
+    const thursday = new Date(simple);
+    thursday.setUTCDate(simple.getUTCDate() + (4 - (dow === 0 ? 7 : dow)));
+    return thursday.getUTCMonth() + 1;
+  };
+
+  // Normaliza periodo/fecha a número de mes 1-12
+  const rowToMonth = (r: SpRow): number | null => {
+    const p = r.periodo || '';
     // Formatos posibles: 2026-05-24, 2026-05, 202605-S1, 202605
-    const m1 = p.match(/^2026-(\d{2})/);
+    const m1 = p.match(/^2026-(\d{2})(?!\d|W)/);
     if (m1) return parseInt(m1[1], 10);
     const m2 = p.match(/^2026(\d{2})/);
     if (m2) return parseInt(m2[1], 10);
+    // ISO week: 2026-W23
+    const mW = p.match(/^2026-W(\d{1,2})/i);
+    if (mW) return isoWeekToMonth(2026, parseInt(mW[1], 10));
+    // Fallback: usar la fecha de creación/completado
+    if (r.fecha) {
+      const d = new Date(r.fecha);
+      if (!isNaN(d.getTime()) && d.getUTCFullYear() === 2026) return d.getUTCMonth() + 1;
+    }
     return null;
   };
 
@@ -123,7 +142,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
   const grouped = useMemo(() => {
     const map: Record<string, Record<number, MesData>> = {};
     for (const r of rows) {
-      const mes = periodoToMonth(r.periodo);
+      const mes = rowToMonth(r);
       if (!mes) continue;
       const gid = r.gerente_id;
       if (!map[gid]) map[gid] = {};
