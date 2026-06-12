@@ -17,7 +17,7 @@ const FUENTES = [
 ];
 
 type Gerente = { id: string; nombre: string; canal: string | null; pais: string | null; celula?: string | null };
-type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
+type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; fecha?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
 
 interface Props {
   gerentes: Gerente[];
