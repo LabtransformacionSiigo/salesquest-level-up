@@ -33,6 +33,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SpRow[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandedFuente, setExpandedFuente] = useState<Record<string, boolean>>({});
   const [filterTxt, setFilterTxt] = useState('');
   const [filterCanal, setFilterCanal] = useState<string>('');
   const [filterPais, setFilterPais] = useState<string>('');
