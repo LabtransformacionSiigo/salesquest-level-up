@@ -237,14 +237,18 @@ const AdminEspecialista = () => {
         fecha: r.created_at,
       };
     });
-    const spRetoKeys = new Set(
+    // Dedupe: si sp_acumulados ya tiene un RETO_* para (gerente, periodo),
+    // omitir todos los retos_completados de ese (gerente, periodo) — el sp_acumulados
+    // ya es la suma consolidada de los subretos (Nube/Legacy/etc), por lo que
+    // mostrar también los subretos duplicaría el SP visible.
+    const spRetoGerentePeriodo = new Set(
       (spRows || [])
         .filter((r: any) => String(r.fuente || '').startsWith('RETO_'))
-        .map((r: any) => `${r.gerente_id}::${r.periodo}::${String(r.detalle || '').split('·')[0]?.trim()}`)
+        .map((r: any) => `${r.gerente_id}::${r.periodo}`)
     );
 
     const retosItems = (retosRows || [])
-      .filter((r: any) => !spRetoKeys.has(`${r.gerente_id}::${r.periodo}::${String(r.reto || '').trim()}`))
+      .filter((r: any) => !spRetoGerentePeriodo.has(`${r.gerente_id}::${r.periodo}`))
       .map((r: any) => ({
         id: `${r.gerente_id}-${r.periodo}-${r.reto}`,
         tipo: 'reto',
