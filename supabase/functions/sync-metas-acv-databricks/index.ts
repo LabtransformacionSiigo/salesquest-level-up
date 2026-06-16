@@ -234,6 +234,8 @@ Deno.serve(async (req) => {
         archivo,
         CAST(fe AS BIGINT)             AS fe,
         CAST(nube AS BIGINT)           AS nube,
+        CAST(coi AS BIGINT)            AS coi,
+        CAST(noi AS BIGINT)            AS noi,
         CAST(meta_total_und AS BIGINT) AS meta_total_und,
         meta_total_acv,
         cuota
@@ -336,7 +338,7 @@ Deno.serve(async (req) => {
     // Procesar RPCs en paralelo por lotes para evitar timeout (150s)
     const CONCURRENCY = 25;
     const processOne = async (r: any[]) => {
-      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, metaUnd, metaAcv, cuota] = r;
+      const [pais, canal, director, celula, mesRaw, archivoRaw, feRaw, nubeRaw, coiRaw, noiRaw, metaUnd, metaAcv, cuota] = r;
       const archivoRawText = String(archivoRaw || "");
       const archivo = deriveArchivo(archivoRawText);
       // Databricks a veces deja `mes` con el mes anterior y el mes real viene en el nombre de archivo.
@@ -352,13 +354,16 @@ Deno.serve(async (req) => {
       const periodoBuscado = MES3_TO_PERIOD[mes3lower];
       const overrideKey = `${String(celula).trim().toLowerCase()}|${normCanal(String(canal))}|${periodoBuscado}`;
       const override = cellFeNubeMap.get(overrideKey);
-      const feFinal = override ? override.fe : Math.round(toNum(feRaw));
-      const nubeFinal = override ? override.nube : Math.round(toNum(nubeRaw));
-      const metaUndFinal = override ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
+      const canalNorm = normCanal(String(canal));
+      const paisNorm = normPais(String(pais));
+      const fuenteNubeMx = Math.round(toNum(nubeRaw) || (toNum(coiRaw) + toNum(noiRaw)));
+      const feFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? override.fe : Math.round(toNum(feRaw));
+      const nubeFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? override.nube : fuenteNubeMx;
+      const metaUndFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
-        p_pais: normPais(String(pais)),
-        p_canal: normCanal(String(canal)),
+        p_pais: paisNorm,
+        p_canal: canalNorm,
         p_director: director ? String(director) : null,
         p_celula: String(celula).trim(),
         p_esquema: null,
