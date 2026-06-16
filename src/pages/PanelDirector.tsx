@@ -1017,12 +1017,16 @@ const PanelDirector = () => {
               : s.metaUds;
             const fmtVal = (n: number) =>
               chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
-            const ranked = filteredStats
+            const rankedAll = filteredStats
               .filter((s) => metaOf(s) > 0)
               .map((s) => ({ s, pct: pctOf(s) }))
-              .sort((a, b) => a.pct - b.pct)
-              .slice(0, 10);
-            const maxPctSeen = Math.max(100, ...ranked.map((r) => r.pct));
+              .sort((a, b) => a.pct - b.pct);
+            const totalRanked = rankedAll.length;
+            const totalPages = Math.max(1, Math.ceil(totalRanked / CHART_PAGE_SIZE));
+            const safePage = Math.min(Math.max(1, chartPage), totalPages);
+            const pageStart = (safePage - 1) * CHART_PAGE_SIZE;
+            const ranked = rankedAll.slice(pageStart, pageStart + CHART_PAGE_SIZE);
+            const maxPctSeen = Math.max(100, ...rankedAll.map((r) => r.pct));
             const scale = Math.max(100, Math.ceil(maxPctSeen / 10) * 10);
             const metaLinePct = (100 / scale) * 100;
             // Soft tint + text color per tier for the executive-style gauge badge
