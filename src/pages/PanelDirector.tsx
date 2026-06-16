@@ -1406,7 +1406,7 @@ const PanelDirector = () => {
                   <TableHead>Gerente</TableHead>
                   <TableHead>Canal</TableHead>
                   <TableHead>País</TableHead>
-                  <TableHead className="text-right">Asesores</TableHead>
+                  
                   {!filteredOnlyVc && <TableHead className="text-right">FE</TableHead>}
                   {!filteredOnlyVc && <TableHead className="text-right">Nube</TableHead>}
                   <TableHead className="text-right">ACV</TableHead>
