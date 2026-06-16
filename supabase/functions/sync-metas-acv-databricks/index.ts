@@ -267,6 +267,8 @@ Deno.serve(async (req) => {
         "Inicio",
         r.meta_fe,
         r.meta_nube,
+        0,
+        0,
         r.meta_total,
         0,
         100,
