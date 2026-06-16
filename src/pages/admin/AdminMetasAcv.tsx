@@ -412,6 +412,8 @@ const AdminMetasAcv = () => {
                     <th className="text-left px-3 py-2">Célula</th>
                     <th className="text-left px-3 py-2">Director</th>
                     <th className="text-right px-3 py-2">Meta ACV</th>
+                    <th className="text-right px-3 py-2">Meta FE</th>
+                    <th className="text-right px-3 py-2">Meta Nube</th>
                     <th className="text-right px-3 py-2">Meta Und</th>
                     <th className="text-center px-3 py-2">Estado</th>
                   </tr>
@@ -425,6 +427,8 @@ const AdminMetasAcv = () => {
                       <td className="px-3 py-2">{h.celula}</td>
                       <td className="px-3 py-2 text-muted-foreground">{h.director || '—'}</td>
                       <td className="px-3 py-2 text-right">{Number(h.meta_total_acv || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{Number(h.meta_fe || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{Number(h.meta_nube || 0).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">{h.meta_total_und || 0}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full',
