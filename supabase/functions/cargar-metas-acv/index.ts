@@ -16,6 +16,8 @@ interface RowIn {
   celula?: string;
   esquema?: string | null;
   cuota?: number | string | null;
+  meta_fe?: number | string | null;
+  meta_nube?: number | string | null;
   meta_total_und?: number | string | null;
   meta_total_acv?: number | string | null;
   mes?: string;
@@ -93,6 +95,8 @@ Deno.serve(async (req) => {
         p_celula: celula,
         p_esquema: norm(r.esquema) || null,
         p_cuota: toNum(r.cuota),
+        p_meta_fe: Math.round(toNum(r.meta_fe)),
+        p_meta_nube: Math.round(toNum(r.meta_nube)),
         p_meta_total_und: Math.round(toNum(r.meta_total_und)),
         p_meta_total_acv: toNum(r.meta_total_acv),
         p_mes: mes,
