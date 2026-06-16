@@ -99,6 +99,9 @@ const PanelDirector = () => {
   const [filtroTier, setFiltroTier] = useState<TierKey | 'TODOS'>('TODOS');
   const [heatmapMetric, setHeatmapMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('TOTAL');
   const [chartMetric, setChartMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('FE');
+  const [chartPage, setChartPage] = useState(1);
+  const CHART_PAGE_SIZE = 10;
+  useEffect(() => { setChartPage(1); }, [chartMetric, filtroPais, filtroCanal, filtroTier]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
@@ -1015,12 +1018,16 @@ const PanelDirector = () => {
               : s.metaUds;
             const fmtVal = (n: number) =>
               chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
-            const ranked = filteredStats
+            const rankedAll = filteredStats
               .filter((s) => metaOf(s) > 0)
               .map((s) => ({ s, pct: pctOf(s) }))
-              .sort((a, b) => a.pct - b.pct)
-              .slice(0, 10);
-            const maxPctSeen = Math.max(100, ...ranked.map((r) => r.pct));
+              .sort((a, b) => a.pct - b.pct);
+            const totalRanked = rankedAll.length;
+            const totalPages = Math.max(1, Math.ceil(totalRanked / CHART_PAGE_SIZE));
+            const safePage = Math.min(Math.max(1, chartPage), totalPages);
+            const pageStart = (safePage - 1) * CHART_PAGE_SIZE;
+            const ranked = rankedAll.slice(pageStart, pageStart + CHART_PAGE_SIZE);
+            const maxPctSeen = Math.max(100, ...rankedAll.map((r) => r.pct));
             const scale = Math.max(100, Math.ceil(maxPctSeen / 10) * 10);
             const metaLinePct = (100 / scale) * 100;
             // Soft tint + text color per tier for the executive-style gauge badge
@@ -1040,7 +1047,11 @@ const PanelDirector = () => {
                 <div className="px-6 py-5 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
                     <h3 className="font-heading text-lg font-bold text-foreground tracking-tight">Gerentes bajo meta</h3>
-                    <p className="text-sm text-muted-foreground">Top 10 con mayor brecha de cumplimiento</p>
+                    <p className="text-sm text-muted-foreground">
+                      {totalRanked === 0
+                        ? 'Sin gerentes bajo meta'
+                        : `${totalRanked} gerentes ordenados por menor cumplimiento`}
+                    </p>
                   </div>
                   <div className="flex p-1 bg-muted rounded-full">
                     {METRIC_OPTS.map((m) => {
@@ -1113,7 +1124,7 @@ const PanelDirector = () => {
                               {/* Name + region */}
                               <div className="col-span-3 flex items-center gap-2 min-w-0">
                                 <span className="text-[10px] font-bold text-muted-foreground/60 tabular-nums w-5 shrink-0">
-                                  #{idx + 1}
+                                  #{pageStart + idx + 1}
                                 </span>
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-sm font-semibold text-foreground truncate" title={s.gerente.nombre}>
@@ -1174,7 +1185,7 @@ const PanelDirector = () => {
                   )}
                 </div>
 
-                {/* Legend */}
+                {/* Legend + pagination */}
                 <div className="bg-muted/40 px-6 py-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
                     {TIERS.map((tt) => (
@@ -1186,9 +1197,36 @@ const PanelDirector = () => {
                       </div>
                     ))}
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground/70">
-                    Línea META 100% marca el objetivo de cumplimiento
-                  </span>
+                  {totalRanked > 0 && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                        {pageStart + 1}–{Math.min(pageStart + CHART_PAGE_SIZE, totalRanked)} de {totalRanked}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setChartPage((p) => Math.max(1, p - 1))}
+                          disabled={safePage <= 1}
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-[#00AAFF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Página anterior"
+                        >
+                          ‹
+                        </button>
+                        <span className="text-[11px] font-bold text-foreground tabular-nums px-2">
+                          {safePage} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setChartPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={safePage >= totalPages}
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-[#00AAFF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Página siguiente"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
