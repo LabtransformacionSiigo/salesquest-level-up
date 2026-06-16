@@ -812,12 +812,31 @@ const PanelDirector = () => {
     }
   };
 
+  // Tier counts en sincronía con la gráfica "Gerentes bajo meta":
+  // usan la misma métrica (chartMetric), excluyen filas sintéticas y
+  // requieren meta > 0 para ser contadas (mismo criterio que la gráfica).
   const tierCounts = useMemo(() => {
     const c: Record<TierKey, number> = { cumple: 0, en_meta: 0, en_riesgo: 0, por_debajo: 0 };
-    for (const s of filteredStats) c[tierOf(pctByMetric(s))]++;
+    const pctOf = (s: Stats) =>
+      chartMetric === 'FE' ? s.pctFe
+        : chartMetric === 'NUBE' ? s.pctNube
+        : chartMetric === 'ACV' ? s.pctAcv
+        : s.pctTotal;
+    const metaOf = (s: Stats) =>
+      chartMetric === 'FE' ? s.metaFe
+        : chartMetric === 'NUBE' ? s.metaNube
+        : chartMetric === 'ACV' ? s.metaAcv
+        : s.metaUds;
+    const isSynthetic = (s: Stats) =>
+      typeof s.gerente.id === 'string' &&
+      (s.gerente.id.startsWith('meta-') || s.gerente.id.startsWith('metric-'));
+    for (const s of filteredStats) {
+      if (isSynthetic(s)) continue;
+      if (metaOf(s) <= 0) continue;
+      c[tierOf(pctOf(s))]++;
+    }
     return c;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredStats, heatmapMetric]);
+  }, [filteredStats, chartMetric]);
 
   // Heatmap canal × país (% promedio de cumplimiento global - unidades)
   const heatmap = useMemo(() => {
