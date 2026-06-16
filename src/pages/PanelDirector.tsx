@@ -1023,15 +1023,26 @@ const PanelDirector = () => {
             const maxPctSeen = Math.max(100, ...ranked.map((r) => r.pct));
             const scale = Math.max(100, Math.ceil(maxPctSeen / 10) * 10);
             const metaLinePct = (100 / scale) * 100;
+            // Soft tint + text color per tier for the executive-style gauge badge
+            const tierTint = (k: TierKey) => {
+              switch (k) {
+                case 'cumple': return { ring: 'bg-emerald-50', text: 'text-emerald-600', soft: 'text-emerald-600' };
+                case 'en_meta': return { ring: 'bg-sky-50',     text: 'text-sky-600',     soft: 'text-sky-600' };
+                case 'en_riesgo': return { ring: 'bg-amber-50', text: 'text-amber-600',   soft: 'text-amber-600' };
+                default: return { ring: 'bg-rose-50',           text: 'text-rose-600',    soft: 'text-rose-600' };
+              }
+            };
+            // Axis tick positions (0/25/50/75/100% of meta)
+            const axisTicks = [0, 25, 50, 75, 100];
             return (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="px-6 py-5 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-bold text-foreground">Gerentes bajo meta</h3>
-                    <p className="text-xs text-muted-foreground">Top 10 con mayor brecha de cumplimiento</p>
+                    <h3 className="font-heading text-lg font-bold text-foreground tracking-tight">Gerentes bajo meta</h3>
+                    <p className="text-sm text-muted-foreground">Top 10 con mayor brecha de cumplimiento</p>
                   </div>
-                  <div className="flex p-1 bg-muted rounded-xl">
+                  <div className="flex p-1 bg-muted rounded-full">
                     {METRIC_OPTS.map((m) => {
                       const active = chartMetric === m.key;
                       return (
@@ -1039,7 +1050,7 @@ const PanelDirector = () => {
                           key={m.key}
                           type="button"
                           onClick={() => setChartMetric(m.key)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                          className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                             active
                               ? 'bg-[#00AAFF] text-white shadow-sm'
                               : 'text-muted-foreground hover:text-foreground'
@@ -1052,50 +1063,108 @@ const PanelDirector = () => {
                   </div>
                 </div>
 
-                {/* Chart */}
-                <div className="p-5 relative">
+                {/* Chart body */}
+                <div className="px-6 pt-5 pb-6">
                   {ranked.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <p className="text-sm font-semibold text-foreground">Sin gerentes bajo meta</p>
                       <p className="text-xs">Ningún gerente con meta asignada para esta métrica.</p>
                     </div>
                   ) : (
                     <>
-                      <div
-                        className="absolute top-5 bottom-5 border-l-2 border-dashed border-border z-10 pointer-events-none"
-                        style={{ left: `calc(25% + (75% * ${metaLinePct / 100}))` }}
-                      >
-                        <span className="absolute -top-3 -translate-x-1/2 bg-card px-2 text-[10px] font-bold text-muted-foreground tracking-wider whitespace-nowrap">
-                          META 100%
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {ranked.map(({ s, pct }) => {
-                          const t = tierDef(tierOf(pct));
-                          const barPct = Math.min(100, (pct / scale) * 100);
-                          return (
-                            <div key={s.gerente.id} className="grid grid-cols-12 gap-3 items-center">
-                              <div className="col-span-3 flex flex-col min-w-0">
-                                <span className="text-sm font-bold text-foreground truncate" title={s.gerente.nombre}>
-                                  {s.gerente.nombre}
-                                </span>
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight truncate">
-                                  {s.gerente.canal || '—'} · {s.gerente.pais || '—'}
-                                </span>
-                              </div>
-                              <div className="col-span-7 relative h-7 bg-muted rounded-full overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${barPct}%` }}
-                                  transition={{ duration: 0.7, ease: 'easeOut' }}
-                                  className={`absolute top-0 left-0 h-full ${t.solid} rounded-full flex items-center justify-end px-3`}
+                      {/* Column header / axis */}
+                      <div className="grid grid-cols-12 gap-4 mb-4 items-end">
+                        <div className="col-span-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Gerente · Región
+                        </div>
+                        <div className="col-span-6 relative h-4">
+                          <div className="absolute inset-0 flex justify-between text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
+                            {axisTicks.map((t) => {
+                              const isMeta = t === 100;
+                              const pos = (t / scale) * 100;
+                              return (
+                                <span
+                                  key={t}
+                                  className={`absolute -translate-x-1/2 whitespace-nowrap ${isMeta ? 'text-[#00AAFF]' : ''}`}
+                                  style={{ left: `${pos}%` }}
                                 >
-                                  <span className="text-[10px] font-bold text-white">{pct}%</span>
-                                </motion.div>
+                                  {isMeta ? '100% META' : `${t}%`}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="col-span-3 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Avance / Meta
+                        </div>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        {ranked.map(({ s, pct }, idx) => {
+                          const t = tierDef(tierOf(pct));
+                          const tint = tierTint(t.key);
+                          const barPct = Math.min(100, (pct / scale) * 100);
+                          const valor = valOf(s);
+                          const meta = metaOf(s);
+                          const gap = valor - meta;
+                          const gapLabel = chartMetric === 'ACV' ? fmtMoney(Math.abs(gap)) : Math.round(Math.abs(gap)).toLocaleString();
+                          return (
+                            <div key={s.gerente.id} className="grid grid-cols-12 gap-4 items-center group">
+                              {/* Name + region */}
+                              <div className="col-span-3 flex items-center gap-2 min-w-0">
+                                <span className="text-[10px] font-bold text-muted-foreground/60 tabular-nums w-5 shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-sm font-semibold text-foreground truncate" title={s.gerente.nombre}>
+                                    {s.gerente.nombre}
+                                  </span>
+                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight truncate">
+                                    {s.gerente.canal || '—'} · {s.gerente.pais || '—'}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="col-span-2 text-right">
-                                <span className="text-xs font-bold text-foreground block">{fmtVal(valOf(s))}</span>
-                                <span className="text-[10px] font-medium text-muted-foreground">/ {fmtVal(metaOf(s))}</span>
+
+                              {/* Bar with axis grid + meta marker */}
+                              <div className="col-span-6 relative flex items-center h-8">
+                                {/* Grid ticks */}
+                                <div className="absolute inset-0 pointer-events-none">
+                                  {axisTicks.map((tk) => {
+                                    const isMeta = tk === 100;
+                                    const pos = (tk / scale) * 100;
+                                    return (
+                                      <div
+                                        key={tk}
+                                        className={`absolute top-0 bottom-0 ${isMeta ? 'border-l border-dashed border-[#00AAFF]/60' : 'border-l border-border/60'}`}
+                                        style={{ left: `${pos}%` }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                {/* Track */}
+                                <div className="relative h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${barPct}%` }}
+                                    transition={{ duration: 0.7, ease: 'easeOut' }}
+                                    className={`h-full ${t.solid} rounded-full`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Value / Meta + circular gauge */}
+                              <div className="col-span-3 flex items-center justify-end gap-3">
+                                <div className="text-right leading-tight">
+                                  <div className="text-sm font-bold text-foreground tabular-nums">
+                                    {fmtVal(valor)} <span className="text-muted-foreground/50 font-normal mx-0.5">/</span> <span className="text-muted-foreground font-semibold">{fmtVal(meta)}</span>
+                                  </div>
+                                  <div className={`text-[10px] font-semibold ${tint.soft} tabular-nums`}>
+                                    {gap >= 0 ? `+${gapLabel}` : `Brecha: -${gapLabel}`}
+                                  </div>
+                                </div>
+                                <div className={`w-12 h-12 rounded-full ${tint.ring} flex items-center justify-center shrink-0 ring-4 ring-card`}>
+                                  <span className={`text-xs font-bold ${tint.text} tabular-nums`}>{pct}%</span>
+                                </div>
                               </div>
                             </div>
                           );
@@ -1106,15 +1175,20 @@ const PanelDirector = () => {
                 </div>
 
                 {/* Legend */}
-                <div className="bg-muted/40 px-5 py-2.5 border-t border-border flex flex-wrap items-center justify-center gap-x-6 gap-y-1">
-                  {TIERS.map((tt) => (
-                    <div key={tt.key} className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${tt.solid}`} />
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                        {tt.label} · {tt.range}
-                      </span>
-                    </div>
-                  ))}
+                <div className="bg-muted/40 px-6 py-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                    {TIERS.map((tt) => (
+                      <div key={tt.key} className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${tt.solid}`} />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                          {tt.label} · {tt.range}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground/70">
+                    Línea META 100% marca el objetivo de cumplimiento
+                  </span>
                 </div>
               </div>
             );
