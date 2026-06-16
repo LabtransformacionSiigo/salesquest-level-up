@@ -1436,7 +1436,7 @@ const PanelDirector = () => {
                       <TableCell className="font-medium">{s.gerente.nombre}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{s.gerente.canal}</Badge></TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs">{s.gerente.pais}</Badge></TableCell>
-                      <TableCell className="text-right font-scoreboard">{s.asesores}</TableCell>
+                      
                       {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>}
                       {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>}
                       <TableCell className="text-right">{fmtMoney(s.acv)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtMoney(s.metaAcv) : '—'}</span></TableCell>
