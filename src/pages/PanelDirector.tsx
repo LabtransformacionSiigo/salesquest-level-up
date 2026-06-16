@@ -1024,11 +1024,11 @@ const PanelDirector = () => {
             const scale = Math.max(100, Math.ceil(maxPctSeen / 10) * 10);
             const metaLinePct = (100 / scale) * 100;
             // Soft tint + text color per tier for the executive-style gauge badge
-            const tierTint = (k: typeof TIERS[number]['key']) => {
+            const tierTint = (k: TierKey) => {
               switch (k) {
-                case 'CUMPLE': return { ring: 'bg-emerald-50', text: 'text-emerald-600', soft: 'text-emerald-600' };
-                case 'EN_META': return { ring: 'bg-sky-50',     text: 'text-sky-600',     soft: 'text-sky-600' };
-                case 'EN_RIESGO': return { ring: 'bg-amber-50', text: 'text-amber-600',   soft: 'text-amber-600' };
+                case 'cumple': return { ring: 'bg-emerald-50', text: 'text-emerald-600', soft: 'text-emerald-600' };
+                case 'en_meta': return { ring: 'bg-sky-50',     text: 'text-sky-600',     soft: 'text-sky-600' };
+                case 'en_riesgo': return { ring: 'bg-amber-50', text: 'text-amber-600',   soft: 'text-amber-600' };
                 default: return { ring: 'bg-rose-50',           text: 'text-rose-600',    soft: 'text-rose-600' };
               }
             };
