@@ -10,12 +10,14 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import colombiaFlag from '@/assets/flags/colombia.svg';
 import mexicoFlag from '@/assets/flags/mexico.svg';
 import ecuadorFlag from '@/assets/flags/ecuador.svg';
+import uruguayFlag from '@/assets/flags/uruguay.svg';
 import usaFlag from '@/assets/flags/united-states.svg';
 
 const FLAG_MAP: Record<string, string> = {
   COL: colombiaFlag, CO: colombiaFlag,
   MEX: mexicoFlag, MX: mexicoFlag,
   ECU: ecuadorFlag, EC: ecuadorFlag,
+  URU: uruguayFlag, URY: uruguayFlag, UY: uruguayFlag,
   USA: usaFlag, US: usaFlag,
 };
 
