@@ -815,14 +815,14 @@ const Rankings = () => {
             jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'
           };
           const metasAcvMesActual =
-            (metasAcvGerRes.data || []).find((r: any) => {
+            (metasAcvGerEnriched || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
               return mm && currentMonth.endsWith(mm) &&
                 !String(r.archivo ?? '').toLowerCase().includes('inicio');
             }) ||
-            (metasAcvGerRes.data || []).find((r: any) => {
+            (metasAcvGerEnriched || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celula) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const mm = MES_MAP[mes3];
@@ -909,13 +909,13 @@ const Rankings = () => {
               ejecRows: [],
             });
             const cmMex = monthlyRowsMex.find((row) => row.period === currentMonth);
-            const acvCatMex = (metasAcvGerRes.data || []).find((r: any) => {
+            const acvCatMex = (metasAcvGerEnriched || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celulaKey) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
               const mm = MMAP[mes3];
               return mm && currentMonth.endsWith(mm) && !String(r.archivo ?? '').toLowerCase().includes('inicio');
-            }) || (metasAcvGerRes.data || []).find((r: any) => {
+            }) || (metasAcvGerEnriched || []).find((r: any) => {
               if (normalizeComparableText(r.celula) !== celulaKey) return false;
               const mes3 = String(r.mes ?? '').trim().toLowerCase().slice(0, 3);
               const MMAP: Record<string, string> = { ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12' };
