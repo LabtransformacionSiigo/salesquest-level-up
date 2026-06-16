@@ -101,6 +101,7 @@ const PanelDirector = () => {
   const [chartMetric, setChartMetric] = useState<'TOTAL' | 'FE' | 'NUBE' | 'ACV'>('FE');
   const [chartPage, setChartPage] = useState(1);
   const CHART_PAGE_SIZE = 10;
+  useEffect(() => { setChartPage(1); }, [chartMetric, filtroPais, filtroCanal, filtroTier]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
