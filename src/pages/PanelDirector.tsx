@@ -218,6 +218,48 @@ const PanelDirector = () => {
           asesoresMap.set(g.id, Math.max(0, total - 1));
         }
 
+        // c) Fallback: para gerentes VN que aún tienen 0 asesores (MEX/ECU/URU
+        //    donde los advisors no viven en `gerentes`), contar desde `metas_asesores`
+        //    del período actual. Usa celula normalizada para tolerar tildes.
+        const periodoMetasYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
+        const paisToMetas: Record<string, string> = {
+          COL: 'COLOMBIA', MEX: 'MEXICO', ECU: 'ECUADOR', URU: 'URUGUAY',
+        };
+        const gerentesSinAsesores = gerentesList.filter(
+          (g) => (g.canal === 'VN_ALIADOS' || g.canal === 'VN_EMPRESARIOS') &&
+                 g.celula && !asesoresMap.get(g.id),
+        );
+        if (gerentesSinAsesores.length) {
+          const celulasNeed = Array.from(new Set(gerentesSinAsesores.map((g) => g.celula!)));
+          const paisesNeed = Array.from(new Set(
+            gerentesSinAsesores.map((g) => paisToMetas[normalizePaisCode(g.pais)]).filter(Boolean),
+          ));
+          const { data: mAse } = await supabase
+            .from('metas_asesores')
+            .select('celula, pais, documento_asesor, aplica_cuota_lider')
+            .eq('anio_mes', periodoMetasYYYYMM)
+            .in('pais', paisesNeed)
+            .in('celula', celulasNeed)
+            .not('documento_asesor', 'is', null);
+          // Contar advisors únicos por (celula normalizada, pais)
+          const advisorsByKey = new Map<string, Set<string>>();
+          (mAse || []).forEach((r: any) => {
+            const doc = String(r.documento_asesor || '').trim();
+            if (!doc || doc.startsWith('CEL_')) return;
+            const key = `${normalize(r.celula || '')}|${r.pais || ''}`;
+            if (!advisorsByKey.has(key)) advisorsByKey.set(key, new Set());
+            advisorsByKey.get(key)!.add(doc);
+          });
+          for (const g of gerentesSinAsesores) {
+            const paisMetas = paisToMetas[normalizePaisCode(g.pais)];
+            const key = `${normalize(g.celula || '')}|${paisMetas}`;
+            const set = advisorsByKey.get(key);
+            // Restamos 1 si el propio líder figura como advisor en metas
+            const count = set ? Math.max(0, set.size - 1) : 0;
+            if (count > 0) asesoresMap.set(g.id, count);
+          }
+        }
+
         // 3) Métricas VN — respetar scope de canales del director
         const vnCanales = (scopeCanales.length ? scopeCanales : ['VN_ALIADOS', 'VN_EMPRESARIOS', 'VC'])
           .filter((c) => c.startsWith('VN'));
