@@ -1184,7 +1184,7 @@ const PanelDirector = () => {
                   )}
                 </div>
 
-                {/* Legend */}
+                {/* Legend + pagination */}
                 <div className="bg-muted/40 px-6 py-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
                     {TIERS.map((tt) => (
@@ -1196,9 +1196,36 @@ const PanelDirector = () => {
                       </div>
                     ))}
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground/70">
-                    Línea META 100% marca el objetivo de cumplimiento
-                  </span>
+                  {totalRanked > 0 && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                        {pageStart + 1}–{Math.min(pageStart + CHART_PAGE_SIZE, totalRanked)} de {totalRanked}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setChartPage((p) => Math.max(1, p - 1))}
+                          disabled={safePage <= 1}
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-[#00AAFF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Página anterior"
+                        >
+                          ‹
+                        </button>
+                        <span className="text-[11px] font-bold text-foreground tabular-nums px-2">
+                          {safePage} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setChartPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={safePage >= totalPages}
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-[#00AAFF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Página siguiente"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
