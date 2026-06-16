@@ -20,6 +20,8 @@ interface Row {
   celula: string;
   esquema?: string | null;
   cuota?: number;
+  meta_fe?: number;
+  meta_nube?: number;
   meta_total_und?: number;
   meta_total_acv?: number;
   mes: string;
@@ -185,6 +187,8 @@ const AdminMetasAcv = () => {
         celula: String(r.celula || '').trim(),
         esquema: r.esquema ? String(r.esquema).trim() : null,
         cuota: Number(r.cuota) || 0,
+        meta_fe: Number(r.meta_fe ?? r.fe) || 0,
+        meta_nube: Number(r.meta_nube ?? r.nube ?? r.coi_noi ?? r.coi_mas_noi) || 0,
         meta_total_und: Number(r.meta_total_und ?? r.meta_total_unds ?? r.meta_und) || 0,
         meta_total_acv: Number(r.meta_total_acv ?? r.meta_acv) || 0,
         mes: String(r.mes || '').trim(),
@@ -267,7 +271,7 @@ const AdminMetasAcv = () => {
           </div>
           <p className="text-xs text-muted-foreground">
             Columnas requeridas: <code className="bg-muted px-1 rounded">pais, canal, celula, mes, archivo</code>.
-            Opcionales: <code className="bg-muted px-1 rounded">director, esquema, cuota, meta_total_und, meta_total_acv</code>.
+            Opcionales: <code className="bg-muted px-1 rounded">director, esquema, cuota, meta_fe, meta_nube, meta_total_und, meta_total_acv</code>.
             <br />Valores válidos para <b>archivo</b>: <code>Inicio</code> o <code>Cierre</code>. Formato de <b>mes</b>: <code>2026-01</code>.
           </p>
 
@@ -301,6 +305,8 @@ const AdminMetasAcv = () => {
                       <th className="text-left py-1 px-2">Mes</th>
                       <th className="text-left py-1 px-2">Archivo</th>
                       <th className="text-right py-1 px-2">Meta ACV</th>
+                      <th className="text-right py-1 px-2">Meta FE</th>
+                      <th className="text-right py-1 px-2">Meta Nube</th>
                       <th className="text-right py-1 px-2">Meta Und</th>
                     </tr>
                   </thead>
@@ -318,6 +324,8 @@ const AdminMetasAcv = () => {
                           </span>
                         </td>
                         <td className="py-1 px-2 text-right">{(r.meta_total_acv || 0).toLocaleString()}</td>
+                        <td className="py-1 px-2 text-right">{r.meta_fe || 0}</td>
+                        <td className="py-1 px-2 text-right">{r.meta_nube || 0}</td>
                         <td className="py-1 px-2 text-right">{r.meta_total_und || 0}</td>
                       </tr>
                     ))}
@@ -404,6 +412,8 @@ const AdminMetasAcv = () => {
                     <th className="text-left px-3 py-2">Célula</th>
                     <th className="text-left px-3 py-2">Director</th>
                     <th className="text-right px-3 py-2">Meta ACV</th>
+                    <th className="text-right px-3 py-2">Meta FE</th>
+                    <th className="text-right px-3 py-2">Meta Nube</th>
                     <th className="text-right px-3 py-2">Meta Und</th>
                     <th className="text-center px-3 py-2">Estado</th>
                   </tr>
@@ -417,6 +427,8 @@ const AdminMetasAcv = () => {
                       <td className="px-3 py-2">{h.celula}</td>
                       <td className="px-3 py-2 text-muted-foreground">{h.director || '—'}</td>
                       <td className="px-3 py-2 text-right">{Number(h.meta_total_acv || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{Number(h.meta_fe || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{Number(h.meta_nube || 0).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">{h.meta_total_und || 0}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full',
