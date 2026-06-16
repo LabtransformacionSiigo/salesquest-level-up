@@ -223,12 +223,18 @@ const PanelDirector = () => {
           VN_ALIADOS: 'Aliados',
           VN_EMPRESARIOS: 'Empresarios',
         };
+        const normCanalDireccion = (value?: string | null) => {
+          const v = normalize(value || '');
+          if (v.includes('aliado')) return 'Aliados';
+          if (v.includes('smbs') || v.includes('empresario')) return 'Empresarios';
+          return value || '';
+        };
         const canalDirs = vnCanales.map((c) => canalDirMap[c]).filter(Boolean);
         let metricas: any[] = [];
         if (vnCanales.length || isAdmin) {
           let mq = supabase
             .from('vn_metricas_optimizadas' as any)
-            .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, ventas, acv_total')
+            .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
             .eq('scope', 'gerente')
             .eq('anio', anio)
             .eq('mes_nro', periodoSel);
@@ -293,17 +299,44 @@ const PanelDirector = () => {
           // aplica vía `allowedCelulaKeys` (construido a partir de TODOS los meses).
 
           const { data: metas } = await metasQuery;
+          let metasAsesoresRows: any[] = [];
+          if (periodoYYYYMM) {
+            let maq = supabase
+              .from('metas_asesores')
+              .select('pais, canal_direccion, celula, meta_fe, meta_nube, meta_total, documento_asesor')
+              .eq('anio_mes', periodoYYYYMM)
+              .like('documento_asesor', 'CEL_%');
+            if (!isAdmin && scopePaises.length) {
+              const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+              maq = maq.in('pais', fullPais);
+            }
+            const { data } = await maq;
+            metasAsesoresRows = data || [];
+          }
+          const metasAsesorByKey = new Map<string, any>();
+          metasAsesoresRows.forEach((r: any) => {
+            const paisCode = normalizePaisCode(r.pais === 'MEXICO' ? 'MEX' : r.pais === 'COLOMBIA' ? 'COL' : r.pais === 'ECUADOR' ? 'ECU' : r.pais === 'URUGUAY' ? 'URU' : r.pais);
+            const canal = normCanalDireccion(r.canal_direccion) === 'Aliados' ? 'VN_ALIADOS' : 'VN_EMPRESARIOS';
+            metasAsesorByKey.set(celulaScopeKey(r.celula, canal, paisCode), r);
+          });
           (metas || []).forEach((m: any) => {
             const cel = normalize(m.celula);
             if (!cel) return;
             const key = celulaScopeKey(m.celula, m.canal, m.pais);
             if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0 && !allowedCelulaKeys.has(key)) return;
+            const asesorMeta = metasAsesorByKey.get(key);
+            const asesorFe = Number(asesorMeta?.meta_fe) || 0;
+            const asesorNube = Number(asesorMeta?.meta_nube) || 0;
+            const asesorTotal = Number(asesorMeta?.meta_total) || 0;
+            const metaFe = Math.round(Number(m.meta_fe) || asesorFe || 0);
+            const metaNube = Math.round(Number(m.meta_nube) || asesorNube || Math.max(0, asesorTotal - metaFe));
+            const metaTotal = Math.round(Math.max(Number(m.meta_total_und) || 0, asesorTotal || 0, metaFe + metaNube));
             metasRows.push(m);
             validCelulasMes.add(key);
             metasMap.set(key, {
-              fe: m.meta_fe || 0,
-              nube: m.meta_nube || 0,
-              totalUds: m.meta_total_und || 0,
+              fe: metaFe,
+              nube: metaNube,
+              totalUds: metaTotal,
               acv: Number(m.meta_total_acv) || 0,
             });
           });
@@ -320,7 +353,7 @@ const PanelDirector = () => {
           if (!key) continue;
           const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
           const v = Number(m.ventas) || 0;
-          const tp = String(m.tipo_producto1 || '').toUpperCase();
+          const tp = String(m.familia || m.tipo_producto1 || '').toUpperCase();
           if (tp === 'FE') cur.fe += v;
           else if (tp === 'NUBE') cur.nube += v;
           cur.total += v;
