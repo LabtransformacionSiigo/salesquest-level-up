@@ -1018,8 +1018,14 @@ const PanelDirector = () => {
               : s.metaUds;
             const fmtVal = (n: number) =>
               chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
+            // Excluir filas sintéticas (células con meta pero sin gerente real asignado):
+            // sus IDs comienzan con 'meta-' o 'metric-' y muestran el nombre de la célula
+            // en lugar del nombre del gerente, además de no tener ventas atribuibles.
+            const isSyntheticRow = (s: Stats) =>
+              typeof s.gerente.id === 'string' && (s.gerente.id.startsWith('meta-') || s.gerente.id.startsWith('metric-'));
             const rankedAll = filteredStats
               .filter((s) => metaOf(s) > 0)
+              .filter((s) => !isSyntheticRow(s))
               .map((s) => ({ s, pct: pctOf(s) }))
               .sort((a, b) => a.pct - b.pct);
             const totalRanked = rankedAll.length;
