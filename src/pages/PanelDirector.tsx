@@ -1046,7 +1046,11 @@ const PanelDirector = () => {
                 <div className="px-6 py-5 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
                     <h3 className="font-heading text-lg font-bold text-foreground tracking-tight">Gerentes bajo meta</h3>
-                    <p className="text-sm text-muted-foreground">Top 10 con mayor brecha de cumplimiento</p>
+                    <p className="text-sm text-muted-foreground">
+                      {totalRanked === 0
+                        ? 'Sin gerentes bajo meta'
+                        : `${totalRanked} gerentes ordenados por menor cumplimiento`}
+                    </p>
                   </div>
                   <div className="flex p-1 bg-muted rounded-full">
                     {METRIC_OPTS.map((m) => {
