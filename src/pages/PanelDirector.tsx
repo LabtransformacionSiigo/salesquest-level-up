@@ -819,6 +819,7 @@ const PanelDirector = () => {
   // el % más bajo (los más críticos primero).
   const planChoque = useMemo(
     () => [...filteredStats]
+      .filter((s) => !(s.gerente.id.startsWith('meta-') || s.gerente.id.startsWith('metric-')))
       .filter((s) => s.metaUds > 0 && s.pctTotal < 50)
       .sort((a, b) => a.pctTotal - b.pctTotal)
       .slice(0, 5),
