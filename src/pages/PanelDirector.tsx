@@ -1123,7 +1123,7 @@ const PanelDirector = () => {
                               {/* Name + region */}
                               <div className="col-span-3 flex items-center gap-2 min-w-0">
                                 <span className="text-[10px] font-bold text-muted-foreground/60 tabular-nums w-5 shrink-0">
-                                  #{idx + 1}
+                                  #{pageStart + idx + 1}
                                 </span>
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-sm font-semibold text-foreground truncate" title={s.gerente.nombre}>
