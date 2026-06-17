@@ -533,6 +533,16 @@ const PanelDirector = () => {
           else seenSynth.add(synthKey);
           const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          // Fallback: si la fila de gerente está vacía pero sí hay ventas a nivel
+          // asesor agrupadas por la misma celula, usar esas ventas.
+          const celAggKey = celulaScopeKey(gerente.celula, gerente.canal, gerente.pais);
+          const celAgg = aggByCelula.get(celAggKey);
+          if (celAgg && (agg.fe + agg.nube + agg.total) === 0) {
+            agg.fe = celAgg.fe;
+            agg.nube = celAgg.nube;
+            agg.total = celAgg.total;
+            agg.acv = celAgg.acv;
+          }
           const metaFe = meta ? meta.fe : asesoresCount * 2;
           const metaNube = meta ? meta.nube : asesoresCount * 1;
           const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
