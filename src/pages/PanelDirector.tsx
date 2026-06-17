@@ -940,7 +940,7 @@ const PanelDirector = () => {
     })();
 
     return () => { cancelled = true; };
-  }, [profile, isAdmin, isDirector, authLoading, periodoSel, anio, scopeCanales, scopePaises]);
+  }, [profile, isAdmin, isDirector, isSeniorDirector, authLoading, periodoSel, anio, scopeCanales, scopePaises]);
 
   // Filtros aplicados sobre stats
   const filteredStats = useMemo(() => {
