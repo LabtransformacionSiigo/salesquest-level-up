@@ -289,6 +289,39 @@ const PanelDirector = () => {
           metricas = data || [];
         }
 
+        // 3b) Métricas a nivel ASESOR agregadas por celula. Sirven como fallback
+        // cuando la fila de scope='gerente' está ausente o en 0 para algún líder
+        // (caso frecuente en COL/ECU/MEX donde la sync de Databricks no genera
+        // la fila del gerente pero sí las de sus asesores).
+        const aggByCelula = new Map<string, { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null }>();
+        if (vnCanales.length || isAdmin) {
+          let aq = supabase
+            .from('vn_metricas_optimizadas' as any)
+            .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
+            .eq('scope', 'asesor')
+            .eq('anio', anio)
+            .eq('mes_nro', periodoSel)
+            .not('celula', 'is', null);
+          if (!isAdmin && scopePaises.length) aq = aq.in('pais', scopePaises);
+          if (!isAdmin && canalDirs.length) aq = aq.in('canal_direccion', canalDirs);
+          const { data: asesorRows } = await aq;
+          (asesorRows || []).forEach((r: any) => {
+            const cd = String(r.canal_direccion || '').toLowerCase();
+            const canalReal = cd.includes('aliado') ? 'VN_ALIADOS'
+              : cd.includes('empresario') || cd.includes('smbs') ? 'VN_EMPRESARIOS'
+              : null;
+            const key = celulaScopeKey(r.celula, canalReal, r.pais);
+            const cur = aggByCelula.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: r.pais, canal: canalReal };
+            const v = Number(r.ventas) || 0;
+            const tp = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+            if (tp === 'FE') cur.fe += v;
+            else if (tp === 'NUBE') cur.nube += v;
+            cur.total += v;
+            cur.acv += Number(r.acv_total) || 0;
+            aggByCelula.set(key, cur);
+          });
+        }
+
         // 4) SP acumulado mes actual
         const periodoYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
         const spMap = new Map<string, number>();
