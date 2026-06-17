@@ -646,7 +646,8 @@ const PanelDirector = () => {
           // Fallback: si la fila de gerente está vacía pero sí hay ventas a nivel
           // asesor agrupadas por la misma celula, usar esas ventas.
           const celAggKey = rowCelKey;
-          const celAgg = aggByCelula.get(celAggKey);
+          const alternateCanal = gerente.canal === 'VN_ALIADOS' ? 'VN_EMPRESARIOS' : 'VN_ALIADOS';
+          const celAgg = aggByCelula.get(celAggKey) || aggByCelula.get(celulaScopeKey(gerente.celula, alternateCanal, gerente.pais));
           if (celAgg && (agg.fe + agg.nube + agg.total) === 0) {
             agg.fe = celAgg.fe;
             agg.nube = celAgg.nube;
@@ -745,7 +746,8 @@ const PanelDirector = () => {
             celula: metaRow.celula,
           };
           // Usar ventas a nivel asesor agregadas por celula como fallback real
-          const celAgg = aggByCelula.get(celKey);
+          const alternateCanal = metaRow.canal === 'VN_ALIADOS' ? 'VN_EMPRESARIOS' : 'VN_ALIADOS';
+          const celAgg = aggByCelula.get(celKey) || aggByCelula.get(celulaScopeKey(metaRow.celula, alternateCanal, metaRow.pais));
           const fe = celAgg ? Math.round(celAgg.fe) : 0;
           const nube = celAgg ? Math.round(celAgg.nube) : 0;
           const total = celAgg ? Math.round(celAgg.total) : 0;
