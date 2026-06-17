@@ -268,19 +268,19 @@ const PanelDirector = () => {
           const paisesNeed = Array.from(new Set(
             gerentesSinAsesores.map((g) => paisToMetas[normalizePaisCode(g.pais)]).filter(Boolean),
           ));
-          const { data: mAse } = await supabase
+          const mAse = await fetchAll<any>(() => supabase
             .from('metas_asesores')
             .select('celula, pais, documento_asesor, aplica_cuota_lider')
             .eq('anio_mes', periodoMetasYYYYMM)
             .in('pais', paisesNeed)
-            .in('celula', celulasNeed)
-            .not('documento_asesor', 'is', null);
+            .not('documento_asesor', 'is', null));
           // Contar advisors únicos por (celula normalizada, pais)
           const advisorsByKey = new Map<string, Set<string>>();
           (mAse || []).forEach((r: any) => {
             const doc = String(r.documento_asesor || '').trim();
             if (!doc || doc.startsWith('CEL_')) return;
             const key = `${normalize(r.celula || '')}|${r.pais || ''}`;
+            if (!celulasNeed.some((cel) => normalize(cel) === normalize(r.celula || ''))) return;
             if (!advisorsByKey.has(key)) advisorsByKey.set(key, new Set());
             advisorsByKey.get(key)!.add(doc);
           });
