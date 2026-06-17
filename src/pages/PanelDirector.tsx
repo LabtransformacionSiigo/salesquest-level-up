@@ -25,6 +25,15 @@ const normalizePaisCode = (pais?: string | null) => {
   return code === 'URY' ? 'URU' : code;
 };
 
+const paisNameToCode = (pais?: string | null) => {
+  const value = normalize(pais || '');
+  if (value === 'colombia') return 'COL';
+  if (value === 'mexico') return 'MEX';
+  if (value === 'ecuador') return 'ECU';
+  if (value === 'uruguay') return 'URU';
+  return normalizePaisCode(pais);
+};
+
 const celulaScopeKey = (celula?: string | null, canal?: string | null, pais?: string | null) =>
   `${normalize(celula || '')}|${canal || ''}|${normalizePaisCode(pais)}`;
 
@@ -134,6 +143,26 @@ const PanelDirector = () => {
     (async () => {
       setLoading(true);
       try {
+        const fetchAll = async <T = any,>(buildQuery: () => any, pageSize = 1000): Promise<T[]> => {
+          const rows: T[] = [];
+          for (let from = 0; ; from += pageSize) {
+            const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+            if (error) throw error;
+            rows.push(...((data || []) as T[]));
+            if (!data || data.length < pageSize) break;
+          }
+          return rows;
+        };
+
+        const fetchAllInChunks = async <T = any,>(ids: string[], buildQuery: (chunk: string[]) => any): Promise<T[]> => {
+          const rows: T[] = [];
+          const CHUNK_SIZE = 350;
+          for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+            rows.push(...await fetchAll<T>(() => buildQuery(ids.slice(i, i + CHUNK_SIZE))));
+          }
+          return rows;
+        };
+
         // 0) Director scope por NOMBRE: leer celulas asignadas en metas_acv_gerentes.director
         // Esto evita que aparezcan gerentes de otros directores con el mismo canal/país.
         // ⚠️ Los directores Sr supervisan TODO el canal+país: no construimos gate.
@@ -157,14 +186,17 @@ const PanelDirector = () => {
 
 
         // 1) Gerentes en scope
-        let gq = supabase.from('gerentes')
-          .select('id, nombre, email, canal, pais, celula, user_id')
-          .eq('activo', true);
-        if (!isAdmin) {
-          if (scopeCanales.length) gq = gq.in('canal', scopeCanales);
-          if (scopePaises.length) gq = gq.in('pais', scopePaises);
-        }
-        const { data: gerentes = [] } = await gq;
+        const buildGerentesQuery = () => {
+          let q = supabase.from('gerentes')
+            .select('id, nombre, email, canal, pais, celula, user_id')
+            .eq('activo', true);
+          if (!isAdmin) {
+            if (scopeCanales.length) q = q.in('canal', scopeCanales);
+            if (scopePaises.length) q = q.in('pais', scopePaises);
+          }
+          return q;
+        };
+        const gerentes = await fetchAll<GerenteRow>(buildGerentesQuery);
         let gerentesList = (gerentes || []) as GerenteRow[];
         if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0) {
           // VC no usa celula → no aplicar gate de celula a gerentes VC
@@ -181,11 +213,11 @@ const PanelDirector = () => {
         const asesoresMap = new Map<string, number>();
         // a) Desde la tabla `asesores` (modelo legacy / VC)
         if (gerenteIds.length) {
-          const { data: ases } = await supabase
+          const ases = await fetchAllInChunks<any>(gerenteIds, (chunk) => supabase
             .from('asesores')
             .select('gerente_id')
-            .in('gerente_id', gerenteIds)
-            .eq('activo', true);
+            .in('gerente_id', chunk)
+            .eq('activo', true));
           (ases || []).forEach((a: any) => {
             asesoresMap.set(a.gerente_id, (asesoresMap.get(a.gerente_id) || 0) + 1);
           });
@@ -197,14 +229,16 @@ const PanelDirector = () => {
         );
         const celulaCountMap = new Map<string, number>();
         if (celulasInScope.length) {
-          let allCelQuery = supabase
-            .from('gerentes')
-            .select('celula, canal, pais')
-            .in('celula', celulasInScope)
-            .eq('activo', true);
-          if (!isAdmin && scopeCanales.length) allCelQuery = allCelQuery.in('canal', scopeCanales);
-          if (!isAdmin && scopePaises.length) allCelQuery = allCelQuery.in('pais', scopePaises);
-          const { data: allCel } = await allCelQuery;
+          const allCel = await fetchAllInChunks<any>(celulasInScope, (chunk) => {
+            let q = supabase
+              .from('gerentes')
+              .select('celula, canal, pais')
+              .in('celula', chunk)
+              .eq('activo', true);
+            if (!isAdmin && scopeCanales.length) q = q.in('canal', scopeCanales);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            return q;
+          });
           (allCel || []).forEach((r: any) => {
             const key = celulaScopeKey(r.celula, r.canal, r.pais);
             celulaCountMap.set(key, (celulaCountMap.get(key) || 0) + 1);
@@ -234,19 +268,19 @@ const PanelDirector = () => {
           const paisesNeed = Array.from(new Set(
             gerentesSinAsesores.map((g) => paisToMetas[normalizePaisCode(g.pais)]).filter(Boolean),
           ));
-          const { data: mAse } = await supabase
+          const mAse = await fetchAll<any>(() => supabase
             .from('metas_asesores')
             .select('celula, pais, documento_asesor, aplica_cuota_lider')
             .eq('anio_mes', periodoMetasYYYYMM)
             .in('pais', paisesNeed)
-            .in('celula', celulasNeed)
-            .not('documento_asesor', 'is', null);
+            .not('documento_asesor', 'is', null));
           // Contar advisors únicos por (celula normalizada, pais)
           const advisorsByKey = new Map<string, Set<string>>();
           (mAse || []).forEach((r: any) => {
             const doc = String(r.documento_asesor || '').trim();
             if (!doc || doc.startsWith('CEL_')) return;
             const key = `${normalize(r.celula || '')}|${r.pais || ''}`;
+            if (!celulasNeed.some((cel) => normalize(cel) === normalize(r.celula || ''))) return;
             if (!advisorsByKey.has(key)) advisorsByKey.set(key, new Set());
             advisorsByKey.get(key)!.add(doc);
           });
@@ -277,16 +311,17 @@ const PanelDirector = () => {
         const canalDirs = vnCanales.map((c) => canalDirMap[c]).filter(Boolean);
         let metricas: any[] = [];
         if (vnCanales.length || isAdmin) {
-          let mq = supabase
-            .from('vn_metricas_optimizadas' as any)
-            .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
-            .eq('scope', 'gerente')
-            .eq('anio', anio)
-            .eq('mes_nro', periodoSel);
-          if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
-          if (!isAdmin && canalDirs.length) mq = mq.in('canal_direccion', canalDirs);
-          const { data } = await mq;
-          metricas = data || [];
+          metricas = await fetchAll<any>(() => {
+            let q = supabase
+              .from('vn_metricas_optimizadas' as any)
+              .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
+              .eq('scope', 'gerente')
+              .eq('anio', anio)
+              .eq('mes_nro', periodoSel);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            if (!isAdmin && canalDirs.length) q = q.in('canal_direccion', canalDirs);
+            return q;
+          });
         }
 
         // 3b) Métricas a nivel ASESOR agregadas por celula. Sirven como fallback
@@ -295,16 +330,18 @@ const PanelDirector = () => {
         // la fila del gerente pero sí las de sus asesores).
         const aggByCelula = new Map<string, { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null }>();
         if (vnCanales.length || isAdmin) {
-          let aq = supabase
-            .from('vn_metricas_optimizadas' as any)
-            .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
-            .eq('scope', 'asesor')
-            .eq('anio', anio)
-            .eq('mes_nro', periodoSel)
-            .not('celula', 'is', null);
-          if (!isAdmin && scopePaises.length) aq = aq.in('pais', scopePaises);
-          if (!isAdmin && canalDirs.length) aq = aq.in('canal_direccion', canalDirs);
-          const { data: asesorRows } = await aq;
+          const asesorRows = await fetchAll<any>(() => {
+            let q = supabase
+              .from('vn_metricas_optimizadas' as any)
+              .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
+              .eq('scope', 'asesor')
+              .eq('anio', anio)
+              .eq('mes_nro', periodoSel)
+              .not('celula', 'is', null);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            if (!isAdmin && canalDirs.length) q = q.in('canal_direccion', canalDirs);
+            return q;
+          });
           (asesorRows || []).forEach((r: any) => {
             const cd = String(r.canal_direccion || '').toLowerCase();
             const canalReal = cd.includes('aliado') ? 'VN_ALIADOS'
@@ -326,11 +363,11 @@ const PanelDirector = () => {
         const periodoYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
         const spMap = new Map<string, number>();
         if (gerenteIds.length) {
-          const { data: spData } = await supabase
+          const spData = await fetchAllInChunks<any>(gerenteIds, (chunk) => supabase
             .from('sp_acumulados')
             .select('gerente_id, sp')
             .eq('periodo', periodoYYYYMM)
-            .in('gerente_id', gerenteIds);
+            .in('gerente_id', chunk));
           (spData || []).forEach((r: any) => {
             spMap.set(r.gerente_id, (spMap.get(r.gerente_id) || 0) + (r.sp || 0));
           });
@@ -340,18 +377,18 @@ const PanelDirector = () => {
         const rachaMap = new Map<string, number>();
         if (gerenteIds.length) {
           const [rvc, rvn] = await Promise.all([
-            supabase.from('rachas').select('gerente_id, semanas_consecutivas')
-              .in('gerente_id', gerenteIds)
-              .order('semanas_consecutivas', { ascending: false }),
-            supabase.from('rachas_vn_estado').select('gerente_id, dias_o_semanas_consecutivas, racha_activa')
-              .in('gerente_id', gerenteIds)
-              .eq('racha_activa', true),
+            fetchAllInChunks<any>(gerenteIds, (chunk) => supabase.from('rachas').select('gerente_id, semanas_consecutivas')
+              .in('gerente_id', chunk)
+              .order('semanas_consecutivas', { ascending: false })),
+            fetchAllInChunks<any>(gerenteIds, (chunk) => supabase.from('rachas_vn_estado').select('gerente_id, dias_o_semanas_consecutivas, racha_activa')
+              .in('gerente_id', chunk)
+              .eq('racha_activa', true)),
           ]);
-          (rvc.data || []).forEach((r: any) => {
+          (rvc || []).forEach((r: any) => {
             const cur = rachaMap.get(r.gerente_id) || 0;
             rachaMap.set(r.gerente_id, Math.max(cur, r.semanas_consecutivas || 0));
           });
-          (rvn.data || []).forEach((r: any) => {
+          (rvn || []).forEach((r: any) => {
             const cur = rachaMap.get(r.gerente_id) || 0;
             const semanas = Math.ceil((r.dias_o_semanas_consecutivas || 0) / 5);
             rachaMap.set(r.gerente_id, Math.max(cur, semanas));
@@ -376,20 +413,21 @@ const PanelDirector = () => {
           // vacía en algunos meses (ej. Jun 2026). El scope por director ya se
           // aplica vía `allowedCelulaKeys` (construido a partir de TODOS los meses).
 
-          const { data: metas } = await metasQuery;
+          const metas = await fetchAll<any>(() => metasQuery);
           let metasAsesoresRows: any[] = [];
           if (periodoYYYYMM) {
-            let maq = supabase
-              .from('metas_asesores')
-              .select('pais, canal_direccion, celula, meta_fe, meta_nube, meta_total, documento_asesor')
-              .eq('anio_mes', periodoYYYYMM)
-              .like('documento_asesor', 'CEL_%');
-            if (!isAdmin && scopePaises.length) {
-              const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
-              maq = maq.in('pais', fullPais);
-            }
-            const { data } = await maq;
-            metasAsesoresRows = data || [];
+            metasAsesoresRows = await fetchAll<any>(() => {
+              let q = supabase
+                .from('metas_asesores')
+                .select('pais, canal_direccion, celula, meta_fe, meta_nube, meta_total, documento_asesor')
+                .eq('anio_mes', periodoYYYYMM)
+                .like('documento_asesor', 'CEL_%');
+              if (!isAdmin && scopePaises.length) {
+                const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+                q = q.in('pais', fullPais);
+              }
+              return q;
+            });
           }
           const metasAsesorByKey = new Map<string, any>();
           metasAsesoresRows.forEach((r: any) => {
@@ -425,22 +463,33 @@ const PanelDirector = () => {
         // Cualquier persona con documento_asesor real (no CEL_*) en metas_asesores del
         // periodo es asesor — aunque tenga registro espejo en `gerentes`.
         const advisorNamesSet = new Set<string>();
+        const metaGerenteByCelula = new Map<string, string>();
+        const advisorDocsByCelula = new Map<string, Set<string>>();
         {
-          let q = supabase
-            .from('metas_asesores')
-            .select('nombre_asesor, documento_asesor, pais')
-            .eq('anio_mes', periodoYYYYMM)
-            .not('documento_asesor', 'is', null);
-          if (!isAdmin && scopePaises.length) {
-            const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
-            q = q.in('pais', fullPais);
-          }
-          const { data: asRows } = await q;
+          const asRows = await fetchAll<any>(() => {
+            let q = supabase
+              .from('metas_asesores')
+              .select('nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais')
+              .eq('anio_mes', periodoYYYYMM)
+              .not('documento_asesor', 'is', null);
+            if (!isAdmin && scopePaises.length) {
+              const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+              q = q.in('pais', fullPais);
+            }
+            return q;
+          });
           (asRows || []).forEach((r: any) => {
             const doc = String(r.documento_asesor || '').trim();
             if (!doc || doc.startsWith('CEL_')) return;
+            const canal = normCanalDireccion(r.canal_direccion) === 'Aliados' ? 'VN_ALIADOS' : 'VN_EMPRESARIOS';
+            if (!isAdmin && scopeCanales.length && !scopeCanales.includes(canal)) return;
+            const celKey = celulaScopeKey(r.celula, canal, paisNameToCode(r.pais));
             const n = normalize(r.nombre_asesor || '');
             if (n) advisorNamesSet.add(n);
+            const gerenteNombre = String(r.gerente || '').trim();
+            if (gerenteNombre && !metaGerenteByCelula.has(celKey)) metaGerenteByCelula.set(celKey, gerenteNombre);
+            if (!advisorDocsByCelula.has(celKey)) advisorDocsByCelula.set(celKey, new Set());
+            advisorDocsByCelula.get(celKey)!.add(doc);
           });
         }
 
@@ -451,15 +500,25 @@ const PanelDirector = () => {
           return advisorNamesSet.has(name) || email.startsWith('emp-');
         };
 
+        // Mapeo canal_direccion → canal real para rellenar filas sin match en `gerentes`.
+        const canalFromMetric = (m: any): string | null => {
+          const cd = String(m.canal_direccion || '').toLowerCase();
+          if (cd.includes('aliado')) return 'VN_ALIADOS';
+          if (cd.includes('empresario')) return 'VN_EMPRESARIOS';
+          return null;
+        };
+
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
-        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null };
+        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null; celula: string | null; leaderName: string };
         const aggByLeader = new Map<string, Agg>();
         for (const m of metricas) {
-          const key = normalize(m.gerente_normalizado || m.gerente || '');
+          const canalReal = canalFromMetric(m);
+          const leaderName = String(m.gerente_normalizado || m.gerente || '').trim();
+          const key = `${normalize(leaderName)}|${canalReal || ''}|${normalizePaisCode(m.pais)}|${normalize(m.celula || '')}`;
           if (!key) continue;
-          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
+          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null, canal: canalReal, celula: m.celula || null, leaderName };
           const v = Number(m.ventas) || 0;
           const tp = String(m.familia || m.tipo_producto1 || '').toUpperCase();
           if (tp === 'FE') cur.fe += v;
@@ -467,12 +526,20 @@ const PanelDirector = () => {
           cur.total += v;
           cur.acv += Number(m.acv_total) || 0;
           cur.pais = cur.pais || m.pais;
+          cur.canal = cur.canal || canalReal;
+          cur.celula = cur.celula || m.celula || null;
+          cur.leaderName = cur.leaderName || leaderName;
           aggByLeader.set(key, cur);
         }
 
         const gByName = new Map<string, GerenteRow[]>();
+        const gByCelulaKey = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
           if (isAdvisorLikeGerente(g)) continue;
+          if (g.celula) {
+            const ck = celulaScopeKey(g.celula, g.canal, g.pais);
+            gByCelulaKey.set(ck, [...(gByCelulaKey.get(ck) || []), g]);
+          }
           const k = normalize(g.nombre);
           if (!k) continue;
           // Excluir nombres de UN solo token (ej. "Angel", "Walter") como candidatos
@@ -488,7 +555,7 @@ const PanelDirector = () => {
           const pool = byPais.length ? byPais : arr;
           return pool.find((g) => !!g.celula) || pool[0];
         };
-        const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
+        const findGerenteByName = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
           const exact = gByName.get(leaderKey);
           if (exact && exact.length) return pickBest(exact, paisHint);
 
@@ -515,14 +582,24 @@ const PanelDirector = () => {
           }
           return null;
         };
-
-        // Mapeo canal_direccion → canal real para rellenar filas sin match en `gerentes`.
-        const canalFromMetric = (m: any): string | null => {
-          const cd = String(m.canal_direccion || '').toLowerCase();
-          if (cd.includes('aliado')) return 'VN_ALIADOS';
-          if (cd.includes('empresario')) return 'VN_EMPRESARIOS';
-          return null;
+        const findGerente = (agg: Agg): GerenteRow | null => {
+          const ck = celulaScopeKey(agg.celula, agg.canal, agg.pais);
+          const expectedName = metaGerenteByCelula.get(ck) || agg.leaderName;
+          const sameCell = gByCelulaKey.get(ck) || [];
+          if (sameCell.length) {
+            const exactCell = sameCell.find((g) => normalize(g.nombre) === normalize(expectedName));
+            if (exactCell) return exactCell;
+            return pickVnLeaderCandidate(sameCell, {
+              celula: agg.celula,
+              gerenteNombre: expectedName,
+              advisorNames: advisorNamesSet,
+              excludeIds: usedIds,
+            });
+          }
+          return findGerenteByName(normalize(expectedName || agg.leaderName), agg.pais)
+            || findGerenteByName(normalize(agg.leaderName), agg.pais);
         };
+
         const canalByLeader = new Map<string, string | null>();
         for (const m of metricas) {
           const key = normalize(m.gerente_normalizado || m.gerente || '');
@@ -535,39 +612,42 @@ const PanelDirector = () => {
         const usedCelulaKeys = new Set<string>();
         const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
-          const g = findGerente(leaderKey, agg.pais);
+          const g = findGerente(agg);
+          const rowCelKey = celulaScopeKey(g?.celula || agg.celula, g?.canal || agg.canal, g?.pais || agg.pais);
+          const verifiedMetaGerente = metaGerenteByCelula.get(rowCelKey);
 
           // 🔒 Directores (no-admin): nunca crear gerentes sintéticos. Si la métrica no
           // tiene match con un gerente real dentro del scope, se descarta. Esto evita que
           // aparezcan líderes de otros canales/países en el panel.
-          if (!isAdmin && !g) continue;
+          if (!isAdmin && !g && !verifiedMetaGerente) continue;
           if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
           if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
-          const celKey = celulaScopeKey(g?.celula, g?.canal, g?.pais);
-          if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
-          if (g?.celula && usedCelulaKeys.has(celKey)) continue;
-          if (g?.celula) usedCelulaKeys.add(celKey);
+          if (!isAdmin && (!rowCelKey || !validCelulasMes.has(rowCelKey))) continue;
+          if (rowCelKey && usedCelulaKeys.has(rowCelKey)) continue;
+          if (rowCelKey) usedCelulaKeys.add(rowCelKey);
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
           const synthKey = `${leaderKey}|${agg.pais || ''}`;
           if (!g && seenSynth.has(synthKey)) continue;
           const gerente: GerenteRow = g || {
-            id: `metric-${synthKey}`,
-            nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
+            id: `leader-${rowCelKey}`,
+            nombre: verifiedMetaGerente || agg.leaderName.replace(/\b\w/g, (c) => c.toUpperCase()),
             email: '',
-            canal: canalByLeader.get(leaderKey) || null,
+            canal: agg.canal || canalByLeader.get(leaderKey) || null,
             pais: agg.pais,
-            celula: null,
+            celula: agg.celula,
           };
+          if (!g && advisorNamesSet.has(normalize(gerente.nombre))) continue;
           if (g) usedIds.add(g.id);
           else seenSynth.add(synthKey);
-          const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
-          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          const meta = metasMap.get(rowCelKey);
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : (advisorDocsByCelula.get(rowCelKey)?.size || 0);
           // Fallback: si la fila de gerente está vacía pero sí hay ventas a nivel
           // asesor agrupadas por la misma celula, usar esas ventas.
-          const celAggKey = celulaScopeKey(gerente.celula, gerente.canal, gerente.pais);
-          const celAgg = aggByCelula.get(celAggKey);
+          const celAggKey = rowCelKey;
+          const alternateCanal = gerente.canal === 'VN_ALIADOS' ? 'VN_EMPRESARIOS' : 'VN_ALIADOS';
+          const celAgg = aggByCelula.get(celAggKey) || aggByCelula.get(celulaScopeKey(gerente.celula, alternateCanal, gerente.pais));
           if (celAgg && (agg.fe + agg.nube + agg.total) === 0) {
             agg.fe = celAgg.fe;
             agg.nube = celAgg.nube;
@@ -647,17 +727,27 @@ const PanelDirector = () => {
           const g = pickGerenteByCelula(celKey);
           // Si no hay gerente real para la célula, no crear filas sintéticas ni
           // elegir asesores como reemplazo: el panel sólo debe listar gerentes reales.
-          if (!g || isAdvisorLikeGerente(g)) continue;
-          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          const verifiedMetaGerente = metaGerenteByCelula.get(celKey);
+          if ((!g && !verifiedMetaGerente) || isAdvisorLikeGerente(g)) continue;
+          if (verifiedMetaGerente && advisorNamesSet.has(normalize(verifiedMetaGerente))) continue;
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : (advisorDocsByCelula.get(celKey)?.size || 0);
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
           const metaFe = meta ? meta.fe : asesoresCount * 2;
           const metaNube = meta ? meta.nube : asesoresCount * 1;
           const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
-          const gerente: GerenteRow = g;
+          const gerente: GerenteRow = g || {
+            id: `leader-${celKey}`,
+            nombre: verifiedMetaGerente!,
+            email: '',
+            canal: metaRow.canal,
+            pais: metaRow.pais,
+            celula: metaRow.celula,
+          };
           // Usar ventas a nivel asesor agregadas por celula como fallback real
-          const celAgg = aggByCelula.get(celKey);
+          const alternateCanal = metaRow.canal === 'VN_ALIADOS' ? 'VN_EMPRESARIOS' : 'VN_ALIADOS';
+          const celAgg = aggByCelula.get(celKey) || aggByCelula.get(celulaScopeKey(metaRow.celula, alternateCanal, metaRow.pais));
           const fe = celAgg ? Math.round(celAgg.fe) : 0;
           const nube = celAgg ? Math.round(celAgg.nube) : 0;
           const total = celAgg ? Math.round(celAgg.total) : 0;
@@ -850,7 +940,7 @@ const PanelDirector = () => {
     })();
 
     return () => { cancelled = true; };
-  }, [profile, isAdmin, isDirector, authLoading, periodoSel, anio, scopeCanales, scopePaises]);
+  }, [profile, isAdmin, isDirector, isSeniorDirector, authLoading, periodoSel, anio, scopeCanales, scopePaises]);
 
   // Filtros aplicados sobre stats
   const filteredStats = useMemo(() => {
