@@ -500,6 +500,14 @@ const PanelDirector = () => {
           return advisorNamesSet.has(name) || email.startsWith('emp-');
         };
 
+        // Mapeo canal_direccion → canal real para rellenar filas sin match en `gerentes`.
+        const canalFromMetric = (m: any): string | null => {
+          const cd = String(m.canal_direccion || '').toLowerCase();
+          if (cd.includes('aliado')) return 'VN_ALIADOS';
+          if (cd.includes('empresario')) return 'VN_EMPRESARIOS';
+          return null;
+        };
+
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
@@ -570,13 +578,6 @@ const PanelDirector = () => {
           return null;
         };
 
-        // Mapeo canal_direccion → canal real para rellenar filas sin match en `gerentes`.
-        const canalFromMetric = (m: any): string | null => {
-          const cd = String(m.canal_direccion || '').toLowerCase();
-          if (cd.includes('aliado')) return 'VN_ALIADOS';
-          if (cd.includes('empresario')) return 'VN_EMPRESARIOS';
-          return null;
-        };
         const canalByLeader = new Map<string, string | null>();
         for (const m of metricas) {
           const key = normalize(m.gerente_normalizado || m.gerente || '');
