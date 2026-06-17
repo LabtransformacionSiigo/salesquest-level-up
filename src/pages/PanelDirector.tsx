@@ -25,6 +25,15 @@ const normalizePaisCode = (pais?: string | null) => {
   return code === 'URY' ? 'URU' : code;
 };
 
+const paisNameToCode = (pais?: string | null) => {
+  const value = normalize(pais || '');
+  if (value === 'colombia') return 'COL';
+  if (value === 'mexico') return 'MEX';
+  if (value === 'ecuador') return 'ECU';
+  if (value === 'uruguay') return 'URU';
+  return normalizePaisCode(pais);
+};
+
 const celulaScopeKey = (celula?: string | null, canal?: string | null, pais?: string | null) =>
   `${normalize(celula || '')}|${canal || ''}|${normalizePaisCode(pais)}`;
 
@@ -134,6 +143,26 @@ const PanelDirector = () => {
     (async () => {
       setLoading(true);
       try {
+        const fetchAll = async <T = any,>(buildQuery: () => any, pageSize = 1000): Promise<T[]> => {
+          const rows: T[] = [];
+          for (let from = 0; ; from += pageSize) {
+            const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+            if (error) throw error;
+            rows.push(...((data || []) as T[]));
+            if (!data || data.length < pageSize) break;
+          }
+          return rows;
+        };
+
+        const fetchAllInChunks = async <T = any,>(ids: string[], buildQuery: (chunk: string[]) => any): Promise<T[]> => {
+          const rows: T[] = [];
+          const CHUNK_SIZE = 350;
+          for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+            rows.push(...await fetchAll<T>(() => buildQuery(ids.slice(i, i + CHUNK_SIZE))));
+          }
+          return rows;
+        };
+
         // 0) Director scope por NOMBRE: leer celulas asignadas en metas_acv_gerentes.director
         // Esto evita que aparezcan gerentes de otros directores con el mismo canal/país.
         // ⚠️ Los directores Sr supervisan TODO el canal+país: no construimos gate.
