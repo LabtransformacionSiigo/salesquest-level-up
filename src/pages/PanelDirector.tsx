@@ -289,6 +289,39 @@ const PanelDirector = () => {
           metricas = data || [];
         }
 
+        // 3b) Métricas a nivel ASESOR agregadas por celula. Sirven como fallback
+        // cuando la fila de scope='gerente' está ausente o en 0 para algún líder
+        // (caso frecuente en COL/ECU/MEX donde la sync de Databricks no genera
+        // la fila del gerente pero sí las de sus asesores).
+        const aggByCelula = new Map<string, { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null }>();
+        if (vnCanales.length || isAdmin) {
+          let aq = supabase
+            .from('vn_metricas_optimizadas' as any)
+            .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
+            .eq('scope', 'asesor')
+            .eq('anio', anio)
+            .eq('mes_nro', periodoSel)
+            .not('celula', 'is', null);
+          if (!isAdmin && scopePaises.length) aq = aq.in('pais', scopePaises);
+          if (!isAdmin && canalDirs.length) aq = aq.in('canal_direccion', canalDirs);
+          const { data: asesorRows } = await aq;
+          (asesorRows || []).forEach((r: any) => {
+            const cd = String(r.canal_direccion || '').toLowerCase();
+            const canalReal = cd.includes('aliado') ? 'VN_ALIADOS'
+              : cd.includes('empresario') || cd.includes('smbs') ? 'VN_EMPRESARIOS'
+              : null;
+            const key = celulaScopeKey(r.celula, canalReal, r.pais);
+            const cur = aggByCelula.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: r.pais, canal: canalReal };
+            const v = Number(r.ventas) || 0;
+            const tp = String(r.familia || r.tipo_producto1 || '').toUpperCase();
+            if (tp === 'FE') cur.fe += v;
+            else if (tp === 'NUBE') cur.nube += v;
+            cur.total += v;
+            cur.acv += Number(r.acv_total) || 0;
+            aggByCelula.set(key, cur);
+          });
+        }
+
         // 4) SP acumulado mes actual
         const periodoYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
         const spMap = new Map<string, number>();
@@ -500,6 +533,16 @@ const PanelDirector = () => {
           else seenSynth.add(synthKey);
           const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          // Fallback: si la fila de gerente está vacía pero sí hay ventas a nivel
+          // asesor agrupadas por la misma celula, usar esas ventas.
+          const celAggKey = celulaScopeKey(gerente.celula, gerente.canal, gerente.pais);
+          const celAgg = aggByCelula.get(celAggKey);
+          if (celAgg && (agg.fe + agg.nube + agg.total) === 0) {
+            agg.fe = celAgg.fe;
+            agg.nube = celAgg.nube;
+            agg.total = celAgg.total;
+            agg.acv = celAgg.acv;
+          }
           const metaFe = meta ? meta.fe : asesoresCount * 2;
           const metaNube = meta ? meta.nube : asesoresCount * 1;
           const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
@@ -582,15 +625,28 @@ const PanelDirector = () => {
             pais: normalizePaisCode(metaRow.pais),
             celula: metaRow.celula || null,
           };
+          // Usar ventas a nivel asesor agregadas por celula como fallback real
+          const celAgg = aggByCelula.get(celKey);
+          const fe = celAgg ? Math.round(celAgg.fe) : 0;
+          const nube = celAgg ? Math.round(celAgg.nube) : 0;
+          const total = celAgg ? Math.round(celAgg.total) : 0;
+          const acv = celAgg ? Math.round(celAgg.acv) : 0;
+          const pctFe = metaFe > 0 ? (fe / metaFe) * 100 : 0;
+          const pctNube = metaNube > 0 ? (nube / metaNube) * 100 : 0;
+          const pctTotal = metaTotal > 0 ? (total / metaTotal) * 100 : 0;
+          const pctAcv = (meta?.acv || 0) > 0 ? (acv / (meta!.acv)) * 100 : 0;
           out.push({
             gerente,
             asesores: asesoresCount,
-            fe: 0, nube: 0, total: 0, acv: 0,
+            fe, nube, total, acv,
             metaFe, metaNube, metaUds: metaTotal,
             metaAcv: meta ? meta.acv : 0,
-            pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
-            pacing: 0, scoreCompuesto: 0,
-            productividad: 0, ventasPorAsesor: 0,
+            pctFe: Math.round(pctFe), pctNube: Math.round(pctNube),
+            pctAcv: Math.round(pctAcv), pctTotal: Math.round(pctTotal),
+            pacing: 0,
+            scoreCompuesto: Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40),
+            productividad: 0,
+            ventasPorAsesor: asesoresCount > 0 ? Math.round((total / asesoresCount) * 10) / 10 : 0,
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
