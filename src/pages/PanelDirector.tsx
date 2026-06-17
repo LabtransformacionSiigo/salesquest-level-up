@@ -421,6 +421,36 @@ const PanelDirector = () => {
 
         }
 
+        // Construir set de NOMBRES DE ASESORES antes de resolver líderes.
+        // Cualquier persona con documento_asesor real (no CEL_*) en metas_asesores del
+        // periodo es asesor — aunque tenga registro espejo en `gerentes`.
+        const advisorNamesSet = new Set<string>();
+        {
+          let q = supabase
+            .from('metas_asesores')
+            .select('nombre_asesor, documento_asesor, pais')
+            .eq('anio_mes', periodoYYYYMM)
+            .not('documento_asesor', 'is', null);
+          if (!isAdmin && scopePaises.length) {
+            const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+            q = q.in('pais', fullPais);
+          }
+          const { data: asRows } = await q;
+          (asRows || []).forEach((r: any) => {
+            const doc = String(r.documento_asesor || '').trim();
+            if (!doc || doc.startsWith('CEL_')) return;
+            const n = normalize(r.nombre_asesor || '');
+            if (n) advisorNamesSet.add(n);
+          });
+        }
+
+        const isAdvisorLikeGerente = (g?: GerenteRow | null) => {
+          if (!g) return false;
+          const name = normalize(g.nombre || '');
+          const email = String(g.email || '').trim().toLowerCase();
+          return advisorNamesSet.has(name) || email.startsWith('emp-');
+        };
+
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
@@ -442,6 +472,7 @@ const PanelDirector = () => {
 
         const gByName = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
+          if (isAdvisorLikeGerente(g)) continue;
           const k = normalize(g.nombre);
           if (!k) continue;
           // Excluir nombres de UN solo token (ej. "Angel", "Walter") como candidatos
