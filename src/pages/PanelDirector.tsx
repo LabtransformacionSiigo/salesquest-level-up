@@ -636,6 +636,10 @@ const PanelDirector = () => {
           const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);
           if (seenCelulas.has(celKey)) continue;
           const g = pickGerenteByCelula(celKey);
+          // Si el "líder" elegido en realidad es un asesor (su nombre figura en
+          // metas_asesores con documento real), no creamos fila: el panel sólo
+          // debe listar gerentes reales.
+          if (g && advisorNamesSet.has(normalize(g.nombre || ''))) continue;
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
