@@ -1035,7 +1035,7 @@ const PanelDirector = () => {
           <div className="mb-4">
             <h2 className="font-heading text-lg font-bold">Resumen ejecutivo del equipo</h2>
             <p className="text-xs text-muted-foreground">
-              Clasificación por desempeño · {totalGer} gerentes activos
+              Clasificación por desempeño · {tierCounts.cumple + tierCounts.en_meta + tierCounts.en_riesgo + tierCounts.por_debajo} gerentes con meta {chartMetric === 'TOTAL' ? 'Total uds' : chartMetric}{totalGer !== (tierCounts.cumple + tierCounts.en_meta + tierCounts.en_riesgo + tierCounts.por_debajo) ? ` · ${totalGer} gerentes activos en total` : ''}
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
