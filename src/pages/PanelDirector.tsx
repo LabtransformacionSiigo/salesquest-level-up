@@ -314,7 +314,7 @@ const PanelDirector = () => {
           metricas = await fetchAll<any>(() => {
             let q = supabase
               .from('vn_metricas_optimizadas' as any)
-              .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
+              .select('pais, mes_nro, canal_direccion, celula, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
               .eq('scope', 'gerente')
               .eq('anio', anio)
               .eq('mes_nro', periodoSel);
@@ -503,12 +503,14 @@ const PanelDirector = () => {
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
-        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null };
+        type Agg = { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null; celula: string | null; leaderName: string };
         const aggByLeader = new Map<string, Agg>();
         for (const m of metricas) {
-          const key = normalize(m.gerente_normalizado || m.gerente || '');
+          const canalReal = canalFromMetric(m);
+          const leaderName = String(m.gerente_normalizado || m.gerente || '').trim();
+          const key = `${normalize(leaderName)}|${canalReal || ''}|${normalizePaisCode(m.pais)}|${normalize(m.celula || '')}`;
           if (!key) continue;
-          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null };
+          const cur = aggByLeader.get(key) || { fe: 0, nube: 0, total: 0, acv: 0, pais: m.pais || null, canal: canalReal, celula: m.celula || null, leaderName };
           const v = Number(m.ventas) || 0;
           const tp = String(m.familia || m.tipo_producto1 || '').toUpperCase();
           if (tp === 'FE') cur.fe += v;
@@ -516,6 +518,9 @@ const PanelDirector = () => {
           cur.total += v;
           cur.acv += Number(m.acv_total) || 0;
           cur.pais = cur.pais || m.pais;
+          cur.canal = cur.canal || canalReal;
+          cur.celula = cur.celula || m.celula || null;
+          cur.leaderName = cur.leaderName || leaderName;
           aggByLeader.set(key, cur);
         }
 
