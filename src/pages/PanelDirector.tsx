@@ -213,11 +213,11 @@ const PanelDirector = () => {
         const asesoresMap = new Map<string, number>();
         // a) Desde la tabla `asesores` (modelo legacy / VC)
         if (gerenteIds.length) {
-          const { data: ases } = await supabase
+          const ases = await fetchAllInChunks<any>(gerenteIds, (chunk) => supabase
             .from('asesores')
             .select('gerente_id')
-            .in('gerente_id', gerenteIds)
-            .eq('activo', true);
+            .in('gerente_id', chunk)
+            .eq('activo', true));
           (ases || []).forEach((a: any) => {
             asesoresMap.set(a.gerente_id, (asesoresMap.get(a.gerente_id) || 0) + 1);
           });
@@ -229,14 +229,16 @@ const PanelDirector = () => {
         );
         const celulaCountMap = new Map<string, number>();
         if (celulasInScope.length) {
-          let allCelQuery = supabase
-            .from('gerentes')
-            .select('celula, canal, pais')
-            .in('celula', celulasInScope)
-            .eq('activo', true);
-          if (!isAdmin && scopeCanales.length) allCelQuery = allCelQuery.in('canal', scopeCanales);
-          if (!isAdmin && scopePaises.length) allCelQuery = allCelQuery.in('pais', scopePaises);
-          const { data: allCel } = await allCelQuery;
+          const allCel = await fetchAllInChunks<any>(celulasInScope, (chunk) => {
+            let q = supabase
+              .from('gerentes')
+              .select('celula, canal, pais')
+              .in('celula', chunk)
+              .eq('activo', true);
+            if (!isAdmin && scopeCanales.length) q = q.in('canal', scopeCanales);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            return q;
+          });
           (allCel || []).forEach((r: any) => {
             const key = celulaScopeKey(r.celula, r.canal, r.pais);
             celulaCountMap.set(key, (celulaCountMap.get(key) || 0) + 1);
