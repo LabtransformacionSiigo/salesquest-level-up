@@ -413,20 +413,21 @@ const PanelDirector = () => {
           // vacía en algunos meses (ej. Jun 2026). El scope por director ya se
           // aplica vía `allowedCelulaKeys` (construido a partir de TODOS los meses).
 
-          const { data: metas } = await metasQuery;
+          const metas = await fetchAll<any>(() => metasQuery);
           let metasAsesoresRows: any[] = [];
           if (periodoYYYYMM) {
-            let maq = supabase
-              .from('metas_asesores')
-              .select('pais, canal_direccion, celula, meta_fe, meta_nube, meta_total, documento_asesor')
-              .eq('anio_mes', periodoYYYYMM)
-              .like('documento_asesor', 'CEL_%');
-            if (!isAdmin && scopePaises.length) {
-              const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
-              maq = maq.in('pais', fullPais);
-            }
-            const { data } = await maq;
-            metasAsesoresRows = data || [];
+            metasAsesoresRows = await fetchAll<any>(() => {
+              let q = supabase
+                .from('metas_asesores')
+                .select('pais, canal_direccion, celula, meta_fe, meta_nube, meta_total, documento_asesor')
+                .eq('anio_mes', periodoYYYYMM)
+                .like('documento_asesor', 'CEL_%');
+              if (!isAdmin && scopePaises.length) {
+                const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+                q = q.in('pais', fullPais);
+              }
+              return q;
+            });
           }
           const metasAsesorByKey = new Map<string, any>();
           metasAsesoresRows.forEach((r: any) => {
