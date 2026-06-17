@@ -463,22 +463,33 @@ const PanelDirector = () => {
         // Cualquier persona con documento_asesor real (no CEL_*) en metas_asesores del
         // periodo es asesor — aunque tenga registro espejo en `gerentes`.
         const advisorNamesSet = new Set<string>();
+        const metaGerenteByCelula = new Map<string, string>();
+        const advisorDocsByCelula = new Map<string, Set<string>>();
         {
-          let q = supabase
-            .from('metas_asesores')
-            .select('nombre_asesor, documento_asesor, pais')
-            .eq('anio_mes', periodoYYYYMM)
-            .not('documento_asesor', 'is', null);
-          if (!isAdmin && scopePaises.length) {
-            const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
-            q = q.in('pais', fullPais);
-          }
-          const { data: asRows } = await q;
+          const asRows = await fetchAll<any>(() => {
+            let q = supabase
+              .from('metas_asesores')
+              .select('nombre_asesor, documento_asesor, gerente, celula, canal_direccion, pais')
+              .eq('anio_mes', periodoYYYYMM)
+              .not('documento_asesor', 'is', null);
+            if (!isAdmin && scopePaises.length) {
+              const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+              q = q.in('pais', fullPais);
+            }
+            return q;
+          });
           (asRows || []).forEach((r: any) => {
             const doc = String(r.documento_asesor || '').trim();
             if (!doc || doc.startsWith('CEL_')) return;
+            const canal = normCanalDireccion(r.canal_direccion) === 'Aliados' ? 'VN_ALIADOS' : 'VN_EMPRESARIOS';
+            if (!isAdmin && scopeCanales.length && !scopeCanales.includes(canal)) return;
+            const celKey = celulaScopeKey(r.celula, canal, paisNameToCode(r.pais));
             const n = normalize(r.nombre_asesor || '');
             if (n) advisorNamesSet.add(n);
+            const gerenteNombre = String(r.gerente || '').trim();
+            if (gerenteNombre && !metaGerenteByCelula.has(celKey)) metaGerenteByCelula.set(celKey, gerenteNombre);
+            if (!advisorDocsByCelula.has(celKey)) advisorDocsByCelula.set(celKey, new Set());
+            advisorDocsByCelula.get(celKey)!.add(doc);
           });
         }
 
