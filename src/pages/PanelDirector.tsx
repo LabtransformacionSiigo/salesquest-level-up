@@ -186,14 +186,17 @@ const PanelDirector = () => {
 
 
         // 1) Gerentes en scope
-        let gq = supabase.from('gerentes')
-          .select('id, nombre, email, canal, pais, celula, user_id')
-          .eq('activo', true);
-        if (!isAdmin) {
-          if (scopeCanales.length) gq = gq.in('canal', scopeCanales);
-          if (scopePaises.length) gq = gq.in('pais', scopePaises);
-        }
-        const { data: gerentes = [] } = await gq;
+        const buildGerentesQuery = () => {
+          let q = supabase.from('gerentes')
+            .select('id, nombre, email, canal, pais, celula, user_id')
+            .eq('activo', true);
+          if (!isAdmin) {
+            if (scopeCanales.length) q = q.in('canal', scopeCanales);
+            if (scopePaises.length) q = q.in('pais', scopePaises);
+          }
+          return q;
+        };
+        const gerentes = await fetchAll<GerenteRow>(buildGerentesQuery);
         let gerentesList = (gerentes || []) as GerenteRow[];
         if (!isAdmin && isDirector && !isSeniorDirector && allowedCelulaKeys.size > 0) {
           // VC no usa celula → no aplicar gate de celula a gerentes VC
