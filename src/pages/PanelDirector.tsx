@@ -363,11 +363,11 @@ const PanelDirector = () => {
         const periodoYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
         const spMap = new Map<string, number>();
         if (gerenteIds.length) {
-          const { data: spData } = await supabase
+          const spData = await fetchAllInChunks<any>(gerenteIds, (chunk) => supabase
             .from('sp_acumulados')
             .select('gerente_id, sp')
             .eq('periodo', periodoYYYYMM)
-            .in('gerente_id', gerenteIds);
+            .in('gerente_id', chunk));
           (spData || []).forEach((r: any) => {
             spMap.set(r.gerente_id, (spMap.get(r.gerente_id) || 0) + (r.sp || 0));
           });
@@ -377,18 +377,18 @@ const PanelDirector = () => {
         const rachaMap = new Map<string, number>();
         if (gerenteIds.length) {
           const [rvc, rvn] = await Promise.all([
-            supabase.from('rachas').select('gerente_id, semanas_consecutivas')
-              .in('gerente_id', gerenteIds)
-              .order('semanas_consecutivas', { ascending: false }),
-            supabase.from('rachas_vn_estado').select('gerente_id, dias_o_semanas_consecutivas, racha_activa')
-              .in('gerente_id', gerenteIds)
-              .eq('racha_activa', true),
+            fetchAllInChunks<any>(gerenteIds, (chunk) => supabase.from('rachas').select('gerente_id, semanas_consecutivas')
+              .in('gerente_id', chunk)
+              .order('semanas_consecutivas', { ascending: false })),
+            fetchAllInChunks<any>(gerenteIds, (chunk) => supabase.from('rachas_vn_estado').select('gerente_id, dias_o_semanas_consecutivas, racha_activa')
+              .in('gerente_id', chunk)
+              .eq('racha_activa', true)),
           ]);
-          (rvc.data || []).forEach((r: any) => {
+          (rvc || []).forEach((r: any) => {
             const cur = rachaMap.get(r.gerente_id) || 0;
             rachaMap.set(r.gerente_id, Math.max(cur, r.semanas_consecutivas || 0));
           });
-          (rvn.data || []).forEach((r: any) => {
+          (rvn || []).forEach((r: any) => {
             const cur = rachaMap.get(r.gerente_id) || 0;
             const semanas = Math.ceil((r.dias_o_semanas_consecutivas || 0) / 5);
             rachaMap.set(r.gerente_id, Math.max(cur, semanas));
