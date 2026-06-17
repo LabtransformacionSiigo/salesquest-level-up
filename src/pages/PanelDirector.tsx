@@ -533,8 +533,13 @@ const PanelDirector = () => {
         }
 
         const gByName = new Map<string, GerenteRow[]>();
+        const gByCelulaKey = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
           if (isAdvisorLikeGerente(g)) continue;
+          if (g.celula) {
+            const ck = celulaScopeKey(g.celula, g.canal, g.pais);
+            gByCelulaKey.set(ck, [...(gByCelulaKey.get(ck) || []), g]);
+          }
           const k = normalize(g.nombre);
           if (!k) continue;
           // Excluir nombres de UN solo token (ej. "Angel", "Walter") como candidatos
@@ -550,7 +555,7 @@ const PanelDirector = () => {
           const pool = byPais.length ? byPais : arr;
           return pool.find((g) => !!g.celula) || pool[0];
         };
-        const findGerente = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
+        const findGerenteByName = (leaderKey: string, paisHint: string | null): GerenteRow | null => {
           const exact = gByName.get(leaderKey);
           if (exact && exact.length) return pickBest(exact, paisHint);
 
@@ -577,6 +582,23 @@ const PanelDirector = () => {
           }
           return null;
         };
+        const findGerente = (agg: Agg): GerenteRow | null => {
+          const ck = celulaScopeKey(agg.celula, agg.canal, agg.pais);
+          const expectedName = metaGerenteByCelula.get(ck) || agg.leaderName;
+          const sameCell = gByCelulaKey.get(ck) || [];
+          if (sameCell.length) {
+            const exactCell = sameCell.find((g) => normalize(g.nombre) === normalize(expectedName));
+            if (exactCell) return exactCell;
+            return pickVnLeaderCandidate(sameCell, {
+              celula: agg.celula,
+              gerenteNombre: expectedName,
+              advisorNames: advisorNamesSet,
+              excludeIds: usedIds,
+            });
+          }
+          return findGerenteByName(normalize(expectedName || agg.leaderName), agg.pais)
+            || findGerenteByName(normalize(agg.leaderName), agg.pais);
+        };
 
         const canalByLeader = new Map<string, string | null>();
         for (const m of metricas) {
@@ -590,38 +612,40 @@ const PanelDirector = () => {
         const usedCelulaKeys = new Set<string>();
         const seenSynth = new Set<string>();
         for (const [leaderKey, agg] of aggByLeader) {
-          const g = findGerente(leaderKey, agg.pais);
+          const g = findGerente(agg);
+          const rowCelKey = celulaScopeKey(g?.celula || agg.celula, g?.canal || agg.canal, g?.pais || agg.pais);
+          const verifiedMetaGerente = metaGerenteByCelula.get(rowCelKey);
 
           // 🔒 Directores (no-admin): nunca crear gerentes sintéticos. Si la métrica no
           // tiene match con un gerente real dentro del scope, se descarta. Esto evita que
           // aparezcan líderes de otros canales/países en el panel.
-          if (!isAdmin && !g) continue;
+          if (!isAdmin && !g && !verifiedMetaGerente) continue;
           if (!isAdmin && g && scopeCanales.length && !scopeCanales.includes(g.canal || '')) continue;
           if (!isAdmin && g && scopePaises.length && !scopePaises.includes(normalizePaisCode(g.pais))) continue;
-          const celKey = celulaScopeKey(g?.celula, g?.canal, g?.pais);
-          if (!isAdmin && (!celKey || !validCelulasMes.has(celKey))) continue;
-          if (g?.celula && usedCelulaKeys.has(celKey)) continue;
-          if (g?.celula) usedCelulaKeys.add(celKey);
+          if (!isAdmin && (!rowCelKey || !validCelulasMes.has(rowCelKey))) continue;
+          if (rowCelKey && usedCelulaKeys.has(rowCelKey)) continue;
+          if (rowCelKey) usedCelulaKeys.add(rowCelKey);
 
           // Dedupe: si dos leaderKey distintos resuelven al mismo gerente real, sólo una fila
           if (g && usedIds.has(g.id)) continue;
           const synthKey = `${leaderKey}|${agg.pais || ''}`;
           if (!g && seenSynth.has(synthKey)) continue;
           const gerente: GerenteRow = g || {
-            id: `metric-${synthKey}`,
-            nombre: leaderKey.replace(/\b\w/g, (c) => c.toUpperCase()),
+            id: `leader-${rowCelKey}`,
+            nombre: verifiedMetaGerente || agg.leaderName.replace(/\b\w/g, (c) => c.toUpperCase()),
             email: '',
-            canal: canalByLeader.get(leaderKey) || null,
+            canal: agg.canal || canalByLeader.get(leaderKey) || null,
             pais: agg.pais,
-            celula: null,
+            celula: agg.celula,
           };
+          if (!g && advisorNamesSet.has(normalize(gerente.nombre))) continue;
           if (g) usedIds.add(g.id);
           else seenSynth.add(synthKey);
-          const meta = metasMap.get(celulaScopeKey(gerente.celula, gerente.canal, gerente.pais));
-          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          const meta = metasMap.get(rowCelKey);
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : (advisorDocsByCelula.get(rowCelKey)?.size || 0);
           // Fallback: si la fila de gerente está vacía pero sí hay ventas a nivel
           // asesor agrupadas por la misma celula, usar esas ventas.
-          const celAggKey = celulaScopeKey(gerente.celula, gerente.canal, gerente.pais);
+          const celAggKey = rowCelKey;
           const celAgg = aggByCelula.get(celAggKey);
           if (celAgg && (agg.fe + agg.nube + agg.total) === 0) {
             agg.fe = celAgg.fe;
