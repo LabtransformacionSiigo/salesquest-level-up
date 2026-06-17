@@ -311,16 +311,17 @@ const PanelDirector = () => {
         const canalDirs = vnCanales.map((c) => canalDirMap[c]).filter(Boolean);
         let metricas: any[] = [];
         if (vnCanales.length || isAdmin) {
-          let mq = supabase
-            .from('vn_metricas_optimizadas' as any)
-            .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
-            .eq('scope', 'gerente')
-            .eq('anio', anio)
-            .eq('mes_nro', periodoSel);
-          if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
-          if (!isAdmin && canalDirs.length) mq = mq.in('canal_direccion', canalDirs);
-          const { data } = await mq;
-          metricas = data || [];
+          metricas = await fetchAll<any>(() => {
+            let q = supabase
+              .from('vn_metricas_optimizadas' as any)
+              .select('pais, mes_nro, canal_direccion, gerente, gerente_normalizado, tipo_producto1, familia, ventas, acv_total')
+              .eq('scope', 'gerente')
+              .eq('anio', anio)
+              .eq('mes_nro', periodoSel);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            if (!isAdmin && canalDirs.length) q = q.in('canal_direccion', canalDirs);
+            return q;
+          });
         }
 
         // 3b) Métricas a nivel ASESOR agregadas por celula. Sirven como fallback
@@ -329,16 +330,18 @@ const PanelDirector = () => {
         // la fila del gerente pero sí las de sus asesores).
         const aggByCelula = new Map<string, { fe: number; nube: number; total: number; acv: number; pais: string | null; canal: string | null }>();
         if (vnCanales.length || isAdmin) {
-          let aq = supabase
-            .from('vn_metricas_optimizadas' as any)
-            .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
-            .eq('scope', 'asesor')
-            .eq('anio', anio)
-            .eq('mes_nro', periodoSel)
-            .not('celula', 'is', null);
-          if (!isAdmin && scopePaises.length) aq = aq.in('pais', scopePaises);
-          if (!isAdmin && canalDirs.length) aq = aq.in('canal_direccion', canalDirs);
-          const { data: asesorRows } = await aq;
+          const asesorRows = await fetchAll<any>(() => {
+            let q = supabase
+              .from('vn_metricas_optimizadas' as any)
+              .select('pais, canal_direccion, celula, tipo_producto1, familia, ventas, acv_total')
+              .eq('scope', 'asesor')
+              .eq('anio', anio)
+              .eq('mes_nro', periodoSel)
+              .not('celula', 'is', null);
+            if (!isAdmin && scopePaises.length) q = q.in('pais', scopePaises);
+            if (!isAdmin && canalDirs.length) q = q.in('canal_direccion', canalDirs);
+            return q;
+          });
           (asesorRows || []).forEach((r: any) => {
             const cd = String(r.canal_direccion || '').toLowerCase();
             const canalReal = cd.includes('aliado') ? 'VN_ALIADOS'
