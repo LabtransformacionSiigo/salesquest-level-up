@@ -421,6 +421,36 @@ const PanelDirector = () => {
 
         }
 
+        // Construir set de NOMBRES DE ASESORES antes de resolver líderes.
+        // Cualquier persona con documento_asesor real (no CEL_*) en metas_asesores del
+        // periodo es asesor — aunque tenga registro espejo en `gerentes`.
+        const advisorNamesSet = new Set<string>();
+        {
+          let q = supabase
+            .from('metas_asesores')
+            .select('nombre_asesor, documento_asesor, pais')
+            .eq('anio_mes', periodoYYYYMM)
+            .not('documento_asesor', 'is', null);
+          if (!isAdmin && scopePaises.length) {
+            const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
+            q = q.in('pais', fullPais);
+          }
+          const { data: asRows } = await q;
+          (asRows || []).forEach((r: any) => {
+            const doc = String(r.documento_asesor || '').trim();
+            if (!doc || doc.startsWith('CEL_')) return;
+            const n = normalize(r.nombre_asesor || '');
+            if (n) advisorNamesSet.add(n);
+          });
+        }
+
+        const isAdvisorLikeGerente = (g?: GerenteRow | null) => {
+          if (!g) return false;
+          const name = normalize(g.nombre || '');
+          const email = String(g.email || '').trim().toLowerCase();
+          return advisorNamesSet.has(name) || email.startsWith('emp-');
+        };
+
         // 7) Construir stats por LÍDER REAL agrupando vn_metricas por gerente_normalizado.
         // Esto arregla COL/ECU (antes el matching por primer nombre fallaba contra los 1500+
         // registros de la tabla `gerentes`).
@@ -442,6 +472,7 @@ const PanelDirector = () => {
 
         const gByName = new Map<string, GerenteRow[]>();
         for (const g of gerentesList) {
+          if (isAdvisorLikeGerente(g)) continue;
           const k = normalize(g.nombre);
           if (!k) continue;
           // Excluir nombres de UN solo token (ej. "Angel", "Walter") como candidatos
@@ -599,33 +630,11 @@ const PanelDirector = () => {
         for (const s of out) {
           if (s.gerente.celula) seenCelulas.add(celulaScopeKey(s.gerente.celula, s.gerente.canal, s.gerente.pais));
         }
-        // Construir set de NOMBRES DE ASESORES para evitar elegirlos como gerente.
-        // Cualquier persona con documento_asesor real (no CEL_*) en metas_asesores del
-        // periodo es asesor — aunque tenga registro en `gerentes` (por user account).
-        const advisorNamesSet = new Set<string>();
-        {
-          let q = supabase
-            .from('metas_asesores')
-            .select('nombre_asesor, documento_asesor, pais')
-            .eq('anio_mes', periodoYYYYMM)
-            .not('documento_asesor', 'is', null);
-          if (!isAdmin && scopePaises.length) {
-            const fullPais = scopePaises.map((p) => p === 'MEX' ? 'MEXICO' : p === 'COL' ? 'COLOMBIA' : p === 'ECU' ? 'ECUADOR' : p === 'URU' ? 'URUGUAY' : p);
-            q = q.in('pais', fullPais);
-          }
-          const { data: asRows } = await q;
-          (asRows || []).forEach((r: any) => {
-            const doc = String(r.documento_asesor || '').trim();
-            if (!doc || doc.startsWith('CEL_')) return;
-            const n = normalize(r.nombre_asesor || '');
-            if (n) advisorNamesSet.add(n);
-          });
-        }
         const pickGerenteByCelula = (key: string) => {
           const all = gerentesList.filter((g) => celulaScopeKey(g.celula, g.canal, g.pais) === key);
-          // Excluir candidatos cuyo nombre figura como ASESOR en metas del mes.
-          const nonAsesores = all.filter((g) => !advisorNamesSet.has(normalize(g.nombre || '')));
-          const pool = nonAsesores.length ? nonAsesores : all;
+          // Excluir candidatos que son asesores o registros espejo emp-*.
+          const pool = all.filter((g) => !isAdvisorLikeGerente(g));
+          if (!pool.length) return null;
           return pickVnLeaderCandidate(pool, {
             celula: pool[0]?.celula,
             advisorNames: advisorNamesSet,
@@ -636,10 +645,9 @@ const PanelDirector = () => {
           const celKey = celulaScopeKey(metaRow.celula, metaRow.canal, metaRow.pais);
           if (seenCelulas.has(celKey)) continue;
           const g = pickGerenteByCelula(celKey);
-          // Si el "líder" elegido en realidad es un asesor (su nombre figura en
-          // metas_asesores con documento real), no creamos fila: el panel sólo
-          // debe listar gerentes reales.
-          if (g && advisorNamesSet.has(normalize(g.nombre || ''))) continue;
+          // Si no hay gerente real para la célula, no crear filas sintéticas ni
+          // elegir asesores como reemplazo: el panel sólo debe listar gerentes reales.
+          if (!g || isAdvisorLikeGerente(g)) continue;
           const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
@@ -647,14 +655,7 @@ const PanelDirector = () => {
           const metaFe = meta ? meta.fe : asesoresCount * 2;
           const metaNube = meta ? meta.nube : asesoresCount * 1;
           const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
-          const gerente: GerenteRow = g || {
-            id: `meta-${celKey}`,
-            nombre: metaRow.celula || 'Gerente sin asignar',
-            email: '',
-            canal: metaRow.canal || null,
-            pais: normalizePaisCode(metaRow.pais),
-            celula: metaRow.celula || null,
-          };
+          const gerente: GerenteRow = g;
           // Usar ventas a nivel asesor agregadas por celula como fallback real
           const celAgg = aggByCelula.get(celKey);
           const fe = celAgg ? Math.round(celAgg.fe) : 0;
