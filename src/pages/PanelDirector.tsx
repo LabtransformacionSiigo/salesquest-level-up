@@ -625,15 +625,28 @@ const PanelDirector = () => {
             pais: normalizePaisCode(metaRow.pais),
             celula: metaRow.celula || null,
           };
+          // Usar ventas a nivel asesor agregadas por celula como fallback real
+          const celAgg = aggByCelula.get(celKey);
+          const fe = celAgg ? Math.round(celAgg.fe) : 0;
+          const nube = celAgg ? Math.round(celAgg.nube) : 0;
+          const total = celAgg ? Math.round(celAgg.total) : 0;
+          const acv = celAgg ? Math.round(celAgg.acv) : 0;
+          const pctFe = metaFe > 0 ? (fe / metaFe) * 100 : 0;
+          const pctNube = metaNube > 0 ? (nube / metaNube) * 100 : 0;
+          const pctTotal = metaTotal > 0 ? (total / metaTotal) * 100 : 0;
+          const pctAcv = (meta?.acv || 0) > 0 ? (acv / (meta!.acv)) * 100 : 0;
           out.push({
             gerente,
             asesores: asesoresCount,
-            fe: 0, nube: 0, total: 0, acv: 0,
+            fe, nube, total, acv,
             metaFe, metaNube, metaUds: metaTotal,
             metaAcv: meta ? meta.acv : 0,
-            pctFe: 0, pctNube: 0, pctAcv: 0, pctTotal: 0,
-            pacing: 0, scoreCompuesto: 0,
-            productividad: 0, ventasPorAsesor: 0,
+            pctFe: Math.round(pctFe), pctNube: Math.round(pctNube),
+            pctAcv: Math.round(pctAcv), pctTotal: Math.round(pctTotal),
+            pacing: 0,
+            scoreCompuesto: Math.round(pctFe * 0.35 + pctNube * 0.25 + pctAcv * 0.40),
+            productividad: 0,
+            ventasPorAsesor: asesoresCount > 0 ? Math.round((total / asesoresCount) * 10) / 10 : 0,
             sp: g ? (spMap.get(g.id) || 0) : 0,
             racha: g ? (rachaMap.get(g.id) || 0) : 0,
           });
