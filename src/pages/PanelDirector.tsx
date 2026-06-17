@@ -726,15 +726,24 @@ const PanelDirector = () => {
           const g = pickGerenteByCelula(celKey);
           // Si no hay gerente real para la célula, no crear filas sintéticas ni
           // elegir asesores como reemplazo: el panel sólo debe listar gerentes reales.
-          if (!g || isAdvisorLikeGerente(g)) continue;
-          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : 0;
+          const verifiedMetaGerente = metaGerenteByCelula.get(celKey);
+          if ((!g && !verifiedMetaGerente) || isAdvisorLikeGerente(g)) continue;
+          if (verifiedMetaGerente && advisorNamesSet.has(normalize(verifiedMetaGerente))) continue;
+          const asesoresCount = g ? (asesoresMap.get(g.id) || 0) : (advisorDocsByCelula.get(celKey)?.size || 0);
           seenCelulas.add(celKey);
           if (g) usedIds.add(g.id);
           const meta = metasMap.get(celKey);
           const metaFe = meta ? meta.fe : asesoresCount * 2;
           const metaNube = meta ? meta.nube : asesoresCount * 1;
           const metaTotal = meta ? meta.totalUds : metaFe + metaNube;
-          const gerente: GerenteRow = g;
+          const gerente: GerenteRow = g || {
+            id: `leader-${celKey}`,
+            nombre: verifiedMetaGerente!,
+            email: '',
+            canal: metaRow.canal,
+            pais: metaRow.pais,
+            celula: metaRow.celula,
+          };
           // Usar ventas a nivel asesor agregadas por celula como fallback real
           const celAgg = aggByCelula.get(celKey);
           const fe = celAgg ? Math.round(celAgg.fe) : 0;
