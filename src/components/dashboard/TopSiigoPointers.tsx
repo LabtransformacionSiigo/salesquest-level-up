@@ -12,10 +12,10 @@ interface TopSiigoPointersProps {
 const BADGE_COLORS = ['bg-primary', 'bg-muted-foreground', 'bg-orange'];
 
 const TopSiigoPointers = ({ canal, loading, topRanking = [] }: TopSiigoPointersProps) => {
-  const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
-  const visibleRanking = isVN
-    ? topRanking.filter((user) => (Number(user.sp_canje) || 0) > 0)
-    : topRanking;
+  // No exigir sp_canje > 0: gerentes/asesores nuevos con ventas pero sin canjeables
+  // aún deben aparecer en el Top (consistencia con Rankings VN).
+  const visibleRanking = topRanking;
+  void canal;
 
   return (
     <motion.div className="bg-card border border-border rounded-2xl p-8 shadow-smooth-sm" variants={fadeUpItem}>
