@@ -961,14 +961,14 @@ const Rankings = () => {
         }
 
         // Ocultar gerentes sin actividad alguna (antiguos/inactivos):
-        // sin SP, sin ventas, sin meta y sin ACV.
+        // sin SP convención, sin ventas, sin meta y sin ACV.
+        // NOTA: sp_canje no se exige; un gerente nuevo con ventas pero aún
+        // sin canjeables debe aparecer en el ranking (caso Cristhian/Vicky).
         const activeEntries = entries.filter((e: any) =>
-          (Number(e.sp_canje) || 0) > 0 && (
-            (Number(e.sp_totales) || 0) > 0 ||
-            (Number(e.unidades_total) || 0) > 0 ||
-            (Number(e.acv_total_year) || 0) > 0 ||
-            (Number(e.meta_acv) || 0) > 0
-          )
+          (Number(e.sp_totales) || 0) > 0 ||
+          (Number(e.unidades_total) || 0) > 0 ||
+          (Number(e.acv_total_year) || 0) > 0 ||
+          (Number(e.meta_acv) || 0) > 0
         );
         setRanking(activeEntries);
       }
