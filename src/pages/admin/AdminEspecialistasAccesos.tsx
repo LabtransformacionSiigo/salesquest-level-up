@@ -468,6 +468,59 @@ const AdminEspecialistasAccesos = () => {
 
 
 
+      {/* Dialog Editar alcance (canales/países del director) */}
+      <Dialog open={!!scopeTarget} onOpenChange={(o) => !o && setScopeTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar canales y países</DialogTitle>
+            <DialogDescription>
+              {scopeTarget && (
+                <>Cambia el alcance de <b>{scopeTarget.nombre}</b>. El Panel Director filtra automáticamente los gerentes/asesores con base en esta configuración — la lógica de visualización se mantiene.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-medium mb-2">Canales (frente)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {CANALES_DISPONIBLES.map(c => (
+                  <label key={c} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={scopeCanales.includes(c)}
+                      onCheckedChange={() => setScopeCanales(prev => toggleInArr(prev, c))}
+                    />
+                    <span className="text-sm font-medium">{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Países</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PAISES_DISPONIBLES.map(p => (
+                  <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={scopePaises.includes(p)}
+                      onCheckedChange={() => setScopePaises(prev => toggleInArr(prev, p))}
+                    />
+                    <span className="text-sm font-medium">{p}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Marca todos los canales y países que el director debe ver. Debe haber al menos uno de cada.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScopeTarget(null)} disabled={savingScope}>Cancelar</Button>
+            <Button onClick={saveScope} disabled={savingScope}>
+              {savingScope ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Guardando…</> : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog Edit Email */}
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
         <DialogContent>
