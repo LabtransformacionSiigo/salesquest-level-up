@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2 } from 'lucide-react';
+import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2, Settings2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+
+const CANALES_DISPONIBLES = ['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'] as const;
+const PAISES_DISPONIBLES = ['COL', 'ECU', 'MEX', 'URY', 'ARG', 'CHL'] as const;
 
 const askPassword = (label: string): string | null => {
   const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
