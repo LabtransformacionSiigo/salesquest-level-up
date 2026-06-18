@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2 } from 'lucide-react';
+import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2, Settings2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+
+const CANALES_DISPONIBLES = ['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'] as const;
+const PAISES_DISPONIBLES = ['COL', 'ECU', 'MEX', 'URY', 'ARG', 'CHL'] as const;
 
 const askPassword = (label: string): string | null => {
   const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
@@ -60,6 +64,45 @@ const AdminEspecialistasAccesos = () => {
   // Edit email
   const [editTarget, setEditTarget] = useState<Esp | null>(null);
   const [newEmail, setNewEmail] = useState('');
+
+  // Edit director scope (canales/paises)
+  const [scopeTarget, setScopeTarget] = useState<Director | null>(null);
+  const [scopeCanales, setScopeCanales] = useState<string[]>([]);
+  const [scopePaises, setScopePaises] = useState<string[]>([]);
+  const [savingScope, setSavingScope] = useState(false);
+
+  const openScopeDialog = (d: Director) => {
+    setScopeTarget(d);
+    setScopeCanales([...(d.canales || [])]);
+    setScopePaises([...(d.paises || [])]);
+  };
+
+  const toggleInArr = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+
+  const saveScope = async () => {
+    if (!scopeTarget) return;
+    if (scopeCanales.length === 0 || scopePaises.length === 0) {
+      toast({ title: 'Selecciona al menos un canal y un país', variant: 'destructive' });
+      return;
+    }
+    setSavingScope(true);
+    const { error } = await (supabase as any)
+      .from('directores')
+      .update({ canales: scopeCanales, paises: scopePaises })
+      .eq('id', scopeTarget.id);
+    setSavingScope(false);
+    if (error) {
+      toast({ title: 'Error guardando', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: '✅ Alcance actualizado', description: `${scopeTarget.nombre} ahora ve ${scopeCanales.join(', ')} en ${scopePaises.join(', ')}.` });
+    setScopeTarget(null);
+    fetchItems();
+  };
+
+  // Dummy reference to keep imports tidy
+  void Eye; void EyeOff;
 
   // Login verification
   const [verifying, setVerifying] = useState<string | null>(null);
@@ -398,7 +441,10 @@ const AdminEspecialistasAccesos = () => {
                     {!d.activo && <Badge variant="destructive" className="ml-1 text-xs">Inactivo</Badge>}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => openScopeDialog(d)} title="Editar canales y países">
+                        <Settings2 className="w-4 h-4 mr-1.5" /> Editar alcance
+                      </Button>
                       <Button
                         size="sm"
                         variant={d.user_id ? 'outline' : 'default'}
@@ -421,6 +467,59 @@ const AdminEspecialistasAccesos = () => {
       </div>
 
 
+
+      {/* Dialog Editar alcance (canales/países del director) */}
+      <Dialog open={!!scopeTarget} onOpenChange={(o) => !o && setScopeTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar canales y países</DialogTitle>
+            <DialogDescription>
+              {scopeTarget && (
+                <>Cambia el alcance de <b>{scopeTarget.nombre}</b>. El Panel Director filtra automáticamente los gerentes/asesores con base en esta configuración — la lógica de visualización se mantiene.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-medium mb-2">Canales (frente)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {CANALES_DISPONIBLES.map(c => (
+                  <label key={c} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={scopeCanales.includes(c)}
+                      onCheckedChange={() => setScopeCanales(prev => toggleInArr(prev, c))}
+                    />
+                    <span className="text-sm font-medium">{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Países</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PAISES_DISPONIBLES.map(p => (
+                  <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={scopePaises.includes(p)}
+                      onCheckedChange={() => setScopePaises(prev => toggleInArr(prev, p))}
+                    />
+                    <span className="text-sm font-medium">{p}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Marca todos los canales y países que el director debe ver. Debe haber al menos uno de cada.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScopeTarget(null)} disabled={savingScope}>Cancelar</Button>
+            <Button onClick={saveScope} disabled={savingScope}>
+              {savingScope ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Guardando…</> : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Edit Email */}
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
