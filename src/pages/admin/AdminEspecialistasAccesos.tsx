@@ -65,6 +65,45 @@ const AdminEspecialistasAccesos = () => {
   const [editTarget, setEditTarget] = useState<Esp | null>(null);
   const [newEmail, setNewEmail] = useState('');
 
+  // Edit director scope (canales/paises)
+  const [scopeTarget, setScopeTarget] = useState<Director | null>(null);
+  const [scopeCanales, setScopeCanales] = useState<string[]>([]);
+  const [scopePaises, setScopePaises] = useState<string[]>([]);
+  const [savingScope, setSavingScope] = useState(false);
+
+  const openScopeDialog = (d: Director) => {
+    setScopeTarget(d);
+    setScopeCanales([...(d.canales || [])]);
+    setScopePaises([...(d.paises || [])]);
+  };
+
+  const toggleInArr = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+
+  const saveScope = async () => {
+    if (!scopeTarget) return;
+    if (scopeCanales.length === 0 || scopePaises.length === 0) {
+      toast({ title: 'Selecciona al menos un canal y un país', variant: 'destructive' });
+      return;
+    }
+    setSavingScope(true);
+    const { error } = await (supabase as any)
+      .from('directores')
+      .update({ canales: scopeCanales, paises: scopePaises })
+      .eq('id', scopeTarget.id);
+    setSavingScope(false);
+    if (error) {
+      toast({ title: 'Error guardando', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: '✅ Alcance actualizado', description: `${scopeTarget.nombre} ahora ve ${scopeCanales.join(', ')} en ${scopePaises.join(', ')}.` });
+    setScopeTarget(null);
+    fetchItems();
+  };
+
+  // Dummy reference to keep imports tidy
+  void Eye; void EyeOff;
+
   // Login verification
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyResult, setVerifyResult] = useState<Record<string, 'ok' | 'fail'>>({});
