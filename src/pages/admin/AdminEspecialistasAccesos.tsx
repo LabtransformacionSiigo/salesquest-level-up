@@ -441,7 +441,10 @@ const AdminEspecialistasAccesos = () => {
                     {!d.activo && <Badge variant="destructive" className="ml-1 text-xs">Inactivo</Badge>}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => openScopeDialog(d)} title="Editar canales y países">
+                        <Settings2 className="w-4 h-4 mr-1.5" /> Editar alcance
+                      </Button>
                       <Button
                         size="sm"
                         variant={d.user_id ? 'outline' : 'default'}
