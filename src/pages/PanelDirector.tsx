@@ -1416,7 +1416,7 @@ const PanelDirector = () => {
                           const valor = valOf(s);
                           const meta = metaOf(s);
                           const gap = valor - meta;
-                          const gapLabel = chartMetric === 'ACV' ? fmtMoney(Math.abs(gap)) : Math.round(Math.abs(gap)).toLocaleString();
+                          const gapLabel = chartMetric === 'ACV' ? fmtAcv(Math.abs(gap), s.gerente.pais) : Math.round(Math.abs(gap)).toLocaleString();
                           return (
                             <div key={s.gerente.id} className="grid grid-cols-12 gap-4 items-center group">
                               {/* Name + region */}
