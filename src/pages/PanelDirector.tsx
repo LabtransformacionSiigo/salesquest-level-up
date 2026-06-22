@@ -1219,10 +1219,32 @@ const PanelDirector = () => {
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
-              <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>
+              {kpis.acvByPais.length <= 1 && <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>}
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
+            {kpis.acvByPais.length <= 1 ? (
+              <>
+                <p className="text-3xl font-scoreboard font-bold mt-3">
+                  {fmtAcv(kpis.totalAcv, kpis.acvByPais[0]?.pais)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  de {fmtAcv(kpis.metaAcvTot, kpis.acvByPais[0]?.pais)} ACV
+                </p>
+              </>
+            ) : (
+              <div className="mt-2 space-y-1.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">ACV por país</p>
+                {kpis.acvByPais.map((d) => (
+                  <div key={d.pais} className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground w-7 shrink-0">{d.pais}</span>
+                    <span className="text-xs font-scoreboard font-bold tabular-nums flex-1 truncate">{fmtAcv(d.totalAcv, d.pais)}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">/{fmtAcv(d.metaAcv, d.pais)}</span>
+                    <span className={`text-[10px] font-bold shrink-0 ${d.pct >= 100 ? 'text-emerald-600' : d.pct >= 80 ? 'text-amber-600' : d.pct >= 50 ? 'text-orange-500' : 'text-rose-600'}`}>
+                      {d.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
           {filteredOnlyVc && (
             <Card className="p-5 rounded-2xl">
