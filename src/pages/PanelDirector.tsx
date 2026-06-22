@@ -1465,7 +1465,7 @@ const PanelDirector = () => {
                               <div className="col-span-3 flex items-center justify-end gap-3">
                                 <div className="text-right leading-tight">
                                   <div className="text-sm font-bold text-foreground tabular-nums">
-                                    {fmtVal(valor)} <span className="text-muted-foreground/50 font-normal mx-0.5">/</span> <span className="text-muted-foreground font-semibold">{fmtVal(meta)}</span>
+                                    {fmtVal(valor, s.gerente.pais)} <span className="text-muted-foreground/50 font-normal mx-0.5">/</span> <span className="text-muted-foreground font-semibold">{fmtVal(meta, s.gerente.pais)}</span>
                                   </div>
                                   <div className={`text-[10px] font-semibold ${tint.soft} tabular-nums`}>
                                     {gap >= 0 ? `+${gapLabel}` : `Brecha: -${gapLabel}`}
