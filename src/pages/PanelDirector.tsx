@@ -998,7 +998,16 @@ const PanelDirector = () => {
     const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
     const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
     const pctAcv = metaAcvTot > 0 ? (totalAcv / metaAcvTot) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv };
+    const acvByPais = (['COL', 'MEX', 'ECU', 'URU'] as const)
+      .map((p) => {
+        const rows = filteredStats.filter((x) => normalizePaisCode(x.gerente.pais) === p);
+        if (rows.length === 0) return null;
+        const t = rows.reduce((s, x) => s + x.acv, 0);
+        const m = rows.reduce((s, x) => s + x.metaAcv, 0);
+        return { pais: p, totalAcv: t, metaAcv: m, pct: m > 0 ? Math.round((t / m) * 100) : 0 };
+      })
+      .filter(Boolean) as { pais: string; totalAcv: number; metaAcv: number; pct: number }[];
+    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv, acvByPais };
   }, [filteredStats]);
 
   // Selector de métrica usado por la tabla de Gerentes (tier counts, filtros y badges)
