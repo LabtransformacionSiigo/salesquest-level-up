@@ -44,6 +44,22 @@ const fmtMoney = (n: number) => {
   return `$${Math.round(n).toLocaleString()}`;
 };
 
+// Moneda por país: COL=COP, MEX=MXN, ECU=USD, URU=UYU
+const CURRENCY_CONFIG: Record<string, { code: string; symbol: string }> = {
+  COL: { code: 'COP', symbol: 'COP' },
+  MEX: { code: 'MXN', symbol: 'MXN' },
+  ECU: { code: 'USD', symbol: '$' },
+  URU: { code: 'UYU', symbol: 'UYU' },
+};
+const fmtAcv = (n: number, pais?: string | null): string => {
+  const p = normalizePaisCode(pais || '');
+  const sym = (CURRENCY_CONFIG[p] || CURRENCY_CONFIG['ECU']).symbol;
+  if (n >= 1_000_000_000) return `${sym} ${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${sym} ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${sym} ${(n / 1_000).toFixed(0)}K`;
+  return `${sym} ${Math.round(n).toLocaleString()}`;
+};
+
 type GerenteRow = {
   id: string;
   nombre: string;
@@ -982,7 +998,16 @@ const PanelDirector = () => {
     const pctFe = metaFeTot > 0 ? (totalFe / metaFeTot) * 100 : 0;
     const pctNube = metaNubeTot > 0 ? (totalNube / metaNubeTot) * 100 : 0;
     const pctAcv = metaAcvTot > 0 ? (totalAcv / metaAcvTot) * 100 : 0;
-    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv };
+    const acvByPais = (['COL', 'MEX', 'ECU', 'URU'] as const)
+      .map((p) => {
+        const rows = filteredStats.filter((x) => normalizePaisCode(x.gerente.pais) === p);
+        if (rows.length === 0) return null;
+        const t = rows.reduce((s, x) => s + x.acv, 0);
+        const m = rows.reduce((s, x) => s + x.metaAcv, 0);
+        return { pais: p, totalAcv: t, metaAcv: m, pct: m > 0 ? Math.round((t / m) * 100) : 0 };
+      })
+      .filter(Boolean) as { pais: string; totalAcv: number; metaAcv: number; pct: number }[];
+    return { totalGerentes, totalUds, metaUds, totalAcv, metaAcvTot, mixNube, pctUds, totalFe, totalNube, metaFeTot, metaNubeTot, pctFe, pctNube, pctAcv, acvByPais };
   }, [filteredStats]);
 
   // Selector de métrica usado por la tabla de Gerentes (tier counts, filtros y badges)
@@ -1194,10 +1219,32 @@ const PanelDirector = () => {
           <Card className="p-5 rounded-2xl">
             <div className="flex items-start justify-between">
               <DollarSign className="text-emerald-500" />
-              <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>
+              {kpis.acvByPais.length <= 1 && <Badge variant="outline">{Math.round(kpis.pctAcv)}%</Badge>}
             </div>
-            <p className="text-3xl font-scoreboard font-bold mt-3">{fmtMoney(kpis.totalAcv)}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {fmtMoney(kpis.metaAcvTot)} ACV</p>
+            {kpis.acvByPais.length <= 1 ? (
+              <>
+                <p className="text-3xl font-scoreboard font-bold mt-3">
+                  {fmtAcv(kpis.totalAcv, kpis.acvByPais[0]?.pais)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  de {fmtAcv(kpis.metaAcvTot, kpis.acvByPais[0]?.pais)} ACV
+                </p>
+              </>
+            ) : (
+              <div className="mt-2 space-y-1.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">ACV por país</p>
+                {kpis.acvByPais.map((d) => (
+                  <div key={d.pais} className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground w-7 shrink-0">{d.pais}</span>
+                    <span className="text-xs font-scoreboard font-bold tabular-nums flex-1 truncate">{fmtAcv(d.totalAcv, d.pais)}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">/{fmtAcv(d.metaAcv, d.pais)}</span>
+                    <span className={`text-[10px] font-bold shrink-0 ${d.pct >= 100 ? 'text-emerald-600' : d.pct >= 80 ? 'text-amber-600' : d.pct >= 50 ? 'text-orange-500' : 'text-rose-600'}`}>
+                      {d.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
           {filteredOnlyVc && (
             <Card className="p-5 rounded-2xl">
@@ -1261,8 +1308,8 @@ const PanelDirector = () => {
               : chartMetric === 'NUBE' ? s.metaNube
               : chartMetric === 'ACV' ? s.metaAcv
               : s.metaUds;
-            const fmtVal = (n: number) =>
-              chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
+            const fmtVal = (n: number, pais?: string | null) =>
+              chartMetric === 'ACV' ? fmtAcv(n, pais) : Math.round(n).toLocaleString();
             // Excluir filas sintéticas (células con meta pero sin gerente real asignado):
             // sus IDs comienzan con 'meta-' o 'metric-' y muestran el nombre de la célula
             // en lugar del nombre del gerente, además de no tener ventas atribuibles.
@@ -1369,7 +1416,7 @@ const PanelDirector = () => {
                           const valor = valOf(s);
                           const meta = metaOf(s);
                           const gap = valor - meta;
-                          const gapLabel = chartMetric === 'ACV' ? fmtMoney(Math.abs(gap)) : Math.round(Math.abs(gap)).toLocaleString();
+                          const gapLabel = chartMetric === 'ACV' ? fmtAcv(Math.abs(gap), s.gerente.pais) : Math.round(Math.abs(gap)).toLocaleString();
                           return (
                             <div key={s.gerente.id} className="grid grid-cols-12 gap-4 items-center group">
                               {/* Name + region */}
@@ -1418,7 +1465,7 @@ const PanelDirector = () => {
                               <div className="col-span-3 flex items-center justify-end gap-3">
                                 <div className="text-right leading-tight">
                                   <div className="text-sm font-bold text-foreground tabular-nums">
-                                    {fmtVal(valor)} <span className="text-muted-foreground/50 font-normal mx-0.5">/</span> <span className="text-muted-foreground font-semibold">{fmtVal(meta)}</span>
+                                    {fmtVal(valor, s.gerente.pais)} <span className="text-muted-foreground/50 font-normal mx-0.5">/</span> <span className="text-muted-foreground font-semibold">{fmtVal(meta, s.gerente.pais)}</span>
                                   </div>
                                   <div className={`text-[10px] font-semibold ${tint.soft} tabular-nums`}>
                                     {gap >= 0 ? `+${gapLabel}` : `Brecha: -${gapLabel}`}
@@ -1622,7 +1669,7 @@ const PanelDirector = () => {
                       
                       {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.fe)} <span className="text-xs text-muted-foreground">/ {s.metaFe > 0 ? metricValue(s.metaFe) : '—'}</span></TableCell>}
                       {!filteredOnlyVc && <TableCell className="text-right">{metricValue(s.nube)} <span className="text-xs text-muted-foreground">/ {s.metaNube > 0 ? metricValue(s.metaNube) : '—'}</span></TableCell>}
-                      <TableCell className="text-right">{fmtMoney(s.acv)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtMoney(s.metaAcv) : '—'}</span></TableCell>
+                      <TableCell className="text-right">{fmtAcv(s.acv, s.gerente.pais)} <span className="text-xs text-muted-foreground">/ {s.metaAcv > 0 ? fmtAcv(s.metaAcv, s.gerente.pais) : '—'}</span></TableCell>
                       {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaFe > 0 ? pctColor(s.pctFe) : 'text-muted-foreground'}`}>{s.metaFe > 0 ? `${s.pctFe}%` : '—'}</TableCell>}
                       {!filteredOnlyVc && <TableCell className={`text-right font-semibold ${s.metaNube > 0 ? pctColor(s.pctNube) : 'text-muted-foreground'}`}>{s.metaNube > 0 ? `${s.pctNube}%` : '—'}</TableCell>}
                       <TableCell className={`text-right font-semibold ${s.metaUds > 0 ? pctColor(s.pctAcv) : 'text-muted-foreground'}`}>{s.metaUds > 0 ? `${s.pctAcv}%` : '—'}</TableCell>
