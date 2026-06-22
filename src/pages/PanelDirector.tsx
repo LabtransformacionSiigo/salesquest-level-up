@@ -44,6 +44,22 @@ const fmtMoney = (n: number) => {
   return `$${Math.round(n).toLocaleString()}`;
 };
 
+// Moneda por país: COL=COP, MEX=MXN, ECU=USD, URU=UYU
+const CURRENCY_CONFIG: Record<string, { code: string; symbol: string }> = {
+  COL: { code: 'COP', symbol: 'COP' },
+  MEX: { code: 'MXN', symbol: 'MXN' },
+  ECU: { code: 'USD', symbol: '$' },
+  URU: { code: 'UYU', symbol: 'UYU' },
+};
+const fmtAcv = (n: number, pais?: string | null): string => {
+  const p = normalizePaisCode(pais || '');
+  const sym = (CURRENCY_CONFIG[p] || CURRENCY_CONFIG['ECU']).symbol;
+  if (n >= 1_000_000_000) return `${sym} ${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${sym} ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${sym} ${(n / 1_000).toFixed(0)}K`;
+  return `${sym} ${Math.round(n).toLocaleString()}`;
+};
+
 type GerenteRow = {
   id: string;
   nombre: string;
