@@ -1308,8 +1308,8 @@ const PanelDirector = () => {
               : chartMetric === 'NUBE' ? s.metaNube
               : chartMetric === 'ACV' ? s.metaAcv
               : s.metaUds;
-            const fmtVal = (n: number) =>
-              chartMetric === 'ACV' ? fmtMoney(n) : Math.round(n).toLocaleString();
+            const fmtVal = (n: number, pais?: string | null) =>
+              chartMetric === 'ACV' ? fmtAcv(n, pais) : Math.round(n).toLocaleString();
             // Excluir filas sintéticas (células con meta pero sin gerente real asignado):
             // sus IDs comienzan con 'meta-' o 'metric-' y muestran el nombre de la célula
             // en lugar del nombre del gerente, además de no tener ventas atribuibles.
