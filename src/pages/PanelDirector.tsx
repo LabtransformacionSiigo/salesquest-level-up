@@ -910,23 +910,29 @@ const PanelDirector = () => {
           isAdmin,
         });
 
-        // 8) Tendencia 6 meses (cumplimiento agregado)
+        // 8) Tendencia 6 meses — cada mes usa su propia meta histórica
         const mesesAtras = Array.from({ length: 6 }, (_, i) => periodoSel - 5 + i).filter((m) => m >= 1 && m <= 12);
-        const tendData: { mes: number; pct: number }[] = [];
-        for (const mes of mesesAtras) {
+        const tendData = await Promise.all(mesesAtras.map(async (mes) => {
           let tq = supabase
             .from('vn_metricas_optimizadas' as any)
-            .select('ventas, gerente_normalizado, gerente, pais')
+            .select('ventas')
             .eq('scope', 'gerente')
             .eq('anio', anio)
             .eq('mes_nro', mes);
           if (!isAdmin && scopePaises.length) tq = tq.in('pais', scopePaises);
           if (!isAdmin && canalDirs.length) tq = tq.in('canal_direccion', canalDirs);
-          const { data } = await tq;
-          const totalMes = (data || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
-          const metaMes = out.reduce((s, st) => s + st.metaUds, 0);
-          tendData.push({ mes, pct: metaMes > 0 ? Math.round((totalMes / metaMes) * 100) : 0 });
-        }
+          let mq = supabase
+            .from('metas_acv_gerentes' as any)
+            .select('meta_total_und')
+            .eq('mes', MESES_ABR[mes - 1])
+            .eq('anio', anio);
+          if (!isAdmin && scopeCanales.length) mq = mq.in('canal', scopeCanales);
+          if (!isAdmin && scopePaises.length) mq = mq.in('pais', scopePaises);
+          const [{ data: ventasData }, { data: metasData }] = await Promise.all([tq, mq]);
+          const totalMes = (ventasData || []).reduce((s: number, r: any) => s + (Number(r.ventas) || 0), 0);
+          const metaMes = (metasData || []).reduce((s: number, r: any) => s + (Number(r.meta_total_und) || 0), 0);
+          return { mes, pct: metaMes > 0 ? Math.round((totalMes / metaMes) * 100) : 0 };
+        }));
 
         if (!cancelled) {
           setStats(out);
