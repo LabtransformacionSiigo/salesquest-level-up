@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     const calendarNow = fechaOverride
       ? new Date(`${fechaOverride}T12:00:00Z`)
       : new Date();
-    const currentMonth = getMonthRange(calendarNow);
+    
 
     // Opción B: usar siempre la fecha real del sistema (o el override en backfill).
     // La fuente Databricks VC es mensual y todas las ventas quedan con fecha día 01,
