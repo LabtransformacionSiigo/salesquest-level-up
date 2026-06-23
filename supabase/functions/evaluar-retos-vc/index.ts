@@ -107,24 +107,13 @@ Deno.serve(async (req) => {
       : new Date();
     const currentMonth = getMonthRange(calendarNow);
 
-    // La data VC llega por sincronización y no siempre existe venta con fecha del día real.
-    // Para no dejar retos en 0 cuando el último corte disponible es anterior, evaluamos
-    // contra la última fecha de venta cargada del mes actual.
-    const { data: latestVenta } = await supabase
-      .from("ventas")
-      .select("fecha_facturacion")
-      .eq("canal", "VC")
-      .gte("fecha_facturacion", currentMonth.start)
-      .lt("fecha_facturacion", currentMonth.end)
-      .order("fecha_facturacion", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Opción B: usar siempre la fecha real del sistema (o el override en backfill).
+    // La fuente Databricks VC es mensual y todas las ventas quedan con fecha día 01,
+    // lo que bloqueaba la idempotencia diaria. Con fecha real, retos MENSUALES siguen
+    // funcionando (usan agregados del mes), y los DIARIO/SEMANAL quedan en 0 hasta
+    // que exista granularidad diaria en la fuente.
+    const now = calendarNow;
 
-    const now = fechaOverride
-      ? calendarNow
-      : (latestVenta?.fecha_facturacion
-          ? new Date(`${latestVenta.fecha_facturacion}T12:00:00Z`)
-          : calendarNow);
 
     const today = now.toISOString().split("T")[0];
     const monthKey = getMonthKey(now);
