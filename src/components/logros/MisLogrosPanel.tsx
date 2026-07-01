@@ -141,9 +141,15 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
       })),
     ].filter((r) => r.periodo);
     const baseRows = (spRes.data || []) as SpRow[];
-    const spRows = vnProgressRows.length > 0
-      ? [...baseRows.filter((r) => !String(r.fuente || '').startsWith('RETO_')), ...vnProgressRows]
-      : baseRows;
+    // `sp_acumulados` es la fuente única del SP Canje (alimenta `gerentes.sp_canje`).
+    // Solo caemos a las tablas de progreso VN cuando `sp_acumulados` aún no tiene
+    // filas RETO_ para este gerente — de lo contrario perderíamos backfills y
+    // filas semanales/mensuales insertadas directo, y el detalle no cuadraría
+    // con el saldo del encabezado.
+    const baseHasRetoRows = baseRows.some((r) => String(r.fuente || '').startsWith('RETO_'));
+    const spRows = baseHasRetoRows
+      ? baseRows
+      : [...baseRows, ...vnProgressRows];
     setRows(spRows);
     setSaldoConsolidado(Number((saldoRes.data as any)?.sp_canje ?? (profile as any)?.sp_canje ?? 0) || 0);
     setCanjes(((canjesRes.data || []) as any[]).map(c => ({
