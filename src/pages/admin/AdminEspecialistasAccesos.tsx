@@ -724,6 +724,134 @@ const AdminEspecialistasAccesos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Nuevo / Reemplazar especialista */}
+      <Dialog open={!!espForm} onOpenChange={(o) => !o && setEspForm(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{espForm?.mode === 'replace' ? 'Reemplazar especialista' : 'Nuevo especialista'}</DialogTitle>
+            <DialogDescription>
+              {espForm?.mode === 'replace'
+                ? <>Se creará el nuevo especialista y se revocará el acceso a <b>{espForm.revoke_label}</b>. Se conservan los mismos países y frentes.</>
+                : <>Crea la cuenta, asigna el rol y define su alcance. Se enviará una contraseña temporal.</>}
+            </DialogDescription>
+          </DialogHeader>
+          {espForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium">Nombre</label>
+                  <Input value={espForm.nombre} onChange={(e) => setEspForm({ ...espForm, nombre: e.target.value })} placeholder="Nombre completo" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Email</label>
+                  <Input type="email" value={espForm.email} onChange={(e) => setEspForm({ ...espForm, email: e.target.value })} placeholder="nombre@siigo.com" className="font-mono" />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Países</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {PAISES_DISPONIBLES.map(p => (
+                    <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={espForm.paises.includes(p)} onCheckedChange={() => setEspForm({ ...espForm, paises: toggleInArr(espForm.paises, p) })} />
+                      <span className="text-sm font-medium">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Frentes / Operaciones</p>
+                <div className="space-y-1">
+                  {OPERACIONES_DISPONIBLES.map(op => (
+                    <label key={op} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={espForm.operaciones.includes(op)} onCheckedChange={() => setEspForm({ ...espForm, operaciones: toggleInArr(espForm.operaciones, op) })} />
+                      <span className="text-sm font-medium">{op}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Contraseña temporal</label>
+                <div className="flex gap-2">
+                  <Input value={espForm.password} onChange={(e) => setEspForm({ ...espForm, password: e.target.value })} className="font-mono" />
+                  <Button type="button" variant="outline" onClick={() => setEspForm({ ...espForm, password: genPwd() })}>Generar</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEspForm(null)} disabled={savingEsp}>Cancelar</Button>
+            <Button onClick={submitEspForm} disabled={savingEsp}>
+              {savingEsp ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Aplicando…</> : (espForm?.mode === 'replace' ? 'Reemplazar' : 'Crear')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nuevo director */}
+      <Dialog open={!!dirForm} onOpenChange={(o) => !o && setDirForm(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nuevo director</DialogTitle>
+            <DialogDescription>
+              Crea la cuenta, asigna el rol director y define su alcance de canales y países.
+            </DialogDescription>
+          </DialogHeader>
+          {dirForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium">Nombre</label>
+                  <Input value={dirForm.nombre} onChange={(e) => setDirForm({ ...dirForm, nombre: e.target.value })} placeholder="Nombre completo" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Email</label>
+                  <Input type="email" value={dirForm.email} onChange={(e) => setDirForm({ ...dirForm, email: e.target.value })} placeholder="nombre@siigo.com" className="font-mono" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Cargo (opcional)</label>
+                <Input value={dirForm.cargo} onChange={(e) => setDirForm({ ...dirForm, cargo: e.target.value })} placeholder="Director Comercial LATAM" />
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Canales</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {CANALES_DISPONIBLES.map(c => (
+                    <label key={c} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={dirForm.canales.includes(c)} onCheckedChange={() => setDirForm({ ...dirForm, canales: toggleInArr(dirForm.canales, c) })} />
+                      <span className="text-sm font-medium">{c}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Países</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {PAISES_DISPONIBLES.map(p => (
+                    <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={dirForm.paises.includes(p)} onCheckedChange={() => setDirForm({ ...dirForm, paises: toggleInArr(dirForm.paises, p) })} />
+                      <span className="text-sm font-medium">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Contraseña temporal</label>
+                <div className="flex gap-2">
+                  <Input value={dirForm.password} onChange={(e) => setDirForm({ ...dirForm, password: e.target.value })} className="font-mono" />
+                  <Button type="button" variant="outline" onClick={() => setDirForm({ ...dirForm, password: genPwd() })}>Generar</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDirForm(null)} disabled={savingDir}>Cancelar</Button>
+            <Button onClick={submitDirForm} disabled={savingDir}>
+              {savingDir ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Creando…</> : 'Crear director'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
