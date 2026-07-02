@@ -631,15 +631,27 @@ const Rankings = () => {
           }
         });
 
+        // Líderes reales VN: solo gerentes que han recibido SP de tipo 'convencion'
+        // al menos una vez en el año. Los asesores mal clasificados en `gerentes`
+        // nunca reciben convención (solo canje por retos), así que se excluyen del
+        // ranking automáticamente. Aplica para COL/ECU/URU/MEX.
+        const conventionLeaderIds = new Set<string>();
+        ((spConvencionLeadersRes as any)?.data || []).forEach((r: any) => {
+          if (r?.gerente_id) conventionLeaderIds.add(String(r.gerente_id));
+        });
+
         const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
         const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; email?: string | null; celula?: string | null; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
           const celulaKey = normalizeComparableText(g.celula);
           if (!celulaKey) return;
+          // Excluir a quienes nunca han recibido SP de convención (no son líderes reales).
+          if (!conventionLeaderIds.has(String(g.id))) return;
           const list = gerentesByCell.get(celulaKey) || [];
           list.push({ id: g.id, nombre: g.nombre, email: g.email, celula: g.celula, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
           gerentesByCell.set(celulaKey, list);
         });
+
 
         // Unión de células: las que tienen miembros en `gerentes` Y las que tienen nombre desde Databricks.
         const allCelulas = new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
