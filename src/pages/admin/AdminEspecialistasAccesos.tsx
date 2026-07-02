@@ -72,6 +72,30 @@ const AdminEspecialistasAccesos = () => {
   const [scopePaises, setScopePaises] = useState<string[]>([]);
   const [savingScope, setSavingScope] = useState(false);
 
+  // Nuevo / Reemplazar especialista
+  const [espForm, setEspForm] = useState<null | {
+    mode: 'new' | 'replace';
+    revoke_user_id?: string;
+    revoke_label?: string;
+    nombre: string;
+    email: string;
+    paises: string[];
+    operaciones: string[];
+    password: string;
+  }>(null);
+  const [savingEsp, setSavingEsp] = useState(false);
+
+  // Nuevo director
+  const [dirForm, setDirForm] = useState<null | {
+    nombre: string;
+    email: string;
+    cargo: string;
+    canales: string[];
+    paises: string[];
+    password: string;
+  }>(null);
+  const [savingDir, setSavingDir] = useState(false);
+
   const openScopeDialog = (d: Director) => {
     setScopeTarget(d);
     setScopeCanales([...(d.canales || [])]);
