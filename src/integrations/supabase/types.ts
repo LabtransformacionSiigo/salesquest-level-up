@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      _bkp_gerentes_merge_20260701: {
+        Row: {
+          activo: boolean | null
+          avatar_url: string | null
+          canal: string | null
+          celula: string | null
+          created_at: string | null
+          email: string | null
+          familia_vc: string | null
+          id: string | null
+          lider: string | null
+          nombre: string | null
+          pais: string | null
+          sp_canje: number | null
+          sp_convencion: number | null
+          user_id: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          avatar_url?: string | null
+          canal?: string | null
+          celula?: string | null
+          created_at?: string | null
+          email?: string | null
+          familia_vc?: string | null
+          id?: string | null
+          lider?: string | null
+          nombre?: string | null
+          pais?: string | null
+          sp_canje?: number | null
+          sp_convencion?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          avatar_url?: string | null
+          canal?: string | null
+          celula?: string | null
+          created_at?: string | null
+          email?: string | null
+          familia_vc?: string | null
+          id?: string | null
+          lider?: string | null
+          nombre?: string | null
+          pais?: string | null
+          sp_canje?: number | null
+          sp_convencion?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       aprobador_permisos: {
         Row: {
           created_at: string
