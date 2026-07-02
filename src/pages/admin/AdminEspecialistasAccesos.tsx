@@ -379,6 +379,11 @@ const AdminEspecialistasAccesos = () => {
             <h1 className="text-3xl font-bold">Accesos de Especialistas</h1>
             <p className="text-muted-foreground mt-1">Gestiona credenciales, edita correos y revisa aprobadores asignados.</p>
           </div>
+          <Button
+            onClick={() => setEspForm({ mode: 'new', nombre: '', email: '', paises: [], operaciones: [], password: genPwd() })}
+          >
+            <UserPlus className="w-4 h-4 mr-1.5" /> Nuevo especialista
+          </Button>
         </div>
 
         <Card className="p-4 border-amber-500/40 bg-amber-50 dark:bg-amber-950/20">
