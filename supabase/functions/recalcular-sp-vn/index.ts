@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
 
     const year = 2026;
     // VN gamification (SP Convención por CUMPLIMIENTO_META) inicia en Mayo 2026
-    const yStart = `${year}05`;
+    // Excepción: MEX arrancó en Enero 2026 → se computa desde 202601
+    const yStart = `${year}01`;
     const yEnd = `${year}12`;
 
     let paisFilter: string[] | null = null;
@@ -284,8 +285,9 @@ Deno.serve(async (req) => {
       const isGrace = gNombreNorm.includes('grace alejandra serje');
       const monthlyDbg: any[] = [];
 
+      const gFloor = resolveCountry(g.pais) === 'MEX' ? '202601' : '202605';
       for (const period of periods) {
-        if (period < '202605') continue; // VN gamification inicia Mayo 2026
+        if (period < gFloor) continue; // VN gamification inicia Mayo 2026 (MEX: Enero 2026)
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
         const novedadNames = new Set(
@@ -413,8 +415,9 @@ Deno.serve(async (req) => {
       let total = 0;
       const monthly: { period: string; sp: number }[] = [];
 
+      const aFloor = resolveCountry(a.pais) === 'MEX' ? '202601' : '202605';
       for (const period of periods) {
-        if (period < '202605') continue; // VN gamification inicia Mayo 2026
+        if (period < aFloor) continue; // VN gamification inicia Mayo 2026 (MEX: Enero 2026)
         const pProd = aProd.filter((p: any) => String(p.anio_mes) === period);
         const pMetas = aMetas.filter(
           (m: any) => String(m.anio_mes) === period && isActiveMeta(m),
