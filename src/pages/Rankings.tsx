@@ -546,17 +546,12 @@ const Rankings = () => {
         const vnCanalDireccion = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
         const metasGerentesCanal = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'SMBS';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes, metasGerentesMexRes] = await Promise.all([
+        const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes, metasGerentesMexRes, spConvencionLeadersRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).order('anio_mes', { ascending: true }).order('celula', { ascending: true }).order('asesor', { ascending: true }).range(0, 5000),
           supabase.from('gerentes').select('id, nombre, email, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais).eq('activo', true),
           supabase.from('user_roles').select('user_id, role'),
           fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
-          // NOTA: canal_direccion en estas tres tablas está mal etiquetado en COL
-          // (todo aparece como 'Aliados' aunque corresponda a Empresarios). El filtro
-          // por celula aguas abajo en computeSpConvencionAnualForCelula garantiza que
-          // solo se agregue lo que corresponde a cada gerente, así que omitimos el
-          // filtro de canal aquí para que todos los usuarios vean la misma verdad.
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).eq('pais', userPais).limit(10000),
           supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').eq('pais', userPais).eq('canal', profile.canal).limit(2000),
           (() => {
@@ -573,7 +568,12 @@ const Rankings = () => {
           userPais === 'MEX'
             ? supabase.from('metas_gerentes').select('celula, anio_mes, coi, noi').eq('pais_gestion', 'MEX').eq('canal_direccion', metasGerentesCanal).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).limit(5000)
             : Promise.resolve({ data: [] as any[] }),
+          // Set de gerente_id que efectivamente recibieron SP de convención al menos
+          // una vez en el año (identifica líderes reales y excluye asesores mal
+          // clasificados en la tabla `gerentes`, que solo reciben SP de canje).
+          supabase.from('sp_acumulados').select('gerente_id').eq('tipo_sp', 'convencion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(50000),
         ]);
+
         // Build set of asesor names WITH novedad
         const asesoresConNovedadTeam = new Set<string>();
         (metasAsesoresRes.data || []).forEach((r: any) => {
