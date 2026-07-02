@@ -475,6 +475,23 @@ const AdminEspecialistasAccesos = () => {
                         <Button size="sm" variant="outline" onClick={() => { setResetTarget(e); setNewPwd(genPwd()); }}>
                           <KeyRound className="w-4 h-4 mr-1.5" /> Restablecer
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEspForm({
+                            mode: 'replace',
+                            revoke_user_id: e.user_id,
+                            revoke_label: `${e.nombre} (${e.email})`,
+                            nombre: '',
+                            email: '',
+                            paises: [...(e.paises || [])],
+                            operaciones: [...(e.operaciones || [])],
+                            password: genPwd(),
+                          })}
+                          title="Reemplazar por otra persona"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-1.5" /> Reemplazar
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
