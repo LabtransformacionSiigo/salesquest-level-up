@@ -415,8 +415,9 @@ Deno.serve(async (req) => {
       let total = 0;
       const monthly: { period: string; sp: number }[] = [];
 
+      const aFloor = resolveCountry(a.pais) === 'MEX' ? '202601' : '202605';
       for (const period of periods) {
-        if (period < '202605') continue; // VN gamification inicia Mayo 2026
+        if (period < aFloor) continue; // VN gamification inicia Mayo 2026 (MEX: Enero 2026)
         const pProd = aProd.filter((p: any) => String(p.anio_mes) === period);
         const pMetas = aMetas.filter(
           (m: any) => String(m.anio_mes) === period && isActiveMeta(m),
