@@ -510,6 +510,11 @@ const AdminEspecialistasAccesos = () => {
               Cada uno solo verá los gerentes/asesores de los canales y países asignados.
             </p>
           </div>
+          <Button
+            onClick={() => setDirForm({ nombre: '', email: '', cargo: '', canales: [], paises: [], password: genPwd() })}
+          >
+            <Plus className="w-4 h-4 mr-1.5" /> Nuevo director
+          </Button>
         </div>
 
         <Card>
