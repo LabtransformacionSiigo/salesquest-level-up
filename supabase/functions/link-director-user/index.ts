@@ -15,59 +15,87 @@ Deno.serve(async (req) => {
   const _guard = await requireRole(req, ["admin"]);
   if (_guard.error) return _guard.error;
   try {
-    const { director_id, email } = await req.json();
-    if (!director_id || !email) {
-      return new Response(JSON.stringify({ error: "director_id y email requeridos" }), {
+    const body = await req.json();
+    const email = String(body?.email || "").trim().toLowerCase();
+    const default_password: string | undefined = body?.default_password ? String(body.default_password) : undefined;
+    const nombre: string | undefined = body?.nombre ? String(body.nombre) : undefined;
+    const create_director = !body?.director_id;
+    const cargo: string | undefined = body?.cargo || undefined;
+    const canales: string[] = Array.isArray(body?.canales) ? body.canales : [];
+    const paises: string[] = Array.isArray(body?.paises) ? body.paises : [];
+
+    if (!email) {
+      return new Response(JSON.stringify({ error: "email requerido" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (create_director && (!nombre || canales.length === 0 || paises.length === 0)) {
+      return new Response(JSON.stringify({ error: "nombre, canales y paises requeridos para crear director" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const emailNorm = String(email).trim().toLowerCase();
-
-    // 1) Buscar usuario en auth.users
+    // 1) Buscar usuario auth
     let userId: string | null = null;
-    let page = 1;
-    while (page <= 20 && !userId) {
-      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    for (let page = 1; page <= 30 && !userId; page++) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) throw error;
-      const found = data.users.find((u) => (u.email || "").toLowerCase() === emailNorm);
+      const found = data.users.find((u) => (u.email || "").toLowerCase() === email);
       if (found) userId = found.id;
-      if (data.users.length < 200) break;
-      page++;
+      if (data.users.length < 1000) break;
     }
 
-    // 2) Si no existe, crearlo con contraseña por defecto
+    // 2) Crear si no existe / actualizar pwd si se envió
     let created = false;
     if (!userId) {
       const { data, error } = await supabase.auth.admin.createUser({
-        email: emailNorm,
-        password: "Siigo2026!",
+        email,
+        password: default_password || "Siigo2026!",
         email_confirm: true,
+        user_metadata: nombre ? { name: nombre } : undefined,
       });
       if (error) throw error;
       userId = data.user!.id;
       created = true;
+    } else if (default_password) {
+      await supabase.auth.admin.updateUserById(userId, {
+        password: default_password,
+        email_confirm: true,
+        user_metadata: nombre ? { name: nombre } : undefined,
+      });
     }
 
-    // 3) Asegurar rol 'director' en user_roles
+    // 3) Rol director
     const { error: roleErr } = await supabase
       .from("user_roles")
       .upsert({ user_id: userId, role: "director" }, { onConflict: "user_id,role" });
     if (roleErr && !roleErr.message.includes("duplicate")) throw roleErr;
 
-    // 4) Vincular en directores + activar
-    const { error: updErr } = await supabase
-      .from("directores")
-      .update({ user_id: userId, activo: true })
-      .eq("id", director_id);
-    if (updErr) throw updErr;
+    // 4) Crear o vincular director
+    let director_id: string = body?.director_id;
+    if (create_director) {
+      const { data: ins, error: insErr } = await supabase
+        .from("directores")
+        .insert({ user_id: userId, nombre, email, cargo: cargo || null, canales, paises, activo: true })
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+      director_id = ins.id;
+    } else {
+      const { error: updErr } = await supabase
+        .from("directores")
+        .update({ user_id: userId, activo: true })
+        .eq("id", director_id);
+      if (updErr) throw updErr;
+    }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, created, }),
+      JSON.stringify({ success: true, user_id: userId, director_id, created }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

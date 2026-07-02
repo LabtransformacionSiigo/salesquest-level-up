@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2, Settings2 } from 'lucide-react';
+import { Copy, KeyRound, Eye, EyeOff, ShieldAlert, Pencil, CheckCircle2, XCircle, Loader2, Users, Link2, Settings2, UserPlus, RefreshCw, Plus } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const CANALES_DISPONIBLES = ['VC', 'VN_ALIADOS', 'VN_EMPRESARIOS'] as const;
 const PAISES_DISPONIBLES = ['COL', 'ECU', 'MEX', 'URY', 'ARG', 'CHL'] as const;
+const OPERACIONES_DISPONIBLES = ['Venta Nueva (Empresarios)', 'Venta Nueva (Aliados)', 'Venta Cruzada'] as const;
 
 const askPassword = (label: string): string | null => {
   const p = window.prompt(`Escribe la contraseña a aplicar para ${label} (mínimo 8 caracteres):`, '');
@@ -70,6 +71,30 @@ const AdminEspecialistasAccesos = () => {
   const [scopeCanales, setScopeCanales] = useState<string[]>([]);
   const [scopePaises, setScopePaises] = useState<string[]>([]);
   const [savingScope, setSavingScope] = useState(false);
+
+  // Nuevo / Reemplazar especialista
+  const [espForm, setEspForm] = useState<null | {
+    mode: 'new' | 'replace';
+    revoke_user_id?: string;
+    revoke_label?: string;
+    nombre: string;
+    email: string;
+    paises: string[];
+    operaciones: string[];
+    password: string;
+  }>(null);
+  const [savingEsp, setSavingEsp] = useState(false);
+
+  // Nuevo director
+  const [dirForm, setDirForm] = useState<null | {
+    nombre: string;
+    email: string;
+    cargo: string;
+    canales: string[];
+    paises: string[];
+    password: string;
+  }>(null);
+  const [savingDir, setSavingDir] = useState(false);
 
   const openScopeDialog = (d: Director) => {
     setScopeTarget(d);
@@ -272,6 +297,80 @@ const AdminEspecialistasAccesos = () => {
     });
   };
 
+  const submitEspForm = async () => {
+    if (!espForm) return;
+    const email = espForm.email.trim().toLowerCase();
+    if (!espForm.nombre.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: 'Nombre y email válido requeridos', variant: 'destructive' });
+      return;
+    }
+    if (espForm.paises.length === 0 || espForm.operaciones.length === 0) {
+      toast({ title: 'Selecciona país y frente', variant: 'destructive' });
+      return;
+    }
+    if (!espForm.password || espForm.password.length < 8) {
+      toast({ title: 'Contraseña mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
+    setSavingEsp(true);
+    const { data, error } = await supabase.functions.invoke('admin-upsert-especialista', {
+      body: {
+        email,
+        nombre: espForm.nombre.trim(),
+        paises: espForm.paises,
+        operaciones: espForm.operaciones,
+        password: espForm.password,
+        revoke_user_id: espForm.mode === 'replace' ? espForm.revoke_user_id : undefined,
+      },
+    });
+    setSavingEsp(false);
+    if (error || (data as any)?.error) {
+      toast({ title: 'Error', description: error?.message || (data as any)?.error, variant: 'destructive' });
+      return;
+    }
+    setIssuedPwd({ email, pwd: espForm.password });
+    setEspForm(null);
+    toast({ title: espForm.mode === 'replace' ? '✅ Especialista reemplazado' : '✅ Especialista creado' });
+    fetchItems();
+  };
+
+  const submitDirForm = async () => {
+    if (!dirForm) return;
+    const email = dirForm.email.trim().toLowerCase();
+    if (!dirForm.nombre.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: 'Nombre y email válido requeridos', variant: 'destructive' });
+      return;
+    }
+    if (dirForm.canales.length === 0 || dirForm.paises.length === 0) {
+      toast({ title: 'Selecciona canal y país', variant: 'destructive' });
+      return;
+    }
+    if (!dirForm.password || dirForm.password.length < 8) {
+      toast({ title: 'Contraseña mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
+    setSavingDir(true);
+    const { data, error } = await supabase.functions.invoke('link-director-user', {
+      body: {
+        email,
+        nombre: dirForm.nombre.trim(),
+        cargo: dirForm.cargo.trim() || null,
+        canales: dirForm.canales,
+        paises: dirForm.paises,
+        default_password: dirForm.password,
+      },
+    });
+    setSavingDir(false);
+    if (error || (data as any)?.error) {
+      toast({ title: 'Error', description: error?.message || (data as any)?.error, variant: 'destructive' });
+      return;
+    }
+    setIssuedPwd({ email, pwd: dirForm.password });
+    setDirForm(null);
+    toast({ title: '✅ Director creado y vinculado' });
+    fetchItems();
+  };
+
   return (
     <Layout title="Accesos de Especialistas">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -280,6 +379,11 @@ const AdminEspecialistasAccesos = () => {
             <h1 className="text-3xl font-bold">Accesos de Especialistas</h1>
             <p className="text-muted-foreground mt-1">Gestiona credenciales, edita correos y revisa aprobadores asignados.</p>
           </div>
+          <Button
+            onClick={() => setEspForm({ mode: 'new', nombre: '', email: '', paises: [], operaciones: [], password: genPwd() })}
+          >
+            <UserPlus className="w-4 h-4 mr-1.5" /> Nuevo especialista
+          </Button>
         </div>
 
         <Card className="p-4 border-amber-500/40 bg-amber-50 dark:bg-amber-950/20">
@@ -371,6 +475,23 @@ const AdminEspecialistasAccesos = () => {
                         <Button size="sm" variant="outline" onClick={() => { setResetTarget(e); setNewPwd(genPwd()); }}>
                           <KeyRound className="w-4 h-4 mr-1.5" /> Restablecer
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEspForm({
+                            mode: 'replace',
+                            revoke_user_id: e.user_id,
+                            revoke_label: `${e.nombre} (${e.email})`,
+                            nombre: '',
+                            email: '',
+                            paises: [...(e.paises || [])],
+                            operaciones: [...(e.operaciones || [])],
+                            password: genPwd(),
+                          })}
+                          title="Reemplazar por otra persona"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-1.5" /> Reemplazar
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -389,6 +510,11 @@ const AdminEspecialistasAccesos = () => {
               Cada uno solo verá los gerentes/asesores de los canales y países asignados.
             </p>
           </div>
+          <Button
+            onClick={() => setDirForm({ nombre: '', email: '', cargo: '', canales: [], paises: [], password: genPwd() })}
+          >
+            <Plus className="w-4 h-4 mr-1.5" /> Nuevo director
+          </Button>
         </div>
 
         <Card>
@@ -595,6 +721,134 @@ const AdminEspecialistasAccesos = () => {
           )}
           <DialogFooter>
             <Button onClick={() => setIssuedPwd(null)}>Listo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nuevo / Reemplazar especialista */}
+      <Dialog open={!!espForm} onOpenChange={(o) => !o && setEspForm(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{espForm?.mode === 'replace' ? 'Reemplazar especialista' : 'Nuevo especialista'}</DialogTitle>
+            <DialogDescription>
+              {espForm?.mode === 'replace'
+                ? <>Se creará el nuevo especialista y se revocará el acceso a <b>{espForm.revoke_label}</b>. Se conservan los mismos países y frentes.</>
+                : <>Crea la cuenta, asigna el rol y define su alcance. Se enviará una contraseña temporal.</>}
+            </DialogDescription>
+          </DialogHeader>
+          {espForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium">Nombre</label>
+                  <Input value={espForm.nombre} onChange={(e) => setEspForm({ ...espForm, nombre: e.target.value })} placeholder="Nombre completo" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Email</label>
+                  <Input type="email" value={espForm.email} onChange={(e) => setEspForm({ ...espForm, email: e.target.value })} placeholder="nombre@siigo.com" className="font-mono" />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Países</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {PAISES_DISPONIBLES.map(p => (
+                    <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={espForm.paises.includes(p)} onCheckedChange={() => setEspForm({ ...espForm, paises: toggleInArr(espForm.paises, p) })} />
+                      <span className="text-sm font-medium">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Frentes / Operaciones</p>
+                <div className="space-y-1">
+                  {OPERACIONES_DISPONIBLES.map(op => (
+                    <label key={op} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={espForm.operaciones.includes(op)} onCheckedChange={() => setEspForm({ ...espForm, operaciones: toggleInArr(espForm.operaciones, op) })} />
+                      <span className="text-sm font-medium">{op}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Contraseña temporal</label>
+                <div className="flex gap-2">
+                  <Input value={espForm.password} onChange={(e) => setEspForm({ ...espForm, password: e.target.value })} className="font-mono" />
+                  <Button type="button" variant="outline" onClick={() => setEspForm({ ...espForm, password: genPwd() })}>Generar</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEspForm(null)} disabled={savingEsp}>Cancelar</Button>
+            <Button onClick={submitEspForm} disabled={savingEsp}>
+              {savingEsp ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Aplicando…</> : (espForm?.mode === 'replace' ? 'Reemplazar' : 'Crear')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nuevo director */}
+      <Dialog open={!!dirForm} onOpenChange={(o) => !o && setDirForm(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nuevo director</DialogTitle>
+            <DialogDescription>
+              Crea la cuenta, asigna el rol director y define su alcance de canales y países.
+            </DialogDescription>
+          </DialogHeader>
+          {dirForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium">Nombre</label>
+                  <Input value={dirForm.nombre} onChange={(e) => setDirForm({ ...dirForm, nombre: e.target.value })} placeholder="Nombre completo" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Email</label>
+                  <Input type="email" value={dirForm.email} onChange={(e) => setDirForm({ ...dirForm, email: e.target.value })} placeholder="nombre@siigo.com" className="font-mono" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Cargo (opcional)</label>
+                <Input value={dirForm.cargo} onChange={(e) => setDirForm({ ...dirForm, cargo: e.target.value })} placeholder="Director Comercial LATAM" />
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Canales</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {CANALES_DISPONIBLES.map(c => (
+                    <label key={c} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={dirForm.canales.includes(c)} onCheckedChange={() => setDirForm({ ...dirForm, canales: toggleInArr(dirForm.canales, c) })} />
+                      <span className="text-sm font-medium">{c}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">Países</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {PAISES_DISPONIBLES.map(p => (
+                    <label key={p} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={dirForm.paises.includes(p)} onCheckedChange={() => setDirForm({ ...dirForm, paises: toggleInArr(dirForm.paises, p) })} />
+                      <span className="text-sm font-medium">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Contraseña temporal</label>
+                <div className="flex gap-2">
+                  <Input value={dirForm.password} onChange={(e) => setDirForm({ ...dirForm, password: e.target.value })} className="font-mono" />
+                  <Button type="button" variant="outline" onClick={() => setDirForm({ ...dirForm, password: genPwd() })}>Generar</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDirForm(null)} disabled={savingDir}>Cancelar</Button>
+            <Button onClick={submitDirForm} disabled={savingDir}>
+              {savingDir ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Creando…</> : 'Crear director'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
