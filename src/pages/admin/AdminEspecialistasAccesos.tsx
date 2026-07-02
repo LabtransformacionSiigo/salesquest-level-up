@@ -297,6 +297,80 @@ const AdminEspecialistasAccesos = () => {
     });
   };
 
+  const submitEspForm = async () => {
+    if (!espForm) return;
+    const email = espForm.email.trim().toLowerCase();
+    if (!espForm.nombre.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: 'Nombre y email válido requeridos', variant: 'destructive' });
+      return;
+    }
+    if (espForm.paises.length === 0 || espForm.operaciones.length === 0) {
+      toast({ title: 'Selecciona país y frente', variant: 'destructive' });
+      return;
+    }
+    if (!espForm.password || espForm.password.length < 8) {
+      toast({ title: 'Contraseña mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
+    setSavingEsp(true);
+    const { data, error } = await supabase.functions.invoke('admin-upsert-especialista', {
+      body: {
+        email,
+        nombre: espForm.nombre.trim(),
+        paises: espForm.paises,
+        operaciones: espForm.operaciones,
+        password: espForm.password,
+        revoke_user_id: espForm.mode === 'replace' ? espForm.revoke_user_id : undefined,
+      },
+    });
+    setSavingEsp(false);
+    if (error || (data as any)?.error) {
+      toast({ title: 'Error', description: error?.message || (data as any)?.error, variant: 'destructive' });
+      return;
+    }
+    setIssuedPwd({ email, pwd: espForm.password });
+    setEspForm(null);
+    toast({ title: espForm.mode === 'replace' ? '✅ Especialista reemplazado' : '✅ Especialista creado' });
+    fetchItems();
+  };
+
+  const submitDirForm = async () => {
+    if (!dirForm) return;
+    const email = dirForm.email.trim().toLowerCase();
+    if (!dirForm.nombre.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: 'Nombre y email válido requeridos', variant: 'destructive' });
+      return;
+    }
+    if (dirForm.canales.length === 0 || dirForm.paises.length === 0) {
+      toast({ title: 'Selecciona canal y país', variant: 'destructive' });
+      return;
+    }
+    if (!dirForm.password || dirForm.password.length < 8) {
+      toast({ title: 'Contraseña mínimo 8 caracteres', variant: 'destructive' });
+      return;
+    }
+    setSavingDir(true);
+    const { data, error } = await supabase.functions.invoke('link-director-user', {
+      body: {
+        email,
+        nombre: dirForm.nombre.trim(),
+        cargo: dirForm.cargo.trim() || null,
+        canales: dirForm.canales,
+        paises: dirForm.paises,
+        default_password: dirForm.password,
+      },
+    });
+    setSavingDir(false);
+    if (error || (data as any)?.error) {
+      toast({ title: 'Error', description: error?.message || (data as any)?.error, variant: 'destructive' });
+      return;
+    }
+    setIssuedPwd({ email, pwd: dirForm.password });
+    setDirForm(null);
+    toast({ title: '✅ Director creado y vinculado' });
+    fetchItems();
+  };
+
   return (
     <Layout title="Accesos de Especialistas">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
