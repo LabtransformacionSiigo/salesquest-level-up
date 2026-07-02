@@ -285,8 +285,9 @@ Deno.serve(async (req) => {
       const isGrace = gNombreNorm.includes('grace alejandra serje');
       const monthlyDbg: any[] = [];
 
+      const gFloor = resolveCountry(g.pais) === 'MEX' ? '202601' : '202605';
       for (const period of periods) {
-        if (period < '202605') continue; // VN gamification inicia Mayo 2026
+        if (period < gFloor) continue; // VN gamification inicia Mayo 2026 (MEX: Enero 2026)
         const pMetas = gMetas.filter((m: any) => String(m.anio_mes) === period);
         const activeMetas = pMetas.filter(isActiveMeta);
         const novedadNames = new Set(
