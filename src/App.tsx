@@ -17,6 +17,7 @@ import Retos from '@/pages/Retos';
 import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
 import PanelDirector from '@/pages/PanelDirector';
+import OAuthConsent from '@/pages/OAuthConsent';
 // MisLogros eliminado: fusionado dentro de /retos
 
 // Admin Pages
@@ -47,6 +48,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/ranking" element={<Rankings />} />
             <Route path="/mi-performance" element={<MiPerformance />} />
