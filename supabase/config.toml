@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.fix-account-access]
 verify_jwt = false
+
+[functions.gamificacion-agregada]
+verify_jwt = false
