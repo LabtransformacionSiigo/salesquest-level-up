@@ -140,19 +140,79 @@ Deno.serve(async (req: Request): Promise<Response> => {
         posicion: r.posicion,
       }));
 
-    const canalAgg = new Map<string, { sp: number; usuarios: number }>();
-    const paisAgg = new Map<string, { sp: number; usuarios: number }>();
+    const canalAgg = new Map<string, { sp: number; usuarios: number; activos: number; spActivos: number; maxSp: number }>();
+    const paisAgg = new Map<string, { sp: number; usuarios: number; activos: number; spActivos: number; maxSp: number }>();
     for (const r of ranking) {
       const sp = Number(r.sp_totales) || 0;
       const c = r.canal ?? "Sin canal";
       const p = r.pais ?? "Sin pais";
-      const ca = canalAgg.get(c) ?? { sp: 0, usuarios: 0 };
-      ca.sp += sp; ca.usuarios += 1; canalAgg.set(c, ca);
-      const pa = paisAgg.get(p) ?? { sp: 0, usuarios: 0 };
-      pa.sp += sp; pa.usuarios += 1; paisAgg.set(p, pa);
+      const ca = canalAgg.get(c) ?? { sp: 0, usuarios: 0, activos: 0, spActivos: 0, maxSp: 0 };
+      ca.sp += sp; ca.usuarios += 1;
+      if (sp > 0) { ca.activos += 1; ca.spActivos += sp; }
+      if (sp > ca.maxSp) ca.maxSp = sp;
+      canalAgg.set(c, ca);
+      const pa = paisAgg.get(p) ?? { sp: 0, usuarios: 0, activos: 0, spActivos: 0, maxSp: 0 };
+      pa.sp += sp; pa.usuarios += 1;
+      if (sp > 0) { pa.activos += 1; pa.spActivos += sp; }
+      if (sp > pa.maxSp) pa.maxSp = sp;
+      paisAgg.set(p, pa);
     }
     const spPorCanal = Array.from(canalAgg.entries()).map(([canal, v]) => ({ canal, sp: v.sp, usuarios: v.usuarios }));
     const spPorPais = Array.from(paisAgg.entries()).map(([pais, v]) => ({ pais, sp: v.sp, usuarios: v.usuarios }));
+    const porCanal = Array.from(canalAgg.entries()).map(([canal, v]) => ({
+      canal,
+      usuarios: v.usuarios,
+      activos: v.activos,
+      participacionPct: safeDiv(v.activos, v.usuarios) * 100,
+      avgActivos: safeDiv(v.spActivos, v.activos),
+      maxSp: v.maxSp,
+    }));
+    const porPais = Array.from(paisAgg.entries()).map(([pais, v]) => ({
+      pais,
+      usuarios: v.usuarios,
+      activos: v.activos,
+      participacionPct: safeDiv(v.activos, v.usuarios) * 100,
+      avgActivos: safeDiv(v.spActivos, v.activos),
+      maxSp: v.maxSp,
+    }));
+
+    // Participación / distribución
+    const spValues: number[] = ranking.map((r) => Number(r.sp_totales) || 0);
+    const activosArr = spValues.filter((v) => v > 0);
+    const activos = activosArr.length;
+    const participacionPct = safeDiv(activos, usuarios) * 100;
+    const spPromedioActivos = safeDiv(activosArr.reduce((s, v) => s + v, 0), activos);
+
+    const sortedAll = [...spValues].sort((a, b) => a - b);
+    const percentile = (arr: number[], p: number): number => {
+      if (arr.length === 0) return 0;
+      if (arr.length === 1) return arr[0];
+      const idx = (p / 100) * (arr.length - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return arr[lo];
+      return arr[lo] + (arr[hi] - arr[lo]) * (idx - lo);
+    };
+    const median = (arr: number[]): number => {
+      if (arr.length === 0) return 0;
+      const mid = Math.floor(arr.length / 2);
+      return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
+    };
+    const mediana = median(sortedAll);
+    const p90 = percentile(sortedAll, 90);
+
+    const buckets: Array<{ rango: string; min: number; max: number }> = [
+      { rango: "1–50", min: 1, max: 50 },
+      { rango: "51–100", min: 51, max: 100 },
+      { rango: "101–250", min: 101, max: 250 },
+      { rango: "251–500", min: 251, max: 500 },
+      { rango: "501–1000", min: 501, max: 1000 },
+      { rango: "1000+", min: 1001, max: Number.POSITIVE_INFINITY },
+    ];
+    const distribucionSp = buckets.map((b) => ({
+      rango: b.rango,
+      usuarios: activosArr.filter((v) => v >= b.min && v <= b.max).length,
+    }));
 
     const totalRachas = rachaFiltradas.length;
     const verdes = rachaFiltradas.filter((r) => String(r.estado ?? "").toLowerCase() === "verde").length;
@@ -174,7 +234,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       spPorPais,
       rachas,
       medallasOtorgadas: medallasCount ?? 0,
+      activos,
+      participacionPct,
+      spPromedioActivos,
+      mediana,
+      p90,
+      porCanal,
+      porPais,
+      distribucionSp,
     });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[gamificacion-agregada] error", message);
