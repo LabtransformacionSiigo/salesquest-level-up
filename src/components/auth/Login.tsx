@@ -37,6 +37,19 @@ const Login = () => {
   const { isAuthenticated, signIn, profile } = useSupabaseAuthContext();
   const navigate = useNavigate();
 
+  // Preserve a same-origin `next` redirect (e.g. the OAuth consent URL) so we
+  // return the user to where they were before login. Validate it strictly.
+  const getNextRedirect = (): string | null => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get('next');
+      if (!raw) return null;
+      if (!raw.startsWith('/') || raw.startsWith('//')) return null;
+      return raw;
+    } catch {
+      return null;
+    }
+  };
+
   const routeForRole = (role?: string | null) => {
     if (role === 'admin') return '/dashboard';
     if (role === 'director') return '/panel-director';
@@ -44,10 +57,13 @@ const Login = () => {
     return '/dashboard';
   };
 
+  const routeAfterLogin = (role?: string | null) =>
+    getNextRedirect() ?? routeForRole(role);
+
   // Redirect once profile is loaded after authentication
   useEffect(() => {
     if (isAuthenticated && profile?.role) {
-      navigate(routeForRole(profile.role), { replace: true });
+      navigate(routeAfterLogin(profile.role), { replace: true });
     }
   }, [isAuthenticated, profile?.role, navigate]);
 
@@ -73,9 +89,10 @@ const Login = () => {
   };
 
   if (isAuthenticated && profile?.role) {
-    navigate(routeForRole(profile.role), { replace: true });
+    navigate(routeAfterLogin(profile.role), { replace: true });
     return null;
   }
+
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">

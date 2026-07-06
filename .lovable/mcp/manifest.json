@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://vivfrsrgknzhxgbcvzte.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "siigo-arena-mcp",
+      "version": "0.1.0",
+      "title": "Siigo Arena"
+    },
+    "tools": [
+      {
+        "name": "get_my_profile",
+        "title": "Get my Siigo Arena profile",
+        "description": "Returns the signed-in user's Siigo Arena profile: name, email, country, channel, cell, leader, SP Convención and SP Canje totals.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_my_sp_history",
+        "title": "Get my Siigo Points history",
+        "description": "Returns the signed-in user's Siigo Points entries (sp_acumulados) grouped by period, with type (convencion/canje) and source. Optionally filter by period (YYYYMM) or tipo_sp.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "periodo": {
+              "type": "string",
+              "pattern": "^\\d{6}$",
+              "description": "Period in YYYYMM format (e.g. 202606). Optional."
+            },
+            "tipo_sp": {
+              "type": "string",
+              "enum": [
+                "convencion",
+                "canje"
+              ],
+              "description": "Filter by SP type. Optional."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max rows to return (default 50)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_ranking",
+        "title": "Get Siigo Arena ranking",
+        "description": "Returns the top managers ranking for a channel and country in Siigo Arena. Use segment='vc' for Venta Cruzada or 'vn' for Venta Nueva.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "segment": {
+              "type": "string",
+              "enum": [
+                "vc",
+                "vn"
+              ],
+              "description": "Ranking segment: 'vc' (Venta Cruzada) or 'vn' (Venta Nueva)."
+            },
+            "pais": {
+              "type": "string",
+              "enum": [
+                "COL",
+                "MEX",
+                "ECU",
+                "URU"
+              ],
+              "description": "Country code."
+            },
+            "mes": {
+              "type": "string",
+              "pattern": "^\\d{6}$",
+              "description": "Month in YYYYMM. Defaults to the latest available."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Top N rows (default 10)."
+            }
+          },
+          "required": [
+            "segment",
+            "pais"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_rewards",
+        "title": "List available rewards",
+        "description": "Returns the active rewards (premios) catalog available to redeem with SP Canje. Optionally filter by country and operation.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pais": {
+              "type": "string",
+              "enum": [
+                "COL",
+                "MEX",
+                "ECU",
+                "URU"
+              ],
+              "description": "Country code filter."
+            },
+            "operacion": {
+              "type": "string",
+              "description": "Operation filter (e.g. 'Venta Cruzada')."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
