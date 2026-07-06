@@ -1,6 +1,6 @@
 // Read-only aggregated gamification data for external dashboards.
 // No writes. No new secrets. Uses Lovable Cloud injected env vars.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +13,7 @@ interface Body {
   canales?: string[];
 }
 
-interface RankingRow {
+interface ActiveRow {
   user_id: string | null;
   nombre: string | null;
   canal: string | null;
@@ -45,6 +45,37 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 
 const safeDiv = (a: number, b: number): number => (b > 0 ? a / b : 0);
 
+const percentile = (arrSortedAsc: number[], p: number): number => {
+  if (arrSortedAsc.length === 0) return 0;
+  if (arrSortedAsc.length === 1) return arrSortedAsc[0];
+  const idx = (p / 100) * (arrSortedAsc.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return arrSortedAsc[lo];
+  return arrSortedAsc[lo] + (arrSortedAsc[hi] - arrSortedAsc[lo]) * (idx - lo);
+};
+
+const median = (arrSortedAsc: number[]): number => {
+  if (arrSortedAsc.length === 0) return 0;
+  const mid = Math.floor(arrSortedAsc.length / 2);
+  return arrSortedAsc.length % 2 === 0
+    ? (arrSortedAsc[mid - 1] + arrSortedAsc[mid]) / 2
+    : arrSortedAsc[mid];
+};
+
+async function countRanking(
+  supabase: SupabaseClient,
+  paises: string[],
+  canales: string[],
+): Promise<number> {
+  let q = supabase.from("ranking_general").select("*", { count: "exact", head: true });
+  if (paises.length > 0) q = q.in("pais", paises);
+  if (canales.length > 0) q = q.in("canal", canales);
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
@@ -60,16 +91,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const paises = (body.paises ?? []).filter((p): p is string => typeof p === "string" && p.length > 0);
     const canales = (body.canales ?? []).filter((c): c is string => typeof c === "string" && c.length > 0);
 
-    // a) Ranking
-    let rankingQuery = supabase
+    // 1) Exact total count with filters (bypasses 1000-row default cap)
+    const usuarios = await countRanking(supabase, paises, canales);
+
+    // 2) Detail only over ACTIVOS (sp_totales > 0). Small set (~decenas), fits well below the cap.
+    let activeQ = supabase
       .from("ranking_general")
       .select("user_id,nombre,canal,pais,sp_totales,nivel,posicion")
-      .limit(5000);
-    if (paises.length > 0) rankingQuery = rankingQuery.in("pais", paises);
-    if (canales.length > 0) rankingQuery = rankingQuery.in("canal", canales);
-    const { data: rankingData, error: rankingErr } = await rankingQuery;
-    if (rankingErr) throw rankingErr;
-    const ranking: RankingRow[] = (rankingData ?? []) as RankingRow[];
+      .gt("sp_totales", 0)
+      .limit(10000);
+    if (paises.length > 0) activeQ = activeQ.in("pais", paises);
+    if (canales.length > 0) activeQ = activeQ.in("canal", canales);
+    const { data: activeData, error: activeErr } = await activeQ;
+    if (activeErr) throw activeErr;
+    const activosRows: ActiveRow[] = (activeData ?? []) as ActiveRow[];
 
     // b) Gerentes + racha
     const { data: gerentesData, error: gerErr } = await supabase
@@ -110,13 +145,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .select("*", { count: "exact", head: true });
     if (medErr) throw medErr;
 
-    // Aggregations
-    const usuarios = ranking.length;
-    const spTotal = ranking.reduce((s, r) => s + (Number(r.sp_totales) || 0), 0);
+    // 3) Derived metrics
+    const activos = activosRows.length;
+    const spDeActivos: number[] = activosRows.map((r) => Number(r.sp_totales) || 0);
+    const spTotal = spDeActivos.reduce((s, v) => s + v, 0); // inactivos aportan 0 -> exacto
     const spPromedio = safeDiv(spTotal, usuarios);
+    const spPromedioActivos = safeDiv(spTotal, activos);
+    const participacionPct = safeDiv(activos, usuarios) * 100;
 
+    // Nivel distribucion (solo activos: los inactivos tendrían nivel base y diluirían)
     const nivelAgg = new Map<string, { usuarios: number; sp: number }>();
-    for (const r of ranking) {
+    for (const r of activosRows) {
       const key = r.nivel ?? "Sin nivel";
       const a = nivelAgg.get(key) ?? { usuarios: 0, sp: 0 };
       a.usuarios += 1;
@@ -127,7 +166,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .map(([nivel, v]) => ({ nivel, usuarios: v.usuarios, avgSp: safeDiv(v.sp, v.usuarios) }))
       .sort((a, b) => a.avgSp - b.avgSp);
 
-    const leaderboard = [...ranking]
+    const leaderboard = [...activosRows]
       .sort((a, b) => (Number(b.sp_totales) || 0) - (Number(a.sp_totales) || 0))
       .slice(0, 50)
       .map((r) => ({
@@ -140,67 +179,90 @@ Deno.serve(async (req: Request): Promise<Response> => {
         posicion: r.posicion,
       }));
 
-    const canalAgg = new Map<string, { sp: number; usuarios: number; activos: number; spActivos: number; maxSp: number }>();
-    const paisAgg = new Map<string, { sp: number; usuarios: number; activos: number; spActivos: number; maxSp: number }>();
-    for (const r of ranking) {
+    // Aggregations per canal / pais over ACTIVOS
+    interface GroupAgg { sp: number; activos: number; maxSp: number; }
+    const canalAgg = new Map<string, GroupAgg>();
+    const paisAgg = new Map<string, GroupAgg>();
+    const canalesPresentes = new Set<string>();
+    const paisesPresentes = new Set<string>();
+    for (const r of activosRows) {
       const sp = Number(r.sp_totales) || 0;
       const c = r.canal ?? "Sin canal";
       const p = r.pais ?? "Sin pais";
-      const ca = canalAgg.get(c) ?? { sp: 0, usuarios: 0, activos: 0, spActivos: 0, maxSp: 0 };
-      ca.sp += sp; ca.usuarios += 1;
-      if (sp > 0) { ca.activos += 1; ca.spActivos += sp; }
-      if (sp > ca.maxSp) ca.maxSp = sp;
+      canalesPresentes.add(c);
+      paisesPresentes.add(p);
+      const ca = canalAgg.get(c) ?? { sp: 0, activos: 0, maxSp: 0 };
+      ca.sp += sp; ca.activos += 1; if (sp > ca.maxSp) ca.maxSp = sp;
       canalAgg.set(c, ca);
-      const pa = paisAgg.get(p) ?? { sp: 0, usuarios: 0, activos: 0, spActivos: 0, maxSp: 0 };
-      pa.sp += sp; pa.usuarios += 1;
-      if (sp > 0) { pa.activos += 1; pa.spActivos += sp; }
-      if (sp > pa.maxSp) pa.maxSp = sp;
+      const pa = paisAgg.get(p) ?? { sp: 0, activos: 0, maxSp: 0 };
+      pa.sp += sp; pa.activos += 1; if (sp > pa.maxSp) pa.maxSp = sp;
       paisAgg.set(p, pa);
     }
-    const spPorCanal = Array.from(canalAgg.entries()).map(([canal, v]) => ({ canal, sp: v.sp, usuarios: v.usuarios }));
-    const spPorPais = Array.from(paisAgg.entries()).map(([pais, v]) => ({ pais, sp: v.sp, usuarios: v.usuarios }));
-    const porCanal = Array.from(canalAgg.entries()).map(([canal, v]) => ({
+
+    // Exact totals per canal / pais (respecting filters) via count exact head
+    const canalList = Array.from(canalesPresentes);
+    const paisList = Array.from(paisesPresentes);
+    const canalTotals = new Map<string, number>();
+    const paisTotals = new Map<string, number>();
+    await Promise.all([
+      ...canalList.map(async (c) => {
+        const total = await countRanking(supabase, paises, [c]);
+        canalTotals.set(c, total);
+      }),
+      ...paisList.map(async (p) => {
+        const total = await countRanking(supabase, [p], canales);
+        paisTotals.set(p, total);
+      }),
+    ]);
+
+    const porCanal = canalList.map((canal) => {
+      const v = canalAgg.get(canal)!;
+      const totalUsuarios = canalTotals.get(canal) ?? v.activos;
+      return {
+        canal,
+        usuarios: totalUsuarios,
+        activos: v.activos,
+        participacionPct: safeDiv(v.activos, totalUsuarios) * 100,
+        avgActivos: safeDiv(v.sp, v.activos),
+        maxSp: v.maxSp,
+      };
+    });
+    const porPais = paisList.map((pais) => {
+      const v = paisAgg.get(pais)!;
+      const totalUsuarios = paisTotals.get(pais) ?? v.activos;
+      return {
+        pais,
+        usuarios: totalUsuarios,
+        activos: v.activos,
+        participacionPct: safeDiv(v.activos, totalUsuarios) * 100,
+        avgActivos: safeDiv(v.sp, v.activos),
+        maxSp: v.maxSp,
+      };
+    });
+
+    // Backward-compatible spPorCanal / spPorPais (usuarios = total del grupo)
+    const spPorCanal = porCanal.map(({ canal, usuarios }) => ({
       canal,
-      usuarios: v.usuarios,
-      activos: v.activos,
-      participacionPct: safeDiv(v.activos, v.usuarios) * 100,
-      avgActivos: safeDiv(v.spActivos, v.activos),
-      maxSp: v.maxSp,
+      sp: canalAgg.get(canal)?.sp ?? 0,
+      usuarios,
     }));
-    const porPais = Array.from(paisAgg.entries()).map(([pais, v]) => ({
+    const spPorPais = porPais.map(({ pais, usuarios }) => ({
       pais,
-      usuarios: v.usuarios,
-      activos: v.activos,
-      participacionPct: safeDiv(v.activos, v.usuarios) * 100,
-      avgActivos: safeDiv(v.spActivos, v.activos),
-      maxSp: v.maxSp,
+      sp: paisAgg.get(pais)?.sp ?? 0,
+      usuarios,
     }));
 
-    // Participación / distribución
-    const spValues: number[] = ranking.map((r) => Number(r.sp_totales) || 0);
-    const activosArr = spValues.filter((v) => v > 0);
-    const activos = activosArr.length;
-    const participacionPct = safeDiv(activos, usuarios) * 100;
-    const spPromedioActivos = safeDiv(activosArr.reduce((s, v) => s + v, 0), activos);
+    // Mediana / p90 over ALL usuarios (inactivos = 0), sin traerlos
+    const zeros = Math.max(usuarios - activos, 0);
+    const activosSorted = [...spDeActivos].sort((a, b) => a - b);
+    // Sorted asc: primero los ceros, luego los activos ordenados
+    const allSorted: number[] = zeros > 0
+      ? [...new Array<number>(zeros).fill(0), ...activosSorted]
+      : activosSorted;
+    const mediana = median(allSorted);
+    const p90 = percentile(allSorted, 90);
 
-    const sortedAll = [...spValues].sort((a, b) => a - b);
-    const percentile = (arr: number[], p: number): number => {
-      if (arr.length === 0) return 0;
-      if (arr.length === 1) return arr[0];
-      const idx = (p / 100) * (arr.length - 1);
-      const lo = Math.floor(idx);
-      const hi = Math.ceil(idx);
-      if (lo === hi) return arr[lo];
-      return arr[lo] + (arr[hi] - arr[lo]) * (idx - lo);
-    };
-    const median = (arr: number[]): number => {
-      if (arr.length === 0) return 0;
-      const mid = Math.floor(arr.length / 2);
-      return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
-    };
-    const mediana = median(sortedAll);
-    const p90 = percentile(sortedAll, 90);
-
+    // Distribución SP solo activos
     const buckets: Array<{ rango: string; min: number; max: number }> = [
       { rango: "1–50", min: 1, max: 50 },
       { rango: "51–100", min: 51, max: 100 },
@@ -211,9 +273,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ];
     const distribucionSp = buckets.map((b) => ({
       rango: b.rango,
-      usuarios: activosArr.filter((v) => v >= b.min && v <= b.max).length,
+      usuarios: spDeActivos.filter((v) => v >= b.min && v <= b.max).length,
     }));
 
+    // Rachas
     const totalRachas = rachaFiltradas.length;
     const verdes = rachaFiltradas.filter((r) => String(r.estado ?? "").toLowerCase() === "verde").length;
     const sumaSemanas = rachaFiltradas.reduce((s, r) => s + (Number(r.semanas_consecutivas) || 0), 0);
@@ -243,7 +306,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       porPais,
       distribucionSp,
     });
-
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[gamificacion-agregada] error", message);
