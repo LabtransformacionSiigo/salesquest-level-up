@@ -476,7 +476,7 @@ export const useGamificationMetrics = (
           isVC
             ? supabase.from('ventas')
                 .select('comercial, acv_plus, meta')
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .eq('canal', 'VC')
                 .eq('anio', anioActual)
                 .eq('mes', currentMonthName)
