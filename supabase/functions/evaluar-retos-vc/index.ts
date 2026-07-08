@@ -144,6 +144,21 @@ Deno.serve(async (req) => {
 
     const gerenteIds = gerentes.map((g) => g.id);
 
+    // ── Agregación por NOMBRE: elegir fila con login como canónica ──
+    const normNom = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    const loginByName = new Map<string, any>();
+    for (const g of gerentes) {
+      const k = normNom(g.nombre);
+      const prev = loginByName.get(k);
+      if (!prev || (!prev.user_id && (g as any).user_id)) loginByName.set(k, g);
+    }
+    const canonicalId = new Map<string, string>();
+    for (const g of gerentes) {
+      const canon = loginByName.get(normNom(g.nombre)) || g;
+      canonicalId.set(g.id, canon.id);
+    }
+    const gerentesEval = [...new Map(gerentes.map((g: any) => [normNom(g.nombre), loginByName.get(normNom(g.nombre)) || g])).values()];
+
     // ── Cargar ventas del MES actual (cubre día/semana/mes) ──
     const { data: ventasMes } = await supabase
       .from("ventas")
