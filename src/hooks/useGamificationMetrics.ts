@@ -361,7 +361,23 @@ export const useGamificationMetrics = (
         /* ============================================================ */
         const canalNorm = profile.canal === 'VN_ALIADOS' ? 'Aliados' : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios' : '';
 
+        // Para VC, un mismo gerente puede tener múltiples filas en `gerentes` (login + orphan
+        // creado por el ETL con email largo). El ETL asocia ventas a cualquiera de esas filas,
+        // así que resolvemos TODOS los gerente_id con el mismo nombre+canal para no perder
+        // ventas ni SP al consultar tablas crudas (queries 4, 5, 18).
+        let vcGerenteIds: string[] = [profile.id];
+        if (isVC && profile.nombre) {
+          const { data: dupRows } = await supabase
+            .from('gerentes')
+            .select('id')
+            .eq('canal', 'VC')
+            .eq('nombre', profile.nombre);
+          const ids = (dupRows || []).map((r: any) => r.id).filter(Boolean);
+          if (ids.length > 0) vcGerenteIds = Array.from(new Set([profile.id, ...ids]));
+        }
+
         const queries = [
+
           /* 0 */ supabase.from('racha_activa').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 1 */ supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 2 */ supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
