@@ -874,7 +874,7 @@ const Rankings = () => {
           // Clasificación: SIEMPRE usar el cálculo determinístico por célula para que el
           // ranking sea idéntico para todos los usuarios (no depende de quién inicia sesión).
           const spLive = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
-          const spStored = Number((gerenteInfo as any)?.sp_convencion) || 0;
+          const spStored = spConvByName.get(normalizePersonName(gerenteDisplayName)) || Number((gerenteInfo as any)?.sp_convencion) || 0;
           const spFinal = spStored > 0 ? spStored : spLive;
           entries.push({
             id: celula,
@@ -939,7 +939,7 @@ const Rankings = () => {
             const gerenteDisplayName = gerenteInfo?.nombre || agg.gerente || agg.celulaNombre;
             // Clasificación única para todos los usuarios: cálculo determinístico por célula.
             const spLive = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre, gerenteDisplayName);
-            const spStored = Number((gerenteInfo as any)?.sp_convencion) || 0;
+            const spStored = spConvByName.get(normalizePersonName(gerenteDisplayName)) || Number((gerenteInfo as any)?.sp_convencion) || 0;
             const spFinal = spStored > 0 ? spStored : spLive;
             // Metas desde metas_asesores (verdad por asesor) con fallback a catálogo metas_acv_gerentes
             const monthlyRowsMex = buildVnConventionMonthlyRows({
