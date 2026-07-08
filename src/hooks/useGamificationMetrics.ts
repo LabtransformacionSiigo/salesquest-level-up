@@ -361,20 +361,36 @@ export const useGamificationMetrics = (
         /* ============================================================ */
         const canalNorm = profile.canal === 'VN_ALIADOS' ? 'Aliados' : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios' : '';
 
+        // Para VC, un mismo gerente puede tener múltiples filas en `gerentes` (login + orphan
+        // creado por el ETL con email largo). El ETL asocia ventas a cualquiera de esas filas,
+        // así que resolvemos TODOS los gerente_id con el mismo nombre+canal para no perder
+        // ventas ni SP al consultar tablas crudas (queries 4, 5, 18).
+        let vcGerenteIds: string[] = [profile.id];
+        if (isVC && profile.nombre) {
+          const { data: dupRows } = await supabase
+            .from('gerentes')
+            .select('id')
+            .eq('canal', 'VC')
+            .eq('nombre', profile.nombre);
+          const ids = (dupRows || []).map((r: any) => r.id).filter(Boolean);
+          if (ids.length > 0) vcGerenteIds = Array.from(new Set([profile.id, ...ids]));
+        }
+
         const queries = [
+
           /* 0 */ supabase.from('racha_activa').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 1 */ supabase.from('kpis_mes_actual').select('*').eq('gerente_id', profile.id).maybeSingle(),
           /* 2 */ supabase.from('medallas').select('*').eq('gerente_id', profile.id).order('fecha_desbloqueo', { ascending: false }).limit(3),
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
           /* 4 */ isVC
             ? supabase.from('ventas').select('id', { count: 'exact', head: true })
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
                 .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`)
             : Promise.resolve({ count: 0 }),
           /* 5 */ isVC
             ? supabase.from('ventas').select('valor_producto')
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
                 .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0])
             : Promise.resolve({ data: [] }),
@@ -460,7 +476,7 @@ export const useGamificationMetrics = (
           isVC
             ? supabase.from('ventas')
                 .select('comercial, acv_plus, meta')
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .eq('canal', 'VC')
                 .eq('anio', anioActual)
                 .eq('mes', currentMonthName)

@@ -226,7 +226,7 @@ const MiPerformance = () => {
                   {/* Historial Mensual: ACV vs Meta */}
                   {vcMonthlyCumplimiento.length > 0 && (
                     <>
-                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta por mes, con % de cumplimiento." />
+                      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="ACV+ logrado vs Meta por mes. ⚡ SP = Siigo Points Convención generados ese mes (round(ACV+/Meta × 100))." />
                       <motion.div className="bg-white border border-border rounded-2xl overflow-hidden shadow-smooth-sm" variants={fadeUpItem}>
                         <table className="w-full">
                           <thead>
@@ -235,31 +235,72 @@ const MiPerformance = () => {
                               <th className="text-right px-4 py-3">ACV+</th>
                               <th className="text-right px-4 py-3">Meta</th>
                               <th className="text-right px-4 py-3">% Cumpl.</th>
+                              <th className="text-right px-4 py-3">⚡ SP</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {vcMonthlyCumplimiento.map((m, i) => (
-                              <motion.tr
-                                key={m.mes}
-                                className="border-b border-border hover:bg-primary/5 transition-colors"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
-                              >
-                                <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
-                                <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
-                                <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(m.meta)}</td>
-                                <td className="px-4 py-3 text-right">
-                                  <span className={cn(
-                                    "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
-                                    m.pct >= 100 ? "bg-green-100 text-green-700" : m.pct >= 70 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
-                                  )}>
-                                    {m.pct}%
-                                  </span>
-                                </td>
-                              </motion.tr>
-                            ))}
+                            {vcMonthlyCumplimiento.map((m, i) => {
+                              const spMes = (m.meta || 0) > 0 && (m.acv || 0) > 0
+                                ? Math.round((Number(m.acv) / Number(m.meta)) * 100)
+                                : 0;
+                              return (
+                                <motion.tr
+                                  key={m.mes}
+                                  className="border-b border-border hover:bg-primary/5 transition-colors"
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ duration: 0.25, delay: i * 0.06 + 0.2 }}
+                                >
+                                  <td className="px-4 py-3 text-sm font-medium text-foreground">{m.mes}</td>
+                                  <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
+                                  <td className="px-4 py-3 text-sm font-scoreboard text-muted-foreground text-right">{formatMoney(m.meta)}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span className={cn(
+                                      "text-sm font-bold font-scoreboard px-2 py-0.5 rounded-full",
+                                      m.pct >= 100 ? "bg-green-100 text-green-700" : m.pct >= 70 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
+                                    )}>
+                                      {m.pct}%
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span className="text-sm font-bold font-scoreboard text-primary">
+                                      {spMes > 0 ? `+${spMes}` : '—'}
+                                    </span>
+                                  </td>
+                                </motion.tr>
+                              );
+                            })}
                           </tbody>
+                          <tfoot>
+                            {(() => {
+                              const totalSp = vcMonthlyCumplimiento.reduce((s, m: any) => {
+                                if ((m.meta || 0) > 0 && (m.acv || 0) > 0) {
+                                  return s + Math.round((Number(m.acv) / Number(m.meta)) * 100);
+                                }
+                                return s;
+                              }, 0);
+                              const mesesConDatos = vcMonthlyCumplimiento.filter((m: any) => (m.meta || 0) > 0 && (m.acv || 0) > 0).length;
+                              return (
+                                <tr className="bg-orange/10 border-t-2 border-orange/40">
+                                  <td colSpan={4} className="px-4 py-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm md:text-base font-black font-heading text-orange flex items-center gap-2">
+                                        <span>⚡</span> Total SP Convención 2026
+                                      </span>
+                                      <span className="text-[11px] text-muted-foreground font-medium">
+                                        Acumulado {mesesConDatos} {mesesConDatos === 1 ? 'mes' : 'meses'}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-right">
+                                    <span className="text-lg md:text-xl font-black font-scoreboard text-orange">
+                                      +{totalSp}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })()}
+                          </tfoot>
                         </table>
                       </motion.div>
                     </>

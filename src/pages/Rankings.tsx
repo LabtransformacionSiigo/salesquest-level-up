@@ -176,19 +176,20 @@ const aggregateVnGerenteMetricRows = (rows: any[], currentMonth: string) => {
 const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) => {
   if (!gerenteIds.length) return [] as any[];
 
+  // Leemos de la vista `acv_vc_mensual`, que ya agrega ventas por NOMBRE del gerente
+  // (no por gerente_id). Esto elimina la fragmentación causada por gerentes duplicados
+  // (login + orphan del ETL) y garantiza que el SP mostrado en el ranking coincida con
+  // el que ve el propio gerente en Mi Progreso / sidebar.
   const pageSize = 1000;
   let from = 0;
   const rows: any[] = [];
 
   while (true) {
     const { data, error } = await supabase
-      .from('ventas')
+      .from('acv_vc_mensual')
       .select('gerente_id, anio, mes, acv_plus, meta')
-      .eq('canal', 'VC')
       .eq('anio', year)
-      .like('documento_factura', 'SUM-%')
       .in('gerente_id', gerenteIds)
-      .order('id', { ascending: true })
       .range(from, from + pageSize - 1);
 
     if (error) throw error;
