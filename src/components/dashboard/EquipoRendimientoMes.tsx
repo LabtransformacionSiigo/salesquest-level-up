@@ -228,7 +228,9 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
                     <span className="text-base">{st.emoji}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-foreground truncate">{a.nombre}</p>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground">{st.label}</p>
+                      {st.label !== 'Sin meta' && (
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground">{st.label}</p>
+                      )}
                     </div>
                   </div>
                 </div>
