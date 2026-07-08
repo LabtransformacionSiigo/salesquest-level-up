@@ -359,12 +359,13 @@ export const useSupabaseAuth = () => {
           let spPeriodoActual = 0;
 
           if (asesor.canal === 'VC') {
+            // Identificamos al asesor solo por 'comercial' porque el ETL puede
+            // cargar las ventas bajo una fila huérfana de gerente.
             const vcRes = await supabase
               .from('ventas')
               .select('anio, mes, acv_plus, meta')
               .eq('canal', 'VC')
               .eq('anio', currentConventionYear)
-              .eq('gerente_id', asesor.gerente_id)
               .eq('comercial', asesor.nombre)
               .like('documento_factura', 'SUM-%');
             if (!vcRes.error) {
@@ -659,13 +660,22 @@ export const useSupabaseAuth = () => {
               spTotales = getVnMonthlyConventionTotal(productivityRows);
             }
           } else if (gerenteId) {
-            // VC: calcular desde ventas SUM-
+            // VC: agregar ventas de TODAS las filas de gerente con el mismo nombre+canal.
+            // El ETL crea una fila huérfana (sin user_id) y carga las ventas ahí; la fila
+            // con login solo ve 1 mes. Mismo criterio que la vista acv_vc_mensual.
+            const { data: sameNameGerentes } = await supabase
+              .from('gerentes')
+              .select('id')
+              .eq('canal', 'VC')
+              .eq('nombre', data.nombre);
+            const vcGerenteIds = (sameNameGerentes || []).map((g: any) => g.id);
+            if (vcGerenteIds.length === 0) vcGerenteIds.push(gerenteId);
             const vcRes = await supabase
               .from('ventas')
               .select('anio, mes, acv_plus, meta')
               .eq('canal', 'VC')
               .eq('anio', currentConventionYear)
-              .eq('gerente_id', gerenteId)
+              .in('gerente_id', vcGerenteIds)
               .like('documento_factura', 'SUM-%');
             if (!vcRes.error) {
               spTotales = getVcMonthlyConventionTotal(vcRes.data as any[]);
