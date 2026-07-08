@@ -3373,6 +3373,7 @@ export type Database = {
         Args: { _operacion: string; _pais: string }
         Returns: boolean
       }
+      gamificacion_uso_stats: { Args: { desde?: string }; Returns: Json }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
