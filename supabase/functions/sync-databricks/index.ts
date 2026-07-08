@@ -646,7 +646,7 @@ async function runVentasVcCompleto({ supabase, supabaseUrl, serviceRoleKey, mesF
 
   const [vcResult, prodResult] = await Promise.all([
     syncVentasVC(supabase, vcRows),
-    syncVentasVCProducto(supabase, prodRows),
+    syncVentasVCProducto(supabase, prodRows, mesFilter),
   ]);
 
   // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
