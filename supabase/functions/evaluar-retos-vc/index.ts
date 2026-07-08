@@ -183,7 +183,10 @@ Deno.serve(async (req) => {
       .from("retos_completados")
       .select("gerente_id, reto, periodo")
       .in("gerente_id", gerenteIds);
-    const completadosSet = new Set((completadosData || []).map((r) => `${r.gerente_id}::${r.reto}::${r.periodo}`));
+    const completadosSet = new Set((completadosData || []).map((r) => {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+      return `${gid}::${r.reto}::${r.periodo}`;
+    }));
 
     const { data: spData } = await supabase
       .from("sp_acumulados")
@@ -192,7 +195,10 @@ Deno.serve(async (req) => {
       .in("fuente", ["RETO_DIARIO", "RETO_SEMANAL", "RETO_MENSUAL"])
       .eq("tipo_sp", "canje");
     const spExistingByPeriod = new Map(
-      (spData || []).map((r) => [`${r.gerente_id}::${r.fuente}::${r.periodo}`, r]),
+      (spData || []).map((r) => {
+        const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+        return [`${gid}::${r.fuente}::${r.periodo}`, r];
+      }),
     );
     const retoNamesForMatch = retos
       .map((r: any) => String(r.nombre || ""))
@@ -200,10 +206,11 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.length - a.length);
     const spAwardedSet = new Set<string>();
     for (const r of (spData || [])) {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
       for (const part of String(r.detalle || "").split(" | ")) {
         const nombre = retoNamesForMatch.find((n) => part === n || part.startsWith(`${n} ·`))
           || part.split("·")[0].trim();
-        if (nombre) spAwardedSet.add(`${r.gerente_id}::${r.fuente}::${r.periodo}::${nombre}`);
+        if (nombre) spAwardedSet.add(`${gid}::${r.fuente}::${r.periodo}::${nombre}`);
       }
     }
 
