@@ -116,11 +116,12 @@ ${limit}`;
         : `WHERE Anio = 2026 AND categoria_producto_Venta NOT IN ('Ecuador', 'Uruguay')`;
       return `
 SELECT comercial AS Asesor, lider AS Lider, Anio, mes AS Mes,
+    Fecha_Facturacion AS Fecha,
     categoria_producto_Venta AS Producto, bloque_venta AS Bloque,
     SUM(CAST(ACV_PLUS AS BIGINT)) AS ACV_Producto, COUNT(*) AS Unidades
 FROM analyticdl.db_comercial.tbl_gld_Ventas_VC
 ${ventasWhere}
-GROUP BY comercial, lider, Anio, mes, categoria_producto_Venta, bloque_venta
+GROUP BY comercial, lider, Anio, mes, Fecha_Facturacion, categoria_producto_Venta, bloque_venta
 ${limit}`;
     },
   },
