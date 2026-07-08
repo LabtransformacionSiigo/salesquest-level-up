@@ -876,7 +876,7 @@ async function syncVentasVC(supabase: any, rows: Record<string, any>[]) {
 // ============================================================
 // SYNC: Ventas VC Producto → ventas table (existing)
 // ============================================================
-async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) {
+async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[], mesFilter?: string) {
   let insertedVentas = 0;
   const errores: string[] = [];
 
@@ -897,9 +897,11 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
     const acv = Number(row.ACV_Producto || 0);
     const unidades = Number(row.Unidades || 0);
     if (acv === 0 && unidades === 0) continue;
+    // Fecha diaria real de Databricks (Fecha_Facturacion). Fallback día-01 si viniera nula.
+    const fecha = row.Fecha ? String(row.Fecha).slice(0, 10) : `${anio}-${monthNum}-01`;
     ventaRows.push({
-      gerente_id: gerente.id, fecha_facturacion: `${anio}-${monthNum}-01`, canal: "VC", anio, mes: String(row.Mes || ""),
-      producto, bloque_venta: bloque, documento_factura: `PROD-${anio}-${row.Mes}-${asesor}-${producto}-${bloque}`,
+      gerente_id: gerente.id, fecha_facturacion: fecha, canal: "VC", anio, mes: String(row.Mes || ""),
+      producto, bloque_venta: bloque, documento_factura: `PROD-${fecha}-${asesor}-${producto}-${bloque}`,
       valor_producto: acv, acv_plus: acv, meta: 0, comercial: asesor, lider: String(row.Lider || ""), categoria_producto_venta: producto,
     });
   }
@@ -911,6 +913,18 @@ async function syncVentasVCProducto(supabase: any, rows: Record<string, any>[]) 
     else deduped.set(key, { ...row });
   }
   const uniqueRows = [...deduped.values()];
+
+  // Borra filas PROD- previas de VC del período que se está sincronizando (antes estaban en día-01;
+  // ahora habrá filas diarias con documento distinto y coexistirían → doble conteo).
+  // Nunca toca las filas SUM-.
+  try {
+    let del = supabase.from("ventas").delete().eq("canal", "VC").like("documento_factura", "PROD-%");
+    if (mesFilter) del = del.eq("mes", mesFilter);
+    const { error: delErr } = await del;
+    if (delErr) errores.push(`delete PROD- previos: ${delErr.message}`);
+  } catch (e: any) {
+    errores.push(`delete PROD- previos exception: ${e?.message || String(e)}`);
+  }
 
   insertedVentas += await parallelUpsert(supabase, "ventas", uniqueRows, { onConflict: "documento_factura,producto,fecha_facturacion", count: "exact" }, errores, "ventas VC producto");
 
