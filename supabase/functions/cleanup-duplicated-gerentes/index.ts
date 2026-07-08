@@ -134,7 +134,6 @@ Deno.serve(async (req) => {
       const { error: aErr } = await sb.auth.admin.updateUserById(g.user_id, {
         email: k.newEmail,
         email_confirm: true,
-        password: "SiigoArena2026!",
       });
       if (aErr) log.push({ op: "rename_auth", id: k.id, warning: aErr.message });
     }
