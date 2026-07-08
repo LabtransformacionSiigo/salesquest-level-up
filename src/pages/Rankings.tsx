@@ -282,7 +282,7 @@ const Rankings = () => {
           posicion: r.posicion,
           canal: 'VC',
           pais: gerentePaisMap.get(r.gerente_nombre) || 'COL',
-          sp_canje: 0,
+          sp_canje: canjeablesByComercial.get(normalizePersonName(r.nombre)) || 0,
           nivel: getNivelData(spByComercial.get(normalizePersonName(r.nombre)) || 0, 'VC').nivel,
           isCurrent: profile?.role === 'asesor' && normalizePersonName(r.nombre) === currentName,
         }));
