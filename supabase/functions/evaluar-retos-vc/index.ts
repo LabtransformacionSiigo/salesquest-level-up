@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
     let totalRetos = 0;
     let totalSp = 0;
 
-    for (const gerente of gerentes) {
+    for (const gerente of gerentesEval) {
       const ventasAll = ventasByGerente.get(gerente.id) || [];
       // SUM- = consolidado mensual (para ACV+ totales y cumplimiento). PROD- = transacciones reales (para upgrades/conversiones/ACV+ diario).
       const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
