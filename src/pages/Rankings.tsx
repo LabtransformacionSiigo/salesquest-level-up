@@ -321,8 +321,8 @@ const Rankings = () => {
           const period = `${row.anio}${monthNum}`;
           const monthly = monthlyByGerente.get(gId) || new Map<string, { acv: number; meta: number }>();
           const cur = monthly.get(period) || { acv: 0, meta: 0 };
-          cur.acv += Number(row.acv_plus) || 0;
-          cur.meta += Number(row.meta) || 0;
+          cur.acv += Number(row.acv_plus_total) || 0;
+          cur.meta += Number(row.meta_total) || 0;
           monthly.set(period, cur);
           monthlyByGerente.set(gId, monthly);
         });
