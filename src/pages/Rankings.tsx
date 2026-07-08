@@ -358,7 +358,7 @@ const Rankings = () => {
             meta_total: Math.round(Number(r.meta_total) || 0),
             pct_cumplimiento: Number(r.pct_cumplimiento) || 0,
             sp_totales: spVivo,
-            sp_canje: canjeablesMap.get(r.gerente_id) || 0,
+            sp_canje: canjeByName.get(normalizePersonName(r.nombre)) || 0,
             nivel,
             user_id: extra?.user_id || null,
             avatar_url: extra?.avatar_url || null,
