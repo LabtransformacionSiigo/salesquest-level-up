@@ -187,7 +187,7 @@ const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) =
   while (true) {
     const { data, error } = await supabase
       .from('acv_vc_mensual')
-      .select('gerente_id, anio, mes, acv_plus, meta')
+      .select('gerente_id, anio, mes, acv_plus_total, meta_total')
       .eq('anio', year)
       .in('gerente_id', gerenteIds)
       .range(from, from + pageSize - 1);
