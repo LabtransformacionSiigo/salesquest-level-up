@@ -287,6 +287,88 @@ Deno.serve(async (req: Request): Promise<Response> => {
       promedioSemanas: safeDiv(sumaSemanas, totalRachas),
     };
 
+    // ===== porRol: comparación global gerentes vs comerciales (SIN filtros pais/canal) =====
+    interface RankRoleRow { user_id: string | null; sp_totales: number | null; }
+    interface GerenteIdRow { user_id: string | null; }
+    interface ComercialRow { nombre: string | null; sp_totales: number | null; }
+
+    const PAGE = 1000;
+    const rankingAll: RankRoleRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("ranking_general")
+        .select("user_id,sp_totales")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as RankRoleRow[];
+      rankingAll.push(...rows);
+      if (rows.length < PAGE) break;
+    }
+
+    const gerenteUserIds = new Set<string>();
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("gerentes")
+        .select("user_id")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const rows = (data ?? []) as GerenteIdRow[];
+      for (const r of rows) if (r.user_id) gerenteUserIds.add(r.user_id);
+      if (rows.length < PAGE) break;
+    }
+
+    const gerentesRows = rankingAll.filter((r) => r.user_id && gerenteUserIds.has(r.user_id));
+    const gerentesActivos = gerentesRows.filter((r) => (Number(r.sp_totales) || 0) > 0);
+    const gerentesSpSum = gerentesActivos.reduce((s, r) => s + (Number(r.sp_totales) || 0), 0);
+    const gerentesMax = gerentesActivos.reduce((m, r) => Math.max(m, Number(r.sp_totales) || 0), 0);
+    const gerentesBlock = {
+      usuarios: gerentesRows.length,
+      activos: gerentesActivos.length,
+      participacionPct: safeDiv(gerentesActivos.length, gerentesRows.length) * 100,
+      avgActivos: safeDiv(gerentesSpSum, gerentesActivos.length),
+      maxSp: gerentesMax,
+    };
+
+    const { count: comTotal, error: comTotalErr } = await supabase
+      .from("sp_acumulados_comerciales")
+      .select("*", { count: "exact", head: true });
+    if (comTotalErr) throw comTotalErr;
+    const { count: comActivosCount, error: comActErr } = await supabase
+      .from("sp_acumulados_comerciales")
+      .select("*", { count: "exact", head: true })
+      .gt("sp_totales", 0);
+    if (comActErr) throw comActErr;
+    const { data: comActData, error: comDataErr } = await supabase
+      .from("sp_acumulados_comerciales")
+      .select("nombre,sp_totales")
+      .gt("sp_totales", 0)
+      .order("sp_totales", { ascending: false })
+      .limit(10000);
+    if (comDataErr) throw comDataErr;
+    const comRows: ComercialRow[] = (comActData ?? []) as ComercialRow[];
+    const comSpSum = comRows.reduce((s, r) => s + (Number(r.sp_totales) || 0), 0);
+    const comMax = comRows.reduce((m, r) => Math.max(m, Number(r.sp_totales) || 0), 0);
+    const comercialesUsuarios = comTotal ?? 0;
+    const comercialesActivos = comActivosCount ?? 0;
+    const comercialesBlock = {
+      usuarios: comercialesUsuarios,
+      activos: comercialesActivos,
+      participacionPct: safeDiv(comercialesActivos, comercialesUsuarios) * 100,
+      avgActivos: safeDiv(comSpSum, comRows.length),
+      maxSp: comMax,
+    };
+    const topComerciales = comRows.slice(0, 10).map((r) => ({
+      nombre: r.nombre,
+      sp_totales: Number(r.sp_totales) || 0,
+    }));
+
+    const porRol = {
+      global: true,
+      gerentes: gerentesBlock,
+      comerciales: comercialesBlock,
+      topComerciales,
+    };
+
     return jsonResponse({
       usuarios,
       spPromedio,
@@ -305,7 +387,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       porCanal,
       porPais,
       distribucionSp,
+      porRol,
     });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[gamificacion-agregada] error", message);
