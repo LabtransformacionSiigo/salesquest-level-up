@@ -384,13 +384,13 @@ export const useGamificationMetrics = (
           /* 3 */ supabase.from('feed_reconocimientos').select('*').limit(5),
           /* 4 */ isVC
             ? supabase.from('ventas').select('id', { count: 'exact', head: true })
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .gte('fecha_facturacion', `${anioActual}-${String(mesIdx + 1).padStart(2, '0')}-01`)
                 .lt('fecha_facturacion', `${anioActual}-${String(mesIdx + 2).padStart(2, '0')}-01`)
             : Promise.resolve({ count: 0 }),
           /* 5 */ isVC
             ? supabase.from('ventas').select('valor_producto')
-                .eq('gerente_id', profile.id)
+                .in('gerente_id', vcGerenteIds)
                 .gte('fecha_facturacion', weekStart.toISOString().split('T')[0])
                 .lt('fecha_facturacion', weekEnd.toISOString().split('T')[0])
             : Promise.resolve({ data: [] }),
