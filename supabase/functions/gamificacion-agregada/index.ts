@@ -425,6 +425,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       porPais,
       distribucionSp,
       porRol,
+      uso,
     });
 
   } catch (err) {
