@@ -91,6 +91,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const paises = (body.paises ?? []).filter((p): p is string => typeof p === "string" && p.length > 0);
     const canales = (body.canales ?? []).filter((c): c is string => typeof c === "string" && c.length > 0);
 
+    // 0) Uso / adopción (RPC read-only)
+    interface UsoPorMes { mes: string; usuarios_activos: number; eventos: number; }
+    interface UsoTop { nombre: string | null; pais: string | null; canal: string | null; dias_activos: number; ultima_actividad: string | null; sp: number; }
+    interface UsoRpc {
+      cuentas: number; logueados: number; activos30d: number;
+      gerentesCuentas: number; gerentesLogueados: number;
+      porMes: UsoPorMes[]; topUso: UsoTop[];
+    }
+    interface UsoBlock extends UsoRpc { adopcionPct: number; activos30dPct: number; }
+    let uso: UsoBlock | null = null;
+    const { data: usoData, error: usoErr } = await supabase.rpc("gamificacion_uso_stats");
+    if (usoErr) {
+      console.error("[gamificacion-agregada] uso rpc error", usoErr.message);
+    } else if (usoData) {
+      const u = usoData as UsoRpc;
+      uso = {
+        cuentas: Number(u.cuentas) || 0,
+        logueados: Number(u.logueados) || 0,
+        activos30d: Number(u.activos30d) || 0,
+        gerentesCuentas: Number(u.gerentesCuentas) || 0,
+        gerentesLogueados: Number(u.gerentesLogueados) || 0,
+        porMes: Array.isArray(u.porMes) ? u.porMes.map((r) => ({
+          mes: String(r.mes),
+          usuarios_activos: Number(r.usuarios_activos) || 0,
+          eventos: Number(r.eventos) || 0,
+        })) : [],
+        topUso: Array.isArray(u.topUso) ? u.topUso.map((r) => ({
+          nombre: r.nombre, pais: r.pais, canal: r.canal,
+          dias_activos: Number(r.dias_activos) || 0,
+          ultima_actividad: r.ultima_actividad,
+          sp: Number(r.sp) || 0,
+        })) : [],
+        adopcionPct: safeDiv(Number(u.logueados) || 0, Number(u.cuentas) || 0) * 100,
+        activos30dPct: safeDiv(Number(u.activos30d) || 0, Number(u.cuentas) || 0) * 100,
+      };
+    }
+
     // 1) Exact total count with filters (bypasses 1000-row default cap)
     const usuarios = await countRanking(supabase, paises, canales);
 
