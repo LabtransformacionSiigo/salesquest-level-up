@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     const [retosRes, rachasRes, gerentesRes] = await Promise.all([
       supabase.from("catalogo_retos").select("*").eq("activo", true).eq("canal", "VC"),
       supabase.from("config_rachas").select("*").eq("activo", true).eq("canal", "VC"),
-      supabase.from("gerentes").select("id, nombre, canal, pais").eq("canal", "VC").eq("activo", true),
+      supabase.from("gerentes").select("id, nombre, canal, pais, user_id").eq("canal", "VC").eq("activo", true),
     ]);
 
     const todayStr = today;
@@ -144,6 +144,21 @@ Deno.serve(async (req) => {
 
     const gerenteIds = gerentes.map((g) => g.id);
 
+    // ── Agregación por NOMBRE: elegir fila con login como canónica ──
+    const normNom = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    const loginByName = new Map<string, any>();
+    for (const g of gerentes) {
+      const k = normNom(g.nombre);
+      const prev = loginByName.get(k);
+      if (!prev || (!prev.user_id && (g as any).user_id)) loginByName.set(k, g);
+    }
+    const canonicalId = new Map<string, string>();
+    for (const g of gerentes) {
+      const canon = loginByName.get(normNom(g.nombre)) || g;
+      canonicalId.set(g.id, canon.id);
+    }
+    const gerentesEval = [...new Map(gerentes.map((g: any) => [normNom(g.nombre), loginByName.get(normNom(g.nombre)) || g])).values()];
+
     // ── Cargar ventas del MES actual (cubre día/semana/mes) ──
     const { data: ventasMes } = await supabase
       .from("ventas")
@@ -157,9 +172,10 @@ Deno.serve(async (req) => {
     const ventasByGerente = new Map<string, any[]>();
     (ventasMes || []).forEach((v) => {
       if (!v.gerente_id) return;
-      const arr = ventasByGerente.get(v.gerente_id) || [];
+      const key = canonicalId.get(v.gerente_id) || v.gerente_id;
+      const arr = ventasByGerente.get(key) || [];
       arr.push(v);
-      ventasByGerente.set(v.gerente_id, arr);
+      ventasByGerente.set(key, arr);
     });
 
     // ── Cargar retos ya completados este mes (para idempotencia) ──
@@ -167,7 +183,10 @@ Deno.serve(async (req) => {
       .from("retos_completados")
       .select("gerente_id, reto, periodo")
       .in("gerente_id", gerenteIds);
-    const completadosSet = new Set((completadosData || []).map((r) => `${r.gerente_id}::${r.reto}::${r.periodo}`));
+    const completadosSet = new Set((completadosData || []).map((r) => {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+      return `${gid}::${r.reto}::${r.periodo}`;
+    }));
 
     const { data: spData } = await supabase
       .from("sp_acumulados")
@@ -176,7 +195,10 @@ Deno.serve(async (req) => {
       .in("fuente", ["RETO_DIARIO", "RETO_SEMANAL", "RETO_MENSUAL"])
       .eq("tipo_sp", "canje");
     const spExistingByPeriod = new Map(
-      (spData || []).map((r) => [`${r.gerente_id}::${r.fuente}::${r.periodo}`, r]),
+      (spData || []).map((r) => {
+        const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+        return [`${gid}::${r.fuente}::${r.periodo}`, r];
+      }),
     );
     const retoNamesForMatch = retos
       .map((r: any) => String(r.nombre || ""))
@@ -184,10 +206,11 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.length - a.length);
     const spAwardedSet = new Set<string>();
     for (const r of (spData || [])) {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
       for (const part of String(r.detalle || "").split(" | ")) {
         const nombre = retoNamesForMatch.find((n) => part === n || part.startsWith(`${n} ·`))
           || part.split("·")[0].trim();
-        if (nombre) spAwardedSet.add(`${r.gerente_id}::${r.fuente}::${r.periodo}::${nombre}`);
+        if (nombre) spAwardedSet.add(`${gid}::${r.fuente}::${r.periodo}::${nombre}`);
       }
     }
 
@@ -198,7 +221,7 @@ Deno.serve(async (req) => {
     let totalRetos = 0;
     let totalSp = 0;
 
-    for (const gerente of gerentes) {
+    for (const gerente of gerentesEval) {
       const ventasAll = ventasByGerente.get(gerente.id) || [];
       // SUM- = consolidado mensual (para ACV+ totales y cumplimiento). PROD- = transacciones reales (para upgrades/conversiones/ACV+ diario).
       const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
@@ -477,10 +500,13 @@ Deno.serve(async (req) => {
         .select("gerente_id, medalla")
         .in("gerente_id", gerenteIds);
       const ganadasSet = new Set(
-        (medallasYaGanadas || []).map((m) => `${m.gerente_id}::${m.medalla}`),
+        (medallasYaGanadas || []).map((m) => {
+          const gid = canonicalId.get(m.gerente_id) || m.gerente_id;
+          return `${gid}::${m.medalla}`;
+        }),
       );
 
-      for (const gerente of gerentes) {
+      for (const gerente of gerentesEval) {
         const ventasG = (ventasByGerente.get(gerente.id) || []).filter(
           (v) => typeof v.documento_factura === "string" && v.documento_factura.startsWith("PROD-"),
         );
