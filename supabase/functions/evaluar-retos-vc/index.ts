@@ -503,7 +503,7 @@ Deno.serve(async (req) => {
         (medallasYaGanadas || []).map((m) => `${m.gerente_id}::${m.medalla}`),
       );
 
-      for (const gerente of gerentes) {
+      for (const gerente of gerentesEval) {
         const ventasG = (ventasByGerente.get(gerente.id) || []).filter(
           (v) => typeof v.documento_factura === "string" && v.documento_factura.startsWith("PROD-"),
         );
