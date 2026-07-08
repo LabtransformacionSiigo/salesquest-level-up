@@ -334,16 +334,20 @@ const Rankings = () => {
           }, 0);
           spByGerente.set(gId, spTotal);
         });
-        const canjeablesMap = new Map<string, number>();
-        const gerenteExtraMap = new Map<string, { user_id: string | null; avatar_url: string | null }>();
+        const canjeByName = new Map<string, number>();
+        const gerenteExtraByName = new Map<string, { user_id: string | null; avatar_url: string | null }>();
         (gerentesRes.data || []).forEach((g: any) => {
-          if (!g.id) return;
-          canjeablesMap.set(g.id, Number(g.sp_canje) || 0);
-          gerenteExtraMap.set(g.id, { user_id: g.user_id || null, avatar_url: g.avatar_url || null });
+          if (!g.nombre) return;
+          const nk = normalizePersonName(g.nombre);
+          canjeByName.set(nk, (canjeByName.get(nk) || 0) + (Number(g.sp_canje) || 0));
+          const prev = gerenteExtraByName.get(nk);
+          if (!prev || (!prev.user_id && g.user_id)) {
+            gerenteExtraByName.set(nk, { user_id: g.user_id || null, avatar_url: g.avatar_url || null });
+          }
         });
         const mapped = (vcGerentesRes.data || []).map((r: any) => {
           const spVivo = spByGerente.get(r.gerente_id) || 0;
-          const extra = gerenteExtraMap.get(r.gerente_id);
+          const extra = gerenteExtraByName.get(normalizePersonName(r.nombre));
           const nivel = getNivelData(spVivo, 'VC').nivel;
           return {
             id: r.gerente_id,
