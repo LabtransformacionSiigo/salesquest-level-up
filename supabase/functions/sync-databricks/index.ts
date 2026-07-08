@@ -692,7 +692,9 @@ async function runSingleTableSync({ supabase, supabaseUrl, serviceRoleKey, table
   const syncFn = SYNC_MAP[table];
   if (!syncFn) throw new Error(`No sync function for table: ${table}`);
 
-  const syncResult = await syncFn(supabase, rows);
+  const syncResult = table === "ventas_vc_producto"
+    ? await syncVentasVCProducto(supabase, rows, mesFilter)
+    : await syncFn(supabase, rows);
   // SP recalculation decoupled — admin triggers it manually from /admin/calculos.
   return syncResult;
 }
