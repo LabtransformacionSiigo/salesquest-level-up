@@ -172,9 +172,10 @@ Deno.serve(async (req) => {
     const ventasByGerente = new Map<string, any[]>();
     (ventasMes || []).forEach((v) => {
       if (!v.gerente_id) return;
-      const arr = ventasByGerente.get(v.gerente_id) || [];
+      const key = canonicalId.get(v.gerente_id) || v.gerente_id;
+      const arr = ventasByGerente.get(key) || [];
       arr.push(v);
-      ventasByGerente.set(v.gerente_id, arr);
+      ventasByGerente.set(key, arr);
     });
 
     // ── Cargar retos ya completados este mes (para idempotencia) ──
