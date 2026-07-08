@@ -500,7 +500,10 @@ Deno.serve(async (req) => {
         .select("gerente_id, medalla")
         .in("gerente_id", gerenteIds);
       const ganadasSet = new Set(
-        (medallasYaGanadas || []).map((m) => `${m.gerente_id}::${m.medalla}`),
+        (medallasYaGanadas || []).map((m) => {
+          const gid = canonicalId.get(m.gerente_id) || m.gerente_id;
+          return `${gid}::${m.medalla}`;
+        }),
       );
 
       for (const gerente of gerentesEval) {
