@@ -645,6 +645,23 @@ const Rankings = () => {
           if (r?.gerente_id) conventionLeaderIds.add(String(r.gerente_id));
         });
 
+        // Mapa nombre→sp_convencion cubriendo AMBOS canales VN del país, para
+        // resolver el SP almacenado incluso cuando la célula viene del canal
+        // opuesto (caso MEX: VN_EMPRESARIOS visible desde VN_ALIADOS y viceversa).
+        const { data: vnSpConvRows } = await supabase
+          .from('gerentes')
+          .select('nombre, sp_convencion')
+          .in('canal', ['VN_ALIADOS', 'VN_EMPRESARIOS'])
+          .eq('pais', userPais)
+          .gt('sp_convencion', 0);
+        const spConvByName = new Map<string, number>();
+        (vnSpConvRows || []).forEach((g: any) => {
+          if (!g.nombre) return;
+          const k = normalizePersonName(g.nombre);
+          const val = Number(g.sp_convencion) || 0;
+          if (val > (spConvByName.get(k) || 0)) spConvByName.set(k, val);
+        });
+
         const gerentesByCelula = new Map<string, { id?: string; nombre: string; sp_canje: number; sp_convencion: number }>();
         const gerentesByCell = new Map<string, Array<{ id?: string; nombre: string; email?: string | null; celula?: string | null; sp_canje: number; sp_convencion: number; user_id?: string | null }>>();
         (gerentesRes.data || []).forEach((g: any) => {
