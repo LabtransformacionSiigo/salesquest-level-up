@@ -383,9 +383,7 @@ const Retos = () => {
         return { current: 0, target: umbral, pct: 0, label: '' };
       }
       case 'upgrades': {
-        const current = fam === 'NUBE' ? vcMetrics.weeklyUpgradesNube
-          : fam === 'LEGACY' ? vcMetrics.weeklyUpgradesLegacy
-          : vcMetrics.weeklyUpgradesTotal;
+        const current = vcMetrics.weeklyUpgradesTotal;
         return {
           current,
           target: umbral,
@@ -393,6 +391,7 @@ const Retos = () => {
           label: `${current} / ${umbral} upgrades`,
         };
       }
+
       case 'cumplimiento_pct':
       case 'conversiones': {
         const current = vcMetrics.monthlyCumplimientoPct;
