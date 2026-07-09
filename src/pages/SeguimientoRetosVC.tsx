@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import Layout from '@/components/layout/Layout';
 import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,8 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
 
 interface RetoDetalle {
   gerente_id: string;
