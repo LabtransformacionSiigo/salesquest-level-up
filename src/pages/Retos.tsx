@@ -228,16 +228,33 @@ const Retos = () => {
         const monday = (() => { const d = new Date(now); const dow = d.getDay() || 7; d.setDate(d.getDate() - dow + 1); return d; })();
         const weekStart = monday.toISOString().split('T')[0];
 
-        const { data: vMes } = await supabase
-          .from('ventas')
-          .select('fecha_facturacion, acv_plus, meta, producto, categoria_producto_venta, recurrencia, bloque_venta, documento_factura')
-          .eq('canal', 'VC')
-          .eq('gerente_id', profile.id)
-          .gte('fecha_facturacion', monthStart)
-          .lt('fecha_facturacion', monthEnd);
+        // Resolver login + huérfana por nombre (las ventas del ETL cuelgan de la fila sin login)
+        const { data: sameNameG } = await supabase
+          .from('gerentes').select('id').eq('canal', 'VC').eq('nombre', profile.nombre);
+        const vcIds = (sameNameG || []).map((g: any) => g.id);
+        if (vcIds.length === 0) vcIds.push(profile.id);
+
+        const vMesRows: any[] = [];
+        {
+          const pageSize = 1000; let fromIdx = 0;
+          while (true) {
+            const { data, error } = await supabase
+              .from('ventas')
+              .select('fecha_facturacion, acv_plus, meta, producto, categoria_producto_venta, recurrencia, bloque_venta, documento_factura')
+              .eq('canal', 'VC')
+              .in('gerente_id', vcIds)
+              .gte('fecha_facturacion', monthStart)
+              .lt('fecha_facturacion', monthEnd)
+              .range(fromIdx, fromIdx + pageSize - 1);
+            if (error) break;
+            vMesRows.push(...(data || []));
+            if (!data || data.length < pageSize) break;
+            fromIdx += pageSize;
+          }
+        }
 
         if (cancelled) return;
-        const all = vMes || [];
+        const all = vMesRows;
         const isSum = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('SUM-');
         const isProd = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('PROD-');
         const sumRows = all.filter(isSum);
