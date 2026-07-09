@@ -452,7 +452,7 @@ Deno.serve(async (req) => {
     const spGrouped = new Map<string, any>();
     for (const s of spInsert) {
       const k = `${s.gerente_id}::${s.fuente}::${s.periodo}`;
-      const cur = spGrouped.get(k) || { ...s, detalle: "" };
+      const cur = spGrouped.get(k) || { ...s, sp: 0, detalle: "" };
       cur.sp = (Number(cur.sp) || 0) + (Number(s.sp) || 0);
       cur.detalle = cur.detalle ? `${cur.detalle} | ${s.detalle}` : s.detalle;
       spGrouped.set(k, cur);
