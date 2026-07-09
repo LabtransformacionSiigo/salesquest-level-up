@@ -259,7 +259,7 @@ const Retos = () => {
         const isProd = (v: any) => typeof v.documento_factura === 'string' && v.documento_factura.startsWith('PROD-');
         const sumRows = all.filter(isSum);
         const prodRows = all.filter(isProd);
-        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''}`.toLowerCase().includes('upgrade');
+        const isUpg = (v: any) => `${v.recurrencia || ''} ${v.bloque_venta || ''} ${v.producto || ''}`.toLowerCase().includes('upgrade');
         const sumAcvFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
           rows.filter((v) => !fam || classifyFamilia(v) === fam).reduce((s, v) => s + (Number(v.acv_plus) || 0), 0);
         const countUpgFam = (rows: any[], fam: 'NUBE' | 'LEGACY' | null) =>
