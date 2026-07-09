@@ -361,15 +361,14 @@ Deno.serve(async (req) => {
         totalSp += sp;
       }
 
-      // ── Evaluar rachas (multiplicador semanal) ──
+      // ── Evaluar rachas (SP fijo por completar L-M-Mié con ACV TOTAL diario) ──
       for (const racha of rachas) {
         if (racha.pais && gerente.pais && String(racha.pais).toUpperCase() !== String(gerente.pais).toUpperCase()) continue;
         if (racha.gerente_id && racha.gerente_id !== gerente.id) continue;
         if (!racha.dias_lun_mie) continue; // solo "El artillero" por ahora
-        const umbralNube = Number(racha.umbral_verde) || 0;
-        const umbralLegacy = Number(racha.umbral_legacy) || 0;
-        const familia = (racha.familia_vc as "NUBE" | "LEGACY" | "AMBAS" | null) || "AMBAS";
-        const multiplicador = Number(racha.multiplicador_sp) || 1;
+        const umbral = Number(racha.umbral_verde) || 0;
+        const spFijo = Number(racha.sp_otorgados) || 0;
+        if (spFijo <= 0) continue;
 
         // Verifica lunes/martes/miércoles de la semana actual
         const dias: string[] = [];
@@ -381,48 +380,38 @@ Deno.serve(async (req) => {
         }
         if (dias.length < 3) continue; // todavía no terminó miércoles
 
-        const cumple = dias.every((dia) => {
-          if (familia === "NUBE") return sumAcvBy((v) => v.fecha_facturacion === dia, "NUBE") >= umbralNube;
-          if (familia === "LEGACY") return sumAcvBy((v) => v.fecha_facturacion === dia, "LEGACY") >= umbralLegacy;
-          // AMBAS: cualquiera de las dos
-          const nube = sumAcvBy((v) => v.fecha_facturacion === dia, "NUBE");
-          const legacy = sumAcvBy((v) => v.fecha_facturacion === dia, "LEGACY");
-          return nube >= umbralNube || legacy >= umbralLegacy;
-        });
+        const cumple = dias.every((dia) => sumAcvBy((v) => v.fecha_facturacion === dia) >= umbral);
 
         if (!cumple) continue;
         const key = `${gerente.id}::${racha.nombre}::${weekKey}`;
         if (completadosSet.has(key)) continue;
-
-        // SP del multiplicador = SP semanales del gerente esta semana × (mult - 1)
-        const { data: spSemana } = await supabase
-          .from("sp_acumulados")
-          .select("sp")
-          .eq("gerente_id", gerente.id)
-          .eq("periodo", weekKey);
-        const spBase = (spSemana || []).reduce((s, r) => s + (Number(r.sp) || 0), 0);
-        const bonus = Math.round(spBase * (multiplicador - 1));
-        if (bonus <= 0) continue;
 
         rachasInsert.push({
           gerente_id: gerente.id,
           anio: now.getUTCFullYear(),
           semana_iso: parseInt(weekKey.split("-W")[1], 10),
           ingresos_semana: 0,
-          multiplicador,
+          multiplicador: 1,
           semanas_consecutivas: 1,
           estado: "VERDE",
+        });
+        retosInsert.push({
+          gerente_id: gerente.id,
+          reto: racha.nombre,
+          periodo: weekKey,
+          sp: spFijo,
+          tipo: 'SEMANAL',
         });
         spInsert.push({
           gerente_id: gerente.id,
           fuente: "RETO_SEMANAL",
-          sp: bonus,
+          sp: spFijo,
           periodo: weekKey,
-          detalle: `RACHA · ${racha.nombre} · multiplicador ${multiplicador}x · familia ${familia}`,
+          detalle: `RACHA · ${racha.nombre} · total>=${umbral} L-M-Mié`,
           tipo_sp: "canje",
         });
         completadosSet.add(key);
-        totalSp += bonus;
+        totalSp += spFijo;
       }
     }
 

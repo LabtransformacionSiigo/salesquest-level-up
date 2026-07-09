@@ -527,6 +527,7 @@ export type Database = {
           objetivo_descripcion: string | null
           operacion: string | null
           pais: string | null
+          sp_otorgados: number | null
           umbral_legacy: number | null
           umbral_verde: number | null
         }
@@ -551,6 +552,7 @@ export type Database = {
           objetivo_descripcion?: string | null
           operacion?: string | null
           pais?: string | null
+          sp_otorgados?: number | null
           umbral_legacy?: number | null
           umbral_verde?: number | null
         }
@@ -575,6 +577,7 @@ export type Database = {
           objetivo_descripcion?: string | null
           operacion?: string | null
           pais?: string | null
+          sp_otorgados?: number | null
           umbral_legacy?: number | null
           umbral_verde?: number | null
         }
