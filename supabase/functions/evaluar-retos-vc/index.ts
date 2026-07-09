@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
             valorAlcanzado = sumAcvBy((v) => v.fecha_facturacion === diaEval, familia);
             cumplido = valorAlcanzado >= umbral;
           } else if (kpi === "upgrades") {
-            valorAlcanzado = countBy((v) => isUpgrade(v) && v.fecha_facturacion === diaEval, familia);
+            valorAlcanzado = countBy((v) => isUpgrade(v) && v.fecha_facturacion === diaEval);
             cumplido = valorAlcanzado >= umbral;
           }
         } else if (ventana === "semanal") {
@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
             valorAlcanzado = sumAcvBy(inWeek, familia);
             cumplido = valorAlcanzado >= umbral;
           } else if (kpi === "upgrades") {
-            valorAlcanzado = countBy((v) => isUpgrade(v) && inWeek(v), familia);
+            valorAlcanzado = countBy((v) => isUpgrade(v) && inWeek(v));
             cumplido = valorAlcanzado >= umbral;
           } else if (kpi === "conversiones") {
             valorAlcanzado = countBy((v) => isConversion(v) && inWeek(v), familia);
