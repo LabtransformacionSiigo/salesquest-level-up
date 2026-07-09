@@ -305,12 +305,12 @@ Deno.serve(async (req) => {
         let valorAlcanzado = 0;
 
         if (ventana === "diario") {
-          periodo = today;
+          periodo = diaEval;
           if (kpi === "acv_plus") {
-            valorAlcanzado = sumAcvBy((v) => v.fecha_facturacion === today, familia);
+            valorAlcanzado = sumAcvBy((v) => v.fecha_facturacion === diaEval, familia);
             cumplido = valorAlcanzado >= umbral;
           } else if (kpi === "upgrades") {
-            valorAlcanzado = countBy((v) => isUpgrade(v) && v.fecha_facturacion === today, familia);
+            valorAlcanzado = countBy((v) => isUpgrade(v) && v.fecha_facturacion === diaEval, familia);
             cumplido = valorAlcanzado >= umbral;
           }
         } else if (ventana === "semanal") {
