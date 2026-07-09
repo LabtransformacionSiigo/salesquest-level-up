@@ -214,6 +214,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    const rachaAwardedSet = new Set<string>();
+    for (const r of (spData || [])) {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+      for (const part of String(r.detalle || "").split(" | ")) {
+        const m = part.match(/^RACHA · (.+?) · /);
+        if (m) rachaAwardedSet.add(`${gid}::${r.periodo}::${m[1].trim()}`);
+      }
+    }
+
     const retosInsert: any[] = [];
     const spInsert: any[] = [];
     const rachasInsert: any[] = [];
@@ -385,6 +394,8 @@ Deno.serve(async (req) => {
         if (!cumple) continue;
         const key = `${gerente.id}::${racha.nombre}::${weekKey}`;
         if (completadosSet.has(key)) continue;
+        const rachaKey = `${gerente.id}::${weekKey}::${racha.nombre}`;
+        if (rachaAwardedSet.has(rachaKey)) continue;
 
         rachasInsert.push({
           gerente_id: gerente.id,
@@ -441,7 +452,7 @@ Deno.serve(async (req) => {
     const spGrouped = new Map<string, any>();
     for (const s of spInsert) {
       const k = `${s.gerente_id}::${s.fuente}::${s.periodo}`;
-      const cur = spGrouped.get(k) || { ...s, detalle: "" };
+      const cur = spGrouped.get(k) || { ...s, sp: 0, detalle: "" };
       cur.sp = (Number(cur.sp) || 0) + (Number(s.sp) || 0);
       cur.detalle = cur.detalle ? `${cur.detalle} | ${s.detalle}` : s.detalle;
       spGrouped.set(k, cur);
