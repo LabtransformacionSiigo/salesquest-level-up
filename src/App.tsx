@@ -18,6 +18,7 @@ import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
 import PanelDirector from '@/pages/PanelDirector';
 import OAuthConsent from '@/pages/OAuthConsent';
+import SeguimientoRetosVC from '@/pages/SeguimientoRetosVC';
 // MisLogros eliminado: fusionado dentro de /retos
 
 // Admin Pages
