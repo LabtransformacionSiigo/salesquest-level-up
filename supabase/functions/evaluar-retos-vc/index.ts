@@ -159,18 +159,31 @@ Deno.serve(async (req) => {
     }
     const gerentesEval = [...new Map(gerentes.map((g: any) => [normNom(g.nombre), loginByName.get(normNom(g.nombre)) || g])).values()];
 
-    // ── Cargar ventas del MES actual (cubre día/semana/mes) ──
-    const { data: ventasMes } = await supabase
-      .from("ventas")
-      .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta, documento_factura")
-      .eq("canal", "VC")
-      .in("gerente_id", gerenteIds)
-      .gte("fecha_facturacion", monthStart)
-      .lt("fecha_facturacion", monthEnd);
+    // ── Cargar ventas del MES actual (cubre día/semana/mes) - PAGINADO ──
+    const ventasMes: any[] = [];
+    {
+      const pageSize = 1000;
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("ventas")
+          .select("gerente_id, fecha_facturacion, acv_plus, valor_producto, producto, categoria_producto_venta, bloque_venta, recurrencia, meta, documento_factura")
+          .eq("canal", "VC")
+          .in("gerente_id", gerenteIds)
+          .gte("fecha_facturacion", monthStart)
+          .lt("fecha_facturacion", monthEnd)
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) { console.error("ventasMes paginated error:", error); break; }
+        ventasMes.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+    }
 
     // Index por gerente
     const ventasByGerente = new Map<string, any[]>();
-    (ventasMes || []).forEach((v) => {
+    ventasMes.forEach((v) => {
+
       if (!v.gerente_id) return;
       const key = canonicalId.get(v.gerente_id) || v.gerente_id;
       const arr = ventasByGerente.get(key) || [];
