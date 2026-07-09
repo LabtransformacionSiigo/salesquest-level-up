@@ -403,7 +403,24 @@ Deno.serve(async (req) => {
         }
         if (dias.length < 3) continue; // todavía no terminó miércoles
 
-        const cumple = dias.every((dia) => sumAcvBy((v) => v.fecha_facturacion === dia) >= umbral);
+        const diasDetalle = dias.map((d) => ({ fecha: d, total: sumAcvBy((v) => v.fecha_facturacion === d) }));
+        const dias_cumplidos = diasDetalle.filter((d) => d.total >= umbral).length;
+        const cumple = dias_cumplidos === dias.length;
+
+        if (dryRun) {
+          rachaSimulacion.push({
+            gerente_id: gerente.id,
+            gerente_nombre: gerente.nombre,
+            racha: racha.nombre,
+            umbral,
+            dias: diasDetalle,
+            dias_cumplidos,
+            cumple,
+            sp: spFijo,
+            ya_completado: rachaAwardedSet.has(`${gerente.id}::${weekKey}::${racha.nombre}`),
+          });
+        }
+
 
         if (!cumple) continue;
         const key = `${gerente.id}::${racha.nombre}::${weekKey}`;
