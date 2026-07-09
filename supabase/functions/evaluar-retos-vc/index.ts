@@ -253,6 +253,9 @@ Deno.serve(async (req) => {
       const ventasProd = ventasAll.filter(isProd);
       // Para evaluación general usamos PROD (transacciones diarias). Las métricas mensuales agregadas usan SUM.
       const ventas = ventasProd;
+      const fechasProdG = ventasProd.map((v: any) => v.fecha_facturacion).filter(Boolean).sort();
+      const ultimoDiaG = fechasProdG.length ? fechasProdG[fechasProdG.length - 1] : today;
+      const diaEval = dryRun ? ultimoDiaG : today;
       if (ventasAll.length === 0 && retos.every((r) => r.kpi !== "cumplimiento_pct")) continue;
 
       // Pre-agregaciones por familia para hoy / semana / mes (sobre transacciones PROD)
