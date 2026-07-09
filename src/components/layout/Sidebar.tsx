@@ -45,6 +45,7 @@ const adminItems = [
 
 const especialistaItems = [
   { path: '/especialista/gamificacion-vc', icon: 'shield_person', label: 'Panel especialista' },
+  { path: '/seguimiento-retos-vc', icon: 'track_changes', label: 'Seguimiento retos VC' },
   { path: '/admin/especialista/premios', icon: 'storefront', label: 'Beneficios ' },
   { path: '/admin/especialista/canjes', icon: 'receipt_long', label: 'Canjes gerentes' },
   { path: '/admin/segmentos-vc', icon: 'category', label: 'Segmentos VC' },
