@@ -214,6 +214,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    const rachaAwardedSet = new Set<string>();
+    for (const r of (spData || [])) {
+      const gid = canonicalId.get(r.gerente_id) || r.gerente_id;
+      for (const part of String(r.detalle || "").split(" | ")) {
+        const m = part.match(/^RACHA · (.+?) · /);
+        if (m) rachaAwardedSet.add(`${gid}::${r.periodo}::${m[1].trim()}`);
+      }
+    }
+
     const retosInsert: any[] = [];
     const spInsert: any[] = [];
     const rachasInsert: any[] = [];
