@@ -271,10 +271,15 @@ const Retos = () => {
         const monthlyAcvTotal = sumAcvFam(prodRows, null);
 
         // Día (PROD-)
-        const today_ = prodRows.filter((v: any) => v.fecha_facturacion === todayStr2);
-        const dailyAcvNube = sumAcvFam(today_, 'NUBE');
-        const dailyAcvLegacy = sumAcvFam(today_, 'LEGACY');
-        const dailyAcvTotal = sumAcvFam(today_, null);
+        const fechasProd = prodRows
+          .map((v: any) => v.fecha_facturacion)
+          .filter(Boolean)
+          .sort();
+        const ultimoDiaConDatos = fechasProd.length ? fechasProd[fechasProd.length - 1] : todayStr2;
+        const diaRef = prodRows.filter((v: any) => v.fecha_facturacion === ultimoDiaConDatos);
+        const dailyAcvNube = sumAcvFam(diaRef, 'NUBE');
+        const dailyAcvLegacy = sumAcvFam(diaRef, 'LEGACY');
+        const dailyAcvTotal = sumAcvFam(diaRef, null);
 
         // Semana (PROD-) upgrades
         const weekRows = prodRows.filter((v: any) => v.fecha_facturacion >= weekStart);
@@ -484,7 +489,7 @@ const Retos = () => {
       >
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
-            {reto.ventana_tiempo === 'diario' ? 'DIARIO' : reto.ventana_tiempo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
+            {normalizeCatalogWindow(reto.ventana_tiempo)}
           </span>
           {completed && (
             <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>
