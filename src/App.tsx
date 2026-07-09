@@ -18,6 +18,7 @@ import NotFound from '@/pages/NotFound';
 import Premios from '@/pages/Premios';
 import PanelDirector from '@/pages/PanelDirector';
 import OAuthConsent from '@/pages/OAuthConsent';
+import SeguimientoRetosVC from '@/pages/SeguimientoRetosVC';
 // MisLogros eliminado: fusionado dentro de /retos
 
 // Admin Pages
@@ -71,6 +72,7 @@ function App() {
             <Route path="/admin/metas-acv" element={<AdminRoute><AdminMetasAcv /></AdminRoute>} />
             <Route path="/admin/especialistas-accesos" element={<AdminRoute><AdminEspecialistasAccesos /></AdminRoute>} />
             <Route path="/admin/sp-canje" element={<AdminSpCanjeMensual />} />
+            <Route path="/seguimiento-retos-vc" element={<EspecialistaRoute><SeguimientoRetosVC /></EspecialistaRoute>} />
             {/* Ruta canónica de la única interfaz de gamificación VC para Especialista */}
             <Route path="/especialista/gamificacion-vc" element={<EspecialistaRoute><AdminEspecialista /></EspecialistaRoute>} />
             {/* Redirects de rutas legacy a la canónica */}

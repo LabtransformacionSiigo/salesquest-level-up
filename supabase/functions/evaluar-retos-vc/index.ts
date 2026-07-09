@@ -240,6 +240,7 @@ Deno.serve(async (req) => {
     const spInsert: any[] = [];
     const rachasInsert: any[] = [];
     const detalleSimulacion: any[] = []; // para dry-run
+    const rachaSimulacion: any[] = []; // para dry-run
     let totalRetos = 0;
     let totalSp = 0;
 
@@ -402,7 +403,24 @@ Deno.serve(async (req) => {
         }
         if (dias.length < 3) continue; // todavía no terminó miércoles
 
-        const cumple = dias.every((dia) => sumAcvBy((v) => v.fecha_facturacion === dia) >= umbral);
+        const diasDetalle = dias.map((d) => ({ fecha: d, total: sumAcvBy((v) => v.fecha_facturacion === d) }));
+        const dias_cumplidos = diasDetalle.filter((d) => d.total >= umbral).length;
+        const cumple = dias_cumplidos === dias.length;
+
+        if (dryRun) {
+          rachaSimulacion.push({
+            gerente_id: gerente.id,
+            gerente_nombre: gerente.nombre,
+            racha: racha.nombre,
+            umbral,
+            dias: diasDetalle,
+            dias_cumplidos,
+            cumple,
+            sp: spFijo,
+            ya_completado: rachaAwardedSet.has(`${gerente.id}::${weekKey}::${racha.nombre}`),
+          });
+        }
+
 
         if (!cumple) continue;
         const key = `${gerente.id}::${racha.nombre}::${weekKey}`;
@@ -447,6 +465,7 @@ Deno.serve(async (req) => {
         spInsert: spInsert.length,
         rachasInsert: rachasInsert.length,
         detalle: detalleSimulacion,
+        rachaSimulacion,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
