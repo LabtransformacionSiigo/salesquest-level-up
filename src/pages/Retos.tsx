@@ -489,7 +489,7 @@ const Retos = () => {
       >
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] font-heading">
-            {reto.ventana_tiempo === 'diario' ? 'DIARIO' : reto.ventana_tiempo === 'semanal' ? 'SEMANAL' : 'MENSUAL'}
+            {normalizeCatalogWindow(reto.ventana_tiempo)}
           </span>
           {completed && (
             <span className="text-[9px] font-bold text-white bg-accent px-2 py-0.5 rounded-full">✅ COMPLETADO</span>
