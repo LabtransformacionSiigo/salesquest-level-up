@@ -394,6 +394,8 @@ Deno.serve(async (req) => {
         if (!cumple) continue;
         const key = `${gerente.id}::${racha.nombre}::${weekKey}`;
         if (completadosSet.has(key)) continue;
+        const rachaKey = `${gerente.id}::${weekKey}::${racha.nombre}`;
+        if (rachaAwardedSet.has(rachaKey)) continue;
 
         rachasInsert.push({
           gerente_id: gerente.id,
