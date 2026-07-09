@@ -238,9 +238,15 @@ const SeguimientoRetosVC = () => {
   return (
     <Layout title="Seguimiento de retos VC">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <div>
-          <h1 className="text-3xl font-bold">Seguimiento de retos VC</h1>
-          <p className="text-muted-foreground">Avance en vivo de cada gerente para motivarlos a cerrar retos y rachas.</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold">Seguimiento de retos VC</h1>
+            <p className="text-muted-foreground">Avance en vivo de cada gerente para motivarlos a cerrar retos y rachas.</p>
+          </div>
+          <Button onClick={exportarExcel} disabled={loadingData || !data} className="gap-2">
+            <Download className="h-4 w-4" />
+            Exportar a Excel
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -257,6 +263,7 @@ const SeguimientoRetosVC = () => {
           onChange={(e) => setFiltro(e.target.value)}
           className="max-w-md"
         />
+
 
         {err && <div className="text-destructive text-sm">Error: {err}</div>}
 
