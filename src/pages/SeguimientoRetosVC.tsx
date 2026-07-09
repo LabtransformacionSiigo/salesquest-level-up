@@ -138,7 +138,7 @@ const SeguimientoRetosVC = () => {
   if (profile?.role !== 'admin' && profile?.role !== 'especialista') return <Navigate to="/dashboard" replace />;
 
   return (
-    <Layout>
+    <Layout title="Seguimiento de retos VC">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <div>
           <h1 className="text-3xl font-bold">Seguimiento de retos VC</h1>
