@@ -491,6 +491,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       distribucionSp,
       porRol,
       uso,
+      detalle,
+
     });
 
   } catch (err) {
