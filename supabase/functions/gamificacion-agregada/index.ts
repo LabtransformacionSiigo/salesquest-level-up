@@ -94,13 +94,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 0) Uso / adopción (RPC read-only)
     interface UsoPorMes { mes: string; usuarios_activos: number; eventos: number; }
     interface UsoTop { nombre: string | null; pais: string | null; canal: string | null; dias_activos: number; ultima_actividad: string | null; sp: number; }
+    interface PorCanalPais { pais: string | null; canal: string | null; cuentas: number; logueados: number; activos30d: number; }
+    interface RetoTop { nombre: string | null; pais: string | null; canal: string | null; retos: number; sp: number; ultimo: string | null; }
+    interface SpTop { nombre: string | null; pais: string | null; canal: string | null; sp: number; }
+    interface CanjeEstado { estado: string | null; n: number; sp: number; }
+    interface DirectorRow { nombre: string | null; cargo: string | null; paises: string[] | null; canales: string[] | null; ultima_sesion: string | null; cuenta_creada: string | null; }
+    interface DetalleBlock {
+      porCanalPais: PorCanalPais[];
+      retos: { total: number; usuarios: number; top: RetoTop[] };
+      spCanje: { conSaldo: number; top: SpTop[] };
+      spConvencion: { conPuntos: number; top: SpTop[] };
+      canjes: { total: number; porEstado: CanjeEstado[] };
+      directores: DirectorRow[];
+    }
     interface UsoRpc {
       cuentas: number; logueados: number; activos30d: number;
       gerentesCuentas: number; gerentesLogueados: number;
       porMes: UsoPorMes[]; topUso: UsoTop[];
+      detalle?: DetalleBlock | null;
     }
     interface UsoBlock extends UsoRpc { adopcionPct: number; activos30dPct: number; }
     let uso: UsoBlock | null = null;
+    let detalle: DetalleBlock | null = null;
     const { data: usoData, error: usoErr } = await supabase.rpc("gamificacion_uso_stats");
     if (usoErr) {
       console.error("[gamificacion-agregada] uso rpc error", usoErr.message);
@@ -126,7 +141,57 @@ Deno.serve(async (req: Request): Promise<Response> => {
         adopcionPct: safeDiv(Number(u.logueados) || 0, Number(u.cuentas) || 0) * 100,
         activos30dPct: safeDiv(Number(u.activos30d) || 0, Number(u.cuentas) || 0) * 100,
       };
+      try {
+        const d = u.detalle;
+        if (d) {
+          detalle = {
+            porCanalPais: Array.isArray(d.porCanalPais) ? d.porCanalPais.map((r) => ({
+              pais: r.pais, canal: r.canal,
+              cuentas: Number(r.cuentas) || 0,
+              logueados: Number(r.logueados) || 0,
+              activos30d: Number(r.activos30d) || 0,
+            })) : [],
+            retos: {
+              total: Number(d.retos?.total) || 0,
+              usuarios: Number(d.retos?.usuarios) || 0,
+              top: Array.isArray(d.retos?.top) ? d.retos.top.map((r) => ({
+                nombre: r.nombre, pais: r.pais, canal: r.canal,
+                retos: Number(r.retos) || 0,
+                sp: Number(r.sp) || 0,
+                ultimo: r.ultimo,
+              })) : [],
+            },
+            spCanje: {
+              conSaldo: Number(d.spCanje?.conSaldo) || 0,
+              top: Array.isArray(d.spCanje?.top) ? d.spCanje.top.map((r) => ({
+                nombre: r.nombre, pais: r.pais, canal: r.canal, sp: Number(r.sp) || 0,
+              })) : [],
+            },
+            spConvencion: {
+              conPuntos: Number(d.spConvencion?.conPuntos) || 0,
+              top: Array.isArray(d.spConvencion?.top) ? d.spConvencion.top.map((r) => ({
+                nombre: r.nombre, pais: r.pais, canal: r.canal, sp: Number(r.sp) || 0,
+              })) : [],
+            },
+            canjes: {
+              total: Number(d.canjes?.total) || 0,
+              porEstado: Array.isArray(d.canjes?.porEstado) ? d.canjes.porEstado.map((r) => ({
+                estado: r.estado, n: Number(r.n) || 0, sp: Number(r.sp) || 0,
+              })) : [],
+            },
+            directores: Array.isArray(d.directores) ? d.directores.map((r) => ({
+              nombre: r.nombre, cargo: r.cargo,
+              paises: r.paises ?? null, canales: r.canales ?? null,
+              ultima_sesion: r.ultima_sesion, cuenta_creada: r.cuenta_creada,
+            })) : [],
+          };
+        }
+      } catch (e) {
+        console.error("[gamificacion-agregada] detalle mapping error", (e as Error).message);
+        detalle = null;
+      }
     }
+
 
     // 1) Exact total count with filters (bypasses 1000-row default cap)
     const usuarios = await countRanking(supabase, paises, canales);
