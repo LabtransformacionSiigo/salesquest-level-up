@@ -175,6 +175,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 nombre: r.nombre, pais: r.pais, canal: r.canal, sp: Number(r.sp) || 0,
               })) : [],
             },
+            resumenSp: {
+              conSpTotal: Number(d.resumenSp?.conSpTotal) || 0,
+              conCanje: Number(d.resumenSp?.conCanje) || 0,
+              conConvencion: Number(d.resumenSp?.conConvencion) || 0,
+              spTotalGlobal: Number(d.resumenSp?.spTotalGlobal) || 0,
+            },
             canjes: {
               total: Number(d.canjes?.total) || 0,
               porEstado: Array.isArray(d.canjes?.porEstado) ? d.canjes.porEstado.map((r) => ({
