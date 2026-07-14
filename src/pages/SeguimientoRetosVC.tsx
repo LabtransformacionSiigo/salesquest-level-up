@@ -68,6 +68,8 @@ const SeguimientoRetosVC = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('');
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const [fecha, setFecha] = useState<string>(hoyStr);
 
   const [ganados, setGanados] = useState<any[]>([]);
   const [gerentesVcMap, setGerentesVcMap] = useState<Map<string, string>>(new Map());
@@ -78,7 +80,7 @@ const SeguimientoRetosVC = () => {
       setLoadingData(true);
       setErr(null);
       const [{ data: res, error }, { data: gan }, { data: gvc }] = await Promise.all([
-        supabase.functions.invoke('evaluar-retos-vc', { body: { dry_run: true } }),
+        supabase.functions.invoke('evaluar-retos-vc', { body: { dry_run: true, fecha } }),
         supabase
           .from('sp_acumulados')
           .select('gerente_id, fuente, sp, periodo, detalle, created_at')
@@ -97,7 +99,7 @@ const SeguimientoRetosVC = () => {
       setLoadingData(false);
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [fecha]);
 
   const exportarExcel = () => {
     if (!data) return;
@@ -175,8 +177,7 @@ const SeguimientoRetosVC = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja1), 'Avance de retos');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2), 'Retos ganados (detalle)');
-    const today = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `Seguimiento_Retos_VC_${today}.xlsx`);
+    XLSX.writeFile(wb, `Seguimiento_Retos_VC_${fecha}.xlsx`);
   };
 
   const grouped = useMemo(() => {
@@ -257,12 +258,38 @@ const SeguimientoRetosVC = () => {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Rachas cerca (≥70%)</p><p className="text-2xl font-bold text-amber-600">{resumen.rachasCerca}</p></CardContent></Card>
         </div>
 
-        <Input
-          placeholder="Buscar por nombre del gerente…"
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-          className="max-w-md"
-        />
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Fecha de evaluación</label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={fecha}
+                max={hoyStr}
+                onChange={(e) => setFecha(e.target.value)}
+                className="w-44"
+              />
+              <Button
+                type="button"
+                variant={fecha === hoyStr ? 'default' : 'outline'}
+                onClick={() => setFecha(hoyStr)}
+              >
+                Hoy
+              </Button>
+            </div>
+          </div>
+          <Input
+            placeholder="Buscar por nombre del gerente…"
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="max-w-md flex-1 min-w-[200px]"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground -mt-2">
+          El indicador <b>diario</b> se reinicia cada día y muestra el avance de la fecha seleccionada.
+          El <b>semanal</b> se reinicia cada semana (lun–dom) y acumula solo esa semana.
+          Por defecto se muestra <b>hoy</b> ({hoyStr}).
+        </p>
 
 
         {err && <div className="text-destructive text-sm">Error: {err}</div>}
