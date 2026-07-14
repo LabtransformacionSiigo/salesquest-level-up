@@ -68,6 +68,8 @@ const SeguimientoRetosVC = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('');
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const [fecha, setFecha] = useState<string>(hoyStr);
 
   const [ganados, setGanados] = useState<any[]>([]);
   const [gerentesVcMap, setGerentesVcMap] = useState<Map<string, string>>(new Map());
