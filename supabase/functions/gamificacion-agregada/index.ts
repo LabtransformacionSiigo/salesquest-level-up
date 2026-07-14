@@ -99,11 +99,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     interface SpTop { nombre: string | null; pais: string | null; canal: string | null; sp: number; }
     interface CanjeEstado { estado: string | null; n: number; sp: number; }
     interface DirectorRow { nombre: string | null; cargo: string | null; paises: string[] | null; canales: string[] | null; ultima_sesion: string | null; cuenta_creada: string | null; }
+    interface ResumenSp { conSpTotal: number; conCanje: number; conConvencion: number; spTotalGlobal: number; }
     interface DetalleBlock {
       porCanalPais: PorCanalPais[];
       retos: { total: number; usuarios: number; top: RetoTop[] };
       spCanje: { conSaldo: number; top: SpTop[] };
       spConvencion: { conPuntos: number; top: SpTop[] };
+      resumenSp: ResumenSp;
       canjes: { total: number; porEstado: CanjeEstado[] };
       directores: DirectorRow[];
     }
