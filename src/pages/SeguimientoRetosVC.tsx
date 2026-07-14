@@ -80,7 +80,7 @@ const SeguimientoRetosVC = () => {
       setLoadingData(true);
       setErr(null);
       const [{ data: res, error }, { data: gan }, { data: gvc }] = await Promise.all([
-        supabase.functions.invoke('evaluar-retos-vc', { body: { dry_run: true } }),
+        supabase.functions.invoke('evaluar-retos-vc', { body: { dry_run: true, fecha } }),
         supabase
           .from('sp_acumulados')
           .select('gerente_id, fuente, sp, periodo, detalle, created_at')
