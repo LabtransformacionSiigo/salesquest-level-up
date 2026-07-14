@@ -431,10 +431,9 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
       {(() => {
         const FUENTES = ['RETO_DIARIO','RETO_SEMANAL','RETO_MENSUAL','MEDALLA','RECONOCIMIENTO_RECIBIDO'] as const;
         const mesYYYYMM = new Date().toISOString().slice(0,7);
-        const mesAlt = mesYYYYMM.replace('-','');
         const resumen = FUENTES.map(f => {
           const all = rows.filter(r => r.fuente === f);
-          const mes = all.filter(r => r.periodo?.startsWith(mesYYYYMM) || r.periodo?.startsWith(mesAlt));
+          const mes = all.filter(r => periodoToYearMonth(r.periodo, r.created_at) === mesYYYYMM);
           return {
             fuente: f,
             meta: FUENTE_META[f],
