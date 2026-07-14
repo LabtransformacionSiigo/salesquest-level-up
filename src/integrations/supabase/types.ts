@@ -3404,7 +3404,7 @@ export type Database = {
       }
       recalcular_sp_canje_global: { Args: never; Returns: Json }
       sp_convencion_vn_gerentes: {
-        Args: { anio?: number }
+        Args: { p_anio?: number }
         Returns: {
           canal: string
           celula: string
