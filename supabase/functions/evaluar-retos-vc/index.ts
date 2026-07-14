@@ -253,9 +253,11 @@ Deno.serve(async (req) => {
       const ventasProd = ventasAll.filter(isProd);
       // Para evaluación general usamos PROD (transacciones diarias). Las métricas mensuales agregadas usan SUM.
       const ventas = ventasProd;
-      const fechasProdG = ventasProd.map((v: any) => v.fecha_facturacion).filter(Boolean).sort();
-      const ultimoDiaG = fechasProdG.length ? fechasProdG[fechasProdG.length - 1] : today;
-      const diaEval = dryRun ? ultimoDiaG : today;
+      // El indicador diario SIEMPRE se evalúa para el día objetivo (`today`, que
+      // respeta el override `fecha` del panel). Así el reto diario se reinicia cada
+      // día y no arrastra el progreso del último día con datos. Por el desfase del
+      // ETL, el día en curso puede verse en 0 hasta que sincronice la fuente.
+      const diaEval = today;
       if (ventasAll.length === 0 && retos.every((r) => r.kpi !== "cumplimiento_pct")) continue;
 
       // Pre-agregaciones por familia para hoy / semana / mes (sobre transacciones PROD)
