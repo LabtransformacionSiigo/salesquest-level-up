@@ -270,13 +270,11 @@ const Retos = () => {
         const monthlyAcvLegacy = sumAcvFam(prodRows, 'LEGACY');
         const monthlyAcvTotal = sumAcvFam(prodRows, null);
 
-        // Día (PROD-)
-        const fechasProd = prodRows
-          .map((v: any) => v.fecha_facturacion)
-          .filter(Boolean)
-          .sort();
-        const ultimoDiaConDatos = fechasProd.length ? fechasProd[fechasProd.length - 1] : todayStr2;
-        const diaRef = prodRows.filter((v: any) => v.fecha_facturacion === ultimoDiaConDatos);
+        // Día (PROD-) — el reto diario muestra HOY: arranca en 0 cada día y se
+        // llena cuando entran las ventas del día. Por el desfase del ETL, las ventas
+        // de hoy suelen cargar hasta el día siguiente, así que el día en curso puede
+        // verse en 0 hasta que llegue la sincronización.
+        const diaRef = prodRows.filter((v: any) => v.fecha_facturacion === todayStr2);
         const dailyAcvNube = sumAcvFam(diaRef, 'NUBE');
         const dailyAcvLegacy = sumAcvFam(diaRef, 'LEGACY');
         const dailyAcvTotal = sumAcvFam(diaRef, null);
