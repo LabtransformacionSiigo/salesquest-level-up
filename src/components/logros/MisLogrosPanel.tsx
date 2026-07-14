@@ -54,6 +54,32 @@ const parseNombre = (fuente: string, detalle: string | null) => {
 
 const fmtFecha = (s?: string) => s ? new Date(s).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
+// Convierte una semana ISO (año, número) al mes YYYY-MM del jueves de esa semana.
+// Mismo criterio que src/components/admin/SpCanjeMensual.tsx (isoWeekToMonth).
+const isoWeekToYearMonth = (year: number, week: number): string => {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dow = simple.getUTCDay();
+  const thursday = new Date(simple);
+  thursday.setUTCDate(simple.getUTCDate() + (4 - (dow === 0 ? 7 : dow)));
+  return `${thursday.getUTCFullYear()}-${String(thursday.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+// Deriva el mes (YYYY-MM) de un logro a partir de su PERÍODO (no de created_at).
+// Formatos: 2026-07-08 (diario) · 2026-07 · 2026-W28 (semanal ISO) · 202607 / 202607-S1 (mensual/semana).
+// Solo cae a created_at si el período no es parseable.
+const periodoToYearMonth = (periodo?: string | null, createdAt?: string | null): string | null => {
+  const p = (periodo || '').trim();
+  let m: RegExpMatchArray | null;
+  if ((m = p.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/))) return `${m[1]}-${m[2]}`;
+  if ((m = p.match(/^(\d{4})-W(\d{1,2})$/i))) return isoWeekToYearMonth(parseInt(m[1], 10), parseInt(m[2], 10));
+  if ((m = p.match(/^(\d{4})(\d{2})/))) return `${m[1]}-${m[2]}`;
+  if (createdAt) {
+    const d = new Date(createdAt);
+    if (!isNaN(d.getTime())) return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  return null;
+};
+
 const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boolean }) => {
   const { profile } = useSupabaseAuthContext();
   const [loading, setLoading] = useState(true);
@@ -160,12 +186,11 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
       premio_nombre: c.premios?.nombre || null,
     })));
 
-    const mesYYYYMM = mes.replace('-', '');
     const norm = (s: string) => (s || '').normalize('NFKD').replace(/\s+/g, ' ').trim().toLowerCase();
     const retoSpRows = spRows.filter(r =>
       typeof r.fuente === 'string' &&
       r.fuente.startsWith('RETO_') &&
-      (r.periodo?.startsWith(mes) || r.periodo?.startsWith(mesYYYYMM))
+      periodoToYearMonth(r.periodo, r.created_at) === mes
     );
     const matchReto = (nombre: string) => {
       const n = norm(nombre);
@@ -406,10 +431,9 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
       {(() => {
         const FUENTES = ['RETO_DIARIO','RETO_SEMANAL','RETO_MENSUAL','MEDALLA','RECONOCIMIENTO_RECIBIDO'] as const;
         const mesYYYYMM = new Date().toISOString().slice(0,7);
-        const mesAlt = mesYYYYMM.replace('-','');
         const resumen = FUENTES.map(f => {
           const all = rows.filter(r => r.fuente === f);
-          const mes = all.filter(r => r.periodo?.startsWith(mesYYYYMM) || r.periodo?.startsWith(mesAlt));
+          const mes = all.filter(r => periodoToYearMonth(r.periodo, r.created_at) === mesYYYYMM);
           return {
             fuente: f,
             meta: FUENTE_META[f],
