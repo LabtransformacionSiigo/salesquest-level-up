@@ -99,7 +99,7 @@ const SeguimientoRetosVC = () => {
       setLoadingData(false);
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [fecha]);
 
   const exportarExcel = () => {
     if (!data) return;
