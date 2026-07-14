@@ -186,12 +186,11 @@ const MisLogrosPanel = ({ hideAssignedRetos = false }: { hideAssignedRetos?: boo
       premio_nombre: c.premios?.nombre || null,
     })));
 
-    const mesYYYYMM = mes.replace('-', '');
     const norm = (s: string) => (s || '').normalize('NFKD').replace(/\s+/g, ' ').trim().toLowerCase();
     const retoSpRows = spRows.filter(r =>
       typeof r.fuente === 'string' &&
       r.fuente.startsWith('RETO_') &&
-      (r.periodo?.startsWith(mes) || r.periodo?.startsWith(mesYYYYMM))
+      periodoToYearMonth(r.periodo, r.created_at) === mes
     );
     const matchReto = (nombre: string) => {
       const n = norm(nombre);
