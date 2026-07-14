@@ -177,8 +177,7 @@ const SeguimientoRetosVC = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja1), 'Avance de retos');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2), 'Retos ganados (detalle)');
-    const today = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `Seguimiento_Retos_VC_${today}.xlsx`);
+    XLSX.writeFile(wb, `Seguimiento_Retos_VC_${fecha}.xlsx`);
   };
 
   const grouped = useMemo(() => {
