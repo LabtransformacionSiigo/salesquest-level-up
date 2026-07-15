@@ -624,6 +624,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       porRol,
       uso,
       detalle,
+      rankingOficial,
+      usoDetalle,
+      retosDiagnostico,
 
     });
 
