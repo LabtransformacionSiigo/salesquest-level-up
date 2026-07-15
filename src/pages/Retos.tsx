@@ -142,8 +142,8 @@ const Retos = () => {
     if (!profile?.id) return;
     let cancelled = false;
 
-    const fetchData = async () => {
-      setDataLoading(true);
+    const fetchData = async (silent = false) => {
+      if (!silent) setDataLoading(true);
       const pais = profile.pais || 'COL';
       const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, { data: vnRetosData }, { data: vnRachasData }, snapshot] = await Promise.all([
         isVN
