@@ -142,8 +142,8 @@ const Retos = () => {
     if (!profile?.id) return;
     let cancelled = false;
 
-    const fetchData = async () => {
-      setDataLoading(true);
+    const fetchData = async (silent = false) => {
+      if (!silent) setDataLoading(true);
       const pais = profile.pais || 'COL';
       const [{ data: catalog }, { data: rachasCfg }, { data: retosData }, { data: vnRetosData }, { data: vnRachasData }, snapshot] = await Promise.all([
         isVN
@@ -318,7 +318,9 @@ const Retos = () => {
     };
 
     fetchData();
-    return () => { cancelled = true; };
+    // Auto-actualiza el avance (incl. "El golazo del día") cada 2 horas, en segundo plano.
+    const refreshIv = setInterval(() => fetchData(true), 2 * 60 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(refreshIv); };
   }, [profile?.id, profile?.canal, profile?.pais, profile?.gerente_id, profile?.role, profile?.nombre]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;

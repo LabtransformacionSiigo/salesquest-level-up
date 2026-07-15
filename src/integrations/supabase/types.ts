@@ -3403,17 +3403,6 @@ export type Database = {
         Returns: boolean
       }
       recalcular_sp_canje_global: { Args: never; Returns: Json }
-      sp_convencion_vn_gerentes: {
-        Args: { p_anio?: number }
-        Returns: {
-          canal: string
-          celula: string
-          gerente_id: string
-          nombre: string
-          pais: string
-          sp_convencion: number
-        }[]
-      }
       unaccent: { Args: { "": string }; Returns: string }
       upsert_meta_acv_gerente: {
         Args: {
