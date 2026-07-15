@@ -249,17 +249,36 @@ const AdminGerentes = () => {
   }, [isAuthenticated]);
 
   const fetchGerentes = async () => {
-    const [gerentesRes, metasRes, productividadRes] = await Promise.all([
-      supabase.from('gerentes').select('*').order('nombre'),
+    // `gerentes` supera las 1000 filas del límite por defecto de PostgREST.
+    // Sin paginar, los gerentes que ordenan alfabéticamente después de la fila
+    // #1000 nunca llegan al frontend (quedan invisibles en este panel, aunque
+    // existan y estén activos). Se pagina con .range() para traer todo.
+    const allGerentes: any[] = [];
+    {
+      const pageSize = 1000;
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('gerentes')
+          .select('*')
+          .order('nombre')
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) { console.error('fetchGerentes paginated error:', error); break; }
+        allGerentes.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+    }
+    const [metasRes, productividadRes] = await Promise.all([
       supabase.from('metas_acv_gerentes' as any).select('celula').limit(5000),
       supabase.from('productividad_asesores').select('celula').limit(5000),
     ]);
     const allCelulas = [
-      ...((gerentesRes.data || []).map((g: any) => g.celula)),
+      ...allGerentes.map((g: any) => g.celula),
       ...(((metasRes.data as any[]) || []).map((r: any) => r.celula)),
       ...((productividadRes.data || []).map((r: any) => r.celula)),
     ];
-    setGerentes(gerentesRes.data || []);
+    setGerentes(allGerentes);
     setCelulasDisponibles([...new Set(allCelulas.map(normalizeCelula).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
     setDataLoading(false);
   };
