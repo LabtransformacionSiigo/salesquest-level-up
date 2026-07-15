@@ -109,15 +109,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
       canjes: { total: number; porEstado: CanjeEstado[] };
       directores: DirectorRow[];
     }
+    // rankingOficial / usoDetalle / retosDiagnostico types
+    interface VnTopRow { pos: number; gerente: string | null; celula: string | null; sp: number; }
+    interface VnGroup { canal: string | null; pais: string | null; top: VnTopRow[]; }
+    interface VcTopRow { pos: number; gerente: string | null; sp: number; }
+    interface VcGroup { canal: string | null; pais: string | null; top: VcTopRow[]; }
+    interface RankingOficial { vn: VnGroup[]; vc: VcGroup[]; }
+    interface UsoDetalleUser { nombre: string | null; pais: string | null; canal: string | null; dias_activos: number; ultima_actividad: string | null; dias_semana: number[]; }
+    interface UsoDetallePorCanal { canal: string | null; usuarios: number; activos30d: number; diasPromedio: number; }
+    interface UsoDetalle { usuarios: UsoDetalleUser[]; porCanal: UsoDetallePorCanal[]; }
+    interface RetosDiagCore { evaluaciones: number; cumplidos: number; pct: number; ultimaEvaluacion: string | null; }
+    interface RetosDiagVnDiario extends RetosDiagCore { avgMetaNubes: number; avgRealNubes: number; }
+    interface RetosDiagVnPct extends RetosDiagCore { avgPctCumplimiento: number; }
+    interface TopCumplidorVn { nombre: string | null; pais: string | null; canal: string | null; cumplidos: number; }
+    interface PorPaisDiario { pais: string | null; evaluaciones: number; cumplidos: number; }
+    interface RetosDiagnostico {
+      vc: { completados: number; usuarios: number };
+      vnDiario: RetosDiagVnDiario;
+      vnSemanal: RetosDiagVnPct;
+      vnMensual: RetosDiagVnPct;
+      topCumplidoresVn: TopCumplidorVn[];
+      porPaisDiario: PorPaisDiario[];
+    }
     interface UsoRpc {
       cuentas: number; logueados: number; activos30d: number;
       gerentesCuentas: number; gerentesLogueados: number;
       porMes: UsoPorMes[]; topUso: UsoTop[];
       detalle?: DetalleBlock | null;
+      rankingOficial?: RankingOficial | null;
+      usoDetalle?: UsoDetalle | null;
+      retosDiagnostico?: RetosDiagnostico | null;
     }
     interface UsoBlock extends UsoRpc { adopcionPct: number; activos30dPct: number; }
     let uso: UsoBlock | null = null;
     let detalle: DetalleBlock | null = null;
+    let rankingOficial: RankingOficial | null = null;
+    let usoDetalle: UsoDetalle | null = null;
+    let retosDiagnostico: RetosDiagnostico | null = null;
     const { data: usoData, error: usoErr } = await supabase.rpc("gamificacion_uso_stats");
     if (usoErr) {
       console.error("[gamificacion-agregada] uso rpc error", usoErr.message);
