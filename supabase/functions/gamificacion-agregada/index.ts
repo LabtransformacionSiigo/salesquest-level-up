@@ -226,7 +226,103 @@ Deno.serve(async (req: Request): Promise<Response> => {
         console.error("[gamificacion-agregada] detalle mapping error", (e as Error).message);
         detalle = null;
       }
+
+      // rankingOficial mapping
+      try {
+        const ro = u.rankingOficial;
+        if (ro) {
+          rankingOficial = {
+            vn: Array.isArray(ro.vn) ? ro.vn.map((g) => ({
+              canal: g.canal ?? null,
+              pais: g.pais ?? null,
+              top: Array.isArray(g.top) ? g.top.map((r) => ({
+                pos: Number(r.pos) || 0,
+                gerente: r.gerente ?? null,
+                celula: r.celula ?? null,
+                sp: Number(r.sp) || 0,
+              })) : [],
+            })) : [],
+            vc: Array.isArray(ro.vc) ? ro.vc.map((g) => ({
+              canal: g.canal ?? "VC",
+              pais: g.pais ?? null,
+              top: Array.isArray(g.top) ? g.top.map((r) => ({
+                pos: Number(r.pos) || 0,
+                gerente: r.gerente ?? null,
+                sp: Number(r.sp) || 0,
+              })) : [],
+            })) : [],
+          };
+        }
+      } catch (e) {
+        console.error("[gamificacion-agregada] rankingOficial mapping error", (e as Error).message);
+        rankingOficial = null;
+      }
+
+      // usoDetalle mapping
+      try {
+        const ud = u.usoDetalle;
+        if (ud) {
+          usoDetalle = {
+            usuarios: Array.isArray(ud.usuarios) ? ud.usuarios.map((r) => ({
+              nombre: r.nombre ?? null,
+              pais: r.pais ?? null,
+              canal: r.canal ?? null,
+              dias_activos: Number(r.dias_activos) || 0,
+              ultima_actividad: r.ultima_actividad ?? null,
+              dias_semana: Array.isArray(r.dias_semana) ? r.dias_semana.map((n) => Number(n) || 0) : [0,0,0,0,0,0,0],
+            })) : [],
+            porCanal: Array.isArray(ud.porCanal) ? ud.porCanal.map((r) => ({
+              canal: r.canal ?? null,
+              usuarios: Number(r.usuarios) || 0,
+              activos30d: Number(r.activos30d) || 0,
+              diasPromedio: Number(r.diasPromedio) || 0,
+            })) : [],
+          };
+        }
+      } catch (e) {
+        console.error("[gamificacion-agregada] usoDetalle mapping error", (e as Error).message);
+        usoDetalle = null;
+      }
+
+      // retosDiagnostico mapping
+      try {
+        const rd = u.retosDiagnostico;
+        if (rd) {
+          const core = (x: RetosDiagCore | undefined | null): RetosDiagCore => ({
+            evaluaciones: Number(x?.evaluaciones) || 0,
+            cumplidos: Number(x?.cumplidos) || 0,
+            pct: Number(x?.pct) || 0,
+            ultimaEvaluacion: x?.ultimaEvaluacion ?? null,
+          });
+          retosDiagnostico = {
+            vc: {
+              completados: Number(rd.vc?.completados) || 0,
+              usuarios: Number(rd.vc?.usuarios) || 0,
+            },
+            vnDiario: {
+              ...core(rd.vnDiario),
+              avgMetaNubes: Number(rd.vnDiario?.avgMetaNubes) || 0,
+              avgRealNubes: Number(rd.vnDiario?.avgRealNubes) || 0,
+            },
+            vnSemanal: { ...core(rd.vnSemanal), avgPctCumplimiento: Number(rd.vnSemanal?.avgPctCumplimiento) || 0 },
+            vnMensual: { ...core(rd.vnMensual), avgPctCumplimiento: Number(rd.vnMensual?.avgPctCumplimiento) || 0 },
+            topCumplidoresVn: Array.isArray(rd.topCumplidoresVn) ? rd.topCumplidoresVn.map((r) => ({
+              nombre: r.nombre ?? null, pais: r.pais ?? null, canal: r.canal ?? null,
+              cumplidos: Number(r.cumplidos) || 0,
+            })) : [],
+            porPaisDiario: Array.isArray(rd.porPaisDiario) ? rd.porPaisDiario.map((r) => ({
+              pais: r.pais ?? null,
+              evaluaciones: Number(r.evaluaciones) || 0,
+              cumplidos: Number(r.cumplidos) || 0,
+            })) : [],
+          };
+        }
+      } catch (e) {
+        console.error("[gamificacion-agregada] retosDiagnostico mapping error", (e as Error).message);
+        retosDiagnostico = null;
+      }
     }
+
 
 
     // 1) Exact total count with filters (bypasses 1000-row default cap)
