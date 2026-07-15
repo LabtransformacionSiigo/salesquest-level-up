@@ -76,8 +76,8 @@ const SeguimientoRetosVC = () => {
 
   useEffect(() => {
     let cancel = false;
-    (async () => {
-      setLoadingData(true);
+    const cargar = async (silent = false) => {
+      if (!silent) setLoadingData(true);
       setErr(null);
       const [{ data: res, error }, { data: gan }, { data: gvc }] = await Promise.all([
         supabase.functions.invoke('evaluar-retos-vc', { body: { dry_run: true, fecha } }),
@@ -97,8 +97,11 @@ const SeguimientoRetosVC = () => {
       (gvc || []).forEach((g: any) => m.set(g.id, g.nombre));
       setGerentesVcMap(m);
       setLoadingData(false);
-    })();
-    return () => { cancel = true; };
+    };
+    cargar();
+    // Auto-actualiza el avance de retos (incl. "El golazo del día") cada 2 horas, en segundo plano.
+    const refreshIv = setInterval(() => cargar(true), 2 * 60 * 60 * 1000);
+    return () => { cancel = true; clearInterval(refreshIv); };
   }, [fecha]);
 
   const exportarExcel = () => {
