@@ -856,6 +856,29 @@ export const useGamificationMetrics = (
             };
             await addPagedVentas('celula', profile.celula);
             await addPagedVentas('director', profile.nombre);
+            // Fallback anti-tildes: si ni la célula exacta ni el director exacto
+            // trajeron filas (p.ej. "Equipo México Lina" vs "Equipo Mexico Lina"),
+            // paginar por pais+canal_direccion SOLO del año actual y dejar que el
+            // filtro client-side normalizado (teamVentasDiariasAll) recorte al equipo.
+            if (teamVentasPaged.length === 0 && paisProfile) {
+              const canalDirFallback = profile.canal === 'VN_ALIADOS' ? 'Aliados'
+                : profile.canal === 'VN_EMPRESARIOS' ? 'Empresarios' : null;
+              if (canalDirFallback) {
+                for (let from = 0; from < 10000; from += pageSize) {
+                  const { data: pageRows } = await supabase
+                    .from('ventas_diarias')
+                    .select('fecha, asesor, celula, equipo, director, tipo_producto, producto, unidades, acv, canal_direccion, pais')
+                    .gte('fecha', `${anioActual}-01-01`)
+                    .lt('fecha', `${anioActual + 1}-01-01`)
+                    .eq('pais', paisProfile)
+                    .eq('canal_direccion', canalDirFallback)
+                    .range(from, from + pageSize - 1);
+                  if (!pageRows || pageRows.length === 0) break;
+                  teamVentasPaged.push(...pageRows);
+                  if (pageRows.length < pageSize) break;
+                }
+              }
+            }
             if (teamVentasPaged.length > 0) {
               const seenVentas = new Set<string>();
               allVentasDiarias = teamVentasPaged.filter((row: any) => {
