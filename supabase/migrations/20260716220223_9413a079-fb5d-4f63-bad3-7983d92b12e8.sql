@@ -1,0 +1,1 @@
+SELECT cron.alter_job(37, active := false);
