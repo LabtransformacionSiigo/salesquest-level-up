@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backfill_vn_junio: {
+        Row: {
+          disparado_at: string | null
+          done: boolean
+          fecha: string
+          orden: number
+        }
+        Insert: {
+          disparado_at?: string | null
+          done?: boolean
+          fecha: string
+          orden: number
+        }
+        Update: {
+          disparado_at?: string | null
+          done?: boolean
+          fecha?: string
+          orden?: number
+        }
+        Relationships: []
+      }
       _bkp_gerentes_merge_20260701: {
         Row: {
           activo: boolean | null
@@ -3402,6 +3423,7 @@ export type Database = {
         Args: { p_gerente_id: string; p_medalla: string; p_sp: number }
         Returns: boolean
       }
+      procesar_backfill_vn_junio: { Args: never; Returns: undefined }
       recalcular_sp_canje_global: { Args: never; Returns: Json }
       unaccent: { Args: { "": string }; Returns: string }
       upsert_meta_acv_gerente: {
