@@ -1539,7 +1539,12 @@ export const useGamificationMetrics = (
             const catalogUnd = Number(catalogRowForAcv?.meta_total_und) || 0;
             const hasCatalogSplit = catalogFe > 0 || catalogNube > 0;
             const mFe = hasCatalogSplit ? catalogFe : asesorCtx.metaFe;
-            const mNube = hasCatalogSplit ? catalogNube : asesorCtx.metaNube;
+            let mNube = hasCatalogSplit ? catalogNube : asesorCtx.metaNube;
+            // Override MX VN: meta Nube real = coi + noi + nube desde metas_gerentes.
+            const _mxNubePeriod = mxNubeMetaByPeriod.get(period);
+            if (_mxNubePeriod && _mxNubePeriod > 0) {
+              mNube = _mxNubePeriod;
+            }
             const mTotal = (hasCatalogSplit ? catalogUnd : asesorCtx.metaTotal) || (mFe + mNube) || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
