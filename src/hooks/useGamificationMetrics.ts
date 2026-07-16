@@ -572,9 +572,15 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 24 – eliminado: no usar metas_gerentes ni COI/NOI como fallback.
-                  Historial mensual debe leer metas reales solo desde metas_acv_gerentes. */
-          Promise.resolve({ data: [] }),
+          /* 24 – MX VN gerentes: la meta Nube real viene de metas_gerentes
+                  como coi + noi + nube (por mes/célula). Se usa SOLO para
+                  overrides del split Nube en México VN. */
+          isVN && profile.role !== 'asesor' && String(profile.pais || '').toUpperCase() === 'MEX'
+            ? supabase
+                .from('metas_gerentes' as any)
+                .select('celula, anio_mes, coi, noi, nube')
+                .eq('pais_gestion', 'MEX')
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
@@ -653,6 +659,8 @@ export const useGamificationMetrics = (
         let vnVentasDiariasRows: any[] = [];
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
+        // Override MX VN: meta Nube por periodo (YYYYMM) desde metas_gerentes.
+        const mxNubeMetaByPeriod = new Map<string, number>();
         let vnCurrentMetaTotal = 0;
         // FUENTE ÚNICA VN GERENTES — compartido entre Rendimiento del Mes (gerente block)
         // e Historial Mensual (vnMonthlyCumpl block).
@@ -996,6 +1004,25 @@ export const useGamificationMetrics = (
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
+
+          // MX VN: override de meta Nube desde metas_gerentes (coi + noi + nube por mes/célula).
+          // La meta Nube oficial de MX no viene en metas_acv_gerentes.meta_nube (viene 0).
+          // (mxNubeMetaByPeriod se declara en el scope exterior; aquí se puebla)
+          {
+            const isMexVn = String(profile.pais || '').toUpperCase() === 'MEX';
+            const celulaProfileNorm = normalizeComparableText(profile.celula ?? '');
+            const mxRows: any[] = (metasGerentesMexRes?.data as any[]) || [];
+            if (isMexVn && celulaProfileNorm) {
+              mxRows.forEach((r: any) => {
+                if (normalizeComparableText(r.celula) !== celulaProfileNorm) return;
+                const periodo = String(r.anio_mes || '').trim();
+                if (!/^\d{6}$/.test(periodo)) return;
+                const total = (Number(r.coi) || 0) + (Number(r.noi) || 0) + (Number(r.nube) || 0);
+                if (total > 0) mxNubeMetaByPeriod.set(periodo, total);
+              });
+            }
+          }
+
           // FUENTE PRIMARIA VN GERENTES: metas_acv_gerentes (Abril Cierre, etc.).
           // metas_asesores con aplica_cuota_lider='Si' queda solo como fallback cuando
           // Databricks aún no publicó la meta agregada de la célula para ese periodo.
@@ -1003,6 +1030,12 @@ export const useGamificationMetrics = (
             metaFe = _catalogFeMes;
             metaNube = _catalogNubeMes;
             if (_catalogUndMes > 0) metaEquipoUnidades = _catalogUndMes;
+          }
+
+          // Override MX VN: reemplaza meta Nube del mes actual con la suma coi+noi+nube.
+          const _mxNubeCurrent = mxNubeMetaByPeriod.get(mesActual);
+          if (_mxNubeCurrent && _mxNubeCurrent > 0) {
+            metaNube = _mxNubeCurrent;
           }
 
           // Total de unidades: usar metas_acv_gerentes si el cálculo por asesor no da un total razonable
@@ -1508,7 +1541,12 @@ export const useGamificationMetrics = (
             const catalogUnd = Number(catalogRowForAcv?.meta_total_und) || 0;
             const hasCatalogSplit = catalogFe > 0 || catalogNube > 0;
             const mFe = hasCatalogSplit ? catalogFe : asesorCtx.metaFe;
-            const mNube = hasCatalogSplit ? catalogNube : asesorCtx.metaNube;
+            let mNube = hasCatalogSplit ? catalogNube : asesorCtx.metaNube;
+            // Override MX VN: meta Nube real = coi + noi + nube desde metas_gerentes.
+            const _mxNubePeriod = mxNubeMetaByPeriod.get(period);
+            if (_mxNubePeriod && _mxNubePeriod > 0) {
+              mNube = _mxNubePeriod;
+            }
             const mTotal = (hasCatalogSplit ? catalogUnd : asesorCtx.metaTotal) || (mFe + mNube) || 0;
             // Si vgm tiene ACV para este periodo, sobreescribe el ACV base
             const acvFinal = ej.acv > 0 ? Math.round(ej.acv) : base.acv;
