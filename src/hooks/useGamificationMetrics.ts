@@ -1002,6 +1002,25 @@ export const useGamificationMetrics = (
           const _catalogFeMes = Math.round(Number(acvOficial?.meta_fe) || 0);
           const _catalogNubeMes = Math.round(Number(acvOficial?.meta_nube) || 0);
           const _catalogUndMes = Math.round(Number(acvOficial?.meta_total_und) || 0);
+
+          // MX VN: override de meta Nube desde metas_gerentes (coi + noi + nube por mes/célula).
+          // La meta Nube oficial de MX no viene en metas_acv_gerentes.meta_nube (viene 0).
+          const mxNubeMetaByPeriod = new Map<string, number>();
+          {
+            const isMexVn = String(profile.pais || '').toUpperCase() === 'MEX';
+            const celulaProfileNorm = normalizeComparableText(profile.celula ?? '');
+            const mxRows: any[] = (metasGerentesMexRes?.data as any[]) || [];
+            if (isMexVn && celulaProfileNorm) {
+              mxRows.forEach((r: any) => {
+                if (normalizeComparableText(r.celula) !== celulaProfileNorm) return;
+                const periodo = String(r.anio_mes || '').trim();
+                if (!/^\d{6}$/.test(periodo)) return;
+                const total = (Number(r.coi) || 0) + (Number(r.noi) || 0) + (Number(r.nube) || 0);
+                if (total > 0) mxNubeMetaByPeriod.set(periodo, total);
+              });
+            }
+          }
+
           // FUENTE PRIMARIA VN GERENTES: metas_acv_gerentes (Abril Cierre, etc.).
           // metas_asesores con aplica_cuota_lider='Si' queda solo como fallback cuando
           // Databricks aún no publicó la meta agregada de la célula para ese periodo.
@@ -1009,6 +1028,12 @@ export const useGamificationMetrics = (
             metaFe = _catalogFeMes;
             metaNube = _catalogNubeMes;
             if (_catalogUndMes > 0) metaEquipoUnidades = _catalogUndMes;
+          }
+
+          // Override MX VN: reemplaza meta Nube del mes actual con la suma coi+noi+nube.
+          const _mxNubeCurrent = mxNubeMetaByPeriod.get(mesActual);
+          if (_mxNubeCurrent && _mxNubeCurrent > 0) {
+            metaNube = _mxNubeCurrent;
           }
 
           // Total de unidades: usar metas_acv_gerentes si el cálculo por asesor no da un total razonable
