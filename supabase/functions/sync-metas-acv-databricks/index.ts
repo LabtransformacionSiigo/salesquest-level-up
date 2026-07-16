@@ -359,9 +359,12 @@ Deno.serve(async (req) => {
       const canalNorm = normCanal(String(canal));
       const paisNorm = normPais(String(pais));
       const fuenteNubeMx = Math.round(toNum(nubeRaw) || (toNum(coiRaw) + toNum(noiRaw)));
-      const feFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? override.fe : Math.round(toNum(feRaw));
-      const nubeFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? override.nube : fuenteNubeMx;
-      const metaUndFinal = override && !(paisNorm === "MEX" && canalNorm === "VN_ALIADOS") ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
+      // México VN (Aliados Y Empresarios): la meta Nube oficial = nube || (coi+noi)
+      // de tbl_brz_cuotas_gerentes. El override de metas_asesores trae nube=0 en MX.
+      const isMexVn = paisNorm === "MEX" && (canalNorm === "VN_ALIADOS" || canalNorm === "VN_EMPRESARIOS");
+      const feFinal = override && !isMexVn ? override.fe : Math.round(toNum(feRaw));
+      const nubeFinal = override && !isMexVn ? override.nube : fuenteNubeMx;
+      const metaUndFinal = override && !isMexVn ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: paisNorm,
