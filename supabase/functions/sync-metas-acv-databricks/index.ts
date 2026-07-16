@@ -232,12 +232,12 @@ Deno.serve(async (req) => {
         celula,
         mes,
         archivo,
-        CAST(fe AS BIGINT)             AS fe,
-        CAST(nube AS BIGINT)           AS nube,
-        CAST(coi AS BIGINT)            AS coi,
-        CAST(noi AS BIGINT)            AS noi,
-        CAST(meta_total_und AS BIGINT) AS meta_total_und,
-        meta_total_acv,
+        CAST(COALESCE(NULLIF(fe,0),   distr_cuota_fe)   AS BIGINT) AS fe,
+        CAST(COALESCE(NULLIF(nube,0), distr_cuota_nube) AS BIGINT) AS nube,
+        CAST(COALESCE(NULLIF(coi,0),  distr_cuota_coi)  AS BIGINT) AS coi,
+        CAST(COALESCE(NULLIF(noi,0),  distr_cuota_noi)  AS BIGINT) AS noi,
+        CAST(COALESCE(NULLIF(meta_total_und,0), unidades_total) AS BIGINT) AS meta_total_und,
+        COALESCE(NULLIF(meta_total_acv,0), cuota_acv) AS meta_total_acv,
         cuota
       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
       WHERE ${where.join(" AND ")}
