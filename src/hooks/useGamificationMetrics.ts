@@ -659,6 +659,8 @@ export const useGamificationMetrics = (
         let vnVentasDiariasRows: any[] = [];
         let vnCurrentMetaFe = 0;
         let vnCurrentMetaNube = 0;
+        // Override MX VN: meta Nube por periodo (YYYYMM) desde metas_gerentes.
+        const mxNubeMetaByPeriod = new Map<string, number>();
         let vnCurrentMetaTotal = 0;
         // FUENTE ÚNICA VN GERENTES — compartido entre Rendimiento del Mes (gerente block)
         // e Historial Mensual (vnMonthlyCumpl block).
