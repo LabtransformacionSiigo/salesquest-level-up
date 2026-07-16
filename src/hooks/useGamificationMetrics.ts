@@ -572,9 +572,15 @@ export const useGamificationMetrics = (
                 return q;
               })()
             : Promise.resolve({ data: [] }),
-          /* 24 – eliminado: no usar metas_gerentes ni COI/NOI como fallback.
-                  Historial mensual debe leer metas reales solo desde metas_acv_gerentes. */
-          Promise.resolve({ data: [] }),
+          /* 24 – MX VN gerentes: la meta Nube real viene de metas_gerentes
+                  como coi + noi + nube (por mes/célula). Se usa SOLO para
+                  overrides del split Nube en México VN. */
+          isVN && profile.role !== 'asesor' && String(profile.pais || '').toUpperCase() === 'MEX'
+            ? supabase
+                .from('metas_gerentes' as any)
+                .select('celula, anio_mes, coi, noi, nube')
+                .eq('pais_gestion', 'MEX')
+            : Promise.resolve({ data: [] }),
         ];
 
         const results = await Promise.all(queries);
