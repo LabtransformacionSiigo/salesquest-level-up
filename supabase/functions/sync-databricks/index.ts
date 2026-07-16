@@ -129,8 +129,16 @@ ${limit}`;
   metas_gerentes: {
     label: "Metas Gerentes Aliados+Empresarios (tbl_brz_gerentes)",
     sql: (limit: string) =>
-      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad,
-              CONCAT('$ ', FORMAT_NUMBER(CAST(meta_total_acv AS BIGINT), 0)) AS meta_total_acv_formato
+      `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo,
+              CAST(COALESCE(NULLIF(fe,0),   distr_cuota_fe)   AS BIGINT) AS fe,
+              CAST(COALESCE(NULLIF(nube,0), distr_cuota_nube) AS BIGINT) AS nube,
+              CAST(COALESCE(NULLIF(coi,0),  distr_cuota_coi)  AS BIGINT) AS coi,
+              CAST(COALESCE(NULLIF(noi,0),  distr_cuota_noi)  AS BIGINT) AS noi,
+              siigo_fiscal,
+              CAST(COALESCE(NULLIF(meta_total_und,0), unidades_total) AS BIGINT) AS meta_total_und,
+              COALESCE(NULLIF(meta_total_acv,0), cuota_acv) AS meta_total_acv,
+              recomendados, efectividad_sql, productividad,
+              CONCAT('$ ', FORMAT_NUMBER(CAST(COALESCE(NULLIF(meta_total_acv,0), cuota_acv) AS BIGINT), 0)) AS meta_total_acv_formato
        FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
        WHERE celula IS NOT NULL AND TRIM(celula) <> ''
          AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
