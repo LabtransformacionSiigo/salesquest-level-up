@@ -131,7 +131,7 @@ ${limit}`;
     sql: (limit: string) =>
       `SELECT pais_gestion, canal_direccion, director, celula, m, cuota, hc_operativo, fe, nube, coi, noi, siigo_fiscal, meta_total_und, meta_total_acv, recomendados, efectividad_sql, productividad,
               CONCAT('$ ', FORMAT_NUMBER(CAST(meta_total_acv AS BIGINT), 0)) AS meta_total_acv_formato
-       FROM hive_metastore.db_stage.tbl_brz_gerentes
+       FROM analyticdl.db_comercial.tbl_brz_cuotas_gerentes
        WHERE celula IS NOT NULL AND TRIM(celula) <> ''
          AND UPPER(canal_direccion) IN ('ALIADOS','EMPRESARIOS','VN_ALIADOS','VN_EMPRESARIOS','VENTA NUEVA ALIADOS','VENTA NUEVA EMPRESARIOS')
        ${limit}`,
