@@ -1007,7 +1007,7 @@ export const useGamificationMetrics = (
 
           // MX VN: override de meta Nube desde metas_gerentes (coi + noi + nube por mes/célula).
           // La meta Nube oficial de MX no viene en metas_acv_gerentes.meta_nube (viene 0).
-          const mxNubeMetaByPeriod = new Map<string, number>();
+          // (mxNubeMetaByPeriod se declara en el scope exterior; aquí se puebla)
           {
             const isMexVn = String(profile.pais || '').toUpperCase() === 'MEX';
             const celulaProfileNorm = normalizeComparableText(profile.celula ?? '');
