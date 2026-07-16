@@ -938,12 +938,19 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
   let synced = 0;
   const errores: string[] = [];
 
+  // `tbl_brz_gerentes` es un snapshot del mes vigente (la columna `m` es nivel
+  // M1–M4, no el mes). Sellamos el período con el mes actual (YYYYMM) para que
+  // cada sync acumule por mes en `metas_gerentes` en vez de sobrescribir.
+  const _now = new Date();
+  const currentPeriod = `${_now.getUTCFullYear()}${String(_now.getUTCMonth() + 1).padStart(2, "0")}`;
+
   const upsertRows = rows.map((row) => ({
     pais_gestion: String(row.pais_gestion || "").trim() || null,
     canal_direccion: normalizeCanalDireccion(row.canal_direccion),
     director: String(row.director || "").trim() || null,
     celula: String(row.celula || "").trim(),
     m: String(row.m || "").trim() || null,
+    anio_mes: currentPeriod,
     cuota: toNumber(row.cuota),
     hc_operativo: toNumber(row.hc_operativo),
     fe: toNumber(row.fe),
@@ -959,16 +966,16 @@ async function syncMetasGerentes(supabase: any, rows: Record<string, any>[]) {
     productividad: toNumber(row.productividad),
   })).filter((r) => r.celula && r.canal_direccion);
 
-  // Dedup by (celula, canal_direccion) — last row wins. Postgres rejects upserts with
+  // Dedup by (celula, canal_direccion, anio_mes) — last row wins. Postgres rejects upserts with
   // duplicate keys in the same batch ("ON CONFLICT DO UPDATE command cannot affect row a second time").
   const dedupedMap = new Map<string, typeof upsertRows[number]>();
   for (const r of upsertRows) {
-    dedupedMap.set(`${r.celula}|${r.canal_direccion}`, r);
+    dedupedMap.set(`${r.celula}|${r.canal_direccion}|${r.anio_mes}`, r);
   }
   const uniqueRows = [...dedupedMap.values()];
   console.log(`[metas_gerentes] Total rows: ${upsertRows.length} → únicas: ${uniqueRows.length}`);
 
-  synced += await parallelUpsert(supabase, "metas_gerentes", uniqueRows, { onConflict: "celula,canal_direccion", count: "exact" }, errores, "metas_gerentes");
+  synced += await parallelUpsert(supabase, "metas_gerentes", uniqueRows, { onConflict: "celula,canal_direccion,anio_mes", count: "exact" }, errores, "metas_gerentes");
 
   let gerentesEnriquecidos = 0;
   try {
