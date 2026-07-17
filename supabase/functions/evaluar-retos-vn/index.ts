@@ -63,17 +63,13 @@ async function fetchAllRows<T = any>(
   return out;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+async function ejecutar(body: any): Promise<any> {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    let body: any = {};
-    try { body = await req.json(); } catch { /* empty */ }
     const dryRun = body.dry_run === true;
     const includeResultados = body.include_resultados === true;
     const filtroPaises = Array.isArray(body.paises) ? body.paises.map((p: any) => String(p).toUpperCase()) : [];
