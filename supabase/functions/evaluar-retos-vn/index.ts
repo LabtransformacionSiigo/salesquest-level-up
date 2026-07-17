@@ -187,6 +187,8 @@ async function ejecutar(body: any): Promise<any> {
         .lt("fecha_facturacion", monthEnd)
         .range(from, to)
     );
+    console.log("[eval-vn] ventasMes", (ventasMes || []).length);
+
 
     const ventasByGerente = new Map<string, any[]>();
     for (const v of ventasMes || []) {
