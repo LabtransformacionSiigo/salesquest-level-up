@@ -548,7 +548,7 @@ async function ejecutar(body: any): Promise<any> {
     }
 
     if (dryRun) {
-      return new Response(JSON.stringify({
+      return {
         ok: true, dry_run: true,
         evaluados: resultados.length,
         gerentes_evaluados: gerentesArr.length,
@@ -559,8 +559,9 @@ async function ejecutar(body: any): Promise<any> {
         medallas: insertsMedalla.length,
         sp_total: spInserts.reduce((s, x) => s + x.sp, 0),
         resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      };
     }
+
 
     // ── Persistir ──
     const chunk = <T,>(arr: T[], n = 500) => {
