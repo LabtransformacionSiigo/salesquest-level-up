@@ -658,6 +658,7 @@ async function ejecutar(body: any): Promise<any> {
     }
 
 
+    console.log("[eval-vn] persist done");
     return {
       ok: true,
       evaluados: resultados.length,
