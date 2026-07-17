@@ -110,6 +110,7 @@ async function ejecutar(body: any): Promise<any> {
       if (filtroCanales.length > 0 && !filtroCanales.includes(String(g.canal || "").toUpperCase())) return false;
       return true;
     });
+    console.log("[eval-vn] gerentes", gerentesArr.length);
     if (gerentesArr.length === 0) {
       return { ok: true, msg: "Sin gerentes VN activos" };
     }
