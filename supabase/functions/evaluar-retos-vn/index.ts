@@ -653,7 +653,7 @@ async function ejecutar(body: any): Promise<any> {
     }
 
 
-    return new Response(JSON.stringify({
+    return {
       ok: true,
       evaluados: resultados.length,
       gerentes_evaluados: gerentesArr.length,
@@ -667,12 +667,31 @@ async function ejecutar(body: any): Promise<any> {
       sp_delta_neto: spDeltaNeto,
       errores,
       resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    };
   } catch (err) {
     console.error("evaluar-retos-vn error", err);
-    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return { ok: false, error: String(err) };
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  try {
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    if (body.async === true) {
+      // @ts-ignore EdgeRuntime existe en runtime de Supabase
+      EdgeRuntime.waitUntil(
+        ejecutar(body)
+          .then((r) => console.log("evaluar-retos-vn async ok", JSON.stringify({ sp_total: r?.sp_total, retos_diarios: r?.retos_diarios })))
+          .catch((e) => console.error("evaluar-retos-vn async error", e?.message || String(e))),
+      );
+      return new Response(JSON.stringify({ ok: true, accepted: true, mode: "async" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const result = await ejecutar(body);
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 
