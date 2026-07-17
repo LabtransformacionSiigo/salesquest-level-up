@@ -566,6 +566,7 @@ async function ejecutar(body: any): Promise<any> {
     }
 
 
+    console.log("[eval-vn] eval done, persistiendo", upsertsDiario.length, upsertsSemanal.length, upsertsMensual.length);
     // ── Persistir ──
     const chunk = <T,>(arr: T[], n = 500) => {
       const out: T[][] = [];
