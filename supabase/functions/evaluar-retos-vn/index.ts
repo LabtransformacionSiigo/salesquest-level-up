@@ -687,11 +687,15 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { /* empty */ }
     if (body.async === true) {
       // @ts-ignore EdgeRuntime existe en runtime de Supabase
-      EdgeRuntime.waitUntil(
-        ejecutar(body)
-          .then((r) => console.log("evaluar-retos-vn async ok", JSON.stringify({ sp_total: r?.sp_total, retos_diarios: r?.retos_diarios })))
-          .catch((e) => console.error("evaluar-retos-vn async error", e?.message || String(e))),
-      );
+      EdgeRuntime.waitUntil((async () => {
+        try {
+          console.log("[eval-vn] async start", JSON.stringify(body));
+          const r = await ejecutar(body);
+          console.log("[eval-vn] async ok", JSON.stringify({ sp_total: r?.sp_total, retos_diarios: r?.retos_diarios, errores: r?.errores?.length }));
+        } catch (err) {
+          console.error("[eval-vn] async error", (err as any)?.stack || String(err));
+        }
+      })());
       return new Response(JSON.stringify({ ok: true, accepted: true, mode: "async" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const result = await ejecutar(body);
