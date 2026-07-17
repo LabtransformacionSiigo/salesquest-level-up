@@ -63,17 +63,13 @@ async function fetchAllRows<T = any>(
   return out;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+async function ejecutar(body: any): Promise<any> {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    let body: any = {};
-    try { body = await req.json(); } catch { /* empty */ }
     const dryRun = body.dry_run === true;
     const includeResultados = body.include_resultados === true;
     const filtroPaises = Array.isArray(body.paises) ? body.paises.map((p: any) => String(p).toUpperCase()) : [];
@@ -87,11 +83,9 @@ Deno.serve(async (req) => {
     // Guard: VN gamification (retos / rachas / medallas) solo aplica desde Mayo 2026
     const MIN_PERIOD_VN = "202605";
     if (monthKey < MIN_PERIOD_VN) {
-      return new Response(
-        JSON.stringify({ ok: true, skipped: true, reason: `Periodo ${monthKey} < ${MIN_PERIOD_VN}: gamificación VN inicia Mayo 2026` }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return { ok: true, skipped: true, reason: `Periodo ${monthKey} < ${MIN_PERIOD_VN}: gamificación VN inicia Mayo 2026` };
     }
+
 
     const { start: monthStart, end: monthEnd } = toMonthRange(fechaBase);
     const { start: weekStart, end: weekEnd } = isoWeekRange(fechaBase);
@@ -117,9 +111,9 @@ Deno.serve(async (req) => {
       return true;
     });
     if (gerentesArr.length === 0) {
-      return new Response(JSON.stringify({ ok: true, msg: "Sin gerentes VN activos" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return { ok: true, msg: "Sin gerentes VN activos" };
     }
+
     const gerenteIds = gerentesArr.map((g) => g.id);
 
     // ── Cargar retos / rachas / medallas vigentes ──
@@ -554,7 +548,7 @@ Deno.serve(async (req) => {
     }
 
     if (dryRun) {
-      return new Response(JSON.stringify({
+      return {
         ok: true, dry_run: true,
         evaluados: resultados.length,
         gerentes_evaluados: gerentesArr.length,
@@ -565,8 +559,9 @@ Deno.serve(async (req) => {
         medallas: insertsMedalla.length,
         sp_total: spInserts.reduce((s, x) => s + x.sp, 0),
         resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      };
     }
+
 
     // ── Persistir ──
     const chunk = <T,>(arr: T[], n = 500) => {
@@ -659,7 +654,7 @@ Deno.serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({
+    return {
       ok: true,
       evaluados: resultados.length,
       gerentes_evaluados: gerentesArr.length,
@@ -673,12 +668,31 @@ Deno.serve(async (req) => {
       sp_delta_neto: spDeltaNeto,
       errores,
       resultados: includeResultados ? resultados : resultados.filter((r) => r.cumple || Number(r.sp) > 0).slice(0, 200),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    };
   } catch (err) {
     console.error("evaluar-retos-vn error", err);
-    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return { ok: false, error: String(err) };
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  try {
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    if (body.async === true) {
+      // @ts-ignore EdgeRuntime existe en runtime de Supabase
+      EdgeRuntime.waitUntil(
+        ejecutar(body)
+          .then((r) => console.log("evaluar-retos-vn async ok", JSON.stringify({ sp_total: r?.sp_total, retos_diarios: r?.retos_diarios })))
+          .catch((e) => console.error("evaluar-retos-vn async error", e?.message || String(e))),
+      );
+      return new Response(JSON.stringify({ ok: true, accepted: true, mode: "async" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const result = await ejecutar(body);
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 
