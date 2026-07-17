@@ -111,9 +111,9 @@ async function ejecutar(body: any): Promise<any> {
       return true;
     });
     if (gerentesArr.length === 0) {
-      return new Response(JSON.stringify({ ok: true, msg: "Sin gerentes VN activos" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return { ok: true, msg: "Sin gerentes VN activos" };
     }
+
     const gerenteIds = gerentesArr.map((g) => g.id);
 
     // ── Cargar retos / rachas / medallas vigentes ──
