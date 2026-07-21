@@ -233,7 +233,7 @@ async function ejecutar(body: any): Promise<any> {
             .select("fecha, celula, tipo_producto, unidades, acv, canal_direccion")
             .eq("pais", pais)
             .in("canal_direccion", ["Aliados", "Empresarios"])
-            .in("celula", celulasPais)
+            
             .gte("fecha", monthStart)
             .lt("fecha", monthEnd)
             .range(from, to)
