@@ -222,6 +222,51 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
     URL.revokeObjectURL(url);
   };
 
+  const exportDetalleCsv = () => {
+    const idsVisibles = new Set(filtrados.map(g => g.id));
+    const fuenteLabel = (f: string) => FUENTES.find(x => x.key === f)?.label || f;
+    const nombreReto = (detalle?: string | null) => {
+      const d = String(detalle || '').trim();
+      if (!d) return '';
+      if (d.startsWith('RACHA')) return (d.split(' · ')[1] || d.split(' · ')[0] || '').trim();
+      return (d.split(' · ')[0] || '').trim();
+    };
+    const q = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const head = ['Gerente','Canal','País','Tipo','Reto','Cuándo ganó','Período','Mes','SP','Fecha registro'];
+    const detalleRows = rows
+      .filter(r => idsVisibles.has(r.gerente_id))
+      .map(r => {
+        const g = gerenteMap[r.gerente_id];
+        const mes = rowToMonth(r);
+        return {
+          nombre: g?.nombre || '',
+          canal: g?.canal || '',
+          pais: g?.pais || '',
+          tipo: fuenteLabel(r.fuente),
+          reto: nombreReto(r.detalle),
+          cuando: periodoLabel(r.periodo),
+          periodo: r.periodo || '',
+          mes: mes ? MESES[mes - 1] : '',
+          mesNum: mes || 99,
+          sp: Number(r.sp) || 0,
+          registro: r.fecha ? new Date(r.fecha).toLocaleDateString('es-CO') : '',
+        };
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre) || a.mesNum - b.mesNum || String(a.periodo).localeCompare(String(b.periodo)));
+
+    const lines = [head.join(',')];
+    for (const d of detalleRows) {
+      lines.push([q(d.nombre), q(d.canal), q(d.pais), q(d.tipo), q(d.reto), q(d.cuando), q(d.periodo), q(d.mes), d.sp, q(d.registro)].join(','));
+    }
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sp-canje-detalle-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) return <Skeleton className="h-96" />;
 
   return (
@@ -257,7 +302,8 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
             </select>
           </div>
         )}
-        <Button variant="outline" onClick={exportCsv}>📥 Exportar CSV</Button>
+        <Button variant="outline" onClick={exportCsv}>📥 Exportar mensual</Button>
+        <Button variant="outline" onClick={exportDetalleCsv}>📋 Exportar detalle</Button>
         <div className="ml-auto text-xs text-muted-foreground">
           {filtrados.length} {isAdmin ? 'gerentes (todos)' : 'gerentes en tu alcance'}
         </div>
