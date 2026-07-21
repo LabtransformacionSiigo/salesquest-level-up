@@ -325,15 +325,16 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
                           <td className="p-2 text-right tabular-nums font-semibold bg-primary/5">{totalFuente}</td>
                         </tr>
                         {openF && items.map((it, idx) => {
-                          const fechaStr = it.fecha
+                          const cuandoGano = periodoLabel(it.periodo);
+                          const fechaRegistro = it.fecha
                             ? new Date(it.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })
-                            : (it.periodo || '—');
+                            : null;
                           return (
                             <tr key={fuenteKey + idx} className="bg-background border-t border-border/30 text-xs">
                               <td className="p-2 pl-16 sticky left-0 bg-background text-foreground/80">
                                 <div className="font-medium truncate max-w-[320px]" title={it.detalle || ''}>{it.detalle || '—'}</div>
                                 <div className="text-[10px] text-muted-foreground">
-                                  {fechaStr} · {it.origen === 'retos_completados' ? 'histórico' : 'sp_acumulados'}
+                                  🏆 Ganado: {cuandoGano}{fechaRegistro ? ` · registrado ${fechaRegistro}` : ''} · {it.origen === 'retos_completados' ? 'histórico' : 'sp_acumulados'}
                                 </div>
                               </td>
                               <td colSpan={13}></td>
