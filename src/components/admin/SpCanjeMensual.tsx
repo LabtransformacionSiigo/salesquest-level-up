@@ -302,7 +302,8 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
             </select>
           </div>
         )}
-        <Button variant="outline" onClick={exportCsv}>📥 Exportar CSV</Button>
+        <Button variant="outline" onClick={exportCsv}>📥 Exportar mensual</Button>
+        <Button variant="outline" onClick={exportDetalleCsv}>📋 Exportar detalle</Button>
         <div className="ml-auto text-xs text-muted-foreground">
           {filtrados.length} {isAdmin ? 'gerentes (todos)' : 'gerentes en tu alcance'}
         </div>
