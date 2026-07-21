@@ -116,17 +116,21 @@ Deno.serve(async (req) => {
     const rows = await runDatabricks(QUERY);
     console.log(`← ${rows.length} filas recibidas`);
 
-    // 1) Limpia ventas_diarias VN 2026 completo
+    // 1) Limpia ventas_diarias VN 2026 SOLO de Sudamérica (COL/ECU/URU).
+    // NO tocar MEX: su fuente es tbl_gld_Ventas_MX vía sync-vn-mexico; si borráramos
+    // MEX aquí sin re-insertarlo (esta query es solo SA), lo dejaríamos vacío.
     await sb.from("ventas_diarias")
       .delete()
       .gte("fecha", "2026-01-01")
       .lt("fecha", "2027-01-01")
-      .in("canal_direccion", ["Aliados", "Empresarios"]);
+      .in("canal_direccion", ["Aliados", "Empresarios"])
+      .in("pais", ["COL", "ECU", "URU"]);
 
-    // 2) Limpia ventas_gerente_mensual 2026 completo (VN únicamente)
+    // 2) Limpia ventas_gerente_mensual 2026 SOLO de Sudamérica. MEX lo administra sync-vn-mexico.
     await sb.from("ventas_gerente_mensual")
       .delete()
-      .eq("anio", 2026);
+      .eq("anio", 2026)
+      .in("pais", ["COL", "ECU", "URU"]);
 
     // 3) Inserta ventas_diarias en lotes (registro_idx por clave única)
     const idxMap = new Map<string, number>();
