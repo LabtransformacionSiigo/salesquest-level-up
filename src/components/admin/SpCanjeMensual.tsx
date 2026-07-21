@@ -7,6 +7,19 @@ import { cn } from '@/lib/utils';
 import { isVnChannel } from '@/lib/vn-leaders';
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+// Etiqueta legible del PERÍODO en que se ganó el SP (día exacto / semana / mes),
+// NO la fecha de registro (created_at). Formatos: 2026-05-06 (diario) ·
+// 202605-S2 (semanal) · 2026-W23 (semanal ISO) · 202605 (mensual).
+const periodoLabel = (periodo?: string | null): string => {
+  const p = String(periodo || '').trim();
+  let m: RegExpMatchArray | null;
+  if ((m = p.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return `${m[3]} ${MESES_CORTO[+m[2]-1] || m[2]} ${m[1].slice(2)}`;
+  if ((m = p.match(/^(\d{4})(\d{2})-S(\d+)$/))) return `Sem ${m[3]} · ${MESES_CORTO[+m[2]-1] || m[2]} ${m[1].slice(2)}`;
+  if ((m = p.match(/^(\d{4})-W(\d{1,2})$/i))) return `Sem ISO ${m[2]} · ${m[1].slice(2)}`;
+  if ((m = p.match(/^(\d{4})(\d{2})$/))) return `${MESES_CORTO[+m[2]-1] || m[2]} ${m[1].slice(2)} (mes)`;
+  return p || '—';
+};
 const FUENTES = [
   { key: 'RETO_DIARIO', label: 'Reto diario', icon: '📅' },
   { key: 'RETO_SEMANAL', label: 'Reto semanal', icon: '📆' },
