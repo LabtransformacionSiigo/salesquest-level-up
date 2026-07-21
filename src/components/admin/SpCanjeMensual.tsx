@@ -109,6 +109,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
   }, [gerenteIds.join(',')]);
 
   // Convierte una semana ISO (YYYY-Www) al mes (1-12) en que cae el jueves de esa semana
+
   const isoWeekToMonth = (year: number, week: number): number => {
     // Jueves de la semana ISO determina el año/mes oficial
     const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
