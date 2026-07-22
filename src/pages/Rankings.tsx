@@ -640,6 +640,15 @@ const Rankings = () => {
         // al menos una vez en el año. Los asesores mal clasificados en `gerentes`
         // nunca reciben convención (solo canje por retos), así que se excluyen del
         // ranking automáticamente. Aplica para COL/ECU/URU/MEX.
+        // Listado OFICIAL de líderes VN (fuente: negocio). Si existe para este
+        // canal/país, es la ÚNICA verdad de quién aparece en el ranking.
+        const { data: oficialesRows } = await supabase
+          .from('gerentes_vn_oficiales' as any)
+          .select('gerente_id')
+          .eq('canal', profile.canal)
+          .eq('pais', userPais);
+        const oficialIds = new Set<string>(((oficialesRows || []) as any[]).map((r: any) => String(r.gerente_id)));
+
         const conventionLeaderIds = new Set<string>();
         ((spConvencionLeadersRes as any)?.data || []).forEach((r: any) => {
           if (r?.gerente_id) conventionLeaderIds.add(String(r.gerente_id));
@@ -667,18 +676,30 @@ const Rankings = () => {
         (gerentesRes.data || []).forEach((g: any) => {
           const celulaKey = normalizeComparableText(g.celula);
           if (!celulaKey) return;
-          // Excluir a quienes nunca han recibido SP de convención (no son líderes reales).
-          if (!conventionLeaderIds.has(String(g.id))) return;
+          // Solo líderes del listado oficial. Si aún no hay listado para este
+          // canal/país, se conserva el criterio anterior (recibió SP convención).
+          if (oficialIds.size > 0) {
+            if (!oficialIds.has(String(g.id))) return;
+          } else if (!conventionLeaderIds.has(String(g.id))) return;
           const list = gerentesByCell.get(celulaKey) || [];
           list.push({ id: g.id, nombre: g.nombre, email: g.email, celula: g.celula, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
           gerentesByCell.set(celulaKey, list);
         });
 
 
-        // Unión de células: las que tienen miembros en `gerentes` Y las que tienen nombre desde Databricks.
-        const allCelulas = new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
+        // Con listado oficial NO se agregan células que solo existen en Databricks:
+        // esas creaban entradas fantasma con sp_canje 0 (nombre sin cuenta vinculada).
+        const allCelulas = oficialIds.size > 0
+          ? new Set<string>([...gerentesByCell.keys()])
+          : new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
         allCelulas.forEach((celulaKey) => {
           const members = gerentesByCell.get(celulaKey) || [];
+          // Con listado oficial, el miembro que sobrevivió el filtro ES el líder.
+          // No aplicar heurísticas (nombre Databricks / token de célula / rol).
+          if (oficialIds.size > 0) {
+            if (members.length > 0) gerentesByCelula.set(celulaKey, members[0]);
+            return;
+          }
           const advisorNameSet = new Set([...asesorNames]);
 
           // 1. Prioridad: nombre del gerente desde Databricks (metas_asesores.gerente)
@@ -1003,6 +1024,7 @@ const Rankings = () => {
         // NOTA: sp_canje no se exige; un gerente nuevo con ventas pero aún
         // sin canjeables debe aparecer en el ranking (caso Cristhian/Vicky).
         const activeEntries = entries.filter((e: any) =>
+          oficialIds.size > 0 ||
           (Number(e.sp_totales) || 0) > 0 ||
           (Number(e.unidades_total) || 0) > 0 ||
           (Number(e.acv_total_year) || 0) > 0 ||
