@@ -676,8 +676,11 @@ const Rankings = () => {
         (gerentesRes.data || []).forEach((g: any) => {
           const celulaKey = normalizeComparableText(g.celula);
           if (!celulaKey) return;
-          // Excluir a quienes nunca han recibido SP de convención (no son líderes reales).
-          if (!conventionLeaderIds.has(String(g.id))) return;
+          // Solo líderes del listado oficial. Si aún no hay listado para este
+          // canal/país, se conserva el criterio anterior (recibió SP convención).
+          if (oficialIds.size > 0) {
+            if (!oficialIds.has(String(g.id))) return;
+          } else if (!conventionLeaderIds.has(String(g.id))) return;
           const list = gerentesByCell.get(celulaKey) || [];
           list.push({ id: g.id, nombre: g.nombre, email: g.email, celula: g.celula, sp_canje: Number(g.sp_canje) || 0, sp_convencion: Number(g.sp_convencion) || 0, user_id: g.user_id });
           gerentesByCell.set(celulaKey, list);
