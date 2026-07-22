@@ -687,10 +687,19 @@ const Rankings = () => {
         });
 
 
-        // Unión de células: las que tienen miembros en `gerentes` Y las que tienen nombre desde Databricks.
-        const allCelulas = new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
+        // Con listado oficial NO se agregan células que solo existen en Databricks:
+        // esas creaban entradas fantasma con sp_canje 0 (nombre sin cuenta vinculada).
+        const allCelulas = oficialIds.size > 0
+          ? new Set<string>([...gerentesByCell.keys()])
+          : new Set<string>([...gerentesByCell.keys(), ...gerenteNombreByCelula.keys()]);
         allCelulas.forEach((celulaKey) => {
           const members = gerentesByCell.get(celulaKey) || [];
+          // Con listado oficial, el miembro que sobrevivió el filtro ES el líder.
+          // No aplicar heurísticas (nombre Databricks / token de célula / rol).
+          if (oficialIds.size > 0) {
+            if (members.length > 0) gerentesByCelula.set(celulaKey, members[0]);
+            return;
+          }
           const advisorNameSet = new Set([...asesorNames]);
 
           // 1. Prioridad: nombre del gerente desde Databricks (metas_asesores.gerente)
