@@ -819,6 +819,83 @@ export type Database = {
         }
         Relationships: []
       }
+      gerentes_vn_oficiales: {
+        Row: {
+          canal: string
+          celula_oficial: string | null
+          created_at: string
+          gerente_id: string
+          nombre_oficial: string
+          pais: string
+        }
+        Insert: {
+          canal: string
+          celula_oficial?: string | null
+          created_at?: string
+          gerente_id: string
+          nombre_oficial: string
+          pais: string
+        }
+        Update: {
+          canal?: string
+          celula_oficial?: string | null
+          created_at?: string
+          gerente_id?: string
+          nombre_oficial?: string
+          pais?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "acv_vc_mensual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "comerciales_por_gerente"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "gerentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "kpis_mes_actual"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "ranking_general"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "ranking_vn_gerentes"
+            referencedColumns: ["gerente_id"]
+          },
+          {
+            foreignKeyName: "gerentes_vn_oficiales_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: true
+            referencedRelation: "sp_totales_gerente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpis_mensuales: {
         Row: {
           acv_f: number | null
