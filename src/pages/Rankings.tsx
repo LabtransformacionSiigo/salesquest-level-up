@@ -1024,6 +1024,7 @@ const Rankings = () => {
         // NOTA: sp_canje no se exige; un gerente nuevo con ventas pero aún
         // sin canjeables debe aparecer en el ranking (caso Cristhian/Vicky).
         const activeEntries = entries.filter((e: any) =>
+          (oficialIds.size > 0 && oficialIds.has(String(e.id))) ||
           (Number(e.sp_totales) || 0) > 0 ||
           (Number(e.unidades_total) || 0) > 0 ||
           (Number(e.acv_total_year) || 0) > 0 ||
