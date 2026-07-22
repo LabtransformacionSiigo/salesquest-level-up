@@ -640,6 +640,15 @@ const Rankings = () => {
         // al menos una vez en el año. Los asesores mal clasificados en `gerentes`
         // nunca reciben convención (solo canje por retos), así que se excluyen del
         // ranking automáticamente. Aplica para COL/ECU/URU/MEX.
+        // Listado OFICIAL de líderes VN (fuente: negocio). Si existe para este
+        // canal/país, es la ÚNICA verdad de quién aparece en el ranking.
+        const { data: oficialesRows } = await supabase
+          .from('gerentes_vn_oficiales' as any)
+          .select('gerente_id')
+          .eq('canal', profile.canal)
+          .eq('pais', userPais);
+        const oficialIds = new Set<string>(((oficialesRows || []) as any[]).map((r: any) => String(r.gerente_id)));
+
         const conventionLeaderIds = new Set<string>();
         ((spConvencionLeadersRes as any)?.data || []).forEach((r: any) => {
           if (r?.gerente_id) conventionLeaderIds.add(String(r.gerente_id));
