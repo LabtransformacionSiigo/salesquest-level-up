@@ -495,9 +495,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_total ?? 0}{hasMetaTotal ? ` / ${m.meta_total}` : ''}</td>
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_total ?? 0))}>{fmtPct(m.pct_total, hasMetaTotal)}</span></td>
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_fe ?? 0}{hasMetaFe ? ` / ${m.meta_fe}` : ''}</td>
-                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_fe ?? 0))}>{fmtPct(m.pct_fe, hasMetaFe)}</span></td>
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_nube ?? 0}{hasMetaNube ? ` / ${m.meta_nube}` : ''}</td>
-                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_nube ?? 0))}>{fmtPct(m.pct_nube, hasMetaNube)}</span></td>
                   <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct ?? 0))}>{fmtPct(m.pct, hasMetaAcv)}</span></td>
                   <td className="px-4 py-3 text-right">
