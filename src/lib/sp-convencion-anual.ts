@@ -137,7 +137,7 @@ export function computeSpConvencionAnualForCelula(
   // NUNCA usar metas_asesores para metas de gerentes (causaría duplicación).
   // Prioridad Cierre > Inicio: si existe fila Cierre para un periodo, esa gana
   // y reemplaza la de Inicio. NUNCA se suman ambas.
-  const metasAcvTemp = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; archivo: string }>();
+  const metasAcvTemp = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; meta_und: number; archivo: string }>();
   metaAcvRows
     .filter((row) => celulaNorm && normalizeSpText(row.celula) === celulaNorm)
     .forEach((row) => {
@@ -158,12 +158,13 @@ export function computeSpConvencionAnualForCelula(
           meta_fe: Number((row as any).meta_fe) || 0,
           meta_nube: Number((row as any).meta_nube) || 0,
           meta_acv: Number(row.meta_total_acv) || 0,
+          meta_und: Number((row as any).meta_total_und) || 0,
           archivo,
         });
       }
     });
-  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number }>();
-  metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv }));
+  const metasPorPeriodo = new Map<string, { meta_fe: number; meta_nube: number; meta_acv: number; meta_und: number }>();
+  metasAcvTemp.forEach((v, p) => metasPorPeriodo.set(p, { meta_fe: v.meta_fe, meta_nube: v.meta_nube, meta_acv: v.meta_acv, meta_und: v.meta_und }));
 
   // Ventas reales desde ventas_gerente_mensual (FUENTE PRIMARIA — misma que usa
   // useGamificationMetrics para `vcMonthlyCumplimiento` / Mi Progreso).
