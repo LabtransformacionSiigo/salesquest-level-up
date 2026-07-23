@@ -896,7 +896,7 @@ const Rankings = () => {
           // ranking sea idéntico para todos los usuarios (no depende de quién inicia sesión).
           const spLive = computeSpConvencionAnualForCelula(spInputsGer, agg.celulaNombre || celula, gerenteDisplayName);
           const spStored = spConvByName.get(normalizePersonName(gerenteDisplayName)) || Number((gerenteInfo as any)?.sp_convencion) || 0;
-          const spFinal = spStored > 0 ? spStored : spLive;
+          const spFinal = spLive;
           entries.push({
             id: celula,
             nombre: gerenteDisplayName,
