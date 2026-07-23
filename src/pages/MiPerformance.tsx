@@ -375,7 +375,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
 
   return (
     <>
-      <SectionTitle icon="donut_large" title="AVANCE DEL MES" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV." />
+      <SectionTitle icon="donut_large" title="AVANCE DEL MES" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades y ACV." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
         <div className="space-y-5">
           <ProgressMetricRow
@@ -384,22 +384,6 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             currentValue={ventas}
             goalValue={meta}
             percentage={pctTotal}
-            formatValue={(value) => `${value.toLocaleString()} uds`}
-          />
-          <ProgressMetricRow
-            icon="receipt_long"
-            label="FE"
-            currentValue={ventasFe}
-            goalValue={metaFe}
-            percentage={pctFe}
-            formatValue={(value) => `${value.toLocaleString()} uds`}
-          />
-          <ProgressMetricRow
-            icon="cloud"
-            label="Nube"
-            currentValue={ventasNube}
-            goalValue={metaNube}
-            percentage={pctNube}
             formatValue={(value) => `${value.toLocaleString()} uds`}
           />
           <ProgressMetricRow
@@ -472,7 +456,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   }, [totalSp]);
   return (
     <>
-      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
+      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV. El % de cumplimiento se muestra para Unidades y ACV (que definen el SP). La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
       <motion.div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-smooth-sm" variants={fadeUpItem}>
         <table className="w-full min-w-[820px]">
           <thead>
@@ -481,9 +465,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
               <th className="text-right px-4 py-3">Unidades</th>
               <th className="text-right px-4 py-3">% Uds</th>
               <th className="text-right px-4 py-3">FE</th>
-              <th className="text-right px-4 py-3">% FE</th>
               <th className="text-right px-4 py-3">Nube</th>
-              <th className="text-right px-4 py-3">% Nube</th>
               <th className="text-right px-4 py-3">ACV</th>
               <th className="text-right px-4 py-3">% ACV</th>
               <th className="text-right px-4 py-3">⚡ SP</th>
@@ -513,9 +495,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_total ?? 0}{hasMetaTotal ? ` / ${m.meta_total}` : ''}</td>
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_total ?? 0))}>{fmtPct(m.pct_total, hasMetaTotal)}</span></td>
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_fe ?? 0}{hasMetaFe ? ` / ${m.meta_fe}` : ''}</td>
-                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_fe ?? 0))}>{fmtPct(m.pct_fe, hasMetaFe)}</span></td>
                   <td className="px-4 py-3 text-sm font-scoreboard text-foreground text-right">{m.ventas_nube ?? 0}{hasMetaNube ? ` / ${m.meta_nube}` : ''}</td>
-                  <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct_nube ?? 0))}>{fmtPct(m.pct_nube, hasMetaNube)}</span></td>
                   <td className="px-4 py-3 text-sm font-bold font-scoreboard text-primary text-right">{formatMoney(m.acv)}</td>
                   <td className="px-4 py-3 text-right"><span className={cn('text-xs font-bold font-scoreboard px-2 py-0.5 rounded-full', pctClass(m.pct ?? 0))}>{fmtPct(m.pct, hasMetaAcv)}</span></td>
                   <td className="px-4 py-3 text-right">
@@ -529,7 +509,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
           </tbody>
           <tfoot>
             <tr className="bg-orange/10 border-t-2 border-orange/40">
-              <td colSpan={9} className="px-4 py-4">
+              <td colSpan={7} className="px-4 py-4">
                 <div className="flex flex-col">
                   <span className="text-sm md:text-base font-black font-heading text-orange flex items-center gap-2">
                     <span>⚡</span> Total SP Convención 2026
