@@ -1,5 +1,6 @@
 // Recalcula SP Convención VN (Aliados/Empresarios) para COL/MEX/ECU/URU
-// Fórmula mensual: SP_mes = cap(%FE) + cap(%Nube)*2 + cap(%ACV)
+// Fórmula mensual GERENTES: SP_mes = cap(%Uds) + cap(%ACV)  (unidades totales + ACV, sin FE/Nube)
+// Fórmula mensual ASESORES: cap(%FE) + cap(%Nube)*2  (no tienen meta ACV)
 // cap = min(300, max(0, round(value)))
 // Total = sumatoria SP_mes para todos los periodos con datos.
 //
