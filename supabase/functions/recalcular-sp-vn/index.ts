@@ -340,23 +340,17 @@ Deno.serve(async (req) => {
           }
         }
 
-        const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
-        const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
+        // GERENTES VN: SP = cap(%Uds totales) + cap(%ACV). Sin FE ni Nube.
+        const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
-        const sp = computeSp(pctFe, pctNube, pctAcv);
+        const sp = cap(pctUds) + cap(pctAcv);
 
         if (sp > 0) {
           total += sp;
           monthly.push({ period, sp });
         }
         if (isDiana || isGrace) {
-          monthlyDbg.push({
-            period,
-            pctFe: cap(pctFe),
-            pctNube: cap(pctNube),
-            pctAcv: cap(pctAcv),
-            sp,
-          });
+          monthlyDbg.push({ period, pctUds: cap(pctUds), pctAcv: cap(pctAcv), sp });
         }
       }
 
