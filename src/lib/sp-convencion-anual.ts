@@ -5,7 +5,7 @@
 //   - units FE/Nube: ventas_gerente_mensual (filtered by celula or gerente_normalizado)
 //   - ACV total: sum of ventas_gerente_mensual.acv (same filter)
 //   - meta FE / meta Nube / meta ACV: metas_acv_gerentes (filtered by celula)
-// Formula per month: SP = cap(%FE) + cap(%Nube)*2 + cap(%ACV); cap = min(300, max(0, round(v))).
+// Formula per month (GERENTES VN): SP = cap(%Uds) + cap(%ACV); cap = min(300, max(0, round(v))).
 // Total = sum of monthly SP. NO se usa metas_asesores ni fallback proporcional.
 
 const MES3_TO_MM: Record<string, string> = {
