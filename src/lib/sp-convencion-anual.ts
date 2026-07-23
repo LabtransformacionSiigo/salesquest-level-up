@@ -189,18 +189,19 @@ export function computeSpConvencionAnualForCelula(
     const prev = vgmFamMaxRanking.get(k);
     if (!prev || uds > prev.uds) vgmFamMaxRanking.set(k, { uds, acv: acvV });
   });
-  const vgmByPeriod = new Map<string, { fe: number; nube: number; acv: number }>();
+  const vgmByPeriod = new Map<string, { fe: number; nube: number; acv: number; total: number }>();
   vgmFamMaxRanking.forEach((val, k) => {
     const [period, fam] = k.split('::');
-    const cur = vgmByPeriod.get(period) || { fe: 0, nube: 0, acv: 0 };
+    const cur = vgmByPeriod.get(period) || { fe: 0, nube: 0, acv: 0, total: 0 };
     if (fam === 'FE') cur.fe += val.uds;
     else if (fam === 'NUBE') cur.nube += val.uds;
+    cur.total += val.uds;
     cur.acv += val.acv;
     vgmByPeriod.set(period, cur);
   });
 
   // Períodos a calcular: ventas reales + períodos con meta.
-  const ventasDiariasByPeriod = new Map<string, { fe: number; nube: number; acv: number }>();
+  const ventasDiariasByPeriod = new Map<string, { fe: number; nube: number; acv: number; total: number }>();
   (inputs.ventasDiariasRows || []).forEach((row) => {
     const rowCelula = normalizeSpText(row.celula || row.equipo);
     const rowDirector = normalizeSpText(row.director);
@@ -215,9 +216,10 @@ export function computeSpConvencionAnualForCelula(
     const fam = rawFam === 'CAMPANA' || rawFam === 'CAMPAÑA' ? 'NUBE'
               : rawFam === 'FE' || rawFam === 'NUBE' ? rawFam
               : 'OTRO';
-    const cur = ventasDiariasByPeriod.get(periodo) || { fe: 0, nube: 0, acv: 0 };
+    const cur = ventasDiariasByPeriod.get(periodo) || { fe: 0, nube: 0, acv: 0, total: 0 };
     if (fam === 'FE') cur.fe += Math.round(Number(row.unidades) || 0);
     if (fam === 'NUBE') cur.nube += Math.round(Number(row.unidades) || 0);
+    cur.total += Math.round(Number(row.unidades) || 0);
     cur.acv += Math.round(Number(row.acv) || 0);
     ventasDiariasByPeriod.set(periodo, cur);
   });
@@ -231,9 +233,9 @@ export function computeSpConvencionAnualForCelula(
   let totalSp = 0;
   periodSet.forEach((periodo) => {
     if (!periodo.startsWith(String(year))) return;
-    const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0 };
+    const metas = metasPorPeriodo.get(periodo) ?? { meta_fe: 0, meta_nube: 0, meta_acv: 0, meta_und: 0 };
 
-    let ventas_fe = 0, ventas_nube = 0, acv_total = 0;
+    let ventas_fe = 0, ventas_nube = 0, ventas_total = 0, acv_total = 0;
     // Orden de prioridad IDÉNTICO a useGamificationMetrics:
     //  1. ventas_gerente_mensual (vgmByPeriod) — fuente primaria de Mi Progreso
     //  2. vn_metricas_optimizadas scope=gerente (vmgPrimary) — solo si VGM no tiene el periodo
@@ -242,23 +244,27 @@ export function computeSpConvencionAnualForCelula(
       const v = vgmByPeriod.get(periodo)!;
       ventas_fe = v.fe;
       ventas_nube = v.nube;
+      ventas_total = v.total;
       acv_total = v.acv;
     } else if (vmgPrimary.has(periodo)) {
       const primaryData = vmgPrimary.get(periodo)!;
       ventas_fe = primaryData.fe;
       ventas_nube = primaryData.nube;
+      ventas_total = primaryData.total;
       acv_total = primaryData.acv;
     } else if (ventasDiariasByPeriod.has(periodo)) {
       const vd = ventasDiariasByPeriod.get(periodo)!;
       ventas_fe = vd.fe;
       ventas_nube = vd.nube;
+      ventas_total = vd.total;
       acv_total = vd.acv;
     }
 
-    const pct_fe = metas.meta_fe > 0 ? cap((ventas_fe / metas.meta_fe) * 100) : 0;
-    const pct_nube = metas.meta_nube > 0 ? cap((ventas_nube / metas.meta_nube) * 100) : 0;
+    // Fórmula GERENTES VN: SP = cap(%Uds totales) + cap(%ACV). Sin FE ni Nube.
+    const metaUnd = metas.meta_und > 0 ? metas.meta_und : (metas.meta_fe + metas.meta_nube);
+    const pct_uds = metaUnd > 0 ? cap((ventas_total / metaUnd) * 100) : 0;
     const pct_acv = metas.meta_acv > 0 ? cap((acv_total / metas.meta_acv) * 100) : 0;
-    totalSp += pct_fe + pct_nube * 2 + pct_acv;
+    totalSp += pct_uds + pct_acv;
   });
 
   return totalSp;
