@@ -375,7 +375,7 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
 
   return (
     <>
-      <SectionTitle icon="donut_large" title="AVANCE DEL MES" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades, Nube, FE y ACV." />
+      <SectionTitle icon="donut_large" title="AVANCE DEL MES" tip="Ves el logrado del mes, la meta y el porcentaje de cumplimiento para Total Unidades y ACV." />
       <motion.div className="bg-card border border-border rounded-2xl p-6 shadow-smooth-sm" variants={fadeUpItem}>
         <div className="space-y-5">
           <ProgressMetricRow
@@ -384,22 +384,6 @@ const VnCumplimientoSection = ({ kpis, ejecucion, metaAsesor }: { kpis: any; eje
             currentValue={ventas}
             goalValue={meta}
             percentage={pctTotal}
-            formatValue={(value) => `${value.toLocaleString()} uds`}
-          />
-          <ProgressMetricRow
-            icon="receipt_long"
-            label="FE"
-            currentValue={ventasFe}
-            goalValue={metaFe}
-            percentage={pctFe}
-            formatValue={(value) => `${value.toLocaleString()} uds`}
-          />
-          <ProgressMetricRow
-            icon="cloud"
-            label="Nube"
-            currentValue={ventasNube}
-            goalValue={metaNube}
-            percentage={pctNube}
             formatValue={(value) => `${value.toLocaleString()} uds`}
           />
           <ProgressMetricRow
