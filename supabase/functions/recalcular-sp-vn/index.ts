@@ -1,5 +1,6 @@
 // Recalcula SP Convención VN (Aliados/Empresarios) para COL/MEX/ECU/URU
-// Fórmula mensual: SP_mes = cap(%FE) + cap(%Nube)*2 + cap(%ACV)
+// Fórmula mensual GERENTES: SP_mes = cap(%Uds) + cap(%ACV)  (unidades totales + ACV, sin FE/Nube)
+// Fórmula mensual ASESORES: cap(%FE) + cap(%Nube)*2  (no tienen meta ACV)
 // cap = min(300, max(0, round(value)))
 // Total = sumatoria SP_mes para todos los periodos con datos.
 //
@@ -339,23 +340,17 @@ Deno.serve(async (req) => {
           }
         }
 
-        const pctFe = metaFe > 0 && vFe > 0 ? (vFe / metaFe) * 100 : 0;
-        const pctNube = metaNube > 0 && vNube > 0 ? (vNube / metaNube) * 100 : 0;
+        // GERENTES VN: SP = cap(%Uds totales) + cap(%ACV). Sin FE ni Nube.
+        const pctUds = metaTotal > 0 && vTotal > 0 ? (vTotal / metaTotal) * 100 : 0;
         const pctAcv = metaAcv > 0 && acv > 0 ? (acv / metaAcv) * 100 : 0;
-        const sp = computeSp(pctFe, pctNube, pctAcv);
+        const sp = cap(pctUds) + cap(pctAcv);
 
         if (sp > 0) {
           total += sp;
           monthly.push({ period, sp });
         }
         if (isDiana || isGrace) {
-          monthlyDbg.push({
-            period,
-            pctFe: cap(pctFe),
-            pctNube: cap(pctNube),
-            pctAcv: cap(pctAcv),
-            sp,
-          });
+          monthlyDbg.push({ period, pctUds: cap(pctUds), pctAcv: cap(pctAcv), sp });
         }
       }
 
