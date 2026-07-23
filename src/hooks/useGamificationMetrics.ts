@@ -1578,9 +1578,10 @@ export const useGamificationMetrics = (
             const pctAcvFinal = metaAcvFinal > 0 ? Math.round((acvFinal / metaAcvFinal) * 100) : 0;
             const pctFeFinal = mFe > 0 ? Math.round((ej.fe / mFe) * 100) : 0;
             const pctNubeFinal = mNube > 0 ? Math.round((ej.nube / mNube) * 100) : 0;
-            // SP del mes (cap por componente, sin %Uds)
+            const pctTotalFinal = mTotal > 0 ? Math.round((ej.total / mTotal) * 100) : 0;
+            // SP del mes — GERENTES VN: solo unidades totales + ACV (sin FE ni Nube).
             const cap = (v: number) => Math.min(300, Math.max(0, Math.round(v || 0)));
-            const spMes = cap(pctFeFinal) + cap(pctNubeFinal) * 2 + cap(pctAcvFinal);
+            const spMes = cap(pctTotalFinal) + cap(pctAcvFinal);
             // Si no hay meta cargada pero sí existe ejecución histórica exacta del
             // equipo, mostrar la venta real y dejar porcentajes/SP en cero.
             const sinMeta = mFe <= 0 && mNube <= 0 && mTotal <= 0 && metaAcvFinal <= 0;
