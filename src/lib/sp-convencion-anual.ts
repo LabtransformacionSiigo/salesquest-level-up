@@ -97,7 +97,7 @@ export function computeSpConvencionAnualForCelula(
   // ventas_gerente_mensual takes precedence because sync-vn-historico repopulates it
   // with the corrected Databricks totals (e.g. April Diana 200 FE / 81 NUBE).
   const yearNum = Number(year);
-  const vmgPrimary = new Map<string, { fe: number; nube: number; acv: number }>();
+  const vmgPrimary = new Map<string, { fe: number; nube: number; acv: number; total: number }>();
   if (inputs.vnMetricasGerenteRows && inputs.vnMetricasGerenteRows.length > 0) {
     const vmgFamMax = new Map<string, { uds: number; acv: number }>();
     inputs.vnMetricasGerenteRows.forEach((r) => {
@@ -125,9 +125,10 @@ export function computeSpConvencionAnualForCelula(
     });
     vmgFamMax.forEach((val, k) => {
       const [period, fam] = k.split('::');
-      const cur = vmgPrimary.get(period) || { fe: 0, nube: 0, acv: 0 };
+      const cur = vmgPrimary.get(period) || { fe: 0, nube: 0, acv: 0, total: 0 };
       if (fam === 'FE') cur.fe += val.uds;
       else if (fam === 'NUBE') cur.nube += val.uds;
+      cur.total += val.uds;
       cur.acv += val.acv;
       vmgPrimary.set(period, cur);
     });
