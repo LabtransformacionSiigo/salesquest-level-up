@@ -456,7 +456,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
   }, [totalSp]);
   return (
     <>
-      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV con su % de cumplimiento. La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
+      <SectionTitle icon="calendar_month" title="Historial Mensual" tip="Ejecución mensual de Unidades, FE, Nube y ACV. El % de cumplimiento se muestra para Unidades y ACV (que definen el SP). La columna ⚡ SP muestra los Siigo Points Convención generados ese mes." />
       <motion.div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-smooth-sm" variants={fadeUpItem}>
         <table className="w-full min-w-[820px]">
           <thead>
