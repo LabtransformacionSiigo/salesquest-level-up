@@ -509,7 +509,7 @@ const VnHistorialSection = ({ data, canal }: { data: any[]; canal?: string | nul
           </tbody>
           <tfoot>
             <tr className="bg-orange/10 border-t-2 border-orange/40">
-              <td colSpan={9} className="px-4 py-4">
+              <td colSpan={7} className="px-4 py-4">
                 <div className="flex flex-col">
                   <span className="text-sm md:text-base font-black font-heading text-orange flex items-center gap-2">
                     <span>⚡</span> Total SP Convención 2026
