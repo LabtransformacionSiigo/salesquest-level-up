@@ -499,7 +499,19 @@ export const useSupabaseAuth = () => {
             .limit(200);
 
           if (activeMatches?.length) {
-            selectedGerente = pickVnLeaderCandidate(activeMatches as any[], { celula: selectedGerente.celula }) || selectedGerente;
+            // Preferir el LÍDER OFICIAL de la célula (tabla gerentes_vn_oficiales).
+            // Evita que una sesión resuelva al miembro equivocado cuando varias
+            // filas comparten célula (p.ej. DG3: el líder oficial es Andres, no otro).
+            const idsCelula = (activeMatches as any[]).map((m) => m.id);
+            const { data: oficialesRows } = await supabase
+              .from('gerentes_vn_oficiales' as any)
+              .select('gerente_id')
+              .in('gerente_id', idsCelula);
+            const oficialIdSet = new Set(((oficialesRows as any[]) || []).map((o) => String(o.gerente_id)));
+            const oficialMatch = (activeMatches as any[]).find((m) => oficialIdSet.has(String(m.id)));
+            selectedGerente = oficialMatch
+              || pickVnLeaderCandidate(activeMatches as any[], { celula: selectedGerente.celula })
+              || selectedGerente;
           }
         }
 
