@@ -382,10 +382,25 @@ const Rankings = () => {
           fetchAllVentasDiarias(currentConventionYear, userPais),
           fetchAllVnMetricasAsesores(currentConventionYear, userPais, profile.canal),
         ]);
+        // Los nombres de productividad_asesores vienen truncados a 30 chars desde
+        // Databricks; metas_asesores y ventas_diarias los traen completos. Para
+        // cruzarlos usamos una clave recortada a 29 chars del nombre normalizado.
+        const nameKey = (n: any) => normalizePersonName(n).slice(0, 29);
+        const fullNameByKey = new Map<string, string>();
+        const considerName = (n: any) => {
+          if (!n) return;
+          const k = nameKey(n);
+          const prev = fullNameByKey.get(k);
+          if (!prev || String(n).length > prev.length) fullNameByKey.set(k, String(n));
+        };
+        (metasAsesoresRes.data || []).forEach((r: any) => considerName(r.nombre_asesor));
+        (((ventasDiariasRes as any)?.data as any[]) || []).forEach((r: any) => considerName(r.asesor));
+        (((vnMetricasAsesorRes as any)?.data as any[]) || []).forEach((r: any) => considerName(r.asesor));
+        (productividadRes.data || []).forEach((r: any) => considerName(r.asesor));
         const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) {
-            asesorInfoMap.set(normalizePersonName(a.nombre), {
+            asesorInfoMap.set(nameKey(a.nombre), {
               id: a.id,
               sp_canje: Number(a.sp_canje) || 0,
               sp_convencion: Number(a.sp_convencion) || 0,
@@ -397,7 +412,8 @@ const Rankings = () => {
         (productividadRes.data || []).forEach((row: any) => {
           const name = row.asesor;
           if (!name) return;
-          const key = normalizePersonName(name);
+          const key = nameKey(name);
+
           const agg = advisorAgg.get(key) || { ventas: 0, meta: 0, recomendados: 0, unidades: 0, acv: 0, currentAcv: 0, celula: '', months: new Map() };
           agg.celula = row.celula || agg.celula;
           // Monthly aggregation for SP calculation
@@ -434,7 +450,7 @@ const Rankings = () => {
         (((vnMetricasAsesorRes as any)?.data as any[]) || []).forEach((row: any) => {
           const name = row.asesor;
           if (!name) return;
-          const k = normalizePersonName(name);
+          const k = nameKey(name);
           const period = String(row.periodo || (row.mes_nro ? `${currentConventionYear}${String(row.mes_nro).padStart(2, '0')}` : ''));
           if (!period.startsWith(String(currentConventionYear))) return;
           const tipo = String(row.familia || row.tipo_producto1 || '').toUpperCase().trim();
@@ -452,7 +468,7 @@ const Rankings = () => {
         ((ventasDiariasRes as any)?.data as any[] || []).forEach((row: any) => {
           const name = row.asesor;
           if (!name) return;
-          const k = normalizePersonName(name);
+          const k = nameKey(name);
           const fecha = String(row.fecha || '');
           if (!fecha.startsWith(String(currentConventionYear))) return;
           const tipo = String(row.tipo_producto || '').toUpperCase().trim();
@@ -480,7 +496,9 @@ const Rankings = () => {
           const currentMetaAcv = agg.meta;
           const pct = currentMetaAcv > 0 && currentAcv > 0 ? Math.round((currentAcv / currentMetaAcv) * 100) : 0;
           // SP Convención = suma ANUAL de SP por mes del ASESOR individual (fórmula única).
-          const originalName = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key)?.asesor || key;
+          const originalName = fullNameByKey.get(key)
+            || (productividadRes.data || []).find((r: any) => nameKey(r.asesor) === key)?.asesor
+            || key;
           const spFinal = computeSpConvencionAnualForAsesor(spAsesorInputs, originalName);
 
           const vdAgg = metricasByAsesor.get(key) || ventasDiariasByAsesor.get(key);
@@ -490,7 +508,7 @@ const Rankings = () => {
           const unidadesAnoTotal = (vdAgg?.feYear || 0) + (vdAgg?.nubeYear || 0);
 
           // Metas FE/Nube del mes actual desde metas_asesores (excluir novedades)
-          const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth);
+          const metasMesActual = (metasAsesoresRes.data || []).filter((r: any) => nameKey(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth);
           const currentMetaFe = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_fe) || 0), 0);
           const currentMetaNube = metasMesActual.reduce((s: number, r: any) => s + (Number(r.meta_nube) || 0), 0);
           const capPctAsesor = (v: number) => Math.min(300, Math.max(0, Math.round(v)));
@@ -499,10 +517,10 @@ const Rankings = () => {
 
           // Meta unidades del mes actual: tomar únicamente meta_total del periodo.
           const metaTotalMesActual = (metasAsesoresRes.data || [])
-            .filter((r: any) => normalizePersonName(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth)
+            .filter((r: any) => nameKey(r.nombre_asesor) === key && String(r.anio_mes) === currentMonth)
             .reduce((s: number, r: any) => s + (Number(r.meta_total) || 0), 0);
           const metaUnidadesFinal = metaTotalMesActual || 0;
-          const prodCurrent = (productividadRes.data || []).find((r: any) => normalizePersonName(r.asesor) === key && String(r.anio_mes) === currentMonth);
+          const prodCurrent = (productividadRes.data || []).find((r: any) => nameKey(r.asesor) === key && String(r.anio_mes) === currentMonth);
           const calcCanje = (() => {
             const recomendados = Number(prodCurrent?.cant_recomendados) || 0;
             const ventasSql = Number((prodCurrent as any)?.ventas_mm_sql) || 0;
