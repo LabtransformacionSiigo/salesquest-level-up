@@ -35,9 +35,13 @@ const colorText = (pct: number, hasMeta: boolean) => {
 
 const stateOf = (a: AsesorPerformance): { emoji: string; label: string; border: string } => {
   if (a.tiene_novedad) return { emoji: '⚪', label: 'Con novedad', border: 'border-l-muted-foreground/40' };
-  if (a.meta_acv <= 0) return { emoji: '⚪', label: 'Sin meta', border: 'border-l-muted-foreground/40' };
-  if (a.pct_acv >= 90) return { emoji: '🟢', label: 'En meta', border: 'border-l-accent' };
-  if (a.pct_acv >= 60) return { emoji: '🟡', label: 'En riesgo', border: 'border-l-orange' };
+  // VC mide por ACV (tiene meta_acv); asesores VN por Unidades (no tienen meta ACV).
+  const hasAcv = a.meta_acv > 0;
+  const hasMeta = hasAcv || a.meta_total > 0;
+  if (!hasMeta) return { emoji: '⚪', label: 'Sin meta', border: 'border-l-muted-foreground/40' };
+  const pct = hasAcv ? a.pct_acv : a.pct_total;
+  if (pct >= 90) return { emoji: '🟢', label: 'En meta', border: 'border-l-accent' };
+  if (pct >= 60) return { emoji: '🟡', label: 'En riesgo', border: 'border-l-orange' };
   return { emoji: '🔴', label: 'Bajo meta', border: 'border-l-destructive' };
 };
 
@@ -131,9 +135,13 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
   // Live counts: recomputed every render directly from `asesores` prop (no memoization)
   let enMeta = 0, riesgo = 0, bajo = 0, novedad = 0;
   for (const a of asesores) {
-    if (a.tiene_novedad || a.meta_acv <= 0) { novedad++; continue; }
-    if (a.pct_acv >= 90) enMeta++;
-    else if (a.pct_acv >= 60) riesgo++;
+    if (a.tiene_novedad) { novedad++; continue; }
+    const hasAcv = a.meta_acv > 0;
+    const hasMeta = hasAcv || a.meta_total > 0;
+    if (!hasMeta) { novedad++; continue; }
+    const pct = hasAcv ? a.pct_acv : a.pct_total;
+    if (pct >= 90) enMeta++;
+    else if (pct >= 60) riesgo++;
     else bajo++;
   }
 
@@ -144,7 +152,7 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
   ];
 
   const globalTooltip =
-    '📊 El estado de cada asesor se calcula con base en el % de cumplimiento de su meta ACV mensual (Valor del Contrato Anualizado).\n\nSe actualiza automáticamente con cada venta nueva registrada.\n\nAplica para canales: Venta Nueva Aliados, Venta Nueva Empresarios y Venta Cruzada.\nPaíses: Colombia, México, Ecuador y Uruguay.';
+    '📊 El estado de cada asesor se calcula con base en el % de cumplimiento de su meta del mes:\n• Venta Nueva (Aliados/Empresarios): meta de Unidades.\n• Venta Cruzada: meta de ACV.\n\nSe actualiza automáticamente con cada venta registrada.\nPaíses: Colombia, México, Ecuador y Uruguay.';
 
   return (
     <TooltipProvider delayDuration={150}>
