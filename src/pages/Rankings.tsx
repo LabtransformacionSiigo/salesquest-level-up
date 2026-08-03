@@ -382,10 +382,25 @@ const Rankings = () => {
           fetchAllVentasDiarias(currentConventionYear, userPais),
           fetchAllVnMetricasAsesores(currentConventionYear, userPais, profile.canal),
         ]);
+        // Los nombres de productividad_asesores vienen truncados a 30 chars desde
+        // Databricks; metas_asesores y ventas_diarias los traen completos. Para
+        // cruzarlos usamos una clave recortada a 29 chars del nombre normalizado.
+        const nameKey = (n: any) => normalizePersonName(n).slice(0, 29);
+        const fullNameByKey = new Map<string, string>();
+        const considerName = (n: any) => {
+          if (!n) return;
+          const k = nameKey(n);
+          const prev = fullNameByKey.get(k);
+          if (!prev || String(n).length > prev.length) fullNameByKey.set(k, String(n));
+        };
+        (metasAsesoresRes.data || []).forEach((r: any) => considerName(r.nombre_asesor));
+        (((ventasDiariasRes as any)?.data as any[]) || []).forEach((r: any) => considerName(r.asesor));
+        (((vnMetricasAsesorRes as any)?.data as any[]) || []).forEach((r: any) => considerName(r.asesor));
+        (productividadRes.data || []).forEach((r: any) => considerName(r.asesor));
         const asesorInfoMap = new Map<string, { id?: string; sp_canje: number; sp_convencion: number }>();
         (asesoresRes.data || []).forEach((a: any) => {
           if (a.nombre) {
-            asesorInfoMap.set(normalizePersonName(a.nombre), {
+            asesorInfoMap.set(nameKey(a.nombre), {
               id: a.id,
               sp_canje: Number(a.sp_canje) || 0,
               sp_convencion: Number(a.sp_convencion) || 0,
@@ -397,7 +412,8 @@ const Rankings = () => {
         (productividadRes.data || []).forEach((row: any) => {
           const name = row.asesor;
           if (!name) return;
-          const key = normalizePersonName(name);
+          const key = nameKey(name);
+
           const agg = advisorAgg.get(key) || { ventas: 0, meta: 0, recomendados: 0, unidades: 0, acv: 0, currentAcv: 0, celula: '', months: new Map() };
           agg.celula = row.celula || agg.celula;
           // Monthly aggregation for SP calculation
