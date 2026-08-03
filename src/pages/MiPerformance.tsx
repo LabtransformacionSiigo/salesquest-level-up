@@ -544,7 +544,11 @@ const EquipoRendimientoSection = ({
 
   const getEstado = (a: AsesorPerformance): 'verde' | 'amarillo' | 'rojo' | 'novedad' => {
     if (a.tiene_novedad) return 'novedad';
-    const pct = a.pct_acv || a.pct_total;
+    // Asesores VN se miden por Unidades (no tienen meta ACV); VC por ACV.
+    const hasAcv = a.meta_acv > 0;
+    const hasMeta = hasAcv || a.meta_total > 0;
+    if (!hasMeta) return 'novedad';
+    const pct = hasAcv ? a.pct_acv : a.pct_total;
     if (pct >= 90) return 'verde';
     if (pct >= 60) return 'amarillo';
     return 'rojo';
