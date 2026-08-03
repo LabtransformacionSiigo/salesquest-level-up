@@ -594,7 +594,7 @@ const EquipoRendimientoSection = ({
       <SectionTitle
         icon="groups"
         title={`AVANCE DEL EQUIPO (${asesores.length} ASESORES)`}
-        tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según ACV."
+        tip="Vista de semáforo de tu equipo: en meta (≥90%), en riesgo (60-89%) o bajo meta (<60%) según su cumplimiento de Unidades."
       />
 
       {/* Resumen tipo semáforo */}
