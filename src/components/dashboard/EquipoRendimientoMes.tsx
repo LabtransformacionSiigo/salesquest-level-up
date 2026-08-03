@@ -190,21 +190,21 @@ const EquipoRendimientoMes = ({ asesores, periodoSeleccionado, canal, pais, last
             emoji="🟢"
             count={enMeta}
             label="en meta"
-            tooltip="✅ El asesor alcanzó el 90% o más de su meta ACV del mes.\nIncluye ventas FE, Nube/Campaña y Unidades."
+            tooltip="✅ El asesor alcanzó el 90% o más de su meta del mes.\nIncluye ventas FE, Nube/Campaña y Unidades."
           />
           <StatusBadge
             className="text-orange"
             emoji="🟡"
             count={riesgo}
             label="en riesgo"
-            tooltip="⚠️ El asesor está entre el 60% y 89% de su meta ACV.\nNecesita acelerar ventas para cerrar el mes en meta."
+            tooltip="⚠️ El asesor está entre el 60% y 89% de su meta del mes.\nNecesita acelerar ventas para cerrar el mes en meta."
           />
           <StatusBadge
             className="text-destructive"
             emoji="🔴"
             count={bajo}
             label="bajo meta"
-            tooltip="🔴 El asesor está por debajo del 60% de su meta ACV.\nRequiere atención y acompañamiento urgente."
+            tooltip="🔴 El asesor está por debajo del 60% de su meta del mes.\nRequiere atención y acompañamiento urgente."
           />
           <StatusBadge
             className="text-muted-foreground"
