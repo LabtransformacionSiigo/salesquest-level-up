@@ -379,10 +379,11 @@ const PanelDirector = () => {
         const periodoYYYYMM = `${anio}${String(periodoSel).padStart(2, '0')}`;
         const spMap = new Map<string, number>();
         if (gerenteIds.length) {
+          const datePrefix = `${anio}-${String(periodoSel).padStart(2, '0')}`;
           const spData = await fetchAllInChunks<any>(gerenteIds, (chunk) => supabase
             .from('sp_acumulados')
             .select('gerente_id, sp')
-            .eq('periodo', periodoYYYYMM)
+            .or(`periodo.eq.${periodoYYYYMM},periodo.like.${periodoYYYYMM}-S%,periodo.like.${datePrefix}-%`)
             .in('gerente_id', chunk));
           (spData || []).forEach((r: any) => {
             spMap.set(r.gerente_id, (spMap.get(r.gerente_id) || 0) + (r.sp || 0));

@@ -239,6 +239,9 @@ async function ejecutar(body: any): Promise<any> {
             .range(from, to)
         );
 
+        const resetForPais = fbGerentes.filter((g) => (g.pais || "").toUpperCase() === pais);
+        for (const g of resetForPais) ventasByGerente.set(g.id, []);
+
         for (const r of vd || []) {
           if (!r.celula) continue;
           const teamGerentes = gerentesByKey.get(`${pais}||${norm(r.celula)}`) || [];
@@ -276,10 +279,13 @@ async function ejecutar(body: any): Promise<any> {
 
     // ── Estados de retos previos (para medallas que cuentan completados) ──
     const [diariosPrevRes, semanalesPrevRes, mensualesPrevRes, rachasEstadoRes] = await Promise.all([
-      supabase.from("retos_vn_progreso_diario").select("gerente_id, reto_id, cumple").in("gerente_id", gerenteIds),
-      supabase.from("retos_vn_progreso_semanal").select("gerente_id, reto_id, cumple, anio_mes").in("gerente_id", gerenteIds),
-      supabase.from("retos_vn_progreso_mensual").select("gerente_id, reto_id, cumple, anio_mes").in("gerente_id", gerenteIds),
-      supabase.from("rachas_vn_estado").select("gerente_id, racha_id, racha_activa, dias_o_semanas_consecutivas").in("gerente_id", gerenteIds),
+      supabase.from("retos_vn_progreso_diario").select("gerente_id, reto_id, cumple")
+        .in("gerente_id", gerenteIds).gte("fecha_evaluacion", monthStart).lt("fecha_evaluacion", monthEnd),
+      supabase.from("retos_vn_progreso_semanal").select("gerente_id, reto_id, cumple, anio_mes")
+        .in("gerente_id", gerenteIds).eq("anio_mes", monthKey),
+      supabase.from("retos_vn_progreso_mensual").select("gerente_id, reto_id, cumple, anio_mes")
+        .in("gerente_id", gerenteIds).eq("anio_mes", monthKey),
+      supabase.from("rachas_vn_estado").select("gerente_id, racha_id, racha_activa, dias_o_semanas_consecutivas, ultima_fecha_cumplida").in("gerente_id", gerenteIds),
     ]);
 
     const completadosDiarios = new Map<string, number>();
@@ -314,6 +320,7 @@ async function ejecutar(body: any): Promise<any> {
     const insertsMedalla: any[] = [];
     const spInserts: any[] = [];
     const resultados: any[] = [];
+    const spByRetoPair = new Map<string, number>();
 
     // SP semanal según semana del mes (por país, usando calendario comercial)
     const spSemanalForN = (reto: any, n: number) => {
@@ -395,7 +402,7 @@ async function ejecutar(body: any): Promise<any> {
           });
         } else if (tipo === "SEMANAL") {
           if (kpi === "NUBES") {
-            const metaSemNubes = metaNubeMes > 0 ? Math.ceil(metaNubeMes / 4) : 0;
+            const metaSemNubes = metaNubeMes > 0 ? Math.ceil(metaNubeMes / (numSemanasMes || 4)) : 0;
             cumple = metaSemNubes > 0 && nubesSemana >= metaSemNubes;
             detalle = `nubes_sem:${nubesSemana} meta:${metaSemNubes}`;
             sp = cumple ? spSemanalForN(reto, gSemNum) : 0;
@@ -447,6 +454,7 @@ async function ejecutar(body: any): Promise<any> {
             gerente_id: g.id, fuente, sp, periodo, tipo_sp: "canje",
             detalle: `${reto.nombre} · ${tipo} · ${kpi} · ${detalle}`,
           });
+          spByRetoPair.set(`${g.id}::${reto.id}`, (spByRetoPair.get(`${g.id}::${reto.id}`) || 0) + sp);
         }
       }
 
@@ -477,7 +485,10 @@ async function ejecutar(body: any): Promise<any> {
         }
 
         const prevDias = estadoPrev?.dias_o_semanas_consecutivas || 0;
-        const nuevoConteo = cumpleHoy ? prevDias + 1 : 0;
+        const yaContadoHoy = tipo === "DIARIA"
+          ? estadoPrev?.ultima_fecha_cumplida === today
+          : estadoPrev?.ultima_fecha_cumplida === gWeekEnd;
+        const nuevoConteo = cumpleHoy ? (yaContadoHoy ? prevDias : prevDias + 1) : 0;
         const activa = nuevoConteo >= req;
 
         upsertsRacha.push({
@@ -494,9 +505,7 @@ async function ejecutar(body: any): Promise<any> {
 
         // Bonus por multiplicador: aplica a SP que ya se acaba de otorgar para reto referenciado hoy
         if (activa && cumpleHoy && racha.reto_ref_id) {
-          const spBase = spInserts
-            .filter((s) => s.gerente_id === g.id && s.detalle.includes(reto_nombre_lookup(retos, racha.reto_ref_id)))
-            .reduce((s, x) => s + x.sp, 0);
+          const spBase = spByRetoPair.get(`${g.id}::${racha.reto_ref_id}`) || 0;
           const bonus = Math.round(spBase * ((Number(racha.multiplicador) || 1) - 1));
           if (bonus > 0) {
             spInserts.push({
