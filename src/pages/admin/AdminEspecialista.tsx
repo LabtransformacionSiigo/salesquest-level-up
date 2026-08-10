@@ -156,118 +156,16 @@ const AdminEspecialista = () => {
           variant: 'destructive',
         });
       }
-      fetchLogros();
+      setRefreshKey((k) => k + 1);
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setEjecutando(false);
     }
   };
-  const [logros, setLogros] = useState<any[]>([]);
-  const [loadingLogros, setLoadingLogros] = useState(false);
-  const [logrosFiltro, setLogrosFiltro] = useState<{ tipo: string; desde: string; hasta: string; q: string }>({
-    tipo: 'TODOS', desde: '', hasta: '', q: '',
-  });
-  const fetchLogros = async () => {
-    setLoadingLogros(true);
-    const esAdmin = profile?.role === 'admin';
-    // Cargar permisos en caliente si todavía no están en estado
-    let permisosLocal: Permisos | null = permisos;
-    if (!esAdmin && !permisosLocal && profile?.user_id) {
-      const { data } = await supabase
-        .from('especialista_permisos')
-        .select('paises, operaciones')
-        .eq('user_id', profile.user_id)
-        .maybeSingle();
-      if (data) permisosLocal = { paises: (data as any).paises || [], operaciones: (data as any).operaciones || [] };
-    }
-    const canalesScope = (permisosLocal?.operaciones || [])
-      .map(opToCanalGlobal)
-      .filter(Boolean) as string[];
+  // Fuerza remount de SpCanjeMensual tras ejecutar la evaluación
+  const [refreshKey, setRefreshKey] = useState(0);
 
-    // INNER JOIN a gerentes para filtrar por canal/país server-side
-    let q = supabase
-      .from('sp_acumulados')
-      .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes!inner(nombre, canal, pais)')
-      .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL', 'MEDALLA'])
-      .gt('sp', 0);
-
-    if (!esAdmin) {
-      if (canalesScope.length) q = q.in('gerentes.canal', canalesScope);
-      if (permisosLocal?.paises?.length) q = q.in('gerentes.pais', permisosLocal.paises);
-      q = q.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
-    }
-
-    const { data: spRows } = await q.order('created_at', { ascending: false }).limit(1000);
-
-    let retosQuery = supabase
-      .from('retos_completados')
-      .select('gerente_id, reto, tipo, sp, periodo, fecha, gerentes!inner(nombre, canal, pais)')
-      .gt('sp', 0)
-      .gte('periodo', '2026')
-      .lt('periodo', '2027');
-
-    if (!esAdmin) {
-      if (canalesScope.length) retosQuery = retosQuery.in('gerentes.canal', canalesScope);
-      if (permisosLocal?.paises?.length) retosQuery = retosQuery.in('gerentes.pais', permisosLocal.paises);
-      retosQuery = retosQuery.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
-    }
-
-    const { data: retosRows } = await retosQuery.order('fecha', { ascending: false }).limit(1000);
-
-    const items = (spRows || []).map((r: any) => {
-      const detalle = String(r.detalle || '');
-      const esRacha = detalle.startsWith('RACHA');
-      const esMedalla = r.fuente === 'MEDALLA';
-      const tipoLogro = esMedalla ? 'medalla' : esRacha ? 'racha' : 'reto';
-      const nombre = detalle.split('·')[0]?.trim() || detalle || r.fuente;
-      const ventana = r.fuente === 'RETO_DIARIO' ? 'diario'
-        : r.fuente === 'RETO_SEMANAL' ? 'semanal'
-        : r.fuente === 'RETO_MENSUAL' ? 'mensual'
-        : '—';
-      return {
-        id: r.id,
-        tipo: tipoLogro,
-        gerente: r.gerentes?.nombre || r.gerente_id,
-        canal: r.gerentes?.canal || '',
-        pais: r.gerentes?.pais || '',
-        nombre,
-        detalle,
-        periodo: r.periodo,
-        sp: r.sp,
-        ventana,
-        fecha: r.created_at,
-      };
-    });
-    // Dedupe: si sp_acumulados ya tiene un RETO_* para (gerente, periodo),
-    // omitir todos los retos_completados de ese (gerente, periodo) — el sp_acumulados
-    // ya es la suma consolidada de los subretos (Nube/Legacy/etc), por lo que
-    // mostrar también los subretos duplicaría el SP visible.
-    const spRetoGerentePeriodo = new Set(
-      (spRows || [])
-        .filter((r: any) => String(r.fuente || '').startsWith('RETO_'))
-        .map((r: any) => `${r.gerente_id}::${r.periodo}`)
-    );
-
-    const retosItems = (retosRows || [])
-      .filter((r: any) => !spRetoGerentePeriodo.has(`${r.gerente_id}::${r.periodo}`))
-      .map((r: any) => ({
-        id: `${r.gerente_id}-${r.periodo}-${r.reto}`,
-        tipo: 'reto',
-        gerente: r.gerentes?.nombre || r.gerente_id,
-        canal: r.gerentes?.canal || '',
-        pais: r.gerentes?.pais || '',
-        nombre: r.reto,
-        detalle: r.reto,
-        periodo: r.periodo,
-        sp: r.sp,
-        ventana: String(r.tipo || '').toLowerCase() || '—',
-        fecha: r.fecha || `${r.periodo.slice(0, 4)}-${r.periodo.slice(5, 7) || '01'}-01`,
-      }));
-
-    setLogros([...items, ...retosItems]);
-    setLoadingLogros(false);
-  };
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
@@ -290,29 +188,11 @@ const AdminEspecialista = () => {
   const isEspecialista = profile?.role === 'especialista';
   const isAprobador = profile?.role === 'aprobador';
 
-  const logrosFiltrados = logros.filter((l) => {
-    // Filtro por permisos del especialista (país + canal). Admin ve todo.
-    if (!isAdmin && permisos) {
-      const canalesScope = (permisos.operaciones || [])
-        .map(opToCanalGlobal)
-        .filter(Boolean) as string[];
-      if (permisos.paises?.length && l.pais && !permisos.paises.includes(l.pais)) return false;
-      if (canalesScope.length && l.canal && !canalesScope.includes(l.canal)) return false;
-      if (!l.pais || !l.canal) return false;
-    }
-    if (logrosFiltro.tipo !== 'TODOS' && l.tipo !== logrosFiltro.tipo) return false;
-    if (logrosFiltro.q && !`${l.gerente} ${l.nombre}`.toLowerCase().includes(logrosFiltro.q.toLowerCase())) return false;
-    if (logrosFiltro.desde && l.fecha && l.fecha.slice(0, 10) < logrosFiltro.desde) return false;
-    if (logrosFiltro.hasta && l.fecha && l.fecha.slice(0, 10) > logrosFiltro.hasta) return false;
-    return true;
-  });
-  const totalSpFiltrado = logrosFiltrados.reduce((s, l) => s + (Number(l.sp) || 0), 0);
-
   useEffect(() => {
     if (!isAuthenticated || (!isAdmin && !isEspecialista && !isAprobador)) return;
     loadAll();
-    fetchLogros();
   }, [isAuthenticated, profile?.role, profile?.user_id]);
+
 
   // Map operación → canal de gerente para filtrar el selector
   const operacionToCanal = (op: string): string | null => {
@@ -663,7 +543,7 @@ const AdminEspecialista = () => {
                   <MI icon="bolt" className="text-sm mr-1.5" /> Rachas/Medallas VN
                 </TabsTrigger>
               )}
-              <TabsTrigger value="logros" onClick={fetchLogros}>🏆 Logros &amp; SP Canje</TabsTrigger>
+              <TabsTrigger value="logros">🏆 Logros &amp; SP Canje</TabsTrigger>
             </TabsList>
 
 
@@ -945,18 +825,31 @@ const AdminEspecialista = () => {
                     <p className="text-sm text-muted-foreground">
                       Total de SP Canje ganados por cada gerente en tu alcance, desglosado por mes y fuente (retos, medallas, reconocimientos).
                     </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Cifra auditable: en VN los retos son de equipo, por lo que cada logro se cuenta{' '}
+                      <b>una sola vez por célula</b> (líder del equipo) y no se multiplica por cada integrante.
+                    </p>
                   </div>
-                  {!isAdmin && permisos && (
-                    <div className="flex flex-wrap gap-1.5 text-[11px]">
-                      {permisos.paises.map((p) => (
-                        <span key={p} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">🌎 {p}</span>
-                      ))}
-                      {permisos.operaciones.map((o) => (
-                        <span key={o} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-semibold">{o}</span>
-                      ))}
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{gerentes.length} gerentes</span>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-end gap-2">
+                    {!isAdmin && permisos && (
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        {permisos.paises.map((p) => (
+                          <span key={p} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">🌎 {p}</span>
+                        ))}
+                        {permisos.operaciones.map((o) => (
+                          <span key={o} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-semibold">{o}</span>
+                        ))}
+                        <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{gerentes.length} gerentes</span>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleEjecutarEvaluacion}
+                      disabled={ejecutando}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
+                    </Button>
+                  </div>
                 </div>
                 {dataLoading ? (
                   <Skeleton className="h-64 w-full" />
@@ -967,110 +860,11 @@ const AdminEspecialista = () => {
                     <p className="text-xs mt-1">Verifica con un admin que tus países y operaciones estén configurados.</p>
                   </div>
                 ) : (
-                  <SpCanjeMensual key={gerentes.map(g => g.id).join(',')} gerentes={gerentes} isAdmin={isAdmin} />
+                  <SpCanjeMensual key={`${gerentes.map(g => g.id).join(',')}|${refreshKey}`} gerentes={gerentes} isAdmin={isAdmin} />
                 )}
               </section>
 
-              <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
-                <div>
-                  <h3 className="font-semibold text-lg">Detalle de logros por gerente</h3>
-                  <p className="text-sm text-muted-foreground">Retos completados, rachas y medallas desbloqueadas — uno por línea</p>
-                </div>
-                <Button
-                  onClick={handleEjecutarEvaluacion}
-                  disabled={ejecutando}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
-                </Button>
-              </div>
-              {/* Filtros */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
-                <select
-                  value={logrosFiltro.tipo}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, tipo: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="TODOS">Todos los tipos</option>
-                  <option value="reto">🎯 Retos</option>
-                  <option value="racha">🔥 Rachas</option>
-                  <option value="medalla">🏅 Medallas</option>
-                </select>
-                <Input
-                  type="date"
-                  value={logrosFiltro.desde}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, desde: e.target.value })}
-                  placeholder="Desde"
-                />
-                <Input
-                  type="date"
-                  value={logrosFiltro.hasta}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, hasta: e.target.value })}
-                  placeholder="Hasta"
-                />
-                <Input
-                  placeholder="Buscar gerente o reto…"
-                  value={logrosFiltro.q}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, q: e.target.value })}
-                  className="md:col-span-2"
-                />
-              </div>
 
-              <div className="flex items-center gap-4 mb-3 text-sm">
-                <span className="px-3 py-1 rounded-full bg-muted font-medium">{logrosFiltrados.length} logros</span>
-                <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">+{totalSpFiltrado} SP Canje</span>
-              </div>
-
-              {loadingLogros ? (
-                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-              ) : logrosFiltrados.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-4xl mb-2">🏆</p>
-                  <p className="font-medium">No hay logros que coincidan</p>
-                  <p className="text-sm mt-1">Ejecuta la evaluación o ajusta los filtros</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr className="text-left text-muted-foreground">
-                        <th className="p-2">Tipo</th>
-                        <th className="p-2">Gerente</th>
-                        <th className="p-2">Canal/País</th>
-                        <th className="p-2">Reto / Racha / Medalla</th>
-                        <th className="p-2">Ventana</th>
-                        <th className="p-2">Período</th>
-                        <th className="p-2">Fecha exacta</th>
-                        <th className="p-2 text-right">SP Canje</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logrosFiltrados.map((l) => (
-                        <tr key={l.id} className="border-t hover:bg-muted/30">
-                          <td className="p-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              l.tipo === 'reto' ? 'bg-blue-100 text-blue-700'
-                              : l.tipo === 'racha' ? 'bg-orange-100 text-orange-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {l.tipo === 'reto' ? '🎯 Reto' : l.tipo === 'racha' ? '🔥 Racha' : '🏅 Medalla'}
-                            </span>
-                          </td>
-                          <td className="p-2 font-medium">{l.gerente}</td>
-                          <td className="p-2 text-xs text-muted-foreground">{l.canal} · {l.pais}</td>
-                          <td className="p-2" title={l.detalle}>{l.nombre}</td>
-                          <td className="p-2 text-muted-foreground capitalize">{l.ventana}</td>
-                          <td className="p-2 text-muted-foreground">{l.periodo}</td>
-                          <td className="p-2 text-xs text-muted-foreground">
-                            {l.fecha ? new Date(l.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-                          </td>
-                          <td className="p-2 font-bold text-green-600 text-right">+{l.sp} SP</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </TabsContent>
           </Tabs>
         )}
