@@ -945,18 +945,31 @@ const AdminEspecialista = () => {
                     <p className="text-sm text-muted-foreground">
                       Total de SP Canje ganados por cada gerente en tu alcance, desglosado por mes y fuente (retos, medallas, reconocimientos).
                     </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Cifra auditable: en VN los retos son de equipo, por lo que cada logro se cuenta{' '}
+                      <b>una sola vez por célula</b> (líder del equipo) y no se multiplica por cada integrante.
+                    </p>
                   </div>
-                  {!isAdmin && permisos && (
-                    <div className="flex flex-wrap gap-1.5 text-[11px]">
-                      {permisos.paises.map((p) => (
-                        <span key={p} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">🌎 {p}</span>
-                      ))}
-                      {permisos.operaciones.map((o) => (
-                        <span key={o} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-semibold">{o}</span>
-                      ))}
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{gerentes.length} gerentes</span>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-end gap-2">
+                    {!isAdmin && permisos && (
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        {permisos.paises.map((p) => (
+                          <span key={p} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">🌎 {p}</span>
+                        ))}
+                        {permisos.operaciones.map((o) => (
+                          <span key={o} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-semibold">{o}</span>
+                        ))}
+                        <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{gerentes.length} gerentes</span>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleEjecutarEvaluacion}
+                      disabled={ejecutando}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
+                    </Button>
+                  </div>
                 </div>
                 {dataLoading ? (
                   <Skeleton className="h-64 w-full" />
@@ -967,110 +980,11 @@ const AdminEspecialista = () => {
                     <p className="text-xs mt-1">Verifica con un admin que tus países y operaciones estén configurados.</p>
                   </div>
                 ) : (
-                  <SpCanjeMensual key={gerentes.map(g => g.id).join(',')} gerentes={gerentes} isAdmin={isAdmin} />
+                  <SpCanjeMensual key={`${gerentes.map(g => g.id).join(',')}|${refreshKey}`} gerentes={gerentes} isAdmin={isAdmin} />
                 )}
               </section>
 
-              <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
-                <div>
-                  <h3 className="font-semibold text-lg">Detalle de logros por gerente</h3>
-                  <p className="text-sm text-muted-foreground">Retos completados, rachas y medallas desbloqueadas — uno por línea</p>
-                </div>
-                <Button
-                  onClick={handleEjecutarEvaluacion}
-                  disabled={ejecutando}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {ejecutando ? '⏳ Evaluando VC + VN...' : '▶ Ejecutar Evaluación (VC + VN)'}
-                </Button>
-              </div>
-              {/* Filtros */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
-                <select
-                  value={logrosFiltro.tipo}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, tipo: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="TODOS">Todos los tipos</option>
-                  <option value="reto">🎯 Retos</option>
-                  <option value="racha">🔥 Rachas</option>
-                  <option value="medalla">🏅 Medallas</option>
-                </select>
-                <Input
-                  type="date"
-                  value={logrosFiltro.desde}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, desde: e.target.value })}
-                  placeholder="Desde"
-                />
-                <Input
-                  type="date"
-                  value={logrosFiltro.hasta}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, hasta: e.target.value })}
-                  placeholder="Hasta"
-                />
-                <Input
-                  placeholder="Buscar gerente o reto…"
-                  value={logrosFiltro.q}
-                  onChange={(e) => setLogrosFiltro({ ...logrosFiltro, q: e.target.value })}
-                  className="md:col-span-2"
-                />
-              </div>
 
-              <div className="flex items-center gap-4 mb-3 text-sm">
-                <span className="px-3 py-1 rounded-full bg-muted font-medium">{logrosFiltrados.length} logros</span>
-                <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">+{totalSpFiltrado} SP Canje</span>
-              </div>
-
-              {loadingLogros ? (
-                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-              ) : logrosFiltrados.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-4xl mb-2">🏆</p>
-                  <p className="font-medium">No hay logros que coincidan</p>
-                  <p className="text-sm mt-1">Ejecuta la evaluación o ajusta los filtros</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr className="text-left text-muted-foreground">
-                        <th className="p-2">Tipo</th>
-                        <th className="p-2">Gerente</th>
-                        <th className="p-2">Canal/País</th>
-                        <th className="p-2">Reto / Racha / Medalla</th>
-                        <th className="p-2">Ventana</th>
-                        <th className="p-2">Período</th>
-                        <th className="p-2">Fecha exacta</th>
-                        <th className="p-2 text-right">SP Canje</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logrosFiltrados.map((l) => (
-                        <tr key={l.id} className="border-t hover:bg-muted/30">
-                          <td className="p-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              l.tipo === 'reto' ? 'bg-blue-100 text-blue-700'
-                              : l.tipo === 'racha' ? 'bg-orange-100 text-orange-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {l.tipo === 'reto' ? '🎯 Reto' : l.tipo === 'racha' ? '🔥 Racha' : '🏅 Medalla'}
-                            </span>
-                          </td>
-                          <td className="p-2 font-medium">{l.gerente}</td>
-                          <td className="p-2 text-xs text-muted-foreground">{l.canal} · {l.pais}</td>
-                          <td className="p-2" title={l.detalle}>{l.nombre}</td>
-                          <td className="p-2 text-muted-foreground capitalize">{l.ventana}</td>
-                          <td className="p-2 text-muted-foreground">{l.periodo}</td>
-                          <td className="p-2 text-xs text-muted-foreground">
-                            {l.fecha ? new Date(l.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-                          </td>
-                          <td className="p-2 font-bold text-green-600 text-right">+{l.sp} SP</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </TabsContent>
           </Tabs>
         )}
