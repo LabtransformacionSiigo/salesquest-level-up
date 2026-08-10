@@ -156,118 +156,16 @@ const AdminEspecialista = () => {
           variant: 'destructive',
         });
       }
-      fetchLogros();
+      setRefreshKey((k) => k + 1);
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setEjecutando(false);
     }
   };
-  const [logros, setLogros] = useState<any[]>([]);
-  const [loadingLogros, setLoadingLogros] = useState(false);
-  const [logrosFiltro, setLogrosFiltro] = useState<{ tipo: string; desde: string; hasta: string; q: string }>({
-    tipo: 'TODOS', desde: '', hasta: '', q: '',
-  });
-  const fetchLogros = async () => {
-    setLoadingLogros(true);
-    const esAdmin = profile?.role === 'admin';
-    // Cargar permisos en caliente si todavía no están en estado
-    let permisosLocal: Permisos | null = permisos;
-    if (!esAdmin && !permisosLocal && profile?.user_id) {
-      const { data } = await supabase
-        .from('especialista_permisos')
-        .select('paises, operaciones')
-        .eq('user_id', profile.user_id)
-        .maybeSingle();
-      if (data) permisosLocal = { paises: (data as any).paises || [], operaciones: (data as any).operaciones || [] };
-    }
-    const canalesScope = (permisosLocal?.operaciones || [])
-      .map(opToCanalGlobal)
-      .filter(Boolean) as string[];
+  // Fuerza remount de SpCanjeMensual tras ejecutar la evaluación
+  const [refreshKey, setRefreshKey] = useState(0);
 
-    // INNER JOIN a gerentes para filtrar por canal/país server-side
-    let q = supabase
-      .from('sp_acumulados')
-      .select('id, gerente_id, fuente, sp, periodo, detalle, created_at, gerentes!inner(nombre, canal, pais)')
-      .in('fuente', ['RETO_DIARIO', 'RETO_SEMANAL', 'RETO_MENSUAL', 'MEDALLA'])
-      .gt('sp', 0);
-
-    if (!esAdmin) {
-      if (canalesScope.length) q = q.in('gerentes.canal', canalesScope);
-      if (permisosLocal?.paises?.length) q = q.in('gerentes.pais', permisosLocal.paises);
-      q = q.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
-    }
-
-    const { data: spRows } = await q.order('created_at', { ascending: false }).limit(1000);
-
-    let retosQuery = supabase
-      .from('retos_completados')
-      .select('gerente_id, reto, tipo, sp, periodo, fecha, gerentes!inner(nombre, canal, pais)')
-      .gt('sp', 0)
-      .gte('periodo', '2026')
-      .lt('periodo', '2027');
-
-    if (!esAdmin) {
-      if (canalesScope.length) retosQuery = retosQuery.in('gerentes.canal', canalesScope);
-      if (permisosLocal?.paises?.length) retosQuery = retosQuery.in('gerentes.pais', permisosLocal.paises);
-      retosQuery = retosQuery.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
-    }
-
-    const { data: retosRows } = await retosQuery.order('fecha', { ascending: false }).limit(1000);
-
-    const items = (spRows || []).map((r: any) => {
-      const detalle = String(r.detalle || '');
-      const esRacha = detalle.startsWith('RACHA');
-      const esMedalla = r.fuente === 'MEDALLA';
-      const tipoLogro = esMedalla ? 'medalla' : esRacha ? 'racha' : 'reto';
-      const nombre = detalle.split('·')[0]?.trim() || detalle || r.fuente;
-      const ventana = r.fuente === 'RETO_DIARIO' ? 'diario'
-        : r.fuente === 'RETO_SEMANAL' ? 'semanal'
-        : r.fuente === 'RETO_MENSUAL' ? 'mensual'
-        : '—';
-      return {
-        id: r.id,
-        tipo: tipoLogro,
-        gerente: r.gerentes?.nombre || r.gerente_id,
-        canal: r.gerentes?.canal || '',
-        pais: r.gerentes?.pais || '',
-        nombre,
-        detalle,
-        periodo: r.periodo,
-        sp: r.sp,
-        ventana,
-        fecha: r.created_at,
-      };
-    });
-    // Dedupe: si sp_acumulados ya tiene un RETO_* para (gerente, periodo),
-    // omitir todos los retos_completados de ese (gerente, periodo) — el sp_acumulados
-    // ya es la suma consolidada de los subretos (Nube/Legacy/etc), por lo que
-    // mostrar también los subretos duplicaría el SP visible.
-    const spRetoGerentePeriodo = new Set(
-      (spRows || [])
-        .filter((r: any) => String(r.fuente || '').startsWith('RETO_'))
-        .map((r: any) => `${r.gerente_id}::${r.periodo}`)
-    );
-
-    const retosItems = (retosRows || [])
-      .filter((r: any) => !spRetoGerentePeriodo.has(`${r.gerente_id}::${r.periodo}`))
-      .map((r: any) => ({
-        id: `${r.gerente_id}-${r.periodo}-${r.reto}`,
-        tipo: 'reto',
-        gerente: r.gerentes?.nombre || r.gerente_id,
-        canal: r.gerentes?.canal || '',
-        pais: r.gerentes?.pais || '',
-        nombre: r.reto,
-        detalle: r.reto,
-        periodo: r.periodo,
-        sp: r.sp,
-        ventana: String(r.tipo || '').toLowerCase() || '—',
-        fecha: r.fecha || `${r.periodo.slice(0, 4)}-${r.periodo.slice(5, 7) || '01'}-01`,
-      }));
-
-    setLogros([...items, ...retosItems]);
-    setLoadingLogros(false);
-  };
   const [permisos, setPermisos] = useState<Permisos | null>(null);
   const [retos, setRetos] = useState<any[]>([]);
   const [rachas, setRachas] = useState<any[]>([]);
