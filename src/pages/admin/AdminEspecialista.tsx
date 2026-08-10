@@ -195,6 +195,7 @@ const AdminEspecialista = () => {
     if (!esAdmin) {
       if (canalesScope.length) q = q.in('gerentes.canal', canalesScope);
       if (permisosLocal?.paises?.length) q = q.in('gerentes.pais', permisosLocal.paises);
+      q = q.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
     }
 
     const { data: spRows } = await q.order('created_at', { ascending: false }).limit(1000);
@@ -209,6 +210,7 @@ const AdminEspecialista = () => {
     if (!esAdmin) {
       if (canalesScope.length) retosQuery = retosQuery.in('gerentes.canal', canalesScope);
       if (permisosLocal?.paises?.length) retosQuery = retosQuery.in('gerentes.pais', permisosLocal.paises);
+      retosQuery = retosQuery.not('gerentes.celula', 'is', null).neq('gerentes.celula', '');
     }
 
     const { data: retosRows } = await retosQuery.order('fecha', { ascending: false }).limit(1000);
