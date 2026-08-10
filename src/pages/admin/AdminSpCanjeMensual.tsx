@@ -52,6 +52,7 @@ const AdminSpCanjeMensual = () => {
       if (!isAdmin) {
         if (paises.length) q = q.in('pais', paises);
         if (canales.length) q = q.in('canal', canales);
+        q = q.not('celula', 'is', null).neq('celula', '');
       }
       const { data } = await q;
       const rows = data || [];
