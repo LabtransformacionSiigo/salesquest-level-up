@@ -358,13 +358,16 @@ Deno.serve(async (req) => {
       const override = cellFeNubeMap.get(overrideKey);
       const canalNorm = normCanal(String(canal));
       const paisNorm = normPais(String(pais));
-      const fuenteNubeMx = Math.round(toNum(nubeRaw) || (toNum(coiRaw) + toNum(noiRaw)));
-      // México VN (Aliados Y Empresarios): la meta Nube oficial = nube || (coi+noi)
-      // de tbl_brz_cuotas_gerentes. El override de metas_asesores trae nube=0 en MX.
-      const isMexVn = paisNorm === "MEX" && (canalNorm === "VN_ALIADOS" || canalNorm === "VN_EMPRESARIOS");
-      const feFinal = override && !isMexVn ? override.fe : Math.round(toNum(feRaw));
-      const nubeFinal = override && !isMexVn ? override.nube : fuenteNubeMx;
-      const metaUndFinal = override && !isMexVn ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
+      const esMex = paisNorm === "MEX";
+      // México: la meta de Nube es SIEMPRE COI + NOI (regla de negocio).
+      // Nunca se usa la columna `nube` ni el override de metas_asesores.
+      const nubeMexCoiNoi = Math.round(toNum(coiRaw) + toNum(noiRaw));
+      const usaOverride = override && !(esMex && canalNorm === "VN_ALIADOS");
+      const feFinal = usaOverride ? override.fe : Math.round(toNum(feRaw));
+      const nubeFinal = esMex
+        ? nubeMexCoiNoi
+        : (usaOverride ? override.nube : Math.round(toNum(nubeRaw) || nubeMexCoiNoi));
+      const metaUndFinal = usaOverride ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
         p_pais: paisNorm,
