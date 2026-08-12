@@ -30,7 +30,16 @@ const FUENTES = [
 ];
 
 type Gerente = { id: string; nombre: string; canal: string | null; pais: string | null; celula?: string | null };
-type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; fecha?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
+type SpRow = {
+  gerente_id: string; periodo: string; fuente: string; sp: number;
+  detalle?: string | null; fecha?: string | null;
+  origen?: 'sp_acumulados' | 'retos_completados';
+  semana_desde?: string | null;
+  semana_hasta?: string | null;
+  semana_acv?: number | null;
+  semana_meta?: number | null;
+  semana_pct?: number | null;
+};
 
 interface Props {
   gerentes: Gerente[];
