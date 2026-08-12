@@ -96,7 +96,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
           .lt('periodo', '2027');
         if (spError) { console.error(spError); break; }
 
-        const spRows = ((spData || []) as any[]).map((r) => ({
+        const spRows = ((spData || []) as any[]).map((r): SpRow => ({
           gerente_id: r.gerente_id,
           fuente: r.fuente,
           sp: r.sp,
