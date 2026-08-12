@@ -105,7 +105,20 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
           fecha: r.created_at,
           origen: 'sp_acumulados' as const,
         }));
-        all.push(...spRows);
+        const spRowsEnriquecidas = spRows.map((r) => {
+          if (r.fuente !== 'RETO_SEMANAL') return r;
+          const s = semanaMap.get(`${r.gerente_id}|${r.periodo}`);
+          if (!s) return r;
+          return {
+            ...r,
+            semana_desde: s.fecha_inicio_semana,
+            semana_hasta: s.fecha_fin_semana,
+            semana_acv: Number(s.acv_real) || 0,
+            semana_meta: Number(s.meta_semanal_acv) || 0,
+            semana_pct: Number(s.pct_cumplimiento) || 0,
+          };
+        });
+        all.push(...spRowsEnriquecidas);
 
         const { data: retosData, error: retosError } = await supabase
           .from('retos_completados')
