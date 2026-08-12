@@ -44,6 +44,29 @@ const weekOfMonth = (d: Date) => {
   return Math.max(1, Math.min(4, w));
 };
 
+// Semanas comerciales que PARTEN el mes: S1 arranca el día 1 y S4 cierra el
+// último día. Tramos: 1-7, 8-14, 15-21, 22-fin de mes. `end` es EXCLUSIVO.
+// Garantiza que ningún día del mes quede fuera de una ventana semanal.
+const monthWeekRange = (d: Date) => {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const dayOfMonth = d.getUTCDate();
+  const num = Math.max(1, Math.min(4, Math.ceil(dayOfMonth / 7)));
+  const start = new Date(Date.UTC(y, m, (num - 1) * 7 + 1));
+  // S4 se extiende hasta el primer día del mes siguiente (exclusivo),
+  // así cubre meses de 28, 29, 30 o 31 días.
+  const endExcl = num === 4
+    ? new Date(Date.UTC(y, m + 1, 1))
+    : new Date(Date.UTC(y, m, num * 7 + 1));
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: endExcl.toISOString().slice(0, 10),
+    num,
+  };
+};
+
+
+
 // Paginated SELECT helper — Supabase Data API truncates at 1000 rows.
 // Sin esto, ventas_diarias COL (>1000 filas/mes) se trunca y las células
 // más rezagadas nunca reciben sus ventas → retos siempre cumple=false.
@@ -88,8 +111,8 @@ async function ejecutar(body: any): Promise<any> {
 
 
     const { start: monthStart, end: monthEnd } = toMonthRange(fechaBase);
-    const { start: weekStart, end: weekEnd } = isoWeekRange(fechaBase);
-    const semNumMes = weekOfMonth(fechaBase);
+    const { start: weekStart, end: weekEnd, num: semNumMes } = monthWeekRange(fechaBase);
+
 
     const todayStr = today;
     const isVigente = (it: { fecha_inicio?: string | null; fecha_fin?: string | null }) =>
