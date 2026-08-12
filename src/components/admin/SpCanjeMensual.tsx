@@ -74,8 +74,19 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
       //    aunque todavía no hayan sido sincronizados a sp_acumulados.
       const chunkSize = 200;
       const all: SpRow[] = [];
+      const semanaMap = new Map<string, any>();
       for (let i = 0; i < gerenteIds.length; i += chunkSize) {
         const chunk = gerenteIds.slice(i, i + chunkSize);
+        const { data: semData } = await supabase
+          .from('retos_vn_progreso_semanal')
+          .select('gerente_id, anio_mes, semana_numero, fecha_inicio_semana, fecha_fin_semana, acv_real, meta_semanal_acv, pct_cumplimiento')
+          .in('gerente_id', chunk)
+          .eq('cumple', true);
+        // Clave: `${gerente_id}|${anio_mes}-S${semana_numero}` → coincide con periodo '202605-S3'
+        (semData || []).forEach((s: any) => {
+          semanaMap.set(`${s.gerente_id}|${s.anio_mes}-S${s.semana_numero}`, s);
+        });
+
         const { data: spData, error: spError } = await supabase
           .from('sp_acumulados')
           .select('gerente_id, fuente, sp, periodo, detalle, created_at')
