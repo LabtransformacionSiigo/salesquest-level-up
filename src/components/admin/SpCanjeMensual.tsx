@@ -413,6 +413,20 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
                               <td className="p-2 pl-16 sticky left-0 bg-background text-foreground/80">
                                 <div className="font-medium truncate max-w-[320px]" title={it.detalle || ''}>{it.detalle || '—'}</div>
                                 <div className="text-[10px] text-muted-foreground">
+                                  {it.semana_desde && it.semana_hasta && (
+                                    <span className="text-foreground/70 font-medium">
+                                      📅 {new Date(it.semana_desde + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                      {' → '}
+                                      {new Date(it.semana_hasta + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                      {' · '}
+                                    </span>
+                                  )}
+                                  {typeof it.semana_pct === 'number' && it.semana_meta ? (
+                                    <span>
+                                      ACV {Math.round(it.semana_acv || 0).toLocaleString('es-CO')} / {Math.round(it.semana_meta).toLocaleString('es-CO')}
+                                      {' ('}{it.semana_pct.toFixed(1)}%{') · '}
+                                    </span>
+                                  ) : null}
                                   🏆 Ganado: {cuandoGano}{fechaRegistro ? ` · registrado ${fechaRegistro}` : ''} · {it.origen === 'retos_completados' ? 'histórico' : 'sp_acumulados'}
                                 </div>
                               </td>
