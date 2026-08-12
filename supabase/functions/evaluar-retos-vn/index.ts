@@ -111,8 +111,8 @@ async function ejecutar(body: any): Promise<any> {
 
 
     const { start: monthStart, end: monthEnd } = toMonthRange(fechaBase);
-    const { start: weekStart, end: weekEnd } = isoWeekRange(fechaBase);
-    const semNumMes = weekOfMonth(fechaBase);
+    const { start: weekStart, end: weekEnd, num: semNumMes } = monthWeekRange(fechaBase);
+
 
     const todayStr = today;
     const isVigente = (it: { fecha_inicio?: string | null; fecha_fin?: string | null }) =>
