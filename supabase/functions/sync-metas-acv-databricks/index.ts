@@ -364,8 +364,10 @@ Deno.serve(async (req) => {
       const nubeMexCoiNoi = Math.round(toNum(coiRaw) + toNum(noiRaw));
       const usaOverride = override && !(esMex && canalNorm === "VN_ALIADOS");
       const feFinal = usaOverride ? override.fe : Math.round(toNum(feRaw));
+      // México: prioriza COI + NOI (regla de negocio). Si COI+NOI viene en 0
+      // (caso SMBS, donde la meta llega en la columna `nube`), usa `nube`.
       const nubeFinal = esMex
-        ? nubeMexCoiNoi
+        ? (nubeMexCoiNoi || Math.round(toNum(nubeRaw)))
         : (usaOverride ? override.nube : Math.round(toNum(nubeRaw) || nubeMexCoiNoi));
       const metaUndFinal = usaOverride ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
