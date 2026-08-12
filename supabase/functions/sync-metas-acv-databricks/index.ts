@@ -359,16 +359,16 @@ Deno.serve(async (req) => {
       const canalNorm = normCanal(String(canal));
       const paisNorm = normPais(String(pais));
       const esMex = paisNorm === "MEX";
-      // México: la meta de Nube es SIEMPRE COI + NOI (regla de negocio).
-      // Nunca se usa la columna `nube` ni el override de metas_asesores.
-      const nubeMexCoiNoi = Math.round(toNum(coiRaw) + toNum(noiRaw));
+      // México: la meta de Nube es la SUMATORIA de las tres columnas
+      // (nube + coi + noi). Algunas células traen el dato en `nube` y otras
+      // en `coi`/`noi`; sumarlas cubre ambos casos. Nunca usar el override
+      // de metas_asesores para México.
+      const nubeMexTotal = Math.round(toNum(nubeRaw) + toNum(coiRaw) + toNum(noiRaw));
       const usaOverride = override && !(esMex && canalNorm === "VN_ALIADOS");
       const feFinal = usaOverride ? override.fe : Math.round(toNum(feRaw));
-      // México: prioriza COI + NOI (regla de negocio). Si COI+NOI viene en 0
-      // (caso SMBS, donde la meta llega en la columna `nube`), usa `nube`.
       const nubeFinal = esMex
-        ? (nubeMexCoiNoi || Math.round(toNum(nubeRaw)))
-        : (usaOverride ? override.nube : Math.round(toNum(nubeRaw) || nubeMexCoiNoi));
+        ? nubeMexTotal
+        : (usaOverride ? override.nube : Math.round(toNum(nubeRaw)));
       const metaUndFinal = usaOverride ? feFinal + nubeFinal : Math.round(toNum(metaUnd));
 
       const { data, error } = await supabase.rpc("upsert_meta_acv_gerente", {
