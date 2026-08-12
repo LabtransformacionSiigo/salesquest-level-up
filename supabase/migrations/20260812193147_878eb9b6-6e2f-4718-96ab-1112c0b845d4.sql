@@ -1,0 +1,1 @@
+SELECT public.recalcular_sp_canje_global();
