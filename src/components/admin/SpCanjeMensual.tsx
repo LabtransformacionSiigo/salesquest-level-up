@@ -30,7 +30,16 @@ const FUENTES = [
 ];
 
 type Gerente = { id: string; nombre: string; canal: string | null; pais: string | null; celula?: string | null };
-type SpRow = { gerente_id: string; periodo: string; fuente: string; sp: number; detalle?: string | null; fecha?: string | null; origen?: 'sp_acumulados' | 'retos_completados' };
+type SpRow = {
+  gerente_id: string; periodo: string; fuente: string; sp: number;
+  detalle?: string | null; fecha?: string | null;
+  origen?: 'sp_acumulados' | 'retos_completados';
+  semana_desde?: string | null;
+  semana_hasta?: string | null;
+  semana_acv?: number | null;
+  semana_meta?: number | null;
+  semana_pct?: number | null;
+};
 
 interface Props {
   gerentes: Gerente[];
@@ -65,8 +74,19 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
       //    aunque todavía no hayan sido sincronizados a sp_acumulados.
       const chunkSize = 200;
       const all: SpRow[] = [];
+      const semanaMap = new Map<string, any>();
       for (let i = 0; i < gerenteIds.length; i += chunkSize) {
         const chunk = gerenteIds.slice(i, i + chunkSize);
+        const { data: semData } = await supabase
+          .from('retos_vn_progreso_semanal')
+          .select('gerente_id, anio_mes, semana_numero, fecha_inicio_semana, fecha_fin_semana, acv_real, meta_semanal_acv, pct_cumplimiento')
+          .in('gerente_id', chunk)
+          .eq('cumple', true);
+        // Clave: `${gerente_id}|${anio_mes}-S${semana_numero}` → coincide con periodo '202605-S3'
+        (semData || []).forEach((s: any) => {
+          semanaMap.set(`${s.gerente_id}|${s.anio_mes}-S${s.semana_numero}`, s);
+        });
+
         const { data: spData, error: spError } = await supabase
           .from('sp_acumulados')
           .select('gerente_id, fuente, sp, periodo, detalle, created_at')
@@ -76,7 +96,7 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
           .lt('periodo', '2027');
         if (spError) { console.error(spError); break; }
 
-        const spRows = ((spData || []) as any[]).map((r) => ({
+        const spRows = ((spData || []) as any[]).map((r): SpRow => ({
           gerente_id: r.gerente_id,
           fuente: r.fuente,
           sp: r.sp,
@@ -85,7 +105,20 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
           fecha: r.created_at,
           origen: 'sp_acumulados' as const,
         }));
-        all.push(...spRows);
+        const spRowsEnriquecidas = spRows.map((r) => {
+          if (r.fuente !== 'RETO_SEMANAL') return r;
+          const s = semanaMap.get(`${r.gerente_id}|${r.periodo}`);
+          if (!s) return r;
+          return {
+            ...r,
+            semana_desde: s.fecha_inicio_semana,
+            semana_hasta: s.fecha_fin_semana,
+            semana_acv: Number(s.acv_real) || 0,
+            semana_meta: Number(s.meta_semanal_acv) || 0,
+            semana_pct: Number(s.pct_cumplimiento) || 0,
+          };
+        });
+        all.push(...spRowsEnriquecidas);
 
         const { data: retosData, error: retosError } = await supabase
           .from('retos_completados')
@@ -380,6 +413,20 @@ const SpCanjeMensual = ({ gerentes, isAdmin }: Props) => {
                               <td className="p-2 pl-16 sticky left-0 bg-background text-foreground/80">
                                 <div className="font-medium truncate max-w-[320px]" title={it.detalle || ''}>{it.detalle || '—'}</div>
                                 <div className="text-[10px] text-muted-foreground">
+                                  {it.semana_desde && it.semana_hasta && (
+                                    <span className="text-foreground/70 font-medium">
+                                      📅 {new Date(it.semana_desde + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                      {' → '}
+                                      {new Date(it.semana_hasta + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                      {' · '}
+                                    </span>
+                                  )}
+                                  {typeof it.semana_pct === 'number' && it.semana_meta ? (
+                                    <span>
+                                      ACV {Math.round(it.semana_acv || 0).toLocaleString('es-CO')} / {Math.round(it.semana_meta).toLocaleString('es-CO')}
+                                      {' ('}{it.semana_pct.toFixed(1)}%{') · '}
+                                    </span>
+                                  ) : null}
                                   🏆 Ganado: {cuandoGano}{fechaRegistro ? ` · registrado ${fechaRegistro}` : ''} · {it.origen === 'retos_completados' ? 'histórico' : 'sp_acumulados'}
                                 </div>
                               </td>
