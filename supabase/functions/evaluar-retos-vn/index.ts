@@ -639,6 +639,66 @@ async function ejecutar(body: any): Promise<any> {
     }
     let spPersistidos = 0;
     let spDeltaNeto = 0;
+
+    // ── Limpieza previa de sp_acumulados ──
+    // El upsert no elimina registros de retos que dejaron de cumplirse: si una
+    // corrida vieja otorgó SP con una meta/venta que luego cambió, la fila queda
+    // huérfana para siempre. Antes de escribir, borramos EXACTAMENTE los
+    // (gerente_id, fuente, periodo) que esta misma corrida recalcula:
+    //   RETO_DIARIO  → periodo = fecha evaluada (YYYY-MM-DD)
+    //   RETO_SEMANAL → periodo = <monthKey>-S<gSemNum> (calendario por país)
+    //   RETO_MENSUAL → periodo = <monthKey>
+    // Solo tipo_sp='canje'. Nunca MEDALLA, RECONOCIMIENTO_*, CUMPLIMIENTO_META
+    // ni 'convencion', ni periodos distintos al evaluado.
+    if (!dryRun && gerenteIds.length > 0) {
+      const periodosSemanales = Array.from(new Set(periodoSemanalByGerente.values()));
+      const pares: Array<[string, string]> = [
+        ["RETO_DIARIO", today],
+        ["RETO_MENSUAL", monthKey],
+        ...periodosSemanales.map((p) => ["RETO_SEMANAL", p] as [string, string]),
+      ];
+      for (let i = 0; i < gerenteIds.length; i += 200) {
+        const chunkIds = gerenteIds.slice(i, i + 200);
+        for (const [fuente, periodo] of pares) {
+          // Restar del saldo gerentes.sp_canje lo que se va a borrar,
+          // para que el delta neto posterior quede consistente.
+          const { data: previas, error: selErr } = await supabase
+            .from("sp_acumulados")
+            .select("gerente_id, sp")
+            .in("gerente_id", chunkIds)
+            .eq("fuente", fuente)
+            .eq("periodo", periodo)
+            .eq("tipo_sp", "canje");
+          if (selErr) {
+            console.error(`[evaluar-retos-vn] limpieza select ${fuente} ${periodo}:`, selErr.message);
+            continue;
+          }
+          if (!previas || previas.length === 0) continue;
+
+          const { error: delErr } = await supabase
+            .from("sp_acumulados")
+            .delete()
+            .in("gerente_id", chunkIds)
+            .eq("fuente", fuente)
+            .eq("periodo", periodo)
+            .eq("tipo_sp", "canje");
+          if (delErr) {
+            console.error(`[evaluar-retos-vn] limpieza ${fuente} ${periodo}:`, delErr.message);
+            continue;
+          }
+          const restaByGid = new Map<string, number>();
+          for (const r of previas) {
+            const s = Number(r.sp) || 0;
+            if (s !== 0) restaByGid.set(r.gerente_id, (restaByGid.get(r.gerente_id) || 0) - s);
+          }
+          for (const [gid, tot] of restaByGid.entries()) {
+            await supabase.rpc("increment_gerente_sp_canje", { p_gerente_id: gid, p_delta: tot });
+            spDeltaNeto += tot;
+          }
+        }
+      }
+    }
+
     if (spInserts.length > 0) {
       // La tabla sp_acumulados tiene una sola fila permitida por
       // (gerente_id, fuente, periodo). Por eso agregamos TODOS los retos
