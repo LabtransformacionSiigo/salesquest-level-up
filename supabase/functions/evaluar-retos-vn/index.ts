@@ -651,15 +651,26 @@ async function ejecutar(body: any): Promise<any> {
     // Solo tipo_sp='canje'. Nunca MEDALLA, RECONOCIMIENTO_*, CUMPLIMIENTO_META
     // ni 'convencion', ni periodos distintos al evaluado.
     if (!dryRun && gerenteIds.length > 0) {
-      const periodosSemanales = Array.from(new Set(periodoSemanalByGerente.values()));
-      const pares: Array<[string, string]> = [
+      // DIARIO y MENSUAL: el periodo es igual para todos los gerentes de la corrida.
+      const paresGlobales: Array<[string, string]> = [
         ["RETO_DIARIO", today],
         ["RETO_MENSUAL", monthKey],
-        ...periodosSemanales.map((p) => ["RETO_SEMANAL", p] as [string, string]),
       ];
-      for (let i = 0; i < gerenteIds.length; i += 200) {
-        const chunkIds = gerenteIds.slice(i, i + 200);
-        for (const [fuente, periodo] of pares) {
+
+      // SEMANAL: el periodo depende del calendario de cada país, así que
+      // agrupamos los gerentes por su periodo y borramos solo esa combinación.
+      // Aplicar la unión de periodos a todos borraría semanas ajenas que esta
+      // corrida no recrea.
+      const gerentesPorPeriodoSemanal = new Map<string, string[]>();
+      for (const [gid, per] of periodoSemanalByGerente.entries()) {
+        const arr = gerentesPorPeriodoSemanal.get(per) || [];
+        arr.push(gid);
+        gerentesPorPeriodoSemanal.set(per, arr);
+      }
+
+      const limpiar = async (ids: string[], fuente: string, periodo: string) => {
+        for (let i = 0; i < ids.length; i += 200) {
+          const chunkIds = ids.slice(i, i + 200);
           // Restar del saldo gerentes.sp_canje lo que se va a borrar,
           // para que el delta neto posterior quede consistente.
           const { data: previas, error: selErr } = await supabase
@@ -686,6 +697,7 @@ async function ejecutar(body: any): Promise<any> {
             console.error(`[evaluar-retos-vn] limpieza ${fuente} ${periodo}:`, delErr.message);
             continue;
           }
+
           const restaByGid = new Map<string, number>();
           for (const r of previas) {
             const s = Number(r.sp) || 0;
@@ -696,8 +708,16 @@ async function ejecutar(body: any): Promise<any> {
             spDeltaNeto += tot;
           }
         }
+      };
+
+      for (const [fuente, periodo] of paresGlobales) {
+        await limpiar(gerenteIds, fuente, periodo);
+      }
+      for (const [periodo, ids] of gerentesPorPeriodoSemanal.entries()) {
+        await limpiar(ids, "RETO_SEMANAL", periodo);
       }
     }
+
 
     if (spInserts.length > 0) {
       // La tabla sp_acumulados tiene una sola fila permitida por
