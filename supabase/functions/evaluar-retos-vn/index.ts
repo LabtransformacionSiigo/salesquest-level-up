@@ -370,6 +370,8 @@ async function ejecutar(body: any): Promise<any> {
       const gWeekStart = wkCal?.start ?? weekStart;
       const gWeekEnd = wkCal?.end ?? weekEnd;
       const gSemNum = wkCal?.num ?? semNumMes;
+      periodoSemanalByGerente.set(g.id, `${monthKey}-S${gSemNum}`);
+
 
       const metaNubeMes = Number(meta?.meta_nube) || 0;
       const metaAcvMes = Number(meta?.meta_total_acv) || 0;
