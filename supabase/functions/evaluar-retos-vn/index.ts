@@ -344,6 +344,9 @@ async function ejecutar(body: any): Promise<any> {
     const spInserts: any[] = [];
     const resultados: any[] = [];
     const spByRetoPair = new Map<string, number>();
+    // Periodo semanal efectivo por gerente (puede variar por calendario de país).
+    const periodoSemanalByGerente = new Map<string, string>();
+
 
     // SP semanal según semana del mes (por país, usando calendario comercial)
     const spSemanalForN = (reto: any, n: number) => {
