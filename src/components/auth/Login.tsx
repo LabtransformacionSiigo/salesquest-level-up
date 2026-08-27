@@ -215,6 +215,36 @@ const Login = () => {
                 </Button>
               </motion.div>
             </form>
+
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-semibold text-muted-foreground">o</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={isMsLoading}
+                onClick={handleMicrosoftLogin}
+                className="w-full h-12 text-base gap-3"
+              >
+                <svg viewBox="0 0 23 23" aria-hidden="true" className="w-5 h-5">
+                  <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+                  <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+                  <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+                  <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+                </svg>
+                {isMsLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+              </Button>
+            </motion.div>
+
           </motion.div>
         </div>
       </motion.div>
