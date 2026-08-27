@@ -35,6 +35,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMsLoading, setIsMsLoading] = useState(false);
   const { isAuthenticated, signIn, profile } = useSupabaseAuthContext();
   const navigate = useNavigate();
 
