@@ -89,6 +89,27 @@ const Login = () => {
     setIsLoading(false);
   };
 
+  const handleMicrosoftLogin = async () => {
+    setError('');
+    setIsMsLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth('microsoft', {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        setError('No pudimos iniciar sesión con Microsoft. Intenta de nuevo.');
+        setIsMsLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      // Sesión establecida: el useEffect redirige cuando carga el perfil
+    } catch {
+      setError('No pudimos iniciar sesión con Microsoft. Intenta de nuevo.');
+      setIsMsLoading(false);
+    }
+  };
+
+
   if (isAuthenticated && profile?.role) {
     navigate(routeAfterLogin(profile.role), { replace: true });
     return null;
