@@ -31,13 +31,11 @@ const slideRight: Variants = {
 };
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isMsLoading, setIsMsLoading] = useState(false);
-  const { isAuthenticated, signIn, profile } = useSupabaseAuthContext();
+  const { isAuthenticated, profile } = useSupabaseAuthContext();
   const navigate = useNavigate();
+
 
   // Preserve a same-origin `next` redirect (e.g. the OAuth consent URL) so we
   // return the user to where they were before login. Validate it strictly.
