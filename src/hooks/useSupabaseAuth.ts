@@ -264,6 +264,7 @@ export const useSupabaseAuth = () => {
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        directoryRef.current = readDirectoryIdentity(session?.user);
         if (session?.user) {
           setTimeout(() => fetchUserProfile(session.user.id, session.user.email ?? null), 0);
         } else {
@@ -276,12 +277,14 @@ export const useSupabaseAuth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      directoryRef.current = readDirectoryIdentity(session?.user);
       if (session?.user) {
         fetchUserProfile(session.user.id, session.user.email ?? null);
       } else {
         setLoading(false);
       }
     });
+
 
     return () => subscription.unsubscribe();
   }, []);
