@@ -78,15 +78,8 @@ const Login = () => {
     return () => { document.head.removeChild(link); };
   }, []);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) setError(error.message);
-    // navegación la maneja el useEffect cuando profile carga
-    setIsLoading(false);
-  };
+
+
 
   const handleMicrosoftLogin = async () => {
     setError('');
