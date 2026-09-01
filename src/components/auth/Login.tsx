@@ -4,7 +4,6 @@ import { useSupabaseAuthContext } from '@/context/SupabaseAuthContext';
 import { lovable } from '@/integrations/lovable/index';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import siigoLogoBlue from '@/assets/siigo-logo-blue.png';
@@ -31,13 +30,11 @@ const slideRight: Variants = {
 };
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isMsLoading, setIsMsLoading] = useState(false);
-  const { isAuthenticated, signIn, profile } = useSupabaseAuthContext();
+  const { isAuthenticated, profile } = useSupabaseAuthContext();
   const navigate = useNavigate();
+
 
   // Preserve a same-origin `next` redirect (e.g. the OAuth consent URL) so we
   // return the user to where they were before login. Validate it strictly.
@@ -80,15 +77,8 @@ const Login = () => {
     return () => { document.head.removeChild(link); };
   }, []);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) setError(error.message);
-    // navegación la maneja el useEffect cuando profile carga
-    setIsLoading(false);
-  };
+
+
 
   const handleMicrosoftLogin = async () => {
     setError('');
@@ -188,7 +178,7 @@ const Login = () => {
           >
             <div>
               <h2 className="text-2xl font-black font-heading text-secondary mb-1">Iniciar Sesión</h2>
-              <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa</p>
+              <p className="text-sm text-muted-foreground">Accede con tu cuenta corporativa Microsoft</p>
             </div>
             {error && (
               <motion.div
@@ -200,36 +190,15 @@ const Login = () => {
                 <AlertCircle className="w-4 h-4 flex-shrink-0" /><span>{error}</span>
               </motion.div>
             )}
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <motion.div className="space-y-1.5" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
-                <label className="text-xs font-bold text-secondary">Correo electrónico</label>
-                <Input type="email" placeholder="nombre@siigo.com" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
-              </motion.div>
-              <motion.div className="space-y-1.5" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
-                <label className="text-xs font-bold text-secondary">Contraseña</label>
-                <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-muted border-border" />
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
-                <Button type="submit" disabled={isLoading} className="w-full h-12 text-base" size="lg">
-                  {isLoading ? 'Ingresando...' : 'Ingresar'}
-                </Button>
-              </motion.div>
-            </form>
 
             <motion.div
               className="space-y-4"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.5 }}
             >
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs font-semibold text-muted-foreground">o</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
               <Button
                 type="button"
-                variant="outline"
                 size="lg"
                 disabled={isMsLoading}
                 onClick={handleMicrosoftLogin}
@@ -243,9 +212,13 @@ const Login = () => {
                 </svg>
                 {isMsLoading ? 'Conectando...' : 'Continuar con Microsoft'}
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                El acceso se gestiona con tu identidad corporativa (Entra ID).
+              </p>
             </motion.div>
 
           </motion.div>
+
         </div>
       </motion.div>
     </div>

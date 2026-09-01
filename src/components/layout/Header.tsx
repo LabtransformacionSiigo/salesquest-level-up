@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import NotificationBell from './NotificationBell';
-import ChangePasswordDialog from './ChangePasswordDialog';
 import { useSpConvencionAnual } from '@/lib/sp-convencion-store';
 import { useSpConvencionAnualSelf } from '@/hooks/useSpConvencionAnualSelf';
 
@@ -123,7 +122,6 @@ const Header = ({ title }: HeaderProps) => {
         )}
 
         <NotificationBell />
-        <ChangePasswordDialog />
       </motion.div>
     </header>
   );
