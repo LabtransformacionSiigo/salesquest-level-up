@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildVnConventionMonthlyRows, sumVnConventionMonthlyRows } from '@/lib/vn-convention';
@@ -221,17 +221,50 @@ const getVnFeNubeConventionTotal = (
   return totalSp;
 };
 
+// Identidad tomada del directorio activo (claims del token de Microsoft Entra ID).
+// Estos valores mandan sobre lo almacenado en la base de datos.
+type DirectoryIdentity = { nombre?: string | null; email?: string | null; avatar_url?: string | null };
+
+const readDirectoryIdentity = (u: User | null | undefined): DirectoryIdentity => {
+  const m = (u?.user_metadata ?? {}) as Record<string, any>;
+  const nombre = m.name || m.full_name || m.display_name || m.preferred_username || null;
+  const email = u?.email || m.email || null;
+  const avatar_url = m.avatar_url || m.picture || null;
+  return { nombre, email, avatar_url };
+};
+
 export const useSupabaseAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<AuthUser | null>(null);
+  const [profile, setProfileRaw] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const directoryRef = useRef<DirectoryIdentity>({});
+
+  const setProfile: typeof setProfileRaw = (value) => {
+    const overlay = (p: AuthUser | null): AuthUser | null => {
+      if (!p) return p;
+      const d = directoryRef.current;
+      return {
+        ...p,
+        nombre: d.nombre || p.nombre,
+        email: d.email || p.email,
+        avatar_url: d.avatar_url ?? p.avatar_url,
+      };
+    };
+    if (typeof value === 'function') {
+      setProfileRaw(prev => overlay((value as (p: AuthUser | null) => AuthUser | null)(prev)));
+    } else {
+      setProfileRaw(overlay(value));
+    }
+  };
+
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        directoryRef.current = readDirectoryIdentity(session?.user);
         if (session?.user) {
           setTimeout(() => fetchUserProfile(session.user.id, session.user.email ?? null), 0);
         } else {
@@ -244,12 +277,14 @@ export const useSupabaseAuth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      directoryRef.current = readDirectoryIdentity(session?.user);
       if (session?.user) {
         fetchUserProfile(session.user.id, session.user.email ?? null);
       } else {
         setLoading(false);
       }
     });
+
 
     return () => subscription.unsubscribe();
   }, []);
