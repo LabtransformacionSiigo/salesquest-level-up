@@ -3,7 +3,7 @@
 ## Login solo con Entra ID
 - [x] Quitar formulario email/contraseña del login
 - [x] Quitar diálogo de cambio de contraseña
-- [x] Deshabilitar proveedor email y signups en el backend
+- [x] Deshabilitar proveedor email; permitir el alta automática interna que Microsoft necesita en el primer acceso
 - [x] Proveedor Microsoft configurado por el usuario en Cloud Settings (BYOC Entra ID)
 
 ## Perfil desde el directorio activo (Microsoft Graph)
