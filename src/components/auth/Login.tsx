@@ -32,7 +32,7 @@ const slideRight: Variants = {
 const Login = () => {
   const [error, setError] = useState('');
   const [isMsLoading, setIsMsLoading] = useState(false);
-  const { isAuthenticated, profile } = useSupabaseAuthContext();
+  const { isAuthenticated, profile, accesoDenegado, signOut } = useSupabaseAuthContext();
   const navigate = useNavigate();
 
 
@@ -191,27 +191,45 @@ const Login = () => {
               </motion.div>
             )}
 
+            {accesoDenegado && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                <p className="text-sm font-semibold text-amber-900">Tu cuenta no está habilitada</p>
+                <p className="text-xs text-amber-800">
+                  Iniciaste sesión correctamente con tu cuenta corporativa, pero tu usuario no está
+                  registrado en la plataforma de gamificación. Si crees que es un error, escríbele al
+                  administrador para que te habilite.
+                </p>
+                <Button variant="outline" size="sm" onClick={signOut} className="mt-1">
+                  Cerrar sesión e intentar con otra cuenta
+                </Button>
+              </div>
+            )}
+
             <motion.div
               className="space-y-4"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              <Button
-                type="button"
-                size="lg"
-                disabled={isMsLoading}
-                onClick={handleMicrosoftLogin}
-                className="w-full h-12 text-base gap-3"
-              >
-                <svg viewBox="0 0 23 23" aria-hidden="true" className="w-5 h-5">
-                  <rect x="1" y="1" width="10" height="10" fill="#F25022" />
-                  <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
-                  <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
-                  <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
-                </svg>
-                {isMsLoading ? 'Conectando...' : 'Continuar con Microsoft'}
-              </Button>
+              {!accesoDenegado && (
+                <>
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={isMsLoading}
+                    onClick={handleMicrosoftLogin}
+                    className="w-full h-12 text-base gap-3"
+                  >
+                    <svg viewBox="0 0 23 23" aria-hidden="true" className="w-5 h-5">
+                      <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+                      <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+                      <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+                      <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+                    </svg>
+                    {isMsLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+                  </Button>
+                </>
+              )}
               <p className="text-xs text-muted-foreground text-center">
                 El acceso se gestiona con tu identidad corporativa (Entra ID).
               </p>
