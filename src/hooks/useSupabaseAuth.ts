@@ -238,6 +238,7 @@ export const useSupabaseAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfileRaw] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accesoDenegado, setAccesoDenegado] = useState(false);
   const directoryRef = useRef<DirectoryIdentity>({});
 
   const setProfile: typeof setProfileRaw = (value) => {
@@ -290,6 +291,7 @@ export const useSupabaseAuth = () => {
   }, []);
 
   const fetchUserProfile = async (userId: string, authEmail?: string | null) => {
+    setAccesoDenegado(false);
     try {
       const currentConventionYear = getCurrentConventionYear();
       const currentConventionPeriod = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -490,6 +492,7 @@ export const useSupabaseAuth = () => {
           });
         } else {
           setProfile(null);
+          setAccesoDenegado(true);
         }
       } else {
         const emailNorm = String(authEmail || '').trim().toLowerCase();
@@ -773,6 +776,7 @@ export const useSupabaseAuth = () => {
           });
         } else {
           setProfile(null);
+          setAccesoDenegado(true);
         }
       }
     } catch (error) {
@@ -825,6 +829,7 @@ export const useSupabaseAuth = () => {
         .forEach((k) => localStorage.removeItem(k));
     } catch {}
     setProfile(null);
+    setAccesoDenegado(false);
     setUser(null);
     setSession(null);
     return { error };
@@ -849,6 +854,7 @@ export const useSupabaseAuth = () => {
     session,
     profile,
     loading,
+    accesoDenegado,
     isAuthenticated: !!session && !!profile,
     signIn,
     signUp,

@@ -7,6 +7,7 @@ interface SupabaseAuthContextType {
   session: Session | null;
   profile: AuthUser | null;
   loading: boolean;
+  accesoDenegado: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ data?: any; error: any }>;
   signUp: (email: string, password: string, metadata?: { name?: string }) => Promise<{ data?: any; error: any }>;
@@ -35,6 +36,7 @@ const FALLBACK_AUTH: SupabaseAuthContextType = {
   session: null,
   profile: null,
   loading: true,
+  accesoDenegado: false,
   isAuthenticated: false,
   signIn: async () => ({ error: new Error('Auth provider no disponible') }),
   signUp: async () => ({ error: new Error('Auth provider no disponible') }),
