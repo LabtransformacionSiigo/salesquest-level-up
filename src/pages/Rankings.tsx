@@ -201,24 +201,36 @@ const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) =
   return rows;
 };
 
-const Rankings = () => {
+type RankingsProps = {
+  canalOverride?: 'VC' | 'VN_ALIADOS' | 'VN_EMPRESARIOS';
+  paisOverride?: string;
+  tabOverride?: PanelGeneralTab;
+  embedded?: boolean;
+};
+
+const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }: RankingsProps = {}) => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
+  const canal = canalOverride ?? profile?.canal ?? null;
   const [ranking, setRankingState] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [tab, setTab] = useState<PanelGeneralTab>('comerciales');
-  const tabRef = useRef<PanelGeneralTab>('comerciales');
+  const [tab, setTab] = useState<PanelGeneralTab>(tabOverride ?? 'comerciales');
+  const tabRef = useRef<PanelGeneralTab>(tabOverride ?? 'comerciales');
   useEffect(() => { tabRef.current = tab; }, [tab]);
+  useEffect(() => { if (tabOverride) setTab(tabOverride); }, [tabOverride]);
   const isVC = canal === 'VC';
   const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
-  const isDirector = profile?.role === 'director';
+  const isDirector = !canalOverride && profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
   useEffect(() => { if (isDirector && tab !== 'gerentes') setTab('gerentes'); }, [isDirector]);
   const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
   useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
-  const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
+  const userPais = paisOverride
+    ? normalizePaisCode(paisOverride)
+    : normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
+
 
   const fetchRanking = async (requestedTab: PanelGeneralTab = tabRef.current) => {
     // Guarded setter: ignora resultados obsoletos cuando el usuario ya cambió de tab.
