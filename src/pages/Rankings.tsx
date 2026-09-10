@@ -1121,11 +1121,12 @@ const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }
       if (refetchTimer) clearTimeout(refetchTimer);
       clearInterval(refreshInterval);
     };
-  }, [isAuthenticated, canal, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
+  }, [isAuthenticated, canal, paisOverride, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated && !embedded) return <Navigate to="/login" replace />;
+
 
   const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
