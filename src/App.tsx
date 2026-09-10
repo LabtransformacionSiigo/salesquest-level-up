@@ -37,7 +37,9 @@ import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
 import AdminEspecialistasAccesos from '@/pages/admin/AdminEspecialistasAccesos';
 import AdminSpCanjeMensual from '@/pages/admin/AdminSpCanjeMensual';
+import AdminRankings from '@/pages/admin/AdminRankings';
 import AdminRoute from '@/components/auth/AdminRoute';
+
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 import DirectorRoute from '@/components/auth/DirectorRoute';
 
@@ -61,7 +63,9 @@ function App() {
             <Route path="/mis-logros" element={<Navigate to="/retos" replace />} />
             <Route path="/panel-director" element={<DirectorRoute><PanelDirector /></DirectorRoute>} />
             {/* Admin - Solo administradores */}
+            <Route path="/admin/rankings" element={<AdminRoute><AdminRankings /></AdminRoute>} />
             <Route path="/admin/gerentes" element={<AdminRoute><AdminGerentes /></AdminRoute>} />
+
             <Route path="/admin/asesores" element={<AdminRoute><AdminAsesores /></AdminRoute>} />
             <Route path="/admin/medallas" element={<AdminRoute><AdminMedallas /></AdminRoute>} />
             <Route path="/admin/rachas" element={<AdminRoute><AdminRachas /></AdminRoute>} />

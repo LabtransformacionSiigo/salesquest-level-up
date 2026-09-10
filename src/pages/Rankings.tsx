@@ -201,24 +201,36 @@ const fetchVcSumVentasForGerentes = async (year: number, gerenteIds: string[]) =
   return rows;
 };
 
-const Rankings = () => {
+type RankingsProps = {
+  canalOverride?: 'VC' | 'VN_ALIADOS' | 'VN_EMPRESARIOS';
+  paisOverride?: string;
+  tabOverride?: PanelGeneralTab;
+  embedded?: boolean;
+};
+
+const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }: RankingsProps = {}) => {
   const { profile, isAuthenticated, loading } = useSupabaseAuthContext();
+  const canal = canalOverride ?? profile?.canal ?? null;
   const [ranking, setRankingState] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [tab, setTab] = useState<PanelGeneralTab>('comerciales');
-  const tabRef = useRef<PanelGeneralTab>('comerciales');
+  const [tab, setTab] = useState<PanelGeneralTab>(tabOverride ?? 'comerciales');
+  const tabRef = useRef<PanelGeneralTab>(tabOverride ?? 'comerciales');
   useEffect(() => { tabRef.current = tab; }, [tab]);
-  const isVC = profile?.canal === 'VC';
-  const isVN = profile?.canal === 'VN_ALIADOS' || profile?.canal === 'VN_EMPRESARIOS';
-  const isDirector = profile?.role === 'director';
+  useEffect(() => { if (tabOverride) setTab(tabOverride); }, [tabOverride]);
+  const isVC = canal === 'VC';
+  const isVN = canal === 'VN_ALIADOS' || canal === 'VN_EMPRESARIOS';
+  const isDirector = !canalOverride && profile?.role === 'director';
   const directorPaises = (profile?.director_paises || []).filter(Boolean);
   useEffect(() => { if (isDirector && tab !== 'gerentes') setTab('gerentes'); }, [isDirector]);
   const [selectedPais, setSelectedPais] = useState<string>(normalizePaisCode(profile?.pais));
   useEffect(() => { setSelectedPais(normalizePaisCode(profile?.pais)); }, [profile?.pais]);
-  const userPais = normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
+  const userPais = paisOverride
+    ? normalizePaisCode(paisOverride)
+    : normalizePaisCode(isDirector && directorPaises.length > 0 ? selectedPais : (profile?.pais || 'COL'));
   const spAnualStore = useSpConvencionAnual();
   const spAnualSelf = useSpConvencionAnualSelf(profile);
   const currentUserAnnualSp = spAnualStore ?? spAnualSelf;
+
 
   const fetchRanking = async (requestedTab: PanelGeneralTab = tabRef.current) => {
     // Guarded setter: ignora resultados obsoletos cuando el usuario ya cambió de tab.
@@ -226,7 +238,7 @@ const Rankings = () => {
       if (tabRef.current !== requestedTab) return;
       setRankingState(val);
     };
-    if (!profile?.canal) {
+    if (!canal) {
       setDataLoading(false);
       return;
     }
@@ -371,16 +383,16 @@ const Rankings = () => {
       }
     } else if (isVN) {
       // VN channels
-      const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
+      const areaFilter = canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
       if (tab === 'comerciales') {
         // Build ranking directly from productividad_asesores
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, asesoresRes, metasAsesoresRes, ventasDiariasRes, vnMetricasAsesorRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, anio_mes, ventas, meta, cant_recomendados, ventas_mm_sql, sc_creados, pais, celula, acv_f').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).range(0, 5000),
-          supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', profile.canal).eq('pais', userPais),
-          fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
+          supabase.from('asesores').select('id, nombre, sp_canje, sp_convencion, pais').eq('canal', canal).eq('pais', userPais),
+          fetchAllMetasAsesores(currentConventionYear, userPais, canal),
           fetchAllVentasDiarias(currentConventionYear, userPais),
-          fetchAllVnMetricasAsesores(currentConventionYear, userPais, profile.canal),
+          fetchAllVnMetricasAsesores(currentConventionYear, userPais, canal),
         ]);
         // Los nombres de productividad_asesores vienen truncados a 30 chars desde
         // Databricks; metas_asesores y ventas_diarias los traen completos. Para
@@ -554,29 +566,29 @@ const Rankings = () => {
             pct_nube: pctNubeMes,
             ventas_count: agg.ventas,
             posicion: 0,
-            canal: profile.canal,
+            canal: canal,
             pais: userPais,
             sp_totales: spForRanking,
             sp_canje: 0,
-            nivel: getNivelData(spForRanking, profile.canal).nivel,
+            nivel: getNivelData(spForRanking, canal).nivel,
           });
         });
 
         setRanking(entries);
       } else {
         // Gerentes tab for VN: aggregate productividad_asesores by celula (team)
-        const areaFilter = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
-        const vnCanalDireccion = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
-        const metasGerentesCanal = profile.canal === 'VN_ALIADOS' ? 'Aliados' : 'SMBS';
+        const areaFilter = canal === 'VN_ALIADOS' ? 'Aliados' : 'Leads Mercadeo Digital';
+        const vnCanalDireccion = canal === 'VN_ALIADOS' ? 'Aliados' : 'Empresarios';
+        const metasGerentesCanal = canal === 'VN_ALIADOS' ? 'Aliados' : 'SMBS';
         const currentMonth = `${currentConventionYear}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const [productividadRes, gerentesRes, rolesRes, metasAsesoresRes, ejecAsesoresGerenteRes, vgmGerRes, metasAcvGerRes, vnMetricasMexGerRes, ventasDiariasGerRes, metasGerentesMexRes, spConvencionLeadersRes] = await Promise.all([
           supabase.from('productividad_asesores').select('asesor, celula, anio_mes, ventas, meta, cant_recomendados, acv_f, pais').eq('area', areaFilter).gte('anio_mes', `${currentConventionYear}01`).lte('anio_mes', `${currentConventionYear}12`).eq('pais', userPais).order('anio_mes', { ascending: true }).order('celula', { ascending: true }).order('asesor', { ascending: true }).range(0, 5000),
-          supabase.from('gerentes').select('id, nombre, email, celula, sp_canje, sp_convencion, user_id').eq('canal', profile.canal).eq('pais', userPais).eq('activo', true),
+          supabase.from('gerentes').select('id, nombre, email, celula, sp_canje, sp_convencion, user_id').eq('canal', canal).eq('pais', userPais).eq('activo', true),
           supabase.from('user_roles').select('user_id, role'),
-          fetchAllMetasAsesores(currentConventionYear, userPais, profile.canal),
+          fetchAllMetasAsesores(currentConventionYear, userPais, canal),
           supabase.from('ejecucion_asesores').select('periodo, documento_asesor, ventas_fe, ventas_nube, ventas_total, canal_direccion').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).limit(20000),
           supabase.from('ventas_gerente_mensual').select('periodo, familia, unidades, acv, celula, gerente, gerente_normalizado').gte('periodo', `${currentConventionYear}01`).lte('periodo', `${currentConventionYear}12`).eq('pais', userPais).limit(10000),
-          supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').eq('pais', userPais).eq('canal', profile.canal).limit(2000),
+          supabase.from('metas_acv_gerentes').select('celula, mes, meta_fe, meta_nube, meta_total_acv, meta_total_und, archivo').eq('pais', userPais).eq('canal', canal).limit(2000),
           (() => {
             let q = (supabase.from('vn_metricas_optimizadas' as any) as any)
               .select('mes_nro, tipo_producto1, familia, ventas, acv_total, celula, gerente_normalizado, gerente, pais, asesor')
@@ -663,7 +675,7 @@ const Rankings = () => {
         const { data: oficialesRows } = await supabase
           .from('gerentes_vn_oficiales' as any)
           .select('gerente_id')
-          .eq('canal', profile.canal)
+          .eq('canal', canal)
           .eq('pais', userPais);
         const oficialIds = new Set<string>(((oficialesRows || []) as any[]).map((r: any) => String(r.gerente_id)));
 
@@ -919,7 +931,7 @@ const Rankings = () => {
             id: celula,
             nombre: gerenteDisplayName,
             celula_nombre: agg.celulaNombre || celula,
-            canal: profile.canal,
+            canal: canal,
             pais: userPais,
             kpi_value: Math.round(currentAcvValue),
             acv_total_year: Math.round(totalAcvValue),
@@ -1012,7 +1024,7 @@ const Rankings = () => {
               id: celulaKey,
               nombre: gerenteDisplayName,
               celula_nombre: agg.celulaNombre,
-              canal: profile.canal,
+              canal: canal,
               pais: 'MEX',
               kpi_value: Math.round(agg.acvMes),
               acv_total_year: Math.round(agg.acv),
@@ -1052,9 +1064,9 @@ const Rankings = () => {
       }
     } else {
       const [rankRes, kpiRes, gerentesRes] = await Promise.all([
-        supabase.from('ranking_general').select('*').eq('canal', profile.canal).eq('pais', userPais),
-        supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', profile.canal),
-        supabase.from('gerentes').select('id, sp_canje').eq('canal', profile.canal).eq('pais', userPais),
+        supabase.from('ranking_general').select('*').eq('canal', canal).eq('pais', userPais),
+        supabase.from('kpis_mes_actual').select('gerente_id, acv_f, sc_creados').eq('canal', canal),
+        supabase.from('gerentes').select('id, sp_canje').eq('canal', canal).eq('pais', userPais),
       ]);
       const kpiMap = new Map<string, { acv: number; units: number }>();
       (kpiRes.data || []).forEach((k: any) => {
@@ -1080,7 +1092,7 @@ const Rankings = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !profile?.canal) return;
+    if (!isAuthenticated || !canal) return;
     const currentTab = tab;
     fetchRanking(currentTab);
     // Debounce para evitar ráfagas de refetch cuando Databricks inserta lotes grandes.
@@ -1091,7 +1103,7 @@ const Rankings = () => {
       refetchTimer = setTimeout(() => fetchRanking(tabRef.current), 1500);
     };
     const channel = supabase
-      .channel(`ranking-live-${profile?.canal}-${userPais}-${currentTab}`)
+      .channel(`ranking-live-${canal}-${userPais}-${currentTab}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_acumulados' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gerentes' }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'asesores' }, triggerRefetch)
@@ -1109,11 +1121,12 @@ const Rankings = () => {
       if (refetchTimer) clearTimeout(refetchTimer);
       clearInterval(refreshInterval);
     };
-  }, [isAuthenticated, profile?.canal, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
+  }, [isAuthenticated, canal, paisOverride, profile?.celula, tab, profile?.nombre, profile?.role, userPais, currentUserAnnualSp]);
 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated && !embedded) return <Navigate to="/login" replace />;
+
 
   const isComercialTab = (isVC || isVN) && tab === 'comerciales';
   const isGerentesVCTab = isVC && tab === 'gerentes';
@@ -1134,13 +1147,12 @@ const Rankings = () => {
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
-  return (
-    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[profile?.canal || ''] || profile?.canal}`}>
+  const content = (
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
           <div className="flex gap-2">
-            {(isVC || isVN) && (
+            {(isVC || isVN) && !tabOverride && (
               <>
                 {!isDirector && (
                   <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
@@ -1153,6 +1165,7 @@ const Rankings = () => {
               </>
             )}
           </div>
+
           <div className="flex items-center gap-3">
             {isDirector && directorPaises.length > 1 ? (
               <div className="flex items-center gap-1 p-1 rounded-full bg-muted border border-border">
@@ -1365,8 +1378,16 @@ const Rankings = () => {
           </>
         )}
       </motion.div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[canal || ''] || canal}`}>
+      {content}
     </Layout>
   );
+
 };
 
 export default Rankings;

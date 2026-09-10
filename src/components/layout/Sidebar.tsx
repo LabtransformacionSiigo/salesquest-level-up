@@ -26,7 +26,9 @@ const menuItems = [
 ];
 
 const adminItems = [
+  { path: '/admin/rankings', icon: 'leaderboard', label: 'Rankings globales' },
   { path: '/admin/gerentes', icon: 'manage_accounts', label: 'Gerentes' },
+
   { path: '/admin/asesores', icon: 'people', label: 'Asesores' },
   { path: '/especialista/gamificacion-vc', icon: 'shield_person', label: 'Panel especialista' },
   { path: '/seguimiento-retos-vc', icon: 'track_changes', label: 'Seguimiento retos VC' },
