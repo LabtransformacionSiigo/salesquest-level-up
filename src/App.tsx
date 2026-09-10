@@ -37,7 +37,9 @@ import AdminMetasAcv from '@/pages/admin/AdminMetasAcv';
 import AdminAdvisorSegments from '@/pages/admin/AdminAdvisorSegments';
 import AdminEspecialistasAccesos from '@/pages/admin/AdminEspecialistasAccesos';
 import AdminSpCanjeMensual from '@/pages/admin/AdminSpCanjeMensual';
+import AdminRankings from '@/pages/admin/AdminRankings';
 import AdminRoute from '@/components/auth/AdminRoute';
+
 import EspecialistaRoute from '@/components/auth/EspecialistaRoute';
 import DirectorRoute from '@/components/auth/DirectorRoute';
 
