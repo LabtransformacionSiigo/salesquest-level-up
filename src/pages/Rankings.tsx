@@ -1147,13 +1147,12 @@ const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
-  return (
-    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[canal || ''] || canal}`}>
+  const content = (
       <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
         {/* Tabs + Country indicator */}
         <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={fadeUpItem}>
           <div className="flex gap-2">
-            {(isVC || isVN) && (
+            {(isVC || isVN) && !tabOverride && (
               <>
                 {!isDirector && (
                   <button onClick={() => setTab('comerciales')} className={cn("px-5 py-2.5 rounded-full text-sm font-semibold transition-all border-2", tab === 'comerciales' ? "bg-primary text-white border-primary" : "bg-white border-border text-muted-foreground hover:border-primary/40")}>
@@ -1166,6 +1165,7 @@ const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }
               </>
             )}
           </div>
+
           <div className="flex items-center gap-3">
             {isDirector && directorPaises.length > 1 ? (
               <div className="flex items-center gap-1 p-1 rounded-full bg-muted border border-border">
