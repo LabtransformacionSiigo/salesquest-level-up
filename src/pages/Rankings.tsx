@@ -1378,8 +1378,16 @@ const Rankings = ({ canalOverride, paisOverride, tabOverride, embedded = false }
           </>
         )}
       </motion.div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout title={`🏆 Clasificación · ${CANALES_LABEL[canal || ''] || canal}`}>
+      {content}
     </Layout>
   );
+
 };
 
 export default Rankings;
