@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Salidas del pipeline de códigos de producto
+build/
+__pycache__/

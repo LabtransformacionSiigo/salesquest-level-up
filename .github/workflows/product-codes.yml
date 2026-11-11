@@ -1,0 +1,94 @@
+name: Códigos de producto (prorrateo)
+
+# CI/CD de los códigos de producto de la calculadora `prorrateo` (Databricks App).
+# - Pull request: pruebas + validación del catálogo + plan contra Databricks (sin escribir).
+# - Merge a main: aplica los códigos corregidos y redespliega la app.
+# El catálogo oficial es data/productos/Productos_LATAM.xlsx: para actualizar
+# códigos basta con reemplazar ese archivo en un PR.
+
+on:
+  pull_request:
+    paths:
+      - data/productos/**
+      - pipelines/**
+      - .github/workflows/product-codes.yml
+  push:
+    branches: [main]
+    paths:
+      - data/productos/**
+      - pipelines/**
+      - .github/workflows/product-codes.yml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Aplicar cambios y redesplegar (si no, solo plan)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-codes-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CATALOG: data/productos/Productos_LATAM.xlsx
+  PRORRATEO_APP_NAME: ${{ vars.PRORRATEO_APP_NAME || 'prorrateo' }}
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+jobs:
+  validate:
+    name: Validar y planear
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipelines/product_codes/requirements.txt
+      - run: pip install -r pipelines/product_codes/requirements.txt
+      - name: Pruebas
+        run: python -m unittest discover -s pipelines/product_codes -t . -p "test_*.py" -v
+      - name: Validar catálogo
+        run: python -m pipelines.product_codes.cli validate --catalog "$CATALOG"
+      - name: Plan contra Databricks
+        # Los PR desde forks no reciben secretos: en ese caso solo se valida.
+        if: env.DATABRICKS_HOST != ''
+        run: python -m pipelines.product_codes.cli plan --catalog "$CATALOG" --out build/product-codes
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-codes-plan
+          path: build/product-codes
+          if-no-files-found: ignore
+
+  deploy:
+    name: Aplicar y desplegar
+    needs: validate
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    # Configura revisores obligatorios en Settings → Environments → production.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipelines/product_codes/requirements.txt
+      - run: pip install -r pipelines/product_codes/requirements.txt
+      - name: Aplicar códigos y redesplegar prorrateo
+        run: python -m pipelines.product_codes.cli apply --catalog "$CATALOG" --out build/product-codes
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-codes-apply
+          path: build/product-codes
+          if-no-files-found: ignore
